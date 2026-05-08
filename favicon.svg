@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="拼豆工坊 logo">
+  <rect width="64" height="64" rx="14" fill="#F8FBF9"/>
+  <path d="M17 18c0-4.4 3.6-8 8-8h14c4.4 0 8 3.6 8 8v28c0 4.4-3.6 8-8 8H25c-4.4 0-8-3.6-8-8V18z" fill="#DDEBE7"/>
+  <circle cx="26" cy="22" r="9" fill="#57B8A7"/>
+  <circle cx="40" cy="22" r="9" fill="#E7645F"/>
+  <circle cx="26" cy="40" r="9" fill="#D99B3D"/>
+  <circle cx="40" cy="40" r="9" fill="#4D77B8"/>
+  <circle cx="26" cy="22" r="3.4" fill="#F8FBF9"/>
+  <circle cx="40" cy="22" r="3.4" fill="#F8FBF9"/>
+  <circle cx="26" cy="40" r="3.4" fill="#F8FBF9"/>
+  <circle cx="40" cy="40" r="3.4" fill="#F8FBF9"/>
+  <path d="M49 13l4 4-4 4-4-4 4-4z" fill="#FFF0A8" stroke="#D99B3D" stroke-width="1.5"/>
+</svg>
