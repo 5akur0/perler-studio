@@ -168,7 +168,7 @@
         ".KWWKWWWWWWKWWK.",
         ".KWWWWPWWPWWWWK.",
         ".KWWWWWWWWWWWWK.",
-        ".KWWWDWWWDWWWWK.",
+        ".KWWWDWWWWDWWWK.",
         "..KWWWWKKWWWWK..",
         "...KWWWWWWWWK...",
         "....KWWWWWWK....",
@@ -1545,8 +1545,20 @@
     }, 2400);
   }
 
-  function currentLayout() {
+  // Quantize the canvas bounding rect so 1–2 px wiggles (e.g. from right-panel
+   // content changing height between place↔inspect) don't recompute boardSize
+   // and make the board visibly resize between phases.
+  function quantizedCanvasRect() {
     const rect = sceneCanvas.getBoundingClientRect();
+    const q = 8;
+    return {
+      width: Math.floor(rect.width / q) * q,
+      height: Math.floor(rect.height / q) * q,
+    };
+  }
+
+  function currentLayout() {
+    const rect = quantizedCanvasRect();
     const w = rect.width;
     const h = rect.height;
     if (w < 740) {
@@ -1554,8 +1566,9 @@
       const refH = 126;
       const trayMinH = 154;
       const maxBoardByHeight = h - boardY - 22 - refH - 12 - trayMinH - 22;
-      const boardSize = Math.max(260, Math.min(w - 40, 460, maxBoardByHeight));
-      const boardX = (w - boardSize) / 2;
+      const rawBoard = Math.max(260, Math.min(w - 40, 460, maxBoardByHeight));
+      const boardSize = Math.floor(rawBoard / 8) * 8;
+      const boardX = Math.floor((w - boardSize) / 2);
       const refX = 24;
       const refY = boardY + boardSize + 22;
       const refW = w - 48;
@@ -1577,7 +1590,8 @@
         trayH: Math.max(trayMinH, h - trayY - 22),
       };
     }
-    const boardSize = Math.min(h - 78, w * 0.64, 590);
+    const rawBoard = Math.min(h - 78, w * 0.64, 590);
+    const boardSize = Math.floor(rawBoard / 8) * 8;
     const boardX = 34;
     const boardY = 42;
     const trayX = boardX + boardSize + 34;
@@ -5234,15 +5248,24 @@
       if (state.spill) {
         addHint("还有倒下的豆子没夹起。继续熨烫会把这颗豆糊在板面上。");
       }
+      const hintsOn = state.showHints;
       addControlRow([
-        [state.showHints ? "隐藏提示" : "显示提示", "", () => {
+        [hintsOn ? "提示" : "提示", `icon-toggle ${hintsOn ? "active" : ""}`, () => {
           state.showHints = !state.showHints;
           markDirty();
+        }, false, {
+          icon: hintsOn
+            ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
+            : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+          ariaLabel: hintsOn ? "隐藏提示" : "显示提示",
+          title: hintsOn ? "隐藏提示" : "显示提示",
         }],
-      ]);
-      addControlRow([
-        ["返回修正", "", () => setPhase("place")],
-      ]);
+        ["返回修正", "icon-toggle", () => setPhase("place"), false, {
+          icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
+          ariaLabel: "返回修正",
+          title: "返回修正",
+        }],
+      ], "control-row-icons");
       if (state.spill) {
         addControlRow([
           ["先去夹起", "", () => setPhase("place")],
@@ -5252,7 +5275,7 @@
         addButton("盖纸熨烫", "primary-button", () => startIroning(false), !state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72);
       }
       if (!state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72) {
-        addHint("准确度低于 72% 时先修正，再进入熨烫。");
+        addHint("误差较多，建议先修正再熨烫。");
       }
       finalizeControlsLayout(compactControls);
       return;
@@ -5329,11 +5352,20 @@
   function addControlRow(items, extraClass = "") {
     const row = document.createElement("div");
     row.className = `control-row ${extraClass}`.trim();
-    items.forEach(([label, className, handler, disabled]) => {
+    items.forEach((entry) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = label;
-      button.className = className || "";
+      const [label, className, handler, disabled, options] = entry;
+      const opts = options || {};
+      if (opts.icon) {
+        button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${opts.icon}</span><span class="btn-label">${label}</span>`;
+        button.classList.add("icon-text-button");
+      } else {
+        button.textContent = label;
+      }
+      if (opts.title) button.title = opts.title;
+      if (opts.ariaLabel) button.setAttribute("aria-label", opts.ariaLabel);
+      button.className = `${button.className} ${className || ""}`.trim();
       button.disabled = Boolean(disabled);
       button.addEventListener("click", handler);
       row.appendChild(button);
@@ -5689,27 +5721,14 @@
         const placed = state.placed[index];
         const target = targetAt(bx, by);
         if (placed) {
-          const beadR = cell * 0.35;
-          const cx = px + cell / 2;
-          const cy = py + cell / 2;
+          const inset = Math.max(2, cell * 0.16);
           ctx.fillStyle = palette[placed] || "#bbb";
-          ctx.beginPath();
-          ctx.arc(cx, cy, beadR, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "rgba(255,255,255,0.2)";
-          ctx.beginPath();
-          ctx.arc(cx - beadR * 0.18, cy - beadR * 0.2, beadR * 0.36, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "rgba(68, 78, 90, 0.5)";
-          ctx.beginPath();
-          ctx.arc(cx, cy, beadR * 0.22, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.fillRect(px + inset, py + inset, cell - inset * 2, cell - inset * 2);
         } else if (target) {
+          const inset = Math.max(2, cell * 0.22);
           ctx.fillStyle = palette[target] || "#bbb";
-          ctx.globalAlpha = 0.26;
-          ctx.beginPath();
-          ctx.arc(px + cell / 2, py + cell / 2, cell * 0.33, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.globalAlpha = 0.32;
+          ctx.fillRect(px + inset, py + inset, cell - inset * 2, cell - inset * 2);
           ctx.globalAlpha = 1;
         }
 
@@ -5880,14 +5899,14 @@
     const placed = placementAccuracy() * 100;
     const heat = heatStats();
     const meters = [
-      ["豆筛整齐度", sorted, sorted < 45 ? "warn" : ""],
-      ["摆放准确度", placed, placed < 75 ? "warn" : ""],
-      ["熨烫粘连", heat.bondedPercent, heat.bondedPercent < 58 ? "warn" : ""],
-      ["过熔风险", heat.overPercent, heat.overPercent > 18 ? "hot" : ""],
-      ["冷却定型", state.cooling, state.cooling < 78 ? "warn" : ""],
-      ["平整度", clamp(100 - state.warp, 0, 100), state.warp > 34 ? "warn" : ""],
+      ["豆筛整齐度", sorted, sorted < 45 ? "warn" : "", "normal"],
+      ["摆放准确度", placed, placed < 75 ? "warn" : "", "normal"],
+      ["熨烫粘连", heat.bondedPercent, heat.bondedPercent < 58 ? "warn" : "", "normal"],
+      ["过熔风险", heat.overPercent, heat.overPercent > 18 ? "hot" : "", "inverse"],
+      ["冷却定型", state.cooling, state.cooling < 78 ? "warn" : "", "normal"],
+      ["平整度", clamp(100 - state.warp, 0, 100), state.warp > 34 ? "warn" : "", "normal"],
     ];
-    meters.forEach(([label, value, kind]) => addMeter(label, value, kind));
+    meters.forEach(([label, value, kind, scale]) => addMeter(label, value, kind, scale));
 
     const hasAlert = state.phase !== "choose"
       && state.phase !== "finish"
@@ -5907,13 +5926,32 @@
     els.colorMeta.textContent = `${beadIds[state.selectedColor]} ${selectedPlaced}/${selectedNeed}${trayText}${heldText}`;
   }
 
-  function addMeter(label, value, kind = "") {
+  function qualitativeLabel(value, kind, scale) {
+    const v = clamp(value, 0, 100);
+    // For "hot" metrics (lower is better), use inverted thresholds.
+    if (scale === "inverse") {
+      if (v < 6) return { word: "几乎没有", tone: "good" };
+      if (v < 14) return { word: "少量", tone: "good" };
+      if (v < 24) return { word: "略多", tone: "warn" };
+      return { word: "明显偏多", tone: "hot" };
+    }
+    // Default: higher is better.
+    if (v < 30) return { word: "很差", tone: "warn" };
+    if (v < 55) return { word: "一般", tone: "warn" };
+    if (v < 78) return { word: "良好", tone: "" };
+    if (v < 92) return { word: "出色", tone: "good" };
+    return { word: "完美", tone: "good" };
+  }
+
+  function addMeter(label, value, kind = "", scale = "normal") {
     const meter = document.createElement("div");
     meter.className = "meter";
     const rounded = Math.round(clamp(value, 0, 100));
+    const q = qualitativeLabel(rounded, kind, scale);
+    const tone = kind || q.tone;
     meter.innerHTML = `
-      <div class="meter-head"><span>${label}</span><strong>${rounded}%</strong></div>
-      <div class="meter-track"><div class="meter-fill ${kind}" style="width:${rounded}%"></div></div>
+      <div class="meter-head"><span>${label}</span><strong class="meter-word ${tone}">${q.word}</strong></div>
+      <div class="meter-track"><div class="meter-fill ${tone}" style="width:${rounded}%"></div></div>
     `;
     els.meterPanel.appendChild(meter);
   }
