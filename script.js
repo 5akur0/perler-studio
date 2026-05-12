@@ -1834,7 +1834,6 @@
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
     }
-    drawLampSpotlight(layout);
     drawLampSwitch(layout);
     drawToolEntities(layout.w, layout.h);
 
@@ -2035,53 +2034,6 @@
     if (!(state.phase === "place" || state.phase === "inspect")) return false;
     const rect = lampSwitchRect();
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
-  }
-
-  // Lamp on: dim the whole scene, then cut a clean round hole at each target
-  // cell so the projected color shows through cleanly.
-  let _spotlightBuffer = null;
-  function drawLampSpotlight(layout) {
-    if (!state.lampOn) return;
-    if (!(state.phase === "place" || state.phase === "inspect")) return;
-    const ctx = scene;
-    const { boardX, boardY, cell, w, h } = layout;
-    const size = state.selectedPattern.size;
-    const dpr = sceneCanvas.width / w;
-    const bw = Math.max(1, Math.round(w * dpr));
-    const bh = Math.max(1, Math.round(h * dpr));
-    if (!_spotlightBuffer) _spotlightBuffer = document.createElement("canvas");
-    if (_spotlightBuffer.width !== bw || _spotlightBuffer.height !== bh) {
-      _spotlightBuffer.width = bw;
-      _spotlightBuffer.height = bh;
-    }
-    const bctx = _spotlightBuffer.getContext("2d");
-    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    bctx.clearRect(0, 0, w, h);
-
-    bctx.fillStyle = "rgba(20, 24, 32, 0.36)";
-    bctx.fillRect(0, 0, w, h);
-
-    // Clean round hole per target cell (no soft fringe), so dark colors like
-    // black don't get an awkward halo against the dim veil.
-    bctx.globalCompositeOperation = "destination-out";
-    const holeR = cell * 0.46;
-    bctx.fillStyle = "rgba(0,0,0,1)";
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        if (!targetAt(x, y)) continue;
-        const cx = boardX + x * cell + cell / 2;
-        const cy = boardY + y * cell + cell / 2;
-        bctx.beginPath();
-        bctx.arc(cx, cy, holeR, 0, Math.PI * 2);
-        bctx.fill();
-      }
-    }
-    bctx.globalCompositeOperation = "source-over";
-
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(_spotlightBuffer, 0, 0);
-    ctx.restore();
   }
 
   function drawLampSwitch(layout) {
@@ -2463,7 +2415,7 @@
     ctx.stroke();
 
     const guideVisible = state.lampOn && (state.phase === "place" || state.phase === "inspect");
-    const templateOpacity = guideVisible ? 0.45 : 0;
+    const templateOpacity = guideVisible ? (state.phase === "place" ? 0.1 : 0.08) : 0;
     if (guideVisible) {
       drawProjectedGuide(layout);
     }
@@ -2480,11 +2432,7 @@
         if (code && templateOpacity > 0) {
           ctx.globalAlpha = templateOpacity;
           ctx.fillStyle = palette[code];
-          // Smaller inset disc so the projection reads as a colored hint, not
-          // as a "bead already placed".
-          ctx.beginPath();
-          ctx.arc(px + cell / 2, py + cell / 2, cell * 0.36, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.fillRect(px + 1, py + 1, cell - 2, cell - 2);
           ctx.globalAlpha = 1;
         }
         if (index !== spillIndex) {
