@@ -4008,7 +4008,8 @@
     preview.fillStyle = "#fbfcfe";
     roundedPath(preview, x0 - 8, y0 - 8, cell * pattern.size + 16, cell * pattern.size + 16, 8);
     preview.fill();
-    const rows = getEffectiveTargetRows(pattern);
+    // Preview always shows the original (source) pattern colors — recolor only
+    // affects placement/iron, not this reference image.
     const hidden = getPatternHiddenSourceSet(pattern);
     for (let y = 0; y < pattern.size; y += 1) {
       for (let x = 0; x < pattern.size; x += 1) {
@@ -4020,9 +4021,7 @@
           preview.fillRect(px, py, cell - 1, cell - 1);
           continue;
         }
-        const code = rows[y]?.[x] || ".";
-        if (code === ".") continue;
-        preview.fillStyle = palette[code];
+        preview.fillStyle = palette[sourceCode] || "#bbb";
         preview.fillRect(px, py, cell - 1, cell - 1);
         if (hidden.has(sourceCode)) {
           preview.fillStyle = "rgba(245, 248, 252, 0.32)";
@@ -6441,20 +6440,52 @@
       els.collectionPanel.appendChild(empty);
       return;
     }
+    const toolbar = document.createElement("div");
+    toolbar.className = "collection-toolbar";
+    toolbar.innerHTML = `
+      <span class="collection-toolbar-count">共 ${collection.length} 件</span>
+      <button type="button" class="danger-button collection-clear-all">清空作品集</button>
+    `;
+    toolbar.querySelector(".collection-clear-all").addEventListener("click", () => {
+      if (!collection.length) return;
+      if (!window.confirm("确定清空所有作品？此操作不可撤销。")) return;
+      collection = [];
+      writeCollection();
+      renderCollection();
+      showToast("作品集已清空。");
+    });
+    els.collectionPanel.appendChild(toolbar);
+
+    const grid = document.createElement("div");
+    grid.className = "collection-grid";
+    els.collectionPanel.appendChild(grid);
+
     collection.forEach((item) => {
-      const tile = document.createElement("button");
-      tile.type = "button";
+      const tile = document.createElement("div");
       tile.className = "collection-tile";
       const thumbSize = 168;
       tile.innerHTML = `
-        <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
-        <div class="collection-tile-meta">
-          <strong>${item.name}</strong>
-          <span>${normalizeCraft(item.craft)} · 评级 ${item.grade} · ${item.date}</span>
-        </div>
+        <button type="button" class="collection-tile-body" aria-label="放大 ${item.name}">
+          <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
+          <div class="collection-tile-meta">
+            <strong>${item.name}</strong>
+            <span>${normalizeCraft(item.craft)} · 评级 ${item.grade} · ${item.date}</span>
+          </div>
+        </button>
+        <button type="button" class="collection-tile-delete" aria-label="删除这件作品" title="删除">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
       `;
-      tile.addEventListener("click", () => enlargeCollectionEntry(item));
-      els.collectionPanel.appendChild(tile);
+      tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
+      tile.querySelector(".collection-tile-delete").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!window.confirm(`删除 ${item.name}？`)) return;
+        collection = collection.filter((entry) => entry.id !== item.id);
+        writeCollection();
+        renderCollection();
+        showToast("已删除。");
+      });
+      grid.appendChild(tile);
       const canvas = tile.querySelector("canvas");
       drawCollectionThumb(canvas, item);
     });
@@ -6468,26 +6499,101 @@
     const w = rect.width;
     const h = rect.height;
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#f5f7fa";
+    // Soft paper-ish background.
+    ctx.fillStyle = "#f3f5f8";
     ctx.fillRect(0, 0, w, h);
 
     const size = item.size || state.selectedPattern.size || 16;
     const placed = item.placed || [];
     const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
-    const pad = 8;
+    const pad = 10;
     const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
     const gridSize = cell * size;
     const x0 = Math.floor((w - gridSize) / 2);
     const y0 = Math.floor((h - gridSize) / 2);
+
+    // Per-cell helpers — render as if just ironed: rounded-square bead shapes
+    // with neighbor-aware corners so it matches the in-game fused look.
+    const cellCode = (x, y) => {
+      if (x < 0 || y < 0 || x >= size || y >= size) return null;
+      if (placed.length) {
+        const c = placed[y * size + x];
+        return c && c !== "." ? c : null;
+      }
+      if (fallback) {
+        const c = (fallback.rows[y] || "")[x];
+        return c && c !== "." ? c : null;
+      }
+      return null;
+    };
+
     for (let y = 0; y < size; y += 1) {
       for (let x = 0; x < size; x += 1) {
-        const index = y * size + x;
-        let code;
-        if (placed.length) code = placed[index];
-        else if (fallback) code = (fallback.rows[y] || "")[x];
-        if (!code || code === ".") continue;
+        const code = cellCode(x, y);
+        if (!code) continue;
+        const px = x0 + x * cell;
+        const py = y0 + y * cell;
+        const cx = px + cell / 2;
+        const cy = py + cell / 2;
+        const edges = {
+          left: !cellCode(x - 1, y),
+          right: !cellCode(x + 1, y),
+          up: !cellCode(x, y - 1),
+          down: !cellCode(x, y + 1),
+        };
+        const halfConnected = cell * 0.5;
+        const halfExposed = cell * 0.6;
+        const halfL = edges.left ? halfExposed : halfConnected;
+        const halfR = edges.right ? halfExposed : halfConnected;
+        const halfU = edges.up ? halfExposed : halfConnected;
+        const halfD = edges.down ? halfExposed : halfConnected;
+        const cornerFor = (a, b, hA, hB) => {
+          const cap = Math.min(hA, hB);
+          if (a && b) return cap;
+          if (a || b) return cap * 0.55;
+          return cap * 0.08;
+        };
+        const rTL = cornerFor(edges.up, edges.left, halfU, halfL);
+        const rTR = cornerFor(edges.up, edges.right, halfU, halfR);
+        const rBR = cornerFor(edges.down, edges.right, halfD, halfR);
+        const rBL = cornerFor(edges.down, edges.left, halfD, halfL);
+        const left = cx - halfL;
+        const right = cx + halfR;
+        const top = cy - halfU;
+        const bottom = cy + halfD;
+
+        const path = () => {
+          ctx.beginPath();
+          ctx.moveTo(left + rTL, top);
+          ctx.lineTo(right - rTR, top);
+          ctx.arcTo(right, top, right, top + rTR, rTR);
+          ctx.lineTo(right, bottom - rBR);
+          ctx.arcTo(right, bottom, right - rBR, bottom, rBR);
+          ctx.lineTo(left + rBL, bottom);
+          ctx.arcTo(left, bottom, left, bottom - rBL, rBL);
+          ctx.lineTo(left, top + rTL);
+          ctx.arcTo(left, top, left + rTL, top, rTL);
+          ctx.closePath();
+        };
+
         ctx.fillStyle = palette[code] || "#bbb";
-        ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+        path();
+        ctx.fill();
+
+        // Subtle highlight on isolated edge sides
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.beginPath();
+        ctx.arc(cx - cell * 0.18, cy - cell * 0.18, cell * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Center hole hint for fully exposed (isolated) beads only
+        const exposedCount = (edges.left ? 1 : 0) + (edges.right ? 1 : 0) + (edges.up ? 1 : 0) + (edges.down ? 1 : 0);
+        if (exposedCount >= 3 && cell >= 8) {
+          ctx.fillStyle = "rgba(0,0,0,0.18)";
+          ctx.beginPath();
+          ctx.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
