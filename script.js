@@ -2037,26 +2037,46 @@
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
   }
 
-  // Lamp on: dim everywhere except the board so the colored projection guide
-  // on the board stands out as the only illuminated area.
+  // Lamp on: dim everywhere except the board. Built on an offscreen canvas so
+  // the radial "hole" only carves the dim layer, not the board content beneath.
+  let _spotlightBuffer = null;
   function drawLampSpotlight(layout) {
     if (!state.lampOn) return;
     if (!(state.phase === "place" || state.phase === "inspect")) return;
     const ctx = scene;
     const { boardX, boardY, boardSize, w, h } = layout;
-    ctx.save();
-    ctx.fillStyle = "rgba(8, 12, 22, 0.46)";
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = "destination-out";
+    // Match the offscreen buffer to the main canvas backing-store size, since
+    // setupHiDpiCanvas has applied a DPR transform on `ctx`.
+    const dpr = sceneCanvas.width / w;
+    const bw = Math.max(1, Math.round(w * dpr));
+    const bh = Math.max(1, Math.round(h * dpr));
+    if (!_spotlightBuffer) _spotlightBuffer = document.createElement("canvas");
+    if (_spotlightBuffer.width !== bw || _spotlightBuffer.height !== bh) {
+      _spotlightBuffer.width = bw;
+      _spotlightBuffer.height = bh;
+    }
+    const bctx = _spotlightBuffer.getContext("2d");
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bctx.clearRect(0, 0, w, h);
+    // Paint the dim veil into the buffer only.
+    bctx.fillStyle = "rgba(8, 12, 22, 0.55)";
+    bctx.fillRect(0, 0, w, h);
+    // Carve a soft hole over the board (this only affects the buffer's veil).
+    bctx.globalCompositeOperation = "destination-out";
     const cx = boardX + boardSize / 2;
     const cy = boardY + boardSize / 2;
     const inner = boardSize * 0.5;
-    const outer = boardSize * 0.78;
-    const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+    const outer = boardSize * 0.82;
+    const grad = bctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
     grad.addColorStop(0, "rgba(0,0,0,1)");
     grad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(boardX - boardSize * 0.35, boardY - boardSize * 0.35, boardSize * 1.7, boardSize * 1.7);
+    bctx.fillStyle = grad;
+    bctx.fillRect(boardX - boardSize * 0.4, boardY - boardSize * 0.4, boardSize * 1.8, boardSize * 1.8);
+    bctx.globalCompositeOperation = "source-over";
+    // Composite the finished dim-with-hole over the main scene.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(_spotlightBuffer, 0, 0);
     ctx.restore();
   }
 
