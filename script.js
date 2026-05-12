@@ -2037,10 +2037,8 @@
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
   }
 
-  // Lamp on: leave the existing projected-color guide on the board alone, and
-  // just gray-tint everything that isn't a target-bead cell. The result: each
-  // pattern cell still shows its hint color (as before), and all empty spots —
-  // including non-pattern cells and the surrounding workspace — turn dim.
+  // Lamp on: dim the whole scene, then cut a clean round hole at each target
+  // cell so the projected color shows through cleanly.
   let _spotlightBuffer = null;
   function drawLampSpotlight(layout) {
     if (!state.lampOn) return;
@@ -2060,26 +2058,22 @@
     bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     bctx.clearRect(0, 0, w, h);
 
-    // Dim veil on the offscreen buffer.
     bctx.fillStyle = "rgba(20, 24, 32, 0.36)";
     bctx.fillRect(0, 0, w, h);
 
-    // Cut the veil with a soft round mask at each target-bead cell, so each
-    // lit spot looks like a circular pool of light instead of a hard rectangle.
+    // Clean round hole per target cell (no soft fringe), so dark colors like
+    // black don't get an awkward halo against the dim veil.
     bctx.globalCompositeOperation = "destination-out";
-    const innerR = cell * 0.55;
-    const outerR = cell * 0.78;
+    const holeR = cell * 0.46;
+    bctx.fillStyle = "rgba(0,0,0,1)";
     for (let y = 0; y < size; y += 1) {
       for (let x = 0; x < size; x += 1) {
         if (!targetAt(x, y)) continue;
         const cx = boardX + x * cell + cell / 2;
         const cy = boardY + y * cell + cell / 2;
-        const grad = bctx.createRadialGradient(cx, cy, innerR * 0.55, cx, cy, outerR);
-        grad.addColorStop(0, "rgba(0,0,0,1)");
-        grad.addColorStop(0.7, "rgba(0,0,0,0.85)");
-        grad.addColorStop(1, "rgba(0,0,0,0)");
-        bctx.fillStyle = grad;
-        bctx.fillRect(cx - outerR, cy - outerR, outerR * 2, outerR * 2);
+        bctx.beginPath();
+        bctx.arc(cx, cy, holeR, 0, Math.PI * 2);
+        bctx.fill();
       }
     }
     bctx.globalCompositeOperation = "source-over";
@@ -2469,7 +2463,10 @@
     ctx.stroke();
 
     const guideVisible = state.lampOn && (state.phase === "place" || state.phase === "inspect");
-    const templateOpacity = guideVisible ? (state.phase === "place" ? 0.1 : 0.08) : 0;
+    // Solid fill when the lamp is on so the projected color reads cleanly
+    // through the dim veil (dark colors like black no longer blur into the
+    // background).
+    const templateOpacity = guideVisible ? 0.95 : 0;
     if (guideVisible) {
       drawProjectedGuide(layout);
     }
