@@ -2037,16 +2037,15 @@
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
   }
 
-  // Lamp on: dim everywhere except the board. Built on an offscreen canvas so
-  // the radial "hole" only carves the dim layer, not the board content beneath.
+  // Lamp on: dim the whole scene and only let the target-bead cells of the
+  // pattern glow through — those are the spots where a bead is supposed to go.
   let _spotlightBuffer = null;
   function drawLampSpotlight(layout) {
     if (!state.lampOn) return;
     if (!(state.phase === "place" || state.phase === "inspect")) return;
     const ctx = scene;
-    const { boardX, boardY, boardSize, w, h } = layout;
-    // Match the offscreen buffer to the main canvas backing-store size, since
-    // setupHiDpiCanvas has applied a DPR transform on `ctx`.
+    const { boardX, boardY, boardSize, cell, w, h } = layout;
+    const size = state.selectedPattern.size;
     const dpr = sceneCanvas.width / w;
     const bw = Math.max(1, Math.round(w * dpr));
     const bh = Math.max(1, Math.round(h * dpr));
@@ -2058,26 +2057,68 @@
     const bctx = _spotlightBuffer.getContext("2d");
     bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     bctx.clearRect(0, 0, w, h);
-    // Paint the dim veil into the buffer only.
-    bctx.fillStyle = "rgba(8, 12, 22, 0.55)";
+
+    // 1) Veil — dim the entire scene on the offscreen buffer.
+    bctx.fillStyle = "rgba(8, 12, 22, 0.6)";
     bctx.fillRect(0, 0, w, h);
-    // Carve a soft hole over the board (this only affects the buffer's veil).
+
+    // 2) Punch a soft hole at every target-bead cell so the underlying board
+    //    pixels show through unmuted. destination-out is scoped to the buffer.
     bctx.globalCompositeOperation = "destination-out";
-    const cx = boardX + boardSize / 2;
-    const cy = boardY + boardSize / 2;
-    const inner = boardSize * 0.5;
-    const outer = boardSize * 0.82;
-    const grad = bctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    bctx.fillStyle = grad;
-    bctx.fillRect(boardX - boardSize * 0.4, boardY - boardSize * 0.4, boardSize * 1.8, boardSize * 1.8);
+    const holeR = cell * 0.62;
+    const fadeR = cell * 0.95;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const code = targetAt(x, y);
+        if (!code) continue;
+        const cx = boardX + x * cell + cell / 2;
+        const cy = boardY + y * cell + cell / 2;
+        const grad = bctx.createRadialGradient(cx, cy, holeR * 0.35, cx, cy, fadeR);
+        grad.addColorStop(0, "rgba(0,0,0,1)");
+        grad.addColorStop(0.55, "rgba(0,0,0,0.75)");
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        bctx.fillStyle = grad;
+        bctx.fillRect(cx - fadeR, cy - fadeR, fadeR * 2, fadeR * 2);
+      }
+    }
     bctx.globalCompositeOperation = "source-over";
-    // Composite the finished dim-with-hole over the main scene.
+
+    // Composite veil over the main scene.
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(_spotlightBuffer, 0, 0);
     ctx.restore();
+
+    // 3) Glow pass — paint the target color on top with a screen blend so each
+    //    needed cell looks like it's projecting actual colored light.
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const code = targetAt(x, y);
+        if (!code) continue;
+        const cx = boardX + x * cell + cell / 2;
+        const cy = boardY + y * cell + cell / 2;
+        const grad = ctx.createRadialGradient(cx, cy, cell * 0.05, cx, cy, cell * 0.75);
+        grad.addColorStop(0, hexToRgba(palette[code] || "#ffffff", 0.85));
+        grad.addColorStop(0.45, hexToRgba(palette[code] || "#ffffff", 0.42));
+        grad.addColorStop(1, hexToRgba(palette[code] || "#ffffff", 0));
+        ctx.fillStyle = grad;
+        ctx.fillRect(cx - cell * 0.8, cy - cell * 0.8, cell * 1.6, cell * 1.6);
+      }
+    }
+    ctx.restore();
+  }
+
+  function hexToRgba(hex, alpha) {
+    const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex);
+    if (!m) return `rgba(255,255,255,${alpha})`;
+    let h = m[1];
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
   }
 
   function drawLampSwitch(layout) {
