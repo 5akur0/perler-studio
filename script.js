@@ -5159,6 +5159,8 @@
     state.collectionModalOpen = false;
     els.collectionModal.classList.remove("show");
     els.collectionModal.setAttribute("aria-hidden", "true");
+    const viewer = els.collectionModal.querySelector(".collection-enlarged");
+    if (viewer) viewer.classList.remove("show");
   }
 
   function openShareModal() {
@@ -7154,6 +7156,9 @@
   });
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    // If the enlarge viewer is open within the collection modal, close it first.
+    const enlarged = els.collectionModal?.querySelector(".collection-enlarged.show");
+    if (enlarged) { enlarged.classList.remove("show"); return; }
     if (state.remapModalOpen) closeRemapModal();
     if (state.controlsModalOpen) closeControlsModal();
     if (state.statusModalOpen) closeStatusModal();
