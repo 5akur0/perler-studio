@@ -1647,7 +1647,7 @@
     } else {
       drawBoard(layout);
       drawReferenceSheet(layout);
-      if (state.phase === "place" || state.phase === "inspect") drawTray(layout, state.phase === "place");
+      if (state.phase === "place" || state.phase === "inspect") drawTray(layout, true);
       if (state.phase === "inspect") updateInspectAssistCanvases();
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
@@ -6095,7 +6095,7 @@
       return;
     }
     if (state.trayProgress <= needleLoadSortThreshold) {
-      showToast(`豆筛整齐度要大于 ${needleLoadSortThreshold}% 才能给豆针上豆。`);
+      showToast("豆筛还不够整齐，多筛几下再上豆针。");
       return;
     }
     const cap = needleCapacity();
@@ -6166,7 +6166,7 @@
     const cell = trayCellFromPoint(pos.x, pos.y, true);
     if (state.tool === "needle") {
       if (state.trayProgress <= needleLoadSortThreshold) {
-        improveSort(7, `先抖到大于 ${needleLoadSortThreshold}% ，豆针才能上豆。`);
+        improveSort(7, "先把豆筛抖整齐，豆针才能上豆。");
         return;
       }
       loadNeedleFromTray(row);
@@ -6902,8 +6902,11 @@
     if (state.sandboxMode) return "沙盒";
     if (state.phase === "choose") return "未开始";
     if (state.phase === "finish") return `评级 ${finalGrade()}`;
-    const accuracy = Math.round(placementAccuracy() * 100);
-    return `${accuracy}%`;
+    const acc = placementAccuracy();
+    if (acc >= 0.92) return "出色";
+    if (acc >= 0.78) return "良好";
+    if (acc >= 0.55) return "一般";
+    return "需调整";
   }
 
   function finalGrade() {
