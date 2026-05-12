@@ -733,7 +733,7 @@ button:disabled {
 
 .choose-preview-main {
   display: grid;
-  grid-template-columns: minmax(360px, 1.4fr) minmax(240px, 1fr);
+  grid-template-columns: minmax(360px, 2fr) minmax(280px, 360px);
   gap: 16px;
   align-items: start;
 }
