@@ -6105,7 +6105,7 @@
     const canvas = viewer.querySelector("canvas");
     canvas.style.width = "min(640px, 78vh)";
     canvas.style.height = "min(640px, 78vh)";
-    drawCollectionThumb(canvas, entry);
+    requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
     viewer.querySelector(".collection-enlarged-meta").textContent =
       `${entry.name} · ${normalizeCraft(entry.craft)} · 评级 ${entry.grade} · ${entry.date}`;
     const openBtn = viewer.querySelector(".collection-enlarged-open");
