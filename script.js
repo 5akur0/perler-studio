@@ -1834,6 +1834,7 @@
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
     }
+    drawLampSpotlight(layout);
     drawLampSwitch(layout);
     drawToolEntities(layout.w, layout.h);
 
@@ -2034,6 +2035,29 @@
     if (!(state.phase === "place" || state.phase === "inspect")) return false;
     const rect = lampSwitchRect();
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
+  }
+
+  // Lamp on: dim everywhere except the board so the colored projection guide
+  // on the board stands out as the only illuminated area.
+  function drawLampSpotlight(layout) {
+    if (!state.lampOn) return;
+    if (!(state.phase === "place" || state.phase === "inspect")) return;
+    const ctx = scene;
+    const { boardX, boardY, boardSize, w, h } = layout;
+    ctx.save();
+    ctx.fillStyle = "rgba(8, 12, 22, 0.46)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = "destination-out";
+    const cx = boardX + boardSize / 2;
+    const cy = boardY + boardSize / 2;
+    const inner = boardSize * 0.5;
+    const outer = boardSize * 0.78;
+    const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+    grad.addColorStop(0, "rgba(0,0,0,1)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(boardX - boardSize * 0.35, boardY - boardSize * 0.35, boardSize * 1.7, boardSize * 1.7);
+    ctx.restore();
   }
 
   function drawLampSwitch(layout) {
