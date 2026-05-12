@@ -1337,8 +1337,6 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
-  max-height: 460px;
-  overflow: auto;
 }
 
 .remap-inline-head {
