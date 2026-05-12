@@ -10,20 +10,33 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true">
-            <span></span><span></span><span></span><span></span>
+        <div class="topbar-lead">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="brand-text">
+              <h1>拼豆工坊</h1>
+              <p id="statusLine">选择一张图纸，开始今天的手作。</p>
+            </div>
           </div>
-          <div>
-            <h1>拼豆工坊</h1>
-            <p id="statusLine">选择一张图纸，开始今天的手作。</p>
+          <div class="current-pattern" id="currentPatternChip" hidden aria-label="当前图纸">
+            <canvas class="current-pattern-thumb" width="44" height="44" aria-hidden="true"></canvas>
+            <div class="current-pattern-text">
+              <strong id="currentPatternName">樱桃</strong>
+              <span id="currentPatternMeta">24×24</span>
+            </div>
           </div>
         </div>
+
+        <nav class="workflow-progress" id="workflowProgress" aria-label="流程进度"></nav>
+
         <div class="top-stats">
-          <div class="stat-pill">
-            <span>作品集</span>
-            <strong id="collectionCount">0</strong>
-          </div>
+          <button class="icon-button" id="collectionButton" data-icon="collection" type="button" title="作品集">
+            <span class="icon-button-glyph" aria-hidden="true"></span>
+            <span class="icon-button-label">作品集</span>
+            <strong class="icon-button-count" id="collectionCount">0</strong>
+          </button>
           <label class="bg-picker">
             <span>背景</span>
             <select id="bgThemeSelect" aria-label="背景颜色">
@@ -34,28 +47,58 @@
               <option value="herb">草木</option>
             </select>
           </label>
-          <button class="ghost-button" id="sandboxButton" type="button" title="切换沙盒模式">沙盒关</button>
+          <label class="tool-style-picker">
+            <span>工具</span>
+            <select id="topToolStyleSelect" aria-label="工具款式"></select>
+          </label>
+          <button class="ghost-button sandbox-sticker" id="sandboxButton" type="button" title="Sandbox toggle" aria-label="Sandbox off">🔍</button>
+          <button class="primary-button" id="startNowButton" type="button" title="开始拼豆">开始拼豆</button>
           <button class="ghost-button" id="resetButton" type="button" title="重新开始当前作品">重置</button>
         </div>
       </header>
 
-      <main class="studio-grid">
+      <main class="studio-grid" id="studioGrid" data-phase="choose">
         <aside class="side-panel left-panel">
-          <section>
+          <section data-stage="choose">
             <div class="section-title">
               <span>像素图纸</span>
               <small id="patternMeta"></small>
             </div>
             <div class="pattern-list" id="patternList"></div>
+            <div class="custom-inline">
+              <label class="check-row">
+                <input id="customWhiteToggle" type="checkbox" checked />
+                <span>自定义图纸导入时去白底</span>
+              </label>
+            </div>
           </section>
 
-          <section>
-            <div class="section-title">
-              <span>自定义图纸</span>
-              <small id="customSizeMeta">24x24</small>
+          <section data-stage="working">
+            <div class="side-reference" id="sideReference" aria-label="参考图纸">
+              <div class="side-reference-head">
+                <span>参考图纸</span>
+                <small id="sideReferenceMeta"></small>
+              </div>
+              <canvas id="sideReferenceCanvas" width="300" height="300" aria-label="左栏图纸"></canvas>
+              <div id="sideReferenceLegend" class="side-reference-legend"></div>
             </div>
-            <div class="custom-panel">
-              <div class="size-controls">
+            <div class="section-title">
+              <span id="controlTitle">工具台</span>
+              <small id="toolMeta"></small>
+            </div>
+            <div id="stageControls" class="stage-controls"></div>
+            <div id="toolRack" class="tool-rack"></div>
+          </section>
+        </aside>
+
+        <section class="workbench">
+          <section class="choose-preview-panel" data-stage="choose" aria-label="图纸预览区">
+            <div class="section-title">
+              <span>图纸预览</span>
+              <small id="targetCount"></small>
+            </div>
+            <div class="choose-size-bar">
+              <div class="size-controls compact">
                 <select id="patternSizeSelect" aria-label="图纸尺寸">
                   <option value="16">16x16</option>
                   <option value="24" selected>24x24</option>
@@ -64,79 +107,32 @@
                   <option value="48">48x48</option>
                 </select>
                 <input id="patternSizeInput" type="number" min="12" max="48" value="24" aria-label="自定义尺寸" />
-                <button id="patternSizeButton" type="button">应用尺寸</button>
               </div>
-              <input id="customImageInput" type="file" accept="image/*" />
-              <button id="customImageButton" type="button">导入图片</button>
-              <label class="check-row">
-                <input id="customWhiteToggle" type="checkbox" checked />
-                <span>去白底</span>
-              </label>
-              <div id="customStats" class="custom-stats">导入图片后显示色号统计</div>
+            </div>
+            <input id="customImageInput" type="file" accept="image/*" />
+            <div class="choose-preview-main">
+              <div class="preview-canvas-frame">
+                <canvas id="previewCanvas" width="560" height="560" aria-label="当前图纸预览"></canvas>
+              </div>
+              <aside class="preview-side">
+                <div id="patternColorStats" class="pattern-color-stats"></div>
+                <div id="customStats" class="custom-stats is-empty"></div>
+              </aside>
+            </div>
+            <div class="choose-preview-actions">
+              <button class="primary-button choose-start-button" id="chooseStartButton" type="button">开始拼豆</button>
             </div>
           </section>
-
-          <section>
-            <div class="section-title">
-              <span>流程</span>
-              <small id="phaseMeta"></small>
-            </div>
-            <div class="phase-list" id="phaseList"></div>
-          </section>
-
-          <section>
-            <div class="section-title">
-              <span>图纸预览</span>
-              <small id="targetCount"></small>
-            </div>
-            <canvas id="previewCanvas" width="280" height="220" aria-label="当前图纸预览"></canvas>
-          </section>
-        </aside>
-
-        <section class="workbench">
           <canvas id="sceneCanvas" width="980" height="690" aria-label="拼豆工作台"></canvas>
         </section>
 
         <aside class="side-panel right-panel">
-          <section>
+          <section data-stage="working">
             <div class="section-title">
-              <span id="controlTitle">工具台</span>
-              <small id="toolMeta"></small>
-            </div>
-            <div id="stageControls" class="stage-controls"></div>
-            <div id="toolRack" class="tool-rack"></div>
-          </section>
-
-          <section>
-            <div class="section-title">
-              <span>豆盒</span>
+              <span id="rightPanelTitle">豆盒</span>
               <small id="colorMeta"></small>
             </div>
             <div id="colorPalette" class="color-palette"></div>
-          </section>
-
-          <section>
-            <div class="section-title">
-              <span>状态</span>
-              <small id="scoreMeta"></small>
-            </div>
-            <div id="meterPanel" class="meter-panel"></div>
-          </section>
-
-          <section>
-            <div class="section-title">
-              <span>小红书</span>
-              <small>水印图</small>
-            </div>
-            <div id="sharePanel" class="share-panel"></div>
-          </section>
-
-          <section>
-            <div class="section-title">
-              <span>作品集</span>
-              <small>本机保存</small>
-            </div>
-            <div id="collectionPanel" class="collection-panel"></div>
           </section>
         </aside>
       </main>
@@ -146,7 +142,7 @@
       <div class="remap-modal-card" role="dialog" aria-modal="true" aria-labelledby="remapModalTitle">
         <div class="remap-modal-head">
           <strong id="remapModalTitle">官方图纸换色</strong>
-          <button id="remapModalClose" type="button" aria-label="关闭换色窗口">X</button>
+          <button id="remapModalClose" type="button" aria-label="关闭换色窗口">×</button>
         </div>
         <div id="remapModalBody" class="remap-modal-body"></div>
         <div class="remap-modal-foot">
@@ -160,13 +156,50 @@
       <div class="remap-modal-card controls-modal-card" role="dialog" aria-modal="true" aria-labelledby="controlsModalTitle">
         <div class="remap-modal-head">
           <strong id="controlsModalTitle">操作面板</strong>
-          <button id="controlsModalClose" type="button" aria-label="关闭操作窗口">X</button>
+          <button id="controlsModalClose" type="button" aria-label="关闭操作窗口">×</button>
         </div>
         <div id="controlsModalBody" class="remap-modal-body"></div>
       </div>
     </div>
 
+    <div id="statusModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card status-modal-card" role="dialog" aria-modal="true" aria-labelledby="statusModalTitle">
+        <div class="remap-modal-head">
+          <strong id="statusModalTitle">状态总览</strong>
+          <button id="statusModalClose" type="button" aria-label="关闭状态窗口">×</button>
+        </div>
+        <div class="remap-modal-body">
+          <div id="meterPanel" class="meter-panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="collectionModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card collection-modal-card" role="dialog" aria-modal="true" aria-labelledby="collectionModalTitle">
+        <div class="remap-modal-head">
+          <strong id="collectionModalTitle">作品集</strong>
+          <button id="collectionModalClose" type="button" aria-label="关闭作品集窗口">×</button>
+        </div>
+        <div class="remap-modal-body">
+          <div id="collectionPanel" class="collection-panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="shareModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card share-modal-card" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+        <div class="remap-modal-head">
+          <strong id="shareModalTitle">小红书分享</strong>
+          <button id="shareModalClose" type="button" aria-label="关闭分享窗口">×</button>
+        </div>
+        <div class="remap-modal-body">
+          <div id="sharePanel" class="share-panel"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="achievementToast" class="achievement-toast" role="status" aria-live="polite"></div>
+    <div id="placeHint" class="place-hint" role="status" aria-live="polite"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script src="script.js"></script>
