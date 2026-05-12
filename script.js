@@ -378,6 +378,156 @@
       ],
       note: "适合做纪念款分享图",
     },
+    {
+      id: "panda",
+      name: "竹林熊猫",
+      size: 16,
+      craft: "钥匙扣",
+      rows: [
+        "................",
+        "....KKKK..KKKK..",
+        "...KKKKKKKKKKK..",
+        "..KKWWWWWWWWKK..",
+        ".KWWWWWWWWWWWWK.",
+        ".KWWKKWWWWKKWWK.",
+        ".KWKWKWWWWKWKWK.",
+        ".KWWKWWFFWWKWWK.",
+        ".KWWWWWWWWWWWWK.",
+        ".KWWWWKKKKWWWWK.",
+        ".KWWWWWWWWWWWWK.",
+        "..KWWWWWWWWWWK..",
+        "...KKWWWWWWKK...",
+        "....KKKKKKKK....",
+        "................",
+        "................",
+      ],
+      note: "黑白对比适合给新手练习",
+    },
+    {
+      id: "mushroom",
+      name: "蘑菇屋",
+      size: 16,
+      craft: "冰箱贴",
+      rows: [
+        "................",
+        ".....RRRRRR.....",
+        "...RRWWRRWWRRR..",
+        "..RWWRRWWRRWWRR.",
+        ".RRRWWRRWWRRWRR.",
+        ".RWWRRWWRRWWRRR.",
+        "..RRRRRRRRRRRR..",
+        "...mmmmmmmmmm...",
+        "...mmmKKKKmmm...",
+        "...mmmKWWKmmm...",
+        "...mmmKWWKmmm...",
+        "...mmmKKKKmmm...",
+        "...mmmmmmmmmm...",
+        "...mmmmmmmmmm...",
+        "................",
+        "................",
+      ],
+      note: "经典童话题材，气氛上镜",
+    },
+    {
+      id: "strawberry",
+      name: "甜心草莓",
+      size: 16,
+      craft: "钥匙扣",
+      rows: [
+        "................",
+        ".......GG.......",
+        "......GGGG......",
+        ".....GGGGGG.....",
+        "....RRWRRWRR....",
+        "...RRRRRRRRRR...",
+        "..RWRRRRWRRRRR..",
+        "..RRRRWRRRRRWR..",
+        "..RWRRRRRWRRRR..",
+        "..RRRRWRRRRRWR..",
+        "...RWRRRRWRRR...",
+        "....RRRRRRRR....",
+        ".....RRRRRR.....",
+        "......RRRR......",
+        ".......RR.......",
+        "................",
+      ],
+      note: "用浅色点缀颗粒能突出果肉",
+    },
+    {
+      id: "boba",
+      name: "珍珠奶茶",
+      size: 16,
+      craft: "冰箱贴",
+      rows: [
+        "................",
+        ".....jjjjjj.....",
+        "....jWWWWWWj....",
+        "....jWmAAmWj....",
+        "....jmAAAAmj....",
+        "....jAAAAAAj....",
+        "....jAAAAAAj....",
+        "....jmAAAAmj....",
+        "....jMMMMMMj....",
+        "....jMKMMKMj....",
+        "....jMMMMMMj....",
+        "....jMKMMKMj....",
+        "....jMMMMMMj....",
+        ".....jjjjjj.....",
+        "................",
+        "................",
+      ],
+      note: "珍珠位置随你心情排",
+    },
+    {
+      id: "ghost",
+      name: "小幽灵",
+      size: 16,
+      craft: "钥匙扣",
+      rows: [
+        "................",
+        "................",
+        ".....WWWWWW.....",
+        "....WWWWWWWW....",
+        "...WWWWWWWWWW...",
+        "...WWKKWWKKWW...",
+        "...WWKKWWKKWW...",
+        "...WWWWWWWWWW...",
+        "...WWWFFFFWWWW..",
+        "...WWWWWWWWWWW..",
+        "...WWWWWWWWWWW..",
+        "...WWWWWWWWWWW..",
+        "...WWWWWWWWWWW..",
+        "...WW.WW.WW.WW..",
+        "....W..W..W..W..",
+        "................",
+      ],
+      note: "底边波浪是萌点，记得对齐",
+    },
+    {
+      id: "moon",
+      name: "夜空弯月",
+      size: 16,
+      craft: "杯垫",
+      rows: [
+        "................",
+        "...y............",
+        "..............y.",
+        ".....YYYYY......",
+        "....YYYYYYY.....",
+        "...YYYYYNNNN....",
+        "...YYYYNNNN.....",
+        "...YYYYNNN......",
+        "...YYYYYNNN.....",
+        "....YYYYYYY...y.",
+        "y....YYYYY......",
+        "................",
+        "............y...",
+        "...y............",
+        ".........y......",
+        "................",
+      ],
+      note: "弯月配点点星光，新手友好",
+    },
   ];
 
   const phases = [
@@ -431,6 +581,7 @@
     shareModal: $("#shareModal"),
     shareModalClose: $("#shareModalClose"),
     remapModal: $("#remapModal"),
+    remapInline: $("#remapInline"),
     remapModalTitle: $("#remapModalTitle"),
     remapModalBody: $("#remapModalBody"),
     remapModalClose: $("#remapModalClose"),
@@ -545,6 +696,7 @@
     toolStyle: "candy",
     lampOn: false,
     lampSwitchFlashUntil: 0,
+    pressAnim: null, // { startedAt, duration } — scraper sliding bottom→up
     projectedGuideCache: null,
     selectedColor: "K",
     trayColor: null,
@@ -1248,7 +1400,22 @@
         const cx = clamp(Math.floor((x0 + x1) * 0.5), 0, sourceSize - 1);
         const cy = clamp(Math.floor((y0 + y1) * 0.5), 0, sourceSize - 1);
         const centerCode = sourceRows[cy][cx];
-        const entries = Object.entries(weights).sort((a, b) => b[1] - a[1]);
+        // Tie-break stably so a mirrored source pattern stays mirrored after
+        // resampling: prefer the code at the nearest source pixel center, and
+        // when still tied prefer non-background ('.') and non-white codes.
+        const tieRank = (code) => {
+          if (code === ".") return 0;
+          if (code === "W" || code === "q") return 1; // background-ish whites
+          return 2; // detail (outline/eyes/etc.)
+        };
+        const entries = Object.entries(weights).sort((a, b) => {
+          if (Math.abs(a[1] - b[1]) > 1e-6) return b[1] - a[1];
+          if (a[0] === centerCode) return -1;
+          if (b[0] === centerCode) return 1;
+          const rankDiff = tieRank(b[0]) - tieRank(a[0]);
+          if (rankDiff !== 0) return rankDiff;
+          return a[0].localeCompare(b[0]);
+        });
         let pick = entries[0]?.[0] || ".";
 
         if (entries.length > 1) {
@@ -1667,6 +1834,7 @@
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
     }
+    drawLampSpotlight(layout);
     drawLampSwitch(layout);
     drawToolEntities(layout.w, layout.h);
 
@@ -1686,30 +1854,59 @@
     const ctx = scene;
     const theme = currentBackgroundTheme();
     ctx.save();
-    const tableGradient = ctx.createLinearGradient(0, 0, w, h);
+
+    // Table edge: stop the table at this Y; below it is the floor.
+    const matBottom = Math.min(h - 90, Math.max(boardY + boardSize + 24, trayY + trayH + 10));
+    const tableEdgeY = Math.min(h - 18, matBottom + 30);
+    const floorTop = tableEdgeY;
+
+    // Floor (a slightly cooler shade than table)
+    const floorGradient = ctx.createLinearGradient(0, floorTop, 0, h);
+    floorGradient.addColorStop(0, "rgba(54, 60, 72, 0.20)");
+    floorGradient.addColorStop(1, "rgba(40, 46, 56, 0.30)");
+    ctx.fillStyle = floorGradient;
+    ctx.fillRect(0, floorTop, w, h - floorTop);
+
+    // Floor planks (subtle vertical seams)
+    ctx.strokeStyle = "rgba(20, 24, 32, 0.10)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 78) {
+      ctx.beginPath();
+      ctx.moveTo(x, floorTop);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+
+    // Table
+    const tableGradient = ctx.createLinearGradient(0, 0, w, floorTop);
     tableGradient.addColorStop(0, theme.table[0]);
     tableGradient.addColorStop(0.48, theme.table[1]);
     tableGradient.addColorStop(1, theme.table[2]);
     ctx.fillStyle = tableGradient;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, w, floorTop);
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.26)";
-    for (let y = 0; y < h; y += 34) {
+    for (let y = 0; y < floorTop; y += 34) {
       ctx.fillRect(0, y, w, 1);
     }
     ctx.strokeStyle = "rgba(71, 86, 91, 0.07)";
     ctx.lineWidth = 1;
-    for (let x = -h; x < w; x += 42) {
+    for (let x = -floorTop; x < w; x += 42) {
       ctx.beginPath();
-      ctx.moveTo(x, h);
-      ctx.lineTo(x + h, 0);
+      ctx.moveTo(x, floorTop);
+      ctx.lineTo(x + floorTop, 0);
       ctx.stroke();
     }
+
+    // Table front edge shadow
+    ctx.fillStyle = "rgba(28, 32, 40, 0.18)";
+    ctx.fillRect(0, floorTop - 4, w, 4);
+    ctx.fillStyle = "rgba(28, 32, 40, 0.10)";
+    ctx.fillRect(0, floorTop, w, 6);
 
     const matX = Math.max(16, boardX - 24);
     const matY = Math.max(18, boardY - 24);
     const matRight = Math.min(w - 16, Math.max(boardX + boardSize + 24, trayX + trayW + 10));
-    const matBottom = Math.min(h - 18, Math.max(boardY + boardSize + 24, trayY + trayH + 10));
     ctx.fillStyle = theme.matFill;
     roundedRect(matX, matY, matRight - matX, matBottom - matY, 8);
     ctx.fill();
@@ -1729,8 +1926,6 @@
       ctx.stroke();
     }
 
-    ctx.fillStyle = "rgba(69, 82, 90, 0.08)";
-    ctx.fillRect(0, h - 32, w, 32);
     ctx.restore();
   }
 
@@ -1842,6 +2037,32 @@
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
   }
 
+  // Lamp-on: darken everything except the board (a spotlight effect over the bead area).
+  // Lamp-off: normal lighting (no overlay).
+  function drawLampSpotlight(layout) {
+    if (!state.lampOn) return;
+    if (!(state.phase === "place" || state.phase === "inspect")) return;
+    const ctx = scene;
+    const { boardX, boardY, boardSize, w, h } = layout;
+    ctx.save();
+    // Dim everything: paint a dark veil over the whole canvas, then knock out the board.
+    ctx.fillStyle = "rgba(10, 14, 24, 0.42)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = "destination-out";
+    // Spotlight shape — slightly larger than the board with a soft radial falloff.
+    const cx = boardX + boardSize / 2;
+    const cy = boardY + boardSize / 2;
+    const inner = boardSize * 0.52;
+    const outer = boardSize * 0.78;
+    const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+    grad.addColorStop(0, "rgba(0,0,0,1)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(boardX - boardSize * 0.3, boardY - boardSize * 0.3, boardSize * 1.6, boardSize * 1.6);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
+  }
+
   function drawLampSwitch(layout) {
     if (!(state.phase === "place" || state.phase === "inspect")) return;
     const ctx = scene;
@@ -1854,6 +2075,34 @@
     const bodyR = rect.w * 0.34 * lift;
 
     ctx.save();
+
+    // Power cord runs upward from the switch and vanishes at the table top edge
+    // (the lamp body is conceptually behind/above the workspace).
+    const cordStartX = rect.x + rect.w * 0.5;
+    const cordStartY = rect.y - 2;
+    const cordEndX = layout.w - 22;
+    const cordEndY = 2;
+    ctx.strokeStyle = "rgba(36, 40, 50, 0.42)";
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cordStartX, cordStartY);
+    ctx.bezierCurveTo(
+      cordStartX + 22, cordStartY - 50,
+      cordEndX - 24, cordEndY + 80,
+      cordEndX, cordEndY
+    );
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(cordStartX, cordStartY);
+    ctx.bezierCurveTo(
+      cordStartX + 22, cordStartY - 50,
+      cordEndX - 24, cordEndY + 80,
+      cordEndX, cordEndY
+    );
+    ctx.stroke();
     if (state.lampOn) {
       const glow = ctx.createRadialGradient(cx, cy, bodyR * 0.5, cx, cy, rect.w * 1.45);
       glow.addColorStop(0, "rgba(255, 235, 166, 0.34)");
@@ -3428,8 +3677,10 @@
         if (!state.placed[index]) continue;
         const heat = state.heat[index] || 0;
         if (heat < 8) continue;
-        ctx.globalAlpha = clamp(heat / 110, 0, 0.55);
-        ctx.fillStyle = heat > 108 ? "#e7645f" : heat > 72 ? "#d99b3d" : "#57b8a7";
+        // Mostly green-tinted (well-melted); amber only when noticeably hot,
+        // red only when truly scorched. Real perler beads tolerate a lot.
+        ctx.globalAlpha = clamp(heat / 140, 0, 0.5);
+        ctx.fillStyle = heat > 124 ? "#e7645f" : heat > 96 ? "#d99b3d" : "#57b8a7";
         ctx.fillRect(boardX + x * cell + 2, boardY + y * cell + 2, cell - 4, cell - 4);
       }
     }
@@ -3516,6 +3767,63 @@
       ctx.fillRect(boardX + 32, boardY + boardSize * 0.35, boardSize - 64, 4);
       ctx.fillStyle = "rgba(38,36,43,0.16)";
       ctx.fillRect(boardX + 34, boardY + boardSize * 0.32, 8, boardSize * 0.26);
+    }
+
+    // Scraper animation: a thin blade sliding from below the board up over it.
+    if (state.pressAnim) {
+      const elapsed = performance.now() - state.pressAnim.startedAt;
+      const dur = state.pressAnim.duration;
+      const t = clamp(elapsed / dur, 0, 1);
+      if (t >= 1) {
+        state.pressAnim = null;
+      } else {
+        // Ease in-out for the sweep
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const startY = boardY + boardSize + 60; // start below board
+        const endY = boardY - 24;               // exit above board
+        const cy = lerp(startY, endY, ease);
+        const blade = boardSize + 32;
+        const bladeX = boardX - 16;
+        const bladeH = 22;
+        ctx.save();
+        // Thin shadow trail showing where it pressed
+        const trailH = startY - cy;
+        if (trailH > 0) {
+          const trailGrad = ctx.createLinearGradient(0, cy, 0, startY);
+          trailGrad.addColorStop(0, "rgba(38, 36, 43, 0.18)");
+          trailGrad.addColorStop(1, "rgba(38, 36, 43, 0)");
+          ctx.fillStyle = trailGrad;
+          ctx.fillRect(bladeX, cy, blade, trailH);
+        }
+        // Scraper body
+        ctx.shadowColor = "rgba(0,0,0,0.32)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 4;
+        const bodyGrad = ctx.createLinearGradient(0, cy, 0, cy + bladeH);
+        bodyGrad.addColorStop(0, "#dfe6ec");
+        bodyGrad.addColorStop(0.5, "#aeb8c6");
+        bodyGrad.addColorStop(1, "#828c9b");
+        ctx.fillStyle = bodyGrad;
+        roundedRect(bladeX, cy, blade, bladeH, 4);
+        ctx.fill();
+        // Blade edge (the pressing line)
+        ctx.shadowColor = "transparent";
+        ctx.fillStyle = "rgba(40, 46, 56, 0.8)";
+        ctx.fillRect(bladeX + 2, cy - 1, blade - 4, 2);
+        // Highlight
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.fillRect(bladeX + 6, cy + 4, blade - 12, 2);
+        // Handle grip dots
+        ctx.fillStyle = "rgba(60, 68, 80, 0.55)";
+        const dotY = cy + bladeH * 0.55;
+        for (let i = 0; i < 5; i += 1) {
+          const dx = bladeX + blade * 0.5 + (i - 2) * 18;
+          ctx.beginPath();
+          ctx.arc(dx, dotY, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
     }
     ctx.restore();
   }
@@ -3653,8 +3961,10 @@
 
   function fusedColor(code, heat) {
     const base = palette[code] || "#999";
-    const hotAmount = clamp((heat - 60) / 70, 0, 0.45);
-    return heat > 60 ? mixColor(base, "#f2a36d", hotAmount) : base;
+    // Only beads that are really cooked start tinting — real perler beads keep
+    // their color through most of the iron pass and only yellow when scorched.
+    const hotAmount = clamp((heat - 105) / 60, 0, 0.34);
+    return heat > 105 ? mixColor(base, "#e8a472", hotAmount) : base;
   }
 
   function roundedRect(x, y, w, h, r) {
@@ -3779,7 +4089,6 @@
 
   function handlePreviewPickRemap(event) {
     if (state.phase !== "choose") return;
-    if (!isBuiltInPattern()) return;
     const cell = previewCellFromPoint(event.clientX, event.clientY);
     if (!cell) return;
     const sourceCode = state.selectedPattern.rows[cell.y]?.[cell.x] || ".";
@@ -3799,6 +4108,7 @@
     renderSharePanel();
     renderCustomStats();
     renderPatternColorStats();
+    renderRemapInline();
     renderSidebarReference();
     renderCollection();
     const counts = getTargetCounts();
@@ -5397,30 +5707,24 @@
   }
 
   function addRemapOpenButton() {
-    if (!isBuiltInPattern()) return;
-    if (state.phase !== "choose") return;
-    addButton("图纸换色", "", () => openRemapModal());
+    // Inline panel renders automatically on choose phase; no button needed.
   }
 
   function openRemapModal(focusSource = null) {
-    if (!els.remapModal || !isBuiltInPattern() || state.phase !== "choose") return;
+    if (state.phase !== "choose") return;
     state.remapFocusSource = focusSource || null;
-    state.remapModalOpen = true;
-    renderRemapModal();
-    els.remapModal.classList.add("show");
-    els.remapModal.setAttribute("aria-hidden", "false");
+    renderRemapInline();
+    // Scroll the inline panel into view if needed.
+    els.remapInline?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
   }
 
   function closeRemapModal() {
-    if (!els.remapModal) return;
     state.remapModalOpen = false;
     state.remapFocusSource = null;
-    els.remapModal.classList.remove("show");
-    els.remapModal.setAttribute("aria-hidden", "true");
+    renderRemapInline();
   }
 
   function resetPatternColorMapping() {
-    if (!isBuiltInPattern()) return;
     const map = state.patternColorMap || {};
     const patternId = baseIdFor(state.selectedPattern);
     const sourceColors = getSourcePatternColors();
@@ -5448,48 +5752,136 @@
   }
 
   function renderRemapModal() {
-    if (!els.remapModalBody) return;
-    if (!isBuiltInPattern()) {
-      els.remapModalBody.innerHTML = "";
-      return;
-    }
+    // Modal recolor is replaced by inline panel; keep this as a thin delegator
+    // so older callers still update the inline view.
+    renderRemapInline();
+    return;
+    // eslint-disable-next-line no-unreachable
     const allSourceColors = getSourcePatternColors();
     const focus = state.remapFocusSource;
     const sourceColors = focus && allSourceColors.includes(focus) ? [focus] : allSourceColors;
     if (els.remapModalTitle) {
       els.remapModalTitle.textContent = sourceColors.length === 1
         ? `换色：${beadIds[sourceColors[0]]} ${colorNames[sourceColors[0]]}`
-        : "官方图纸换色";
+        : "图纸换色";
     }
     const map = state.patternColorMap || {};
     const allCodes = allColorCodes();
     els.remapModalBody.innerHTML = "";
     sourceColors.forEach((sourceCode) => {
-      const row = document.createElement("label");
-      row.className = "remap-row";
-      row.innerHTML = `
-        <span class="remap-from">
-          <span class="remap-swatch" style="background:${palette[sourceCode]}"></span>
-          <span class="remap-label">${beadIds[sourceCode]} ${colorNames[sourceCode]}</span>
-        </span>
-        <span class="remap-arrow">→</span>
+      const card = document.createElement("div");
+      card.className = "remap-card";
+      const currentTarget = map[sourceCode] || sourceCode;
+      card.innerHTML = `
+        <div class="remap-card-head">
+          <span class="remap-from">
+            <span class="remap-swatch" style="background:${palette[sourceCode]}"></span>
+            <span class="remap-label">${beadIds[sourceCode]} ${colorNames[sourceCode] || ""}</span>
+          </span>
+          <span class="remap-arrow" aria-hidden="true">→</span>
+          <span class="remap-to">
+            <span class="remap-swatch" style="background:${palette[currentTarget]}"></span>
+            <span class="remap-label">${beadIds[currentTarget]} ${colorNames[currentTarget] || ""}</span>
+          </span>
+        </div>
       `;
-      const select = document.createElement("select");
-      select.className = "remap-select";
+      const swatchGrid = document.createElement("div");
+      swatchGrid.className = "swatch-grid";
       allCodes.forEach((code) => {
-        const option = document.createElement("option");
-        option.value = code;
-        option.textContent = `${beadIds[code]} ${colorNames[code]}`;
-        if ((map[sourceCode] || sourceCode) === code) option.selected = true;
-        select.appendChild(option);
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = `swatch-cell${(map[sourceCode] || sourceCode) === code ? " active" : ""}`;
+        cell.style.background = palette[code];
+        cell.title = `${beadIds[code]} ${colorNames[code] || ""}`;
+        cell.setAttribute("aria-label", cell.title);
+        cell.addEventListener("click", () => {
+          setPatternColorMapping(sourceCode, code);
+          renderRemapModal();
+        });
+        swatchGrid.appendChild(cell);
       });
-      select.addEventListener("change", () => {
-        setPatternColorMapping(sourceCode, select.value);
-        renderRemapModal();
-      });
-      row.appendChild(select);
-      els.remapModalBody.appendChild(row);
+      card.appendChild(swatchGrid);
+      els.remapModalBody.appendChild(card);
     });
+  }
+
+  function renderRemapInline() {
+    if (!els.remapInline) return;
+    const sourceColors = getSourcePatternColors();
+    const isChoose = state.phase === "choose";
+    if (!isChoose || !sourceColors.length) {
+      els.remapInline.hidden = true;
+      els.remapInline.innerHTML = "";
+      return;
+    }
+    els.remapInline.hidden = false;
+    const map = state.patternColorMap || {};
+    const allCodes = allColorCodes();
+    // If the focused source isn't part of this pattern anymore, drop it.
+    const focused = sourceColors.includes(state.remapFocusSource) ? state.remapFocusSource : null;
+
+    els.remapInline.innerHTML = `
+      <div class="remap-inline-head">
+        <strong>图纸换色</strong>
+        <button type="button" class="remap-inline-reset" aria-label="恢复原色" title="恢复原色">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+        </button>
+      </div>
+      <div class="remap-source-row"></div>
+      <div class="remap-target-area"></div>
+    `;
+    els.remapInline.querySelector(".remap-inline-reset").addEventListener("click", () => resetPatternColorMapping());
+
+    const srcRow = els.remapInline.querySelector(".remap-source-row");
+    sourceColors.forEach((sourceCode) => {
+      const target = map[sourceCode] || sourceCode;
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = `remap-source-chip${focused === sourceCode ? " active" : ""}${target !== sourceCode ? " remapped" : ""}`;
+      chip.title = `${beadIds[sourceCode] || sourceCode}${target !== sourceCode ? ` → ${beadIds[target] || target}` : ""}`;
+      chip.innerHTML = `
+        <span class="remap-source-chip-swatch" style="background:${palette[sourceCode]}"></span>
+        ${target !== sourceCode
+          ? `<span class="remap-source-chip-arrow">→</span><span class="remap-source-chip-swatch" style="background:${palette[target]}"></span>`
+          : ""}
+      `;
+      chip.addEventListener("click", () => {
+        state.remapFocusSource = focused === sourceCode ? null : sourceCode;
+        renderRemapInline();
+      });
+      srcRow.appendChild(chip);
+    });
+
+    const targetArea = els.remapInline.querySelector(".remap-target-area");
+    if (!focused) {
+      targetArea.innerHTML = `<div class="remap-hint">点上方原色圆点，再从下面选新颜色</div>`;
+      return;
+    }
+    const currentTarget = map[focused] || focused;
+    targetArea.innerHTML = `
+      <div class="remap-target-label">
+        <span class="remap-swatch" style="background:${palette[focused]}"></span>
+        <span class="remap-arrow">→</span>
+        <span class="remap-swatch" style="background:${palette[currentTarget]}"></span>
+        <span class="remap-label">${beadIds[currentTarget] || currentTarget} ${colorNames[currentTarget] || ""}</span>
+      </div>
+    `;
+    const swatchGrid = document.createElement("div");
+    swatchGrid.className = "swatch-grid swatch-grid-inline";
+    allCodes.forEach((code) => {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = `swatch-cell${currentTarget === code ? " active" : ""}`;
+      cell.style.background = palette[code];
+      cell.title = `${beadIds[code]} ${colorNames[code] || ""}`;
+      cell.setAttribute("aria-label", cell.title);
+      cell.addEventListener("click", () => {
+        setPatternColorMapping(focused, code);
+        renderRemapInline();
+      });
+      swatchGrid.appendChild(cell);
+    });
+    targetArea.appendChild(swatchGrid);
   }
 
   function addToolToggle() {
@@ -5698,27 +6090,35 @@
     const w = Math.max(1, rect.width);
     const h = Math.max(1, rect.height);
     ctx.clearRect(0, 0, w, h);
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#fafcff");
-    bg.addColorStop(1, "#eef3f7");
-    ctx.fillStyle = bg;
-    roundedPath(ctx, 0.5, 0.5, w - 1, h - 1, 10);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(101, 115, 130, 0.28)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
 
     const focus = inspectFocusCell();
     const size = state.selectedPattern.size;
-    const radius = 4;
+    const radius = 3;
     const gridCount = radius * 2 + 1;
-    const padding = 14;
+    const padding = 10;
     const cell = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
     const gridW = cell * gridCount;
     const gridH = cell * gridCount;
     const x0 = Math.floor((w - gridW) / 2);
     const y0 = Math.floor((h - gridH) / 2);
     const errorMap = new Map(state.errors.map((error) => [error.index, error.type]));
+
+    // Looks like a zoomed-in slice of the real board: same matte board surface,
+    // empty cells show a peg, placed cells show a real bead.
+    ctx.fillStyle = "#eef2f4";
+    roundedPath(ctx, 0.5, 0.5, w - 1, h - 1, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(101, 115, 130, 0.28)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Board panel under the grid
+    const boardPad = 4;
+    ctx.fillStyle = "#cfd7d9";
+    roundedPath(ctx, x0 - boardPad, y0 - boardPad, gridW + boardPad * 2, gridH + boardPad * 2, 6);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(99, 112, 132, 0.32)";
+    ctx.stroke();
 
     for (let gy = 0; gy < gridCount; gy += 1) {
       for (let gx = 0; gx < gridCount; gx += 1) {
@@ -5727,25 +6127,59 @@
         const px = x0 + gx * cell;
         const py = y0 + gy * cell;
         const inRange = bx >= 0 && by >= 0 && bx < size && by < size;
-        ctx.fillStyle = inRange ? "#f6f8fb" : "#edf1f5";
-        ctx.fillRect(px, py, cell, cell);
-        ctx.strokeStyle = "rgba(120, 132, 146, 0.2)";
-        ctx.strokeRect(px + 0.5, py + 0.5, cell - 1, cell - 1);
         if (!inRange) continue;
 
         const index = indexFor(bx, by);
         const placed = state.placed[index];
         const target = targetAt(bx, by);
-        if (placed) {
-          const inset = Math.max(2, cell * 0.16);
-          ctx.fillStyle = palette[placed] || "#bbb";
-          ctx.fillRect(px + inset, py + inset, cell - inset * 2, cell - inset * 2);
-        } else if (target) {
-          const inset = Math.max(2, cell * 0.22);
-          ctx.fillStyle = palette[target] || "#bbb";
-          ctx.globalAlpha = 0.32;
-          ctx.fillRect(px + inset, py + inset, cell - inset * 2, cell - inset * 2);
+        const cx = px + cell / 2;
+        const cy = py + cell / 2;
+
+        // Empty pegboard hole (looks like the real board)
+        ctx.fillStyle = "rgba(120, 128, 140, 0.28)";
+        ctx.beginPath();
+        ctx.arc(cx, cy, cell * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (target && !placed) {
+          // Target hint: faint colored ring
+          ctx.strokeStyle = palette[target] || "#bbb";
+          ctx.globalAlpha = 0.55;
+          ctx.lineWidth = Math.max(1.4, cell * 0.05);
+          ctx.beginPath();
+          ctx.arc(cx, cy, cell * 0.36, 0, Math.PI * 2);
+          ctx.stroke();
           ctx.globalAlpha = 1;
+        }
+
+        if (placed) {
+          const beadR = cell * 0.42;
+          // Soft drop shadow
+          ctx.fillStyle = "rgba(0,0,0,0.16)";
+          ctx.beginPath();
+          ctx.arc(cx + cell * 0.04, cy + cell * 0.06, beadR, 0, Math.PI * 2);
+          ctx.fill();
+          // Bead body
+          ctx.fillStyle = palette[placed] || "#bbb";
+          ctx.beginPath();
+          ctx.arc(cx, cy, beadR, 0, Math.PI * 2);
+          ctx.fill();
+          // Outline
+          ctx.strokeStyle = "rgba(0,0,0,0.18)";
+          ctx.lineWidth = Math.max(1, cell * 0.04);
+          ctx.beginPath();
+          ctx.arc(cx, cy, beadR, 0, Math.PI * 2);
+          ctx.stroke();
+          // Highlight
+          ctx.fillStyle = "rgba(255,255,255,0.34)";
+          ctx.beginPath();
+          ctx.arc(cx - beadR * 0.28, cy - beadR * 0.28, beadR * 0.22, 0, Math.PI * 2);
+          ctx.fill();
+          // Center hole (matches real beads)
+          ctx.fillStyle = "rgba(60, 68, 80, 0.36)";
+          ctx.beginPath();
+          ctx.arc(cx, cy, beadR * 0.24, 0, Math.PI * 2);
+          ctx.fill();
         }
 
         if (state.showHints && errorMap.has(index)) {
@@ -5757,6 +6191,7 @@
       }
     }
 
+    // Center reticle marking the focus cell
     const centerX = x0 + radius * cell + cell / 2;
     const centerY = y0 + radius * cell + cell / 2;
     ctx.strokeStyle = "rgba(66, 96, 131, 0.85)";
@@ -6767,6 +7202,8 @@
     const warpReduce = lerp(2, 12, effective);
     state.flattening = clamp(state.flattening + flattenGain, 0, 100);
     state.warp = clamp(state.warp - warpReduce, 0, 80);
+    // Trigger the scraper-from-bottom animation.
+    state.pressAnim = { startedAt: performance.now(), duration: 820 };
     if (effective < 0.2) {
       showToast("受热不足，压平效果很小。再熨一会儿会更好压。");
     } else {
@@ -7052,6 +7489,7 @@
     if (state.phase === "cool" && (state.cooling < 100 || state.flattening > 0)) return true;
     if (now < state.lampSwitchFlashUntil) return true;
     if (state.floorDrops.length > 0) return true;
+    if (state.pressAnim && now - state.pressAnim.startedAt < state.pressAnim.duration) return true;
     return false;
   }
 
@@ -7133,9 +7571,8 @@
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
   els.remapResetButton?.addEventListener("click", () => resetPatternColorMapping());
-  els.remapModal?.addEventListener("click", (event) => {
-    if (event.target === els.remapModal) closeRemapModal();
-  });
+  // Recolor modal is a side drawer; backdrop is transparent so clicks pass through
+  // to the workspace. No outside-click-to-close — use the × button or Esc.
   els.controlsModalClose?.addEventListener("click", () => closeControlsModal());
   els.controlsModal?.addEventListener("click", (event) => {
     if (event.target === els.controlsModal) closeControlsModal();
