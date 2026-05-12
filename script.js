@@ -1302,6 +1302,7 @@
 
   function loadPattern(pattern, keepPhase = false) {
     state.selectedPattern = pattern;
+    invalidateLayoutCache();
     if (baseIdFor(pattern).startsWith("custom-")) {
       closeRemapModal();
     }
@@ -1557,8 +1558,22 @@
     };
   }
 
+  let _layoutCache = null;
+  let _layoutCacheKey = "";
+  function invalidateLayoutCache() {
+    _layoutCache = null;
+  }
+
   function currentLayout() {
     const rect = quantizedCanvasRect();
+    const key = `${rect.width}x${rect.height}:${state.selectedPattern.size}`;
+    if (_layoutCache && _layoutCacheKey === key) return _layoutCache;
+    _layoutCache = computeLayout(rect);
+    _layoutCacheKey = key;
+    return _layoutCache;
+  }
+
+  function computeLayout(rect) {
     const w = rect.width;
     const h = rect.height;
     if (w < 740) {
@@ -2333,10 +2348,6 @@
       }
     }
     ctx.restore();
-  }
-
-  function shouldFuseDiagonalByHeat(x1, y1, x2, y2, heatA = null, heatB = null, hasCell = null) {
-    return false;
   }
 
   function boardFusionShapeProfile(x, y) {
@@ -6011,6 +6022,7 @@
   }
 
   function renderCollection() {
+    if (!els.collectionPanel) return;
     els.collectionPanel.innerHTML = "";
     if (!collection.length) {
       const empty = document.createElement("div");
@@ -6019,13 +6031,89 @@
       els.collectionPanel.appendChild(empty);
       return;
     }
-    collection.slice(0, 5).forEach((item) => {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "collection-item collection-item-button";
-      row.innerHTML = `<strong>${item.name}</strong><span>${normalizeCraft(item.craft)} · 评级 ${item.grade} · ${item.date}</span>`;
-      row.addEventListener("click", () => openCollectionEntry(item));
-      els.collectionPanel.appendChild(row);
+    collection.forEach((item) => {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "collection-tile";
+      const thumbSize = 168;
+      tile.innerHTML = `
+        <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
+        <div class="collection-tile-meta">
+          <strong>${item.name}</strong>
+          <span>${normalizeCraft(item.craft)} · 评级 ${item.grade} · ${item.date}</span>
+        </div>
+      `;
+      tile.addEventListener("click", () => enlargeCollectionEntry(item));
+      els.collectionPanel.appendChild(tile);
+      const canvas = tile.querySelector("canvas");
+      drawCollectionThumb(canvas, item);
+    });
+  }
+
+  function drawCollectionThumb(canvas, item) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    setupHiDpiCanvas(canvas, ctx);
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#f5f7fa";
+    ctx.fillRect(0, 0, w, h);
+
+    const size = item.size || state.selectedPattern.size || 16;
+    const placed = item.placed || [];
+    const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
+    const pad = 8;
+    const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
+    const gridSize = cell * size;
+    const x0 = Math.floor((w - gridSize) / 2);
+    const y0 = Math.floor((h - gridSize) / 2);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const index = y * size + x;
+        let code;
+        if (placed.length) code = placed[index];
+        else if (fallback) code = (fallback.rows[y] || "")[x];
+        if (!code || code === ".") continue;
+        ctx.fillStyle = palette[code] || "#bbb";
+        ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+      }
+    }
+  }
+
+  function enlargeCollectionEntry(entry) {
+    if (!els.collectionModal) return;
+    let viewer = els.collectionModal.querySelector(".collection-enlarged");
+    if (!viewer) {
+      viewer = document.createElement("div");
+      viewer.className = "collection-enlarged";
+      viewer.innerHTML = `
+        <button type="button" class="collection-enlarged-close" aria-label="关闭放大">×</button>
+        <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
+        <div class="collection-enlarged-meta"></div>
+        <div class="collection-enlarged-actions">
+          <button type="button" class="primary-button collection-enlarged-open">打开这张图纸</button>
+        </div>
+      `;
+      els.collectionModal.appendChild(viewer);
+      viewer.querySelector(".collection-enlarged-close").addEventListener("click", () => {
+        viewer.classList.remove("show");
+      });
+    }
+    viewer.classList.add("show");
+    const canvas = viewer.querySelector("canvas");
+    canvas.style.width = "min(640px, 78vh)";
+    canvas.style.height = "min(640px, 78vh)";
+    drawCollectionThumb(canvas, entry);
+    viewer.querySelector(".collection-enlarged-meta").textContent =
+      `${entry.name} · ${normalizeCraft(entry.craft)} · 评级 ${entry.grade} · ${entry.date}`;
+    const openBtn = viewer.querySelector(".collection-enlarged-open");
+    const newBtn = openBtn.cloneNode(true);
+    openBtn.replaceWith(newBtn);
+    newBtn.addEventListener("click", () => {
+      viewer.classList.remove("show");
+      openCollectionEntry(entry);
     });
   }
 
@@ -6730,10 +6818,12 @@
       craft: state.craft,
       grade: finalGrade(),
       date: new Date().toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }),
+      size: state.selectedPattern.size,
+      placed: state.placed.slice(),
     };
     if (!state.savedCurrent) {
       collection.unshift(entry);
-      collection = collection.slice(0, 12);
+      collection = collection.slice(0, 24);
       const stored = writeCollection();
       state.savedCurrent = true;
       if (stored) showToast("作品已收入作品集。");
@@ -6988,6 +7078,7 @@
   }
 
   function onResize() {
+    invalidateLayoutCache();
     markDirty();
   }
 
