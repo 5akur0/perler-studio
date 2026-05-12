@@ -5250,18 +5250,18 @@
       }
       const hintsOn = state.showHints;
       addControlRow([
-        [hintsOn ? "提示" : "提示", `icon-toggle ${hintsOn ? "active" : ""}`, () => {
+        ["", `icon-pill ${hintsOn ? "active" : ""}`, () => {
           state.showHints = !state.showHints;
           markDirty();
         }, false, {
           icon: hintsOn
-            ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
-            : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+            ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
+            : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
           ariaLabel: hintsOn ? "隐藏提示" : "显示提示",
           title: hintsOn ? "隐藏提示" : "显示提示",
         }],
-        ["返回修正", "icon-toggle", () => setPhase("place"), false, {
-          icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
+        ["", "icon-pill", () => setPhase("place"), false, {
+          icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
           ariaLabel: "返回修正",
           title: "返回修正",
         }],
@@ -5357,9 +5357,12 @@
       button.type = "button";
       const [label, className, handler, disabled, options] = entry;
       const opts = options || {};
-      if (opts.icon) {
+      if (opts.icon && label) {
         button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${opts.icon}</span><span class="btn-label">${label}</span>`;
         button.classList.add("icon-text-button");
+      } else if (opts.icon) {
+        button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${opts.icon}</span>`;
+        button.classList.add("icon-only-button");
       } else {
         button.textContent = label;
       }
