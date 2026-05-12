@@ -1337,6 +1337,15 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.remap-target-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .remap-inline-head {
@@ -1482,8 +1491,10 @@ button:disabled {
 
 .swatch-grid {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
 }
 
 .swatch-cell {
@@ -1498,8 +1509,8 @@ button:disabled {
 }
 
 .swatch-cell:hover {
-  transform: translateY(-1px) scale(1.06);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.18);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+  border-color: #aeb6c4;
   z-index: 1;
 }
 
