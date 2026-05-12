@@ -2064,14 +2064,22 @@
     bctx.fillStyle = "rgba(20, 24, 32, 0.36)";
     bctx.fillRect(0, 0, w, h);
 
-    // Cut the veil out at each target-bead cell so the existing projection
-    // guide shows through unmuted.
+    // Cut the veil with a soft round mask at each target-bead cell, so each
+    // lit spot looks like a circular pool of light instead of a hard rectangle.
     bctx.globalCompositeOperation = "destination-out";
+    const innerR = cell * 0.55;
+    const outerR = cell * 0.78;
     for (let y = 0; y < size; y += 1) {
       for (let x = 0; x < size; x += 1) {
         if (!targetAt(x, y)) continue;
-        bctx.fillStyle = "rgba(0,0,0,1)";
-        bctx.fillRect(boardX + x * cell, boardY + y * cell, cell, cell);
+        const cx = boardX + x * cell + cell / 2;
+        const cy = boardY + y * cell + cell / 2;
+        const grad = bctx.createRadialGradient(cx, cy, innerR * 0.55, cx, cy, outerR);
+        grad.addColorStop(0, "rgba(0,0,0,1)");
+        grad.addColorStop(0.7, "rgba(0,0,0,0.85)");
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        bctx.fillStyle = grad;
+        bctx.fillRect(cx - outerR, cy - outerR, outerR * 2, outerR * 2);
       }
     }
     bctx.globalCompositeOperation = "source-over";
