@@ -650,7 +650,8 @@ button:disabled {
 .studio-grid[data-phase="choose"] .left-panel .pattern-list {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: none;
+  /* Cap so the page doesn't expand vertically when many patterns are added. */
+  max-height: min(72vh, 720px);
 }
 
 .pattern-card {
@@ -732,15 +733,16 @@ button:disabled {
 
 .choose-preview-main {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 220px;
-  gap: 10px;
+  grid-template-columns: minmax(360px, 1.4fr) minmax(240px, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
 .preview-side {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   align-content: start;
+  min-width: 0;
 }
 
 .workbench {
@@ -758,11 +760,11 @@ button:disabled {
 }
 
 .choose-preview-panel {
-  width: min(760px, 100%);
-  margin: 0 auto;
-  padding: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 18px;
   border: 1px solid rgba(139, 148, 166, 0.42);
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 14px 30px rgba(49, 54, 68, 0.08);
 }
@@ -996,10 +998,10 @@ button:disabled {
 .icon-pill {
   display: grid;
   place-items: center;
-  min-height: 40px;
+  min-height: 56px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 10px;
   background: #fff;
   color: #4a5160;
 }
@@ -1007,9 +1009,14 @@ button:disabled {
 .icon-pill .btn-glyph {
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   color: inherit;
+}
+
+.icon-pill .btn-glyph svg {
+  width: 28px;
+  height: 28px;
 }
 
 .icon-pill:hover {
@@ -1028,7 +1035,7 @@ button:disabled {
 .control-row-icons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .remap-modal {
@@ -1041,6 +1048,26 @@ button:disabled {
   padding: 18px;
   background: rgba(28, 31, 38, 0.34);
   backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+/* The recolor modal stays as a side-drawer so the pattern preview is still
+   visible while picking colors — backdrop is transparent and clicks pass
+   through to the workspace. */
+#remapModal {
+  background: transparent;
+  backdrop-filter: none;
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 16px;
+  pointer-events: none;
+}
+
+#remapModal .remap-modal-card {
+  pointer-events: auto;
+  width: min(440px, 92vw);
+  max-height: calc(100vh - 32px);
+  box-shadow: 0 24px 56px rgba(38, 36, 43, 0.22);
 }
 
 .remap-modal.show {
@@ -1265,10 +1292,10 @@ button:disabled {
 
 .remap-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(120px, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(160px, 1fr);
   align-items: center;
-  gap: 7px;
-  min-height: 32px;
+  gap: 8px;
+  min-height: 40px;
 }
 
 .remap-from {
@@ -1302,21 +1329,196 @@ button:disabled {
   font-weight: 800;
 }
 
-.remap-select {
-  min-height: 32px;
-  border: 1px solid #d7dde7;
-  border-radius: 7px;
+.remap-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: #fff;
-  color: var(--ink);
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  outline: none;
+  max-height: 360px;
+  overflow: auto;
 }
 
-.remap-select:focus-visible {
-  border-color: rgba(77, 119, 184, 0.65);
-  box-shadow: 0 0 0 2px rgba(77, 119, 184, 0.18);
+.remap-inline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 760;
+  color: var(--ink);
+}
+
+.remap-inline-reset {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #666b75;
+}
+
+.remap-inline-reset:hover {
+  border-color: #aeb6c4;
+  color: var(--ink);
+}
+
+.remap-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.remap-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fafbfd;
+  cursor: pointer;
+}
+
+.remap-source-chip:hover {
+  border-color: #aeb6c4;
+}
+
+.remap-source-chip.active {
+  border-color: #3f988b;
+  box-shadow: inset 0 0 0 2px rgba(63, 152, 139, 0.18);
+  background: rgba(87, 184, 167, 0.08);
+}
+
+.remap-source-chip.remapped {
+  background: rgba(77, 119, 184, 0.08);
+}
+
+.remap-source-chip-swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+
+.remap-source-chip-arrow {
+  color: #9b9aa3;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.remap-hint {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 6px 2px;
+}
+
+.remap-target-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #504d59;
+  padding: 4px 0;
+}
+
+.remap-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.remap-card + .remap-card {
+  margin-top: 10px;
+}
+
+.remap-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(139, 148, 166, 0.32);
+}
+
+.remap-to,
+.remap-from {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.remap-swatch {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 6px;
+  flex: 0 0 auto;
+}
+
+.remap-arrow {
+  color: #9b9aa3;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.remap-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #504d59;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 7px;
+}
+
+.swatch-cell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.swatch-cell:hover {
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.18);
+  z-index: 1;
+}
+
+.swatch-cell.active {
+  border-color: #2f7d6e;
+  box-shadow: 0 0 0 2px rgba(63, 152, 139, 0.5), 0 6px 12px rgba(0,0,0,0.16);
+  z-index: 1;
+}
+
+.swatch-cell.active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, transparent 55%, rgba(255,255,255,0.65) 55% 62%, transparent 62%);
+  pointer-events: none;
 }
 
 .custom-panel {
