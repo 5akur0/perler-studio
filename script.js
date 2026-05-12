@@ -1834,7 +1834,6 @@
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
     }
-    drawLampSpotlight(layout);
     drawLampSwitch(layout);
     drawToolEntities(layout.w, layout.h);
 
@@ -2035,32 +2034,6 @@
     if (!(state.phase === "place" || state.phase === "inspect")) return false;
     const rect = lampSwitchRect();
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
-  }
-
-  // Lamp-on: darken everything except the board (a spotlight effect over the bead area).
-  // Lamp-off: normal lighting (no overlay).
-  function drawLampSpotlight(layout) {
-    if (!state.lampOn) return;
-    if (!(state.phase === "place" || state.phase === "inspect")) return;
-    const ctx = scene;
-    const { boardX, boardY, boardSize, w, h } = layout;
-    ctx.save();
-    // Dim everything: paint a dark veil over the whole canvas, then knock out the board.
-    ctx.fillStyle = "rgba(10, 14, 24, 0.42)";
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = "destination-out";
-    // Spotlight shape — slightly larger than the board with a soft radial falloff.
-    const cx = boardX + boardSize / 2;
-    const cy = boardY + boardSize / 2;
-    const inner = boardSize * 0.52;
-    const outer = boardSize * 0.78;
-    const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(boardX - boardSize * 0.3, boardY - boardSize * 0.3, boardSize * 1.6, boardSize * 1.6);
-    ctx.globalCompositeOperation = "source-over";
-    ctx.restore();
   }
 
   function drawLampSwitch(layout) {
