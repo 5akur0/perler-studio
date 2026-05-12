@@ -2463,10 +2463,7 @@
     ctx.stroke();
 
     const guideVisible = state.lampOn && (state.phase === "place" || state.phase === "inspect");
-    // Solid fill when the lamp is on so the projected color reads cleanly
-    // through the dim veil (dark colors like black no longer blur into the
-    // background).
-    const templateOpacity = guideVisible ? 0.95 : 0;
+    const templateOpacity = guideVisible ? 0.45 : 0;
     if (guideVisible) {
       drawProjectedGuide(layout);
     }
@@ -2483,7 +2480,11 @@
         if (code && templateOpacity > 0) {
           ctx.globalAlpha = templateOpacity;
           ctx.fillStyle = palette[code];
-          ctx.fillRect(px + 1, py + 1, cell - 2, cell - 2);
+          // Smaller inset disc so the projection reads as a colored hint, not
+          // as a "bead already placed".
+          ctx.beginPath();
+          ctx.arc(px + cell / 2, py + cell / 2, cell * 0.36, 0, Math.PI * 2);
+          ctx.fill();
           ctx.globalAlpha = 1;
         }
         if (index !== spillIndex) {
