@@ -816,6 +816,13 @@
       scale: 1,
       panX: 0,
       panY: 0,
+      velX: 0,     // keyboard pan velocity (px/s)
+      velY: 0,
+      velScale: 0, // keyboard zoom velocity (scale/s)
+    },
+    kbdNav: {
+      up: false, down: false, left: false, right: false,
+      zoomIn: false, zoomOut: false,
     },
     gesture: {
       active: false,
@@ -8145,12 +8152,71 @@
     if (now < state.lampSwitchFlashUntil) return true;
     if (state.floorDrops.length > 0) return true;
     if (state.pressAnim && now - state.pressAnim.startedAt < state.pressAnim.duration) return true;
+    const nav = state.kbdNav;
+    if (nav.up || nav.down || nav.left || nav.right || nav.zoomIn || nav.zoomOut) return true;
+    const bv = state.boardView;
+    if (Math.abs(bv.velX) > 0.5 || Math.abs(bv.velY) > 0.5 || Math.abs(bv.velScale) > 0.001) return true;
     return false;
+  }
+
+  function tickKbdNav(dtSec) {
+    const nav = state.kbdNav;
+    const bv = state.boardView;
+    const boardPhase = state.phase === "place" || state.phase === "inspect";
+    if (!boardPhase) return;
+
+    const PAN_ACCEL = 2200;  // px/s²  — acceleration while key held
+    const PAN_DECEL = 5000;  // px/s²  — deceleration after release (snappy stop)
+    const PAN_MAX   = 560;   // px/s   — top pan speed
+    const ZOOM_ACCEL = 4.5;  // scale/s²
+    const ZOOM_DECEL = 10;
+    const ZOOM_MAX   = 2.2;
+
+    // Horizontal
+    const wantLeft  = nav.left  && !nav.right;
+    const wantRight = nav.right && !nav.left;
+    if (wantLeft)        bv.velX = Math.max(-PAN_MAX,  bv.velX - PAN_ACCEL * dtSec);
+    else if (wantRight)  bv.velX = Math.min( PAN_MAX,  bv.velX + PAN_ACCEL * dtSec);
+    else if (bv.velX > 0) bv.velX = Math.max(0, bv.velX - PAN_DECEL * dtSec);
+    else if (bv.velX < 0) bv.velX = Math.min(0, bv.velX + PAN_DECEL * dtSec);
+
+    // Vertical
+    const wantUp   = nav.up   && !nav.down;
+    const wantDown = nav.down && !nav.up;
+    if (wantUp)          bv.velY = Math.max(-PAN_MAX,  bv.velY - PAN_ACCEL * dtSec);
+    else if (wantDown)   bv.velY = Math.min( PAN_MAX,  bv.velY + PAN_ACCEL * dtSec);
+    else if (bv.velY > 0) bv.velY = Math.max(0, bv.velY - PAN_DECEL * dtSec);
+    else if (bv.velY < 0) bv.velY = Math.min(0, bv.velY + PAN_DECEL * dtSec);
+
+    // Zoom
+    const wantIn  = nav.zoomIn  && !nav.zoomOut;
+    const wantOut = nav.zoomOut && !nav.zoomIn;
+    if (wantIn)            bv.velScale = Math.min( ZOOM_MAX, bv.velScale + ZOOM_ACCEL * dtSec);
+    else if (wantOut)      bv.velScale = Math.max(-ZOOM_MAX, bv.velScale - ZOOM_ACCEL * dtSec);
+    else if (bv.velScale > 0) bv.velScale = Math.max(0, bv.velScale - ZOOM_DECEL * dtSec);
+    else if (bv.velScale < 0) bv.velScale = Math.min(0, bv.velScale + ZOOM_DECEL * dtSec);
+
+    // Apply
+    const movingPan  = Math.abs(bv.velX) > 0.5 || Math.abs(bv.velY) > 0.5;
+    const movingZoom = Math.abs(bv.velScale) > 0.001;
+    if (movingPan || movingZoom) {
+      const prevX = bv.panX;
+      const prevY = bv.panY;
+      setBoardZoom(
+        bv.scale + bv.velScale * dtSec,
+        bv.panX  + bv.velX    * dtSec,
+        bv.panY  + bv.velY    * dtSec
+      );
+      // If clamped at boundary, kill velocity in that axis to prevent "sticky wall"
+      if (bv.panX === prevX) bv.velX = 0;
+      if (bv.panY === prevY) bv.velY = 0;
+    }
   }
 
   function tick(now) {
     const dt = Math.min(48, now - lastFrame);
     lastFrame = now;
+    tickKbdNav(dt / 1000);
     if (state.phase === "cool") {
       const heat = heatStats();
       const overPenalty = heat.overPercent > 18 ? 0.04 : 0;
@@ -8273,38 +8339,14 @@
       const tag = document.activeElement?.tagName;
       const inputFocused = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
       if (boardPhase && !inputFocused && !getOpenModalEl()) {
-        const PAN = 40;
         const k = event.key;
-        if (k === "w" || k === "W" || k === "ArrowUp") {
-          event.preventDefault();
-          setBoardZoom(state.boardView.scale, state.boardView.panX, state.boardView.panY - PAN);
-          return;
-        }
-        if (k === "s" || k === "S" || k === "ArrowDown") {
-          event.preventDefault();
-          setBoardZoom(state.boardView.scale, state.boardView.panX, state.boardView.panY + PAN);
-          return;
-        }
-        if (k === "a" || k === "A" || k === "ArrowLeft") {
-          event.preventDefault();
-          setBoardZoom(state.boardView.scale, state.boardView.panX - PAN, state.boardView.panY);
-          return;
-        }
-        if (k === "d" || k === "D" || k === "ArrowRight") {
-          event.preventDefault();
-          setBoardZoom(state.boardView.scale, state.boardView.panX + PAN, state.boardView.panY);
-          return;
-        }
-        if (k === "z" || k === "Z") {
-          event.preventDefault();
-          setBoardZoom(state.boardView.scale + 0.2, state.boardView.panX, state.boardView.panY);
-          return;
-        }
-        if (k === "x" || k === "X") {
-          event.preventDefault();
-          setBoardZoom(state.boardView.scale - 0.2, state.boardView.panX, state.boardView.panY);
-          return;
-        }
+        const nav = state.kbdNav;
+        if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; return; }
+        if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; return; }
+        if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; return; }
+        if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; return; }
+        if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; return; }
+        if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; return; }
       }
     }
 
@@ -8336,6 +8378,17 @@
     if (state.collectionModalOpen) closeCollectionModal();
     if (state.settingsModalOpen) closeSettingsModal();
     if (state.shareModalOpen) closeShareModal();
+  });
+
+  window.addEventListener("keyup", (event) => {
+    const nav = state.kbdNav;
+    const k = event.key;
+    if (k === "w" || k === "W" || k === "ArrowUp")    nav.up     = false;
+    if (k === "s" || k === "S" || k === "ArrowDown")  nav.down   = false;
+    if (k === "a" || k === "A" || k === "ArrowLeft")  nav.left   = false;
+    if (k === "d" || k === "D" || k === "ArrowRight") nav.right  = false;
+    if (k === "z" || k === "Z") nav.zoomIn  = false;
+    if (k === "x" || k === "X") nav.zoomOut = false;
   });
 
   window.addEventListener("resize", onResize);
