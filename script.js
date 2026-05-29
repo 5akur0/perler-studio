@@ -2211,8 +2211,18 @@
       1,
       2.8
     );
-    const panX = state.gesture.startPanX + (mid.x - state.gesture.startMidX);
-    const panY = state.gesture.startPanY + (mid.y - state.gesture.startMidY);
+    // Anchor the zoom on the fingers: keep the board point that was under the
+    // initial two-finger midpoint locked under the current midpoint. This makes
+    // pinch feel natural (zoom toward the pinch center) and folds pure two-finger
+    // panning into the same formula (when distance is unchanged).
+    const layout = currentLayout();
+    const cx = layout.boardX + layout.boardSize * 0.5;
+    const cy = layout.boardY + layout.boardSize * 0.5;
+    const startScale = Math.max(0.0001, state.gesture.startScale);
+    const anchorX = (state.gesture.startMidX - cx - state.gesture.startPanX) / startScale + cx;
+    const anchorY = (state.gesture.startMidY - cy - state.gesture.startPanY) / startScale + cy;
+    const panX = mid.x - cx - (anchorX - cx) * nextScale;
+    const panY = mid.y - cy - (anchorY - cy) * nextScale;
     setBoardZoom(nextScale, panX, panY);
   }
 
