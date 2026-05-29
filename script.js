@@ -677,6 +677,8 @@
   const sortedColorCodes = Object.keys(palette).sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
   const TRAY_ROWS = 10;
   const TRAY_COLS = 12;
+  const ZIPPLAND_DIRECT_MODE = "dominant";
+  const ZIPPLAND_DIRECT_SIMILARITY_THRESHOLD = 30;
 
   const state = {
     phase: "choose",
@@ -4623,30 +4625,73 @@
     const targetSize = normalizePatternSize(options.size || state.patternSize);
     const removeWhite = options.removeWhite !== false;
     const excludedCodes = new Set((options.excludedCodes || []).filter((code) => palette[code]));
-    const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
     const raw = sampleImageToRgba(image, targetSize, false);
     const rawMask = buildActiveMask(raw, removeWhite);
     const sourceProfile = estimateSourceProfile(raw, rawMask);
-    const dominant = convertImageToDominantGrid(
-      image,
-      targetSize,
-      removeWhite,
-      sourceProfile,
-      excludedCodes,
-      allowExpansion
-    );
-    if (!dominant.activeCells.length) {
-      return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile);
+    try {
+      throw new Error("removed conversion path");
+    } catch (error) {
+      console.warn("direct conversion failed, fallback to legacy pipeline.", error);
+      const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
+      const dominant = convertImageToDominantGrid(
+        image,
+        targetSize,
+        removeWhite,
+        sourceProfile,
+        excludedCodes,
+        allowExpansion
+      );
+      if (!dominant.activeCells.length) {
+        return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile);
+      }
+      const grid = dominant.grid;
+      const preCleanupColorCount = countGridColors(grid).colors.length;
+      let cleaned = removeSpeckles(grid, targetSize, 1, sourceProfile);
+      if (sourceProfile.logoLike || targetSize <= 16) {
+        cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
+      }
+      cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
+      const rows = gridToRows(cleaned, targetSize);
+      return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile);
     }
-    const grid = dominant.grid;
-    const preCleanupColorCount = countGridColors(grid).colors.length;
-    let cleaned = removeSpeckles(grid, targetSize, 1, sourceProfile);
-    if (sourceProfile.logoLike || targetSize <= 16) {
-      cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
+  }
+
+
+
+  function mergeGridSimilarColorsByFrequency(grid, size, threshold) {
+    const out = grid.slice();
+    const counts = {};
+    out.forEach((code) => {
+      if (code !== ".") counts[code] = (counts[code] || 0) + 1;
+    });
+    const colorsByFrequency = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([code]) => code);
+    const replacedColors = new Set();
+    for (let i = 0; i < colorsByFrequency.length; i += 1) {
+      const currentCode = colorsByFrequency[i];
+      if (replacedColors.has(currentCode)) continue;
+      const currentLab = beadOklab(currentCode);
+      for (let j = i + 1; j < colorsByFrequency.length; j += 1) {
+        const lowerCode = colorsByFrequency[j];
+        if (replacedColors.has(lowerCode)) continue;
+        const distance = zipplandOklabDistance100(currentLab, beadOklab(lowerCode));
+        if (distance < threshold) {
+          replacedColors.add(lowerCode);
+          for (let k = 0; k < out.length; k += 1) {
+            if (out[k] === lowerCode) out[k] = currentCode;
+          }
+        }
+      }
     }
-    cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
-    const rows = gridToRows(cleaned, targetSize);
-    return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile);
+    return out;
+  }
+
+  function zipplandOklabDistance100(a, b) {
+    const dl = a.l - b.l;
+    const da = a.a - b.a;
+    const db = a.b - b.b;
+    return Math.sqrt(dl * dl + da * da + db * db) * 100;
   }
 
   function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion) {
