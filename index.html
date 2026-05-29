@@ -95,6 +95,12 @@
               <small id="targetCount"></small>
             </div>
             <div class="choose-size-bar">
+              <div class="palette-size-picker" id="paletteSizePicker" aria-label="色板规格">
+                <span>色板</span>
+                <button type="button" data-palette-size="48">48色</button>
+                <button type="button" data-palette-size="96">96色</button>
+                <button type="button" data-palette-size="221">221色</button>
+              </div>
               <div class="size-controls compact">
                 <select id="patternSizeSelect" aria-label="图纸尺寸">
                   <option value="16">16x16</option>
@@ -121,7 +127,6 @@
               <aside class="preview-side">
                 <div id="patternColorStats" class="pattern-color-stats"></div>
                 <div id="customStats" class="custom-stats is-empty"></div>
-                <div id="remapInline" class="remap-inline" hidden></div>
               </aside>
             </div>
             <div class="choose-preview-actions">
@@ -200,6 +205,14 @@
             <span>工具</span>
             <select id="topToolStyleSelect" aria-label="工具款式"></select>
           </label>
+          <div class="settings-field settings-palette-row">
+            <span>色板</span>
+            <div class="settings-palette-picker" id="settingsPaletteSizePicker" aria-label="设置色板规格">
+              <button type="button" data-palette-size="48">48</button>
+              <button type="button" data-palette-size="96">96</button>
+              <button type="button" data-palette-size="221">221</button>
+            </div>
+          </div>
           <div class="settings-field settings-sandbox-row">
             <span>沙盒模式</span>
             <button class="ghost-button sandbox-sticker" id="sandboxButton" type="button" title="沙盒：自由拼摆不校验" aria-label="沙盒模式：关"></button>
@@ -236,6 +249,7 @@
     <div id="placeHint" class="place-hint" role="status" aria-live="polite"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <script src="mard-palette.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

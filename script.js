@@ -152,7 +152,49 @@
     D: "F7",
   };
 
-  const patterns = [
+  const mardColorData = window.MARD_COLOR_DATA || {};
+  const basePaletteMardCodes = Object.values(beadIds).map(normalizeMardCode);
+  const mardCodeToWorkshopCode = {};
+  Object.entries(beadIds).forEach(([code, mardCode]) => {
+    mardCodeToWorkshopCode[normalizeMardCode(mardCode)] = code;
+  });
+  let nextExtendedColorCode = 0;
+  Object.entries(mardColorData).forEach(([mardCode, hex]) => {
+    const normalized = normalizeMardCode(mardCode);
+    const internalCode = mardCodeToWorkshopCode[normalized] || String.fromCharCode(0xe000 + nextExtendedColorCode++);
+    mardCodeToWorkshopCode[normalized] = internalCode;
+    palette[internalCode] = hex;
+    beadIds[internalCode] = normalized;
+    if (!colorNames[internalCode]) colorNames[internalCode] = normalized;
+  });
+
+  const paletteSizeOptions = [48, 96, 221];
+  const paletteSizeKey = "beadWorkshopPaletteSize.v1";
+
+  function normalizeMardCode(code) {
+    return String(code || "").replace(/^([A-Z]+)0?(\d+)$/, "$1$2");
+  }
+
+  function mardCodeSort(a, b) {
+    const matchA = normalizeMardCode(a).match(/^([A-Z]+)(\d+)$/);
+    const matchB = normalizeMardCode(b).match(/^([A-Z]+)(\d+)$/);
+    if (matchA && matchB) {
+      if (matchA[1] !== matchB[1]) return matchA[1].localeCompare(matchB[1]);
+      return Number(matchA[2]) - Number(matchB[2]);
+    }
+    return String(a).localeCompare(String(b), "zh-Hans-CN", { numeric: true });
+  }
+
+  function readPaletteSize() {
+    const stored = Number.parseInt(localStorage.getItem(paletteSizeKey) || "", 10);
+    return paletteSizeOptions.includes(stored) ? stored : 48;
+  }
+
+  function workshopCodeForMard(mardCode) {
+    return mardCodeToWorkshopCode[normalizeMardCode(mardCode)] || normalizeMardCode(mardCode);
+  }
+
+  const patternSeeds = [
     {
       id: "berry-cat",
       name: "莓果小猫",
@@ -176,7 +218,7 @@
         "................",
         "................",
       ],
-      note: "边缘和表情需要镊子收尾",
+      note: "",
     },
     {
       id: "rocket",
@@ -201,7 +243,7 @@
         "......OO........",
         "................",
       ],
-      note: "大块蓝色适合针工具连铺",
+      note: "",
     },
     {
       id: "lake-whale",
@@ -210,23 +252,23 @@
       craft: "杯垫",
       rows: [
         "................",
+        ".......W........",
+        "......W.W.......",
         "................",
-        ".....LLLLLL.....",
-        "...LLBBBBBBLL...",
-        "..LBBBBBBBBBBL..",
-        ".LBBBBBWBWBBBBL.",
-        ".LBBBBBBBBBBBBL.",
-        ".LBBBBBBBBBBBBL.",
-        "..LBBBBBBBBBBL..",
-        "...LLBBBBBBLL...",
-        ".....LLLLLL.....",
-        ".......L........",
-        "......LLL.......",
         "................",
-        "...YYYYYYYYYY...",
-        "..YYYYYYYYYYYY..",
+        ".....BBBBBB.....",
+        "...BBBBBBBBBB...",
+        "..BBBBBBBBBBBB..",
+        ".BBBBWWBBBBBBBB.",
+        "BBBBWWBBBBBBBBBB",
+        "BBBBBBBBBBBBBBBB",
+        ".BBBBBBBBBBBBBB.",
+        "..BBBBBBBBBBBB..",
+        "...BBBB..BBBB...",
+        ".....BB..BB.....",
+        "................",
       ],
-      note: "适合练习熨烫均匀度",
+      note: "",
     },
     {
       id: "sweet-heart",
@@ -251,7 +293,7 @@
         "................",
         "................",
       ],
-      note: "适合做情侣款挂件",
+      note: "",
     },
     {
       id: "milk-tea",
@@ -276,7 +318,7 @@
         "................",
         "................",
       ],
-      note: "生活感题材更适合发笔记",
+      note: "",
     },
     {
       id: "ribbon-clip",
@@ -286,22 +328,22 @@
       rows: [
         "................",
         "................",
-        "..HHH......HHH..",
-        ".HPPPH....HPPPH.",
-        "HPPPPPH..HPPPPPH",
+        "...HHH....HHH...",
+        "..HPPPH..HPPPH..",
+        ".HPPPPPHHPPPPPH.",
+        "HPPPPPPPPPPPPPPH",
         "HPPPPPHHHHPPPPPH",
         ".HPPPHHPPHHPPPH.",
         "..HHHHPWWPHHHH..",
         "..HHHHPWWPHHHH..",
         ".HPPPHHPPHHPPPH.",
         "HPPPPPHHHHPPPPPH",
-        "HPPPPPH..HPPPPPH",
-        ".HPPPH....HPPPH.",
-        "..HHH......HHH..",
-        "................",
+        ".HPPPPPPPPPPPPH.",
+        "..HPPPH...HPPH..",
+        ".....SSSSSS.....",
         "................",
       ],
-      note: "粉色系成品很上镜",
+      note: "",
     },
     {
       id: "game-date",
@@ -311,22 +353,22 @@
       rows: [
         "................",
         "................",
-        "....NNNNNNNN....",
-        "..NNSSSSSSSSNN..",
-        ".NSSSSSSSSSSSSN.",
-        "NSKSSSSSSSSSSKSN",
+        ".....NNNNNN.....",
+        "...NNSSSSSSNN...",
+        "..NSSSSSSSSSSN..",
+        ".NSSSKSSSSKSSSN.",
         "NSSKKSSJJSSKKSSN",
         "NSSKSSJSSJSSKSSN",
         "NSSSSSSSSSSSSSSN",
         "NSSPPSSYYSSPPSSN",
-        ".NSSSSSSSSSSSSN.",
-        "..NNSSSSSSSSNN..",
-        "....NNNNNNNN....",
-        "................",
+        ".NSSSSSKKKSSSSN.",
+        "..NSSSSSSSSSSN..",
+        "...NNSSSSSSNN...",
+        ".....NNNNNN.....",
         "................",
         "................",
       ],
-      note: "适合做同款桌面摆件",
+      note: "",
     },
     {
       id: "mini-bouquet",
@@ -351,7 +393,7 @@
         "......MMMM......",
         "................",
       ],
-      note: "礼物感强，颜色也丰富",
+      note: "",
     },
     {
       id: "instant-photo",
@@ -376,7 +418,7 @@
         "................",
         "................",
       ],
-      note: "适合做纪念款分享图",
+      note: "",
     },
     {
       id: "panda",
@@ -401,7 +443,7 @@
         "................",
         "................",
       ],
-      note: "黑白对比适合给新手练习",
+      note: "",
     },
     {
       id: "mushroom",
@@ -426,7 +468,7 @@
         "................",
         "................",
       ],
-      note: "经典童话题材，气氛上镜",
+      note: "",
     },
     {
       id: "strawberry",
@@ -438,20 +480,20 @@
         ".......GG.......",
         "......GGGG......",
         ".....GGGGGG.....",
-        "....RRWRRWRR....",
+        "....GGGTTGGG....",
         "...RRRRRRRRRR...",
-        "..RWRRRRWRRRRR..",
-        "..RRRRWRRRRRWR..",
-        "..RWRRRRRWRRRR..",
-        "..RRRRWRRRRRWR..",
-        "...RWRRRRWRRR...",
+        "..RRyRRWWRRyRR..",
+        ".RRRRyRRRRyRRRR.",
+        ".RRyRRRRRRRRyRR.",
+        ".RRRRyRRRRyRRRR.",
+        "..RRyRRRRRRyRR..",
+        "..RRRRyRRyRRRR..",
+        "...RRRRRRRRRR...",
         "....RRRRRRRR....",
         ".....RRRRRR.....",
         "......RRRR......",
-        ".......RR.......",
-        "................",
       ],
-      note: "用浅色点缀颗粒能突出果肉",
+      note: "",
     },
     {
       id: "boba",
@@ -476,7 +518,7 @@
         "................",
         "................",
       ],
-      note: "珍珠位置随你心情排",
+      note: "",
     },
     {
       id: "ghost",
@@ -501,7 +543,7 @@
         "....W..W..W..W..",
         "................",
       ],
-      note: "底边波浪是萌点，记得对齐",
+      note: "",
     },
     {
       id: "moon",
@@ -526,9 +568,52 @@
         ".........y......",
         "................",
       ],
-      note: "弯月配点点星光，新手友好",
+      note: "",
     },
   ];
+
+  function darkerVariant(code) {
+    const upper = code.toUpperCase();
+    const lower = code.toLowerCase();
+    if (code === lower && upper !== lower && palette[upper]) return upper;
+    return code;
+  }
+
+  function detailedRowsFromSeed(seed, targetSize = 24) {
+    const rows = resamplePatternRows(seed.rows, seed.size, targetSize);
+    const grid = rows.map((row) => row.split(""));
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let y = 0; y < targetSize; y += 1) {
+      for (let x = 0; x < targetSize; x += 1) {
+        const code = grid[y][x];
+        if (!code || code === ".") continue;
+        let same4 = 0;
+        let touchesBlank = false;
+        dirs.forEach(([dx, dy]) => {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= targetSize || ny >= targetSize) {
+            touchesBlank = true;
+            return;
+          }
+          const next = grid[ny][nx];
+          if (next === code) same4 += 1;
+          if (next === ".") touchesBlank = true;
+        });
+        if (touchesBlank && same4 <= 2) {
+          grid[y][x] = darkerVariant(code);
+        }
+      }
+    }
+    return grid.map((row) => row.join(""));
+  }
+
+  const patterns = patternSeeds.map((seed) => ({
+    ...seed,
+    size: 24,
+    rows: detailedRowsFromSeed(seed, 24),
+    note: "",
+  }));
 
   const phases = [
     { id: "choose", name: "选图" },
@@ -557,6 +642,8 @@
     patternSizeInput: $("#patternSizeInput"),
     patternSizeSlider: $("#patternSizeSlider"),
     patternSizeValue: $("#patternSizeValue"),
+    paletteSizePicker: $("#paletteSizePicker"),
+    settingsPaletteSizePicker: $("#settingsPaletteSizePicker"),
     customSizeMeta: $("#customSizeMeta"),
     customStats: $("#customStats"),
     patternColorStats: $("#patternColorStats"),
@@ -583,7 +670,6 @@
     shareModal: $("#shareModal"),
     shareModalClose: $("#shareModalClose"),
     remapModal: $("#remapModal"),
-    remapInline: $("#remapInline"),
     remapModalTitle: $("#remapModalTitle"),
     remapModalBody: $("#remapModalBody"),
     remapModalClose: $("#remapModalClose"),
@@ -675,12 +761,21 @@
   };
   const craftOptions = ["原版", "钥匙扣", "杯垫", "摆件"];
   const sortedColorCodes = Object.keys(palette).sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
-  const TRAY_ROWS = 10;
-  const TRAY_COLS = 12;
+  const mardCodes = Object.keys(mardColorData).map(normalizeMardCode).sort(mardCodeSort);
+  const palettePresetMardCodes = {
+    48: basePaletteMardCodes.slice().sort(mardCodeSort),
+    96: mardCodes.filter((code) => /^[A-C]\d+$/.test(code) || /^D[1-9]$/.test(code)).sort(mardCodeSort),
+    221: mardCodes.filter((code) => /^[A-HM]\d+$/.test(code)).sort(mardCodeSort),
+  };
+  const TRAY_DESKTOP_ROWS = 10;
+  const TRAY_DESKTOP_COLS = 12;
+  const TRAY_MOBILE_ROWS = 5;
+  const TRAY_MOBILE_COLS = 24;
 
   const state = {
     phase: "choose",
     patternSize: 24,
+    paletteSize: readPaletteSize(),
     selectedPattern: patterns[0],
     patternColorMaps: {},
     patternColorMap: {},
@@ -1206,9 +1301,10 @@
     if (cached?.key === cacheKey) return cached;
 
     const baseMap = {};
+    const activeCodes = new Set(allColorCodes());
     sourceColors.forEach((code) => {
       const mapped = map[code];
-      baseMap[code] = mapped && palette[mapped] ? mapped : code;
+      baseMap[code] = mapped && activeCodes.has(mapped) ? mapped : code;
     });
     const size = pattern.size;
     const sourceRows = pattern.rows;
@@ -1271,11 +1367,87 @@
   }
 
   function allColorCodes() {
-    return sortedColorCodes;
+    const preset = palettePresetMardCodes[state.paletteSize] || palettePresetMardCodes[48];
+    return [...new Set(preset.map(workshopCodeForMard).filter((code) => palette[code]))]
+      .sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
   }
 
   function beadLabel(code) {
     return `${beadIds[code] || code} ${colorNames[code] || code}`;
+  }
+
+  function activePaletteColorCount() {
+    return allColorCodes().length;
+  }
+
+  function normalizePatternColorMapForActivePalette(pattern = state.selectedPattern) {
+    const patternId = baseIdFor(pattern);
+    const activeCodes = new Set(allColorCodes());
+    const previousMap = state.patternColorMaps[patternId] || {};
+    const normalizedMap = {};
+    getSourcePatternColors(pattern).forEach((code) => {
+      const mapped = previousMap[code];
+      normalizedMap[code] = mapped && activeCodes.has(mapped) ? mapped : code;
+    });
+    state.patternColorMaps[patternId] = normalizedMap;
+    if (baseIdFor(state.selectedPattern) === patternId) state.patternColorMap = normalizedMap;
+    return normalizedMap;
+  }
+
+  function renderPaletteSizeControls() {
+    [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
+      if (!picker) return;
+      picker.querySelectorAll("[data-palette-size]").forEach((button) => {
+        const size = Number.parseInt(button.dataset.paletteSize, 10);
+        const active = size === state.paletteSize;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    });
+  }
+
+  async function setPaletteSize(size, silent = false) {
+    const next = Number.parseInt(size, 10);
+    if (!paletteSizeOptions.includes(next) || next === state.paletteSize) return;
+    state.paletteSize = next;
+    localStorage.setItem(paletteSizeKey, String(next));
+    const codes = allColorCodes();
+    if (!codes.includes(state.selectedColor)) {
+      state.selectedColor = codes[0] || "K";
+    }
+    state.trayColor = null;
+    state.trayBeans = 0;
+    state.trayCapacity = 0;
+    state.trayMatrix = [];
+    state.tweezerBead = null;
+    invalidateEffectiveMap();
+    state.previewDirty = true;
+    state.uiDirty = true;
+    if (isCustomFromImagePattern(state.selectedPattern)) {
+      try {
+        const image = await loadImageFromDataUrl(state.selectedPattern.sourceImageDataUrl);
+        const result = convertImageToPattern(image, {
+          removeWhite: state.selectedPattern.sourceRemoveWhite !== false,
+          size: state.selectedPattern.size,
+        });
+        Object.assign(state.selectedPattern, {
+          rows: result.rows,
+          sourceRows: result.rows,
+          conversionStats: result.stats,
+        });
+        state.lastConversionStats = result.stats;
+      } catch (error) {
+        showToast("色板已切换，但自定义图纸重算失败。");
+      }
+    }
+    normalizePatternColorMapForActivePalette();
+    invalidateEffectiveMap();
+    const patternColors = getPatternColors();
+    if (!patternColors.includes(state.selectedColor)) {
+      state.selectedColor = patternColors[0] || codes[0] || "K";
+    }
+    if (!silent) showToast(`色板已切换为 ${next} 色。`);
+    markDirty();
   }
 
   function getPatternColors(pattern = state.selectedPattern) {
@@ -1389,7 +1561,7 @@
       sourceRows,
       size,
       rows,
-      note: `${pattern.note} · ${size}x${size}`,
+      note: "",
     };
   }
 
@@ -1506,15 +1678,9 @@
       closeRemapModal();
     }
     const patternId = baseIdFor(pattern);
-    const sourceColors = getSourcePatternColors(pattern);
-    const previousMap = state.patternColorMaps[patternId] || {};
     const previousHidden = state.patternHiddenSources[patternId] || [];
-    const normalizedMap = {};
-    sourceColors.forEach((code) => {
-      const mapped = previousMap[code];
-      normalizedMap[code] = mapped && palette[mapped] ? mapped : code;
-    });
-    state.patternColorMaps[patternId] = normalizedMap;
+    const sourceColors = getSourcePatternColors(pattern);
+    const normalizedMap = normalizePatternColorMapForActivePalette(pattern);
     state.patternHiddenSources[patternId] = [...new Set(previousHidden.filter((code) => sourceColors.includes(code)))];
     invalidateEffectiveMap(pattern);
     if (isCustomFromImagePattern(pattern) && state.patternHiddenSources[patternId].length) {
@@ -1565,9 +1731,24 @@
     markDirty();
   }
 
-  function makeTrayMatrix(count = 0) {
-    const rows = TRAY_ROWS;
-    const cols = TRAY_COLS;
+  function useMobileTrayGrid() {
+    return window.matchMedia("(max-width: 860px)").matches;
+  }
+
+  function trayDimensions() {
+    return useMobileTrayGrid()
+      ? { rows: TRAY_MOBILE_ROWS, cols: TRAY_MOBILE_COLS }
+      : { rows: TRAY_DESKTOP_ROWS, cols: TRAY_DESKTOP_COLS };
+  }
+
+  function traySlotCapacity() {
+    const { rows, cols } = trayDimensions();
+    return rows * cols;
+  }
+
+  function makeTrayMatrix(count = 0, rowsOverride = null, colsOverride = null) {
+    const rows = rowsOverride ?? trayDimensions().rows;
+    const cols = colsOverride ?? trayDimensions().cols;
     const matrix = Array.from({ length: rows }, () => Array(cols).fill(false));
     let left = clamp(count, 0, rows * cols);
     for (let row = 0; row < rows; row += 1) {
@@ -1582,12 +1763,23 @@
 
   function makeTraySeeds(code, amount = null) {
     const needed = getTargetCounts()[code] || 12;
-    const count = clamp(amount ?? (needed + 14), 8, TRAY_ROWS * TRAY_COLS);
+    const count = clamp(amount ?? (needed + 14), 8, traySlotCapacity());
     return Array.from({ length: count }, (_, i) => ({
       sx: pseudoRandom(`${state.selectedPattern.id}-${code}-${i}-x`),
       sy: pseudoRandom(`${state.selectedPattern.id}-${code}-${i}-y`),
       wobble: pseudoRandom(`${state.selectedPattern.id}-${code}-${i}-w`) * Math.PI * 2,
     }));
+  }
+
+  function syncTrayMatrixShape() {
+    const { rows, cols } = trayDimensions();
+    const matrix = state.trayMatrix || [];
+    const sameRows = matrix.length === rows;
+    const sameCols = sameRows && matrix.every((row) => row.length === cols);
+    if (sameCols) return;
+    const count = matrix.reduce((sum, row) => sum + row.filter(Boolean).length, 0);
+    state.trayMatrix = makeTrayMatrix(count, rows, cols);
+    state.trayBeans = countTrayBeans();
   }
 
   function countTrayBeans() {
@@ -1599,8 +1791,7 @@
   }
 
   function trayGeometry(layout, compact = false) {
-    const rows = TRAY_ROWS;
-    const cols = TRAY_COLS;
+    const { rows, cols } = trayDimensions();
     const inset = compact ? 18 : 24;
     const slotGap = (layout.trayH - inset * 2) / rows;
     const lineStartX = layout.trayX + 22;
@@ -1645,7 +1836,7 @@
   }
 
   function calcTrayFillAmount(code = state.selectedColor) {
-    return TRAY_ROWS * TRAY_COLS;
+    return traySlotCapacity();
   }
 
   function pseudoRandom(seed) {
@@ -1953,7 +2144,10 @@
     } else {
       drawBoard(layout);
       drawReferenceSheet(layout);
-      if (state.phase === "place" || state.phase === "inspect") drawTray(layout, true);
+      if (state.phase === "place" || state.phase === "inspect") {
+        if (state.trayColor) syncTrayMatrixShape();
+        drawTray(layout, true);
+      }
       if (state.phase === "inspect") updateInspectAssistCanvases();
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
@@ -2026,28 +2220,6 @@
     ctx.fillRect(0, floorTop - 4, w, 4);
     ctx.fillStyle = "rgba(28, 32, 40, 0.10)";
     ctx.fillRect(0, floorTop, w, 6);
-
-    const matX = Math.max(16, boardX - 24);
-    const matY = Math.max(18, boardY - 24);
-    const matRight = Math.min(w - 16, Math.max(boardX + boardSize + 24, trayX + trayW + 10));
-    ctx.fillStyle = theme.matFill;
-    roundedRect(matX, matY, matRight - matX, matBottom - matY, 8);
-    ctx.fill();
-    ctx.strokeStyle = theme.matStroke;
-    ctx.stroke();
-    ctx.strokeStyle = theme.gridStroke;
-    for (let x = matX + 22; x < matRight; x += 24) {
-      ctx.beginPath();
-      ctx.moveTo(x, matY + 8);
-      ctx.lineTo(x, matBottom - 8);
-      ctx.stroke();
-    }
-    for (let y = matY + 22; y < matBottom; y += 24) {
-      ctx.beginPath();
-      ctx.moveTo(matX + 8, y);
-      ctx.lineTo(matRight - 8, y);
-      ctx.stroke();
-    }
 
     ctx.restore();
   }
@@ -2523,6 +2695,31 @@
     ctx.translate(boardView.cx + boardView.panX, boardView.cy + boardView.panY);
     ctx.scale(boardView.scale, boardView.scale);
     ctx.translate(-boardView.cx, -boardView.cy);
+
+    // The mat travels with the board so zoom/pan keeps them visually fused.
+    const matX = Math.max(16, boardX - 24);
+    const matY = Math.max(18, boardY - 24);
+    const matRight = Math.min(layout.w - 16, boardX + boardSize + 24);
+    const matBottom = Math.min(layout.h - 96, boardY + boardSize + 24);
+    ctx.fillStyle = currentBackgroundTheme().matFill;
+    roundedRect(matX, matY, matRight - matX, matBottom - matY, 8);
+    ctx.fill();
+    ctx.strokeStyle = currentBackgroundTheme().matStroke;
+    ctx.stroke();
+    ctx.strokeStyle = currentBackgroundTheme().gridStroke;
+    for (let x = matX + 22; x < matRight; x += 24) {
+      ctx.beginPath();
+      ctx.moveTo(x, matY + 8);
+      ctx.lineTo(x, matBottom - 8);
+      ctx.stroke();
+    }
+    for (let y = matY + 22; y < matBottom; y += 24) {
+      ctx.beginPath();
+      ctx.moveTo(matX + 8, y);
+      ctx.lineTo(matRight - 8, y);
+      ctx.stroke();
+    }
+
     ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
     ctx.shadowBlur = 26;
     ctx.shadowOffsetY = 14;
@@ -3691,14 +3888,13 @@
     ctx.fillStyle = "#f7f4ec";
     roundedRect(gridX - 5, gridY - 5, gridSize + 10, gridSize + 10, 5);
     ctx.fill();
-    const map = getPatternColorMap(pattern);
-    pattern.rows.forEach((row, y) => {
-      [...row].forEach((sourceCode, x) => {
+    const rows = getEffectiveTargetRows(pattern);
+    rows.forEach((row, y) => {
+      [...row].forEach((code, x) => {
         ctx.strokeStyle = "rgba(103, 98, 86, 0.12)";
         ctx.lineWidth = 0.7;
         ctx.strokeRect(gridX + x * cell, gridY + y * cell, cell, cell);
-        if (sourceCode === ".") return;
-        const code = map[sourceCode] || sourceCode;
+        if (code === ".") return;
         const px = gridX + x * cell + 0.5;
         const py = gridY + y * cell + 0.5;
         ctx.fillStyle = palette[code];
@@ -4136,25 +4332,19 @@
     preview.fillStyle = "#fbfcfe";
     roundedPath(preview, x0 - 8, y0 - 8, cell * pattern.size + 16, cell * pattern.size + 16, 8);
     preview.fill();
-    // Preview always shows the original (source) pattern colors — recolor only
-    // affects placement/iron, not this reference image.
-    const hidden = getPatternHiddenSourceSet(pattern);
+    const rows = getEffectiveTargetRows(pattern);
     for (let y = 0; y < pattern.size; y += 1) {
       for (let x = 0; x < pattern.size; x += 1) {
-        const sourceCode = pattern.rows[y][x];
+        const code = rows[y]?.[x] || ".";
         const px = x0 + x * cell;
         const py = y0 + y * cell;
-        if (sourceCode === ".") {
+        if (code === ".") {
           preview.fillStyle = (x + y) % 2 === 0 ? "#e8edf3" : "#eef2f7";
           preview.fillRect(px, py, cell - 1, cell - 1);
           continue;
         }
-        preview.fillStyle = palette[sourceCode] || "#bbb";
+        preview.fillStyle = palette[code] || "#bbb";
         preview.fillRect(px, py, cell - 1, cell - 1);
-        if (hidden.has(sourceCode)) {
-          preview.fillStyle = "rgba(245, 248, 252, 0.32)";
-          preview.fillRect(px, py, cell - 1, cell - 1);
-        }
       }
     }
     preview.strokeStyle = "rgba(120, 132, 148, 0.3)";
@@ -4207,13 +4397,13 @@
     renderControls();
     renderToolRack();
     renderPalette();
+    renderPaletteSizeControls();
     renderCustomStats();
     renderPatternColorStats();
-    renderRemapInline();
     renderSidebarReference();
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
-    els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
+    els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size} · ${state.paletteSize}色板`;
     els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
     els.collectionCount.textContent = String(collection.length);
     if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
@@ -4264,24 +4454,20 @@
   function renderPatternColorStats() {
     if (!els.patternColorStats) return;
     const sourceCounts = getSourceCounts();
-    const effectiveMap = getEffectivePatternMap();
+    const map = state.patternColorMap || {};
+    const activeCodes = new Set(allColorCodes());
     const items = Object.entries(sourceCounts)
-      .map(([code, count]) => ({ code, count }))
-      .sort((a, b) => b.count - a.count || (beadIds[a.code] || a.code).localeCompare(beadIds[b.code] || b.code, "zh-Hans-CN", { numeric: true }))
+      .map(([sourceCode, count]) => {
+        const targetCode = activeCodes.has(map[sourceCode]) ? map[sourceCode] : sourceCode;
+        return { sourceCode, targetCode, count };
+      })
+      .sort((a, b) => b.count - a.count || (beadIds[a.targetCode] || a.targetCode).localeCompare(beadIds[b.targetCode] || b.targetCode, "zh-Hans-CN", { numeric: true }))
       .slice(0, 10);
     els.patternColorStats.innerHTML = items.map((item) => {
-      const targetCode = effectiveMap[item.code] || item.code;
       return `
-      <button type="button" class="pattern-color-chip" data-source-code="${item.code}" title="点此换色">
-        <span class="dot" style="background:${palette[item.code]}"></span>
-        <span class="code">${beadIds[item.code] || item.code}</span>
-        ${targetCode !== item.code
-    ? [
-      `<span class="map-arrow">→</span>`,
-      `<span class="dot target" style="background:${palette[targetCode]}"></span>`,
-      `<span class="map">${beadIds[targetCode] || targetCode}</span>`,
-    ].join("")
-    : ""}
+      <button type="button" class="pattern-color-chip" data-source-code="${item.sourceCode}" title="点击换色：${beadIds[item.targetCode] || item.targetCode} ${colorNames[item.targetCode] || ""}" aria-label="换色 ${beadIds[item.targetCode] || item.targetCode}">
+        <span class="dot" style="background:${palette[item.targetCode]}"></span>
+        <span class="code">${beadIds[item.targetCode] || item.targetCode}</span>
         <span class="count">${item.count}</span>
       </button>
     `;
@@ -4316,7 +4502,7 @@
     const gridSize = cell * size;
     const x0 = Math.floor((w - gridSize) / 2);
     const y0 = Math.floor((h - gridSize) / 2);
-    const map = getPatternColorMap(pattern);
+    const rows = getEffectiveTargetRows(pattern);
 
     ctx.fillStyle = "#f7f9fc";
     ctx.fillRect(0, 0, w, h);
@@ -4327,9 +4513,8 @@
         ctx.strokeStyle = "rgba(100, 109, 126, 0.16)";
         ctx.lineWidth = 1;
         ctx.strokeRect(x0 + x * cell, y0 + y * cell, cell, cell);
-        const sourceCode = pattern.rows[y]?.[x] || ".";
-        if (sourceCode === ".") continue;
-        const code = map[sourceCode] || sourceCode;
+        const code = rows[y]?.[x] || ".";
+        if (code === ".") continue;
         ctx.fillStyle = palette[code];
         ctx.fillRect(x0 + x * cell + 0.5, y0 + y * cell + 0.5, Math.max(1, cell - 1), Math.max(1, cell - 1));
       }
@@ -4376,71 +4561,12 @@
     return true;
   }
 
-  async function togglePreviewSourceColor(sourceCode) {
-    if (state.phase !== "choose") {
-      showToast("请在选图阶段调整颜色。");
-      return;
-    }
-    const pattern = state.selectedPattern;
-    const sourceColors = getSourcePatternColors();
-    if (!sourceColors.includes(sourceCode)) return;
-    const patternId = baseIdFor(pattern);
-    const hidden = getPatternHiddenSourceList();
-    const hiddenSet = new Set(hidden);
-    const useOriginalRecompute = isCustomFromImagePattern(pattern);
-    if (hiddenSet.has(sourceCode)) {
-      hiddenSet.delete(sourceCode);
-      state.patternHiddenSources[patternId] = sourceColors.filter((code) => hiddenSet.has(code));
-      invalidateEffectiveMap();
-      state.previewDirty = true;
-      const label = beadIds[sourceCode] || sourceCode;
-      if (useOriginalRecompute && hiddenSet.size) {
-        showToast(`已恢复 ${label}，按原图重算中...`);
-      } else {
-        showToast(`已恢复 ${label}。`);
-      }
-      const available = getPatternColors();
-      if (!available.includes(state.selectedColor)) state.selectedColor = available[0] || sourceCode;
-      markDirty();
-      if (useOriginalRecompute) {
-        await recomputeCustomHiddenRowsFromOriginal(pattern);
-      }
-      return;
-    }
-    const visibleCount = sourceColors.length - hiddenSet.size;
-    if (visibleCount <= 1) {
-      showToast("至少保留一种颜色。");
-      return;
-    }
-    hiddenSet.add(sourceCode);
-    state.patternHiddenSources[patternId] = sourceColors.filter((code) => hiddenSet.has(code));
-    invalidateEffectiveMap();
-    state.previewDirty = true;
-    const label = beadIds[sourceCode] || sourceCode;
-    if (useOriginalRecompute) {
-      showToast(`已隐藏 ${label}，按原图重算中（可引入新颜色）...`);
-    } else {
-      showToast(`已隐藏 ${label}，已按邻域重算。`);
-    }
-    const available = getPatternColors();
-    if (!available.includes(state.selectedColor)) state.selectedColor = available[0] || sourceCode;
-    markDirty();
-    if (useOriginalRecompute) {
-      await recomputeCustomHiddenRowsFromOriginal(pattern);
-    }
-  }
-
   function handlePatternColorChipToggle(event) {
-    const reset = event.target.closest("[data-action='restore-hidden']");
-    if (reset) {
-      clearHiddenPreviewSources();
-      return;
-    }
     const button = event.target.closest(".pattern-color-chip[data-source-code]");
     if (!button) return;
     const sourceCode = button.getAttribute("data-source-code");
     if (!sourceCode) return;
-    togglePreviewSourceColor(sourceCode);
+    openRemapModal(sourceCode);
   }
 
   function renderPatterns() {
@@ -4451,7 +4577,7 @@
     customButton.type = "button";
     customButton.innerHTML = `
       <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-      <span><strong>自定义图纸</strong><span>${customPattern ? `${customPattern.size}x${customPattern.size} · 图片自动转色号` : "导入一张图片生成你的图纸"}</span></span>
+      <span><strong>自定义图纸</strong><span>${customPattern ? `${customPattern.size}x${customPattern.size}` : "--"}</span></span>
     `;
     customButton.addEventListener("click", () => {
       const customSelected = state.selectedPattern.id.startsWith("custom-");
@@ -4474,7 +4600,7 @@
       button.type = "button";
       button.innerHTML = `
         <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-        <span><strong>${pattern.name}</strong><span>${normalizeCraft(pattern.craft)} · ${displayPattern.size}x${displayPattern.size} · ${pattern.note}</span></span>
+        <span><strong>${pattern.name}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
       `;
       button.addEventListener("click", () => {
         loadPattern(resizePattern(pattern, state.patternSize), state.phase !== "choose");
@@ -4490,14 +4616,13 @@
     const ctx = canvas.getContext("2d");
     const cell = Math.floor(canvas.width / pattern.size);
     const offset = Math.floor((canvas.width - cell * pattern.size) / 2);
-    const map = getPatternColorMap(pattern);
+    const rows = getEffectiveTargetRows(pattern);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#f4f6f8";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    pattern.rows.forEach((row, y) => {
-      [...row].forEach((sourceCode, x) => {
-        if (sourceCode === ".") return;
-        const code = map[sourceCode] || sourceCode;
+    rows.forEach((row, y) => {
+      [...row].forEach((code, x) => {
+        if (code === ".") return;
         ctx.fillStyle = palette[code];
         ctx.fillRect(offset + x * cell, offset + y * cell, Math.max(1, cell - 1), Math.max(1, cell - 1));
       });
@@ -5649,20 +5774,10 @@
 
   function finalizeControlsLayout(compactControls) {
     if (!els.controlsModalBody || !els.stageControls) return;
-    if (!compactControls) {
-      els.controlsModalBody.innerHTML = "";
-      closeControlsModal();
-      return;
-    }
-    const nodes = [...els.stageControls.childNodes];
     els.controlsModalBody.innerHTML = "";
-    nodes.forEach((node) => els.controlsModalBody.appendChild(node));
-    const openButton = document.createElement("button");
-    openButton.type = "button";
-    openButton.className = "controls-entry primary-button";
-    openButton.textContent = "打开操作面板";
-    openButton.addEventListener("click", () => openControlsModal());
-    els.stageControls.appendChild(openButton);
+    // Mobile keeps controls inline; no extra "open panel" button.
+    // Close modal to avoid stale floating panel after resize/rotation.
+    closeControlsModal();
   }
 
   function startIroning(forceSpill = false) {
@@ -5865,10 +5980,6 @@
     els.stageControls.appendChild(box);
   }
 
-  function addRemapOpenButton() {
-    // Inline panel renders automatically on choose phase; no button needed.
-  }
-
   function openRemapModal(focusSource = null) {
     if (state.phase !== "choose") return;
     state.remapFocusSource = focusSource || null;
@@ -5886,7 +5997,6 @@
       els.remapModal.classList.remove("show");
       els.remapModal.setAttribute("aria-hidden", "true");
     }
-    renderRemapInline();
   }
 
   function resetPatternColorMapping() {
@@ -5932,18 +6042,14 @@
     }
     const map = state.patternColorMap || {};
     const allCodes = allColorCodes();
+    const activeCodes = new Set(allCodes);
     els.remapModalBody.innerHTML = "";
     sourceColors.forEach((sourceCode) => {
       const card = document.createElement("div");
       card.className = "remap-card";
-      const currentTarget = map[sourceCode] || sourceCode;
+      const currentTarget = activeCodes.has(map[sourceCode]) ? map[sourceCode] : sourceCode;
       card.innerHTML = `
         <div class="remap-card-head">
-          <span class="remap-from">
-            <span class="remap-swatch" style="background:${palette[sourceCode]}"></span>
-            <span class="remap-label">${beadIds[sourceCode]} ${colorNames[sourceCode] || ""}</span>
-          </span>
-          <span class="remap-arrow" aria-hidden="true">→</span>
           <span class="remap-to">
             <span class="remap-swatch" style="background:${palette[currentTarget]}"></span>
             <span class="remap-label">${beadIds[currentTarget]} ${colorNames[currentTarget] || ""}</span>
@@ -5955,7 +6061,7 @@
       allCodes.forEach((code) => {
         const cell = document.createElement("button");
         cell.type = "button";
-        cell.className = `swatch-cell${(map[sourceCode] || sourceCode) === code ? " active" : ""}`;
+        cell.className = `swatch-cell${currentTarget === code ? " active" : ""}`;
         cell.style.background = palette[code];
         cell.title = `${beadIds[code]} ${colorNames[code] || ""}`;
         cell.setAttribute("aria-label", cell.title);
@@ -5968,65 +6074,6 @@
       card.appendChild(swatchGrid);
       els.remapModalBody.appendChild(card);
     });
-  }
-
-  function renderRemapInline() {
-    if (!els.remapInline) return;
-    const sourceColors = getSourcePatternColors();
-    const isChoose = state.phase === "choose";
-    if (!isChoose || !sourceColors.length) {
-      els.remapInline.hidden = true;
-      els.remapInline.innerHTML = "";
-      return;
-    }
-    els.remapInline.hidden = false;
-    const map = state.patternColorMap || {};
-    const focused = sourceColors.includes(state.remapFocusSource) ? state.remapFocusSource : sourceColors[0];
-    state.remapFocusSource = focused;
-
-    els.remapInline.innerHTML = `
-      <div class="remap-inline-head">
-        <strong>图纸换色</strong>
-        <button type="button" class="remap-inline-reset" aria-label="恢复原色" title="恢复原色">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
-        </button>
-      </div>
-      <div class="remap-source-row"></div>
-      <div class="remap-target-area"></div>
-    `;
-    els.remapInline.querySelector(".remap-inline-reset").addEventListener("click", () => resetPatternColorMapping());
-
-    const srcRow = els.remapInline.querySelector(".remap-source-row");
-    sourceColors.forEach((sourceCode) => {
-      const target = map[sourceCode] || sourceCode;
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = `remap-source-chip${focused === sourceCode ? " active" : ""}${target !== sourceCode ? " remapped" : ""}`;
-      chip.title = `${beadIds[sourceCode] || sourceCode}${target !== sourceCode ? ` → ${beadIds[target] || target}` : ""}`;
-      chip.innerHTML = `
-        <span class="remap-source-chip-swatch" style="background:${palette[sourceCode]}"></span>
-        ${target !== sourceCode
-          ? `<span class="remap-source-chip-arrow">→</span><span class="remap-source-chip-swatch" style="background:${palette[target]}"></span>`
-          : ""}
-      `;
-      chip.addEventListener("click", () => {
-        openRemapModal(sourceCode);
-      });
-      srcRow.appendChild(chip);
-    });
-
-    const targetArea = els.remapInline.querySelector(".remap-target-area");
-    const currentTarget = map[focused] || focused;
-    targetArea.innerHTML = `
-      <div class="remap-target-label">
-        <span class="remap-swatch" style="background:${palette[focused]}"></span>
-        <span class="remap-arrow">→</span>
-        <span class="remap-swatch" style="background:${palette[currentTarget]}"></span>
-        <span class="remap-label">${beadIds[currentTarget] || currentTarget} ${colorNames[currentTarget] || ""}</span>
-      </div>
-      <button type="button" class="remap-open-picker">选新颜色</button>
-    `;
-    targetArea.querySelector(".remap-open-picker")?.addEventListener("click", () => openRemapModal(focused));
   }
 
   function addToolToggle() {
@@ -6974,7 +7021,7 @@
       return;
     }
     const map = state.patternColorMap || {};
-    if (!palette[sourceCode] || !palette[targetCode]) return;
+    if (!palette[sourceCode] || !allColorCodes().includes(targetCode)) return;
     if (map[sourceCode] === targetCode) return;
     map[sourceCode] = targetCode;
     const patternId = baseIdFor(state.selectedPattern);
@@ -7782,6 +7829,7 @@
 
   function onResize() {
     invalidateLayoutCache();
+    if (state.trayColor) syncTrayMatrixShape();
     markDirty();
   }
 
@@ -7808,6 +7856,7 @@
     if (state.phase === "choose") setPhase("place");
   });
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
+  els.patternColorStats?.addEventListener("click", handlePatternColorChipToggle);
   els.bgThemeSelect?.addEventListener("change", () => {
     applyBackgroundTheme(els.bgThemeSelect.value);
     showToast(`背景已切换为 ${currentBackgroundTheme().name}。`);
@@ -7846,6 +7895,13 @@
     const size = normalizePatternSize(els.patternSizeSlider.value);
     setSizeControls(size);
     applyPatternSize(size);
+  });
+  [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
+    picker?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-palette-size]");
+      if (!button) return;
+      setPaletteSize(button.dataset.paletteSize);
+    });
   });
   els.zoomInButton?.addEventListener("click", () => {
     setBoardZoom(state.boardView.scale + 0.2, state.boardView.panX, state.boardView.panY);
