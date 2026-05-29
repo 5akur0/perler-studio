@@ -2290,12 +2290,17 @@
         trayH: 0,
       };
     }
-    const rawBoard = Math.min(h - 78, w * 0.64, 590);
-    const boardSize = Math.floor(rawBoard / 8) * 8;
     const boardX = 34;
     const boardY = 42;
-    const trayX = boardX + boardSize + 34;
-    const trayW = Math.max(230, w - (boardX + boardSize + 68));
+    const trayGap = 34;       // gap between right edge of board and left edge of tray
+    const trayRightMargin = 34;
+    const minTrayW = 180;     // minimum tray width; board shrinks to guarantee this fits
+    const maxBoardForTray = w - boardX - trayGap - minTrayW - trayRightMargin;
+    const rawBoard = Math.min(h - 78, w * 0.64, 590, maxBoardForTray);
+    const boardSize = Math.floor(rawBoard / 8) * 8;
+    const trayX = boardX + boardSize + trayGap;
+    const naturalTrayW = w - trayX - trayRightMargin;
+    const trayW = Math.max(minTrayW, naturalTrayW);
     const refH = clamp(boardSize * 0.26, 130, 158);
     const trayY = boardY + refH + 16;
     return {
