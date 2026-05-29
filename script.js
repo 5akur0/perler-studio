@@ -1774,17 +1774,17 @@
     const w = rect.width;
     const h = rect.height;
     if (w < 740) {
-      const boardY = 24;
-      const refH = 126;
-      const trayMinH = 154;
-      const maxBoardByHeight = h - boardY - 22 - refH - 12 - trayMinH - 22;
-      const rawBoard = Math.max(260, Math.min(w - 40, 460, maxBoardByHeight));
+      const boardY = 16;
+      const refH = clamp(Math.round(h * 0.16), 86, 112);
+      const trayMinH = clamp(Math.round(h * 0.24), 120, 176);
+      const maxBoardByHeight = h - boardY - 14 - refH - 10 - trayMinH - 16;
+      const rawBoard = clamp(maxBoardByHeight, 240, Math.min(w - 24, 468));
       const boardSize = Math.floor(rawBoard / 8) * 8;
       const boardX = Math.floor((w - boardSize) / 2);
-      const refX = 24;
-      const refY = boardY + boardSize + 22;
-      const refW = w - 48;
-      const trayY = refY + refH + 12;
+      const refX = 12;
+      const refY = boardY + boardSize + 14;
+      const refW = w - 24;
+      const trayY = refY + refH + 10;
       return {
         w,
         h,
@@ -1796,10 +1796,10 @@
         refY,
         refW,
         refH,
-        trayX: 24,
+        trayX: 12,
         trayY,
-        trayW: w - 48,
-        trayH: Math.max(trayMinH, h - trayY - 22),
+        trayW: w - 24,
+        trayH: Math.max(trayMinH, h - trayY - 16),
       };
     }
     const rawBoard = Math.min(h - 78, w * 0.64, 590);
@@ -2467,7 +2467,7 @@
         }
         if (index !== spillIndex) {
           const pegR = Math.max(2, cell * 0.138);
-          ctx.fillStyle = "rgba(91, 104, 118, 0.24)";
+          ctx.fillStyle = "rgba(91, 104, 118, 0.32)";
           ctx.beginPath();
           ctx.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
           ctx.fill();
@@ -4174,7 +4174,13 @@
       <span class="pattern-color-chip">
         <span class="dot" style="background:${palette[item.code]}"></span>
         <span class="code">${beadIds[item.code] || item.code}</span>
-        ${targetCode !== item.code ? `<span class="map">映射 · ${beadIds[targetCode] || targetCode}</span>` : ""}
+        ${targetCode !== item.code
+    ? [
+      `<span class="map-arrow">→</span>`,
+      `<span class="dot target" style="background:${palette[targetCode]}"></span>`,
+      `<span class="map">${beadIds[targetCode] || targetCode}</span>`,
+    ].join("")
+    : ""}
         <span class="count">${item.count}</span>
       </span>
     `;
@@ -4190,15 +4196,27 @@
     const pattern = state.selectedPattern;
     const size = pattern.size;
     const ctx = sideReferenceCtx;
-    const w = sideReferenceCanvas.width;
-    const h = sideReferenceCanvas.height;
+    const rect = sideReferenceCanvas.getBoundingClientRect();
+    const cssW = Math.max(1, Math.round(rect.width || 300));
+    const cssH = Math.max(1, Math.round(rect.height || cssW));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const pixelW = Math.max(1, Math.round(cssW * dpr));
+    const pixelH = Math.max(1, Math.round(cssH * dpr));
+    if (sideReferenceCanvas.width !== pixelW || sideReferenceCanvas.height !== pixelH) {
+      sideReferenceCanvas.width = pixelW;
+      sideReferenceCanvas.height = pixelH;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pixelW, pixelH);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = cssW;
+    const h = cssH;
     const cell = Math.max(2, Math.floor(Math.min((w - 24) / size, (h - 24) / size)));
     const gridSize = cell * size;
     const x0 = Math.floor((w - gridSize) / 2);
     const y0 = Math.floor((h - gridSize) / 2);
     const map = getPatternColorMap(pattern);
 
-    ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "#f7f9fc";
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = "#ffffff";
@@ -5465,7 +5483,7 @@
   }
 
   function isCompactControlsMode() {
-    return window.matchMedia("(max-width: 860px)").matches;
+    return window.matchMedia("(max-width: 520px) and (max-height: 760px)").matches;
   }
 
   function openControlsModal() {
@@ -5754,8 +5772,6 @@
     if (state.phase !== "choose") return;
     state.remapFocusSource = focusSource || null;
     renderRemapInline();
-    // Scroll the inline panel into view if needed.
-    els.remapInline?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
   }
 
   function closeRemapModal() {
@@ -5857,8 +5873,8 @@
     els.remapInline.hidden = false;
     const map = state.patternColorMap || {};
     const allCodes = allColorCodes();
-    // If the focused source isn't part of this pattern anymore, drop it.
-    const focused = sourceColors.includes(state.remapFocusSource) ? state.remapFocusSource : null;
+    const focused = sourceColors.includes(state.remapFocusSource) ? state.remapFocusSource : sourceColors[0];
+    state.remapFocusSource = focused;
 
     els.remapInline.innerHTML = `
       <div class="remap-inline-head">
@@ -5886,17 +5902,13 @@
           : ""}
       `;
       chip.addEventListener("click", () => {
-        state.remapFocusSource = focused === sourceCode ? null : sourceCode;
+        state.remapFocusSource = sourceCode;
         renderRemapInline();
       });
       srcRow.appendChild(chip);
     });
 
     const targetArea = els.remapInline.querySelector(".remap-target-area");
-    if (!focused) {
-      targetArea.innerHTML = `<div class="remap-hint">点上方原色圆点，再从下面选新颜色</div>`;
-      return;
-    }
     const currentTarget = map[focused] || focused;
     targetArea.innerHTML = `
       <div class="remap-target-label">
@@ -6904,10 +6916,13 @@
   function boardCellFromPoint(x, y) {
     const layout = currentLayout();
     const { boardX, boardY, boardSize, cell } = layout;
-    if (x < boardX || y < boardY || x > boardX + boardSize || y > boardY + boardSize) return null;
+    const pad = Math.max(5, cell * 0.24);
+    if (x < boardX - pad || y < boardY - pad || x > boardX + boardSize + pad || y > boardY + boardSize + pad) return null;
+    const clampedX = clamp(x, boardX, boardX + boardSize - 0.01);
+    const clampedY = clamp(y, boardY, boardY + boardSize - 0.01);
     return {
-      x: clamp(Math.floor((x - boardX) / cell), 0, state.selectedPattern.size - 1),
-      y: clamp(Math.floor((y - boardY) / cell), 0, state.selectedPattern.size - 1),
+      x: clamp(Math.floor((clampedX - boardX) / cell), 0, state.selectedPattern.size - 1),
+      y: clamp(Math.floor((clampedY - boardY) / cell), 0, state.selectedPattern.size - 1),
     };
   }
 
