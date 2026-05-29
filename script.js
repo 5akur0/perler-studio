@@ -1357,11 +1357,21 @@
   function normalizePatternColorMapForActivePalette(pattern = state.selectedPattern) {
     const patternId = baseIdFor(pattern);
     const activeCodes = new Set(allColorCodes());
+    const activeCodesArr = [...activeCodes];
     const previousMap = state.patternColorMaps[patternId] || {};
     const normalizedMap = {};
     getSourcePatternColors(pattern).forEach((code) => {
       const mapped = previousMap[code];
-      normalizedMap[code] = mapped && activeCodes.has(mapped) ? mapped : code;
+      if (mapped && activeCodes.has(mapped)) {
+        // user's manual remap is still valid
+        normalizedMap[code] = mapped;
+      } else if (activeCodes.has(code)) {
+        // colour is directly in the active palette — use as-is
+        normalizedMap[code] = code;
+      } else {
+        // colour not in active palette → auto-remap to perceptually nearest
+        normalizedMap[code] = nearestCodeFromSet(beadOklab(code), activeCodesArr);
+      }
     });
     state.patternColorMaps[patternId] = normalizedMap;
     if (baseIdFor(state.selectedPattern) === patternId) state.patternColorMap = normalizedMap;
@@ -4335,25 +4345,30 @@
       ctx.closePath();
     };
 
-    // H1 = transparent/clear bead: glass look instead of opaque fill
+    // H1 = semi-transparent/frosted bead: visible but lets background show through
     if (beadIds[code] === "H1") {
       ctx.save();
-      // faint ghost fill so the shape reads
-      ctx.globalAlpha = 0.14;
-      ctx.fillStyle = "#d6e8f8";
+      // soft shadow so it reads against the board
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      buildPath(x + r * 0.06, y + r * 0.1);
+      ctx.fill();
+      // semi-transparent frosted body
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = "#e8f4ff";
       buildPath(x, y);
       ctx.fill();
-      // crisp outline — the main visual cue
-      ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = "rgba(110, 150, 200, 0.85)";
-      ctx.lineWidth = Math.max(0.8, r * 0.12);
+      // outline to define the shape
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = "rgba(100, 140, 195, 0.9)";
+      ctx.lineWidth = Math.max(0.8, r * 0.1);
       buildPath(x, y);
       ctx.stroke();
-      // glass specular highlight
-      ctx.globalAlpha = 0.7;
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      // specular highlight
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
       ctx.beginPath();
-      ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.2, 0, Math.PI * 2);
+      ctx.arc(x - r * 0.28, y - r * 0.28, r * 0.22, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       return;
