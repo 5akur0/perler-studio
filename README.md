@@ -9,6 +9,11 @@
 
 项目没有构建步骤，也不依赖外部资源。
 
+## 公开测试发布
+
+- Cloudflare Pages 上线步骤见 [DEPLOY_CLOUDFLARE_PAGES.md](/Users/Sakuro/beam/DEPLOY_CLOUDFLARE_PAGES.md)。
+- Figma 协作规范见 [FIGMA_HANDOFF.md](/Users/Sakuro/beam/FIGMA_HANDOFF.md)。
+
 ## 玩法要点
 
 - 先选择图纸，再进入拼豆工作台。

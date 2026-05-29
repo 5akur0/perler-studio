@@ -571,13 +571,13 @@
     currentPatternThumb: document.querySelector("#currentPatternChip .current-pattern-thumb"),
     currentPatternName: $("#currentPatternName"),
     currentPatternMeta: $("#currentPatternMeta"),
-    statusButton: $("#statusButton"),
-    statusButtonDot: $("#statusButtonDot"),
-    statusModal: $("#statusModal"),
-    statusModalClose: $("#statusModalClose"),
     collectionButton: $("#collectionButton"),
     collectionModal: $("#collectionModal"),
     collectionModalClose: $("#collectionModalClose"),
+    settingsButton: $("#settingsButton"),
+    settingsDot: $("#settingsDot"),
+    settingsModal: $("#settingsModal"),
+    settingsModalClose: $("#settingsModalClose"),
     shareModal: $("#shareModal"),
     shareModalClose: $("#shareModalClose"),
     remapModal: $("#remapModal"),
@@ -594,14 +594,12 @@
     rightPanelTitle: $("#rightPanelTitle"),
     colorPalette: $("#colorPalette"),
     colorMeta: $("#colorMeta"),
-    meterPanel: $("#meterPanel"),
     sharePanel: $("#sharePanel"),
     collectionPanel: $("#collectionPanel"),
     collectionCount: $("#collectionCount"),
     bgThemeSelect: $("#bgThemeSelect"),
     topToolStyleSelect: $("#topToolStyleSelect"),
     sandboxButton: $("#sandboxButton"),
-    startNowButton: $("#startNowButton"),
     chooseStartButton: $("#chooseStartButton"),
     resetButton: $("#resetButton"),
     toast: $("#toast"),
@@ -688,8 +686,8 @@
     remapFocusSource: null,
     remapModalOpen: false,
     controlsModalOpen: false,
-    statusModalOpen: false,
     collectionModalOpen: false,
+    settingsModalOpen: false,
     shareModalOpen: false,
     sandboxMode: false,
     bgTheme: "mist",
@@ -755,10 +753,13 @@
     renderDirty: true,
     uiDirty: true,
     previewDirty: true,
-    meterRefreshAt: 0,
+    patternsDirty: true,
+    pendingWorkflowScroll: true,
+    pendingPageReset: false,
   };
 
   const collectionKey = "beadWorkshopCollection.v1";
+  const collectionLimit = 24;
   const achievementKey = "beadWorkshopAchievements.v1";
   const conceptAchievement = "观念先于熨烫";
   const fullBoardAchievement = "没有一个孔位是无辜的";
@@ -782,7 +783,9 @@
 
   function readCollection() {
     try {
-      return JSON.parse(localStorage.getItem(collectionKey) || "[]");
+      const parsed = JSON.parse(localStorage.getItem(collectionKey) || "[]");
+      if (!Array.isArray(parsed)) return [];
+      return parsed.slice(0, collectionLimit);
     } catch (error) {
       return [];
     }
@@ -822,7 +825,7 @@
 
   function writeCollection() {
     try {
-      localStorage.setItem(collectionKey, JSON.stringify(collection.slice(0, 12)));
+      localStorage.setItem(collectionKey, JSON.stringify(collection.slice(0, collectionLimit)));
       return true;
     } catch (error) {
       showToast("浏览器阻止了本地保存，但作品已经完成。");
@@ -1522,6 +1525,7 @@
     const firstColor = getPatternColors(pattern)[0] || "K";
     state.selectedColor = firstColor;
     state.previewDirty = true;
+    state.patternsDirty = true;
     if (!keepPhase) state.phase = "choose";
     markDirty();
   }
@@ -1645,7 +1649,33 @@
     if (phase === "cool" || phase === "finish") {
       state.fusedPieces = buildFusedPiecesFromPlaced();
     }
+    state.pendingWorkflowScroll = true;
+    schedulePhaseViewportReset();
     markDirty();
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+  }
+
+  function schedulePhaseViewportReset() {
+    state.pendingPageReset = true;
+  }
+
+  function resetPhaseViewport() {
+    const reset = () => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "auto",
+      });
+    };
+    reset();
+    window.requestAnimationFrame(() => {
+      reset();
+      window.requestAnimationFrame(reset);
+    });
+    window.setTimeout(reset, 120);
   }
 
   function toggleSandboxMode(next = !state.sandboxMode) {
@@ -4070,24 +4100,25 @@
 
   function renderUI() {
     if (els.studioGrid) els.studioGrid.dataset.phase = state.phase;
-    renderPatterns();
+    if (state.patternsDirty) {
+      renderPatterns();
+      state.patternsDirty = false;
+    }
     renderPhases();
     renderCurrentPatternChip();
     renderControls();
     renderToolRack();
     renderPalette();
-    renderMeters();
-    renderSharePanel();
     renderCustomStats();
     renderPatternColorStats();
     renderRemapInline();
     renderSidebarReference();
-    renderCollection();
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
     els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
     els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
     els.collectionCount.textContent = String(collection.length);
+    if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
     if (state.phase === "inspect") {
       els.colorMeta.textContent = "检查辅助";
     } else {
@@ -4097,12 +4128,13 @@
       els.rightPanelTitle.textContent = state.phase === "inspect" ? "检查台" : "豆盒";
     }
     if (els.sandboxButton) {
-      els.sandboxButton.textContent = state.sandboxMode ? "🧪" : "🔍";
-      els.sandboxButton.title = state.sandboxMode ? "Sandbox on" : "Sandbox off";
-      els.sandboxButton.setAttribute("aria-label", state.sandboxMode ? "Sandbox on" : "Sandbox off");
+      const beakerIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L5 19a1.6 1.6 0 0 0 1.4 2.4h11.2A1.6 1.6 0 0 0 19 19l-5-9.5V3"/><path d="M7.5 14h9"/></svg>';
+      const loupeIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>';
+      els.sandboxButton.innerHTML = state.sandboxMode ? beakerIcon : loupeIcon;
+      els.sandboxButton.title = state.sandboxMode ? "沙盒：开（自由拼摆不校验）" : "沙盒：自由拼摆不校验";
+      els.sandboxButton.setAttribute("aria-label", state.sandboxMode ? "沙盒模式：开" : "沙盒模式：关");
       els.sandboxButton.classList.toggle("active", state.sandboxMode);
     }
-    if (els.startNowButton) els.startNowButton.hidden = true;
     if (els.chooseStartButton) els.chooseStartButton.hidden = state.phase !== "choose";
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     if (els.topToolStyleSelect) {
@@ -5368,14 +5400,51 @@
       const item = document.createElement("button");
       item.type = "button";
       item.className = `workflow-step${index === activeIndex ? " active" : ""}${index < activeIndex ? " done" : ""}`;
+      item.setAttribute("aria-label", `${index + 1} ${phase.name}`);
       item.innerHTML = `<span class="step-dot">${index + 1}</span><span>${phase.name}</span>`;
-      item.disabled = index > activeIndex || (index === 0 && activeIndex > 0);
+      item.disabled = index >= activeIndex;
       item.addEventListener("click", () => {
-        if (index > 0 && index < activeIndex) {
-          setPhase(phase.id);
+        if (index >= activeIndex) return;
+        const target = phase.id;
+        if (target === "choose") {
+          if (
+            (placedCount() > 0 || state.fusedPieces.length > 0) &&
+            !window.confirm("回到选图会离开当前作品的进度，确定吗？")
+          ) {
+            return;
+          }
+          setPhase("choose");
+          return;
         }
+        const losesFused =
+          state.fusedPieces.length > 0 &&
+          (target === "place" || target === "inspect" || target === "iron");
+        if (losesFused && !window.confirm("回退到该步会清除已熨烫/冷却的结果，确定吗？")) {
+          return;
+        }
+        setPhase(target);
       });
       els.workflowProgress.appendChild(item);
+    });
+    if (state.pendingWorkflowScroll) {
+      state.pendingWorkflowScroll = false;
+      scrollActiveWorkflowStep();
+    }
+    if (state.pendingPageReset) {
+      state.pendingPageReset = false;
+      resetPhaseViewport();
+    }
+  }
+
+  function scrollActiveWorkflowStep() {
+    const activeStep = els.workflowProgress?.querySelector(".workflow-step.active");
+    if (!activeStep) return;
+    window.requestAnimationFrame(() => {
+      activeStep.scrollIntoView({
+        block: "nearest",
+        inline: "center",
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
     });
   }
 
@@ -5413,21 +5482,6 @@
     els.controlsModal.setAttribute("aria-hidden", "true");
   }
 
-  function openStatusModal() {
-    if (!els.statusModal) return;
-    state.statusModalOpen = true;
-    els.statusModal.classList.add("show");
-    els.statusModal.setAttribute("aria-hidden", "false");
-    renderMeters();
-  }
-
-  function closeStatusModal() {
-    if (!els.statusModal) return;
-    state.statusModalOpen = false;
-    els.statusModal.classList.remove("show");
-    els.statusModal.setAttribute("aria-hidden", "true");
-  }
-
   function openCollectionModal() {
     if (!els.collectionModal) return;
     state.collectionModalOpen = true;
@@ -5458,6 +5512,20 @@
     state.shareModalOpen = false;
     els.shareModal.classList.remove("show");
     els.shareModal.setAttribute("aria-hidden", "true");
+  }
+
+  function openSettingsModal() {
+    if (!els.settingsModal) return;
+    state.settingsModalOpen = true;
+    els.settingsModal.classList.add("show");
+    els.settingsModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeSettingsModal() {
+    if (!els.settingsModal) return;
+    state.settingsModalOpen = false;
+    els.settingsModal.classList.remove("show");
+    els.settingsModal.setAttribute("aria-hidden", "true");
   }
 
   function finalizeControlsLayout(compactControls) {
@@ -6315,70 +6383,6 @@
     });
   }
 
-  function renderMeters() {
-    els.meterPanel.innerHTML = "";
-    const counts = getTargetCounts();
-    const sorted = state.trayColor ? state.trayProgress : 0;
-    const placed = placementAccuracy() * 100;
-    const heat = heatStats();
-    const meters = [
-      ["豆筛整齐度", sorted, sorted < 45 ? "warn" : "", "normal"],
-      ["摆放准确度", placed, placed < 75 ? "warn" : "", "normal"],
-      ["熨烫粘连", heat.bondedPercent, heat.bondedPercent < 58 ? "warn" : "", "normal"],
-      ["过熔风险", heat.overPercent, heat.overPercent > 18 ? "hot" : "", "inverse"],
-      ["冷却定型", state.cooling, state.cooling < 78 ? "warn" : "", "normal"],
-      ["平整度", clamp(100 - state.warp, 0, 100), state.warp > 34 ? "warn" : "", "normal"],
-    ];
-    meters.forEach(([label, value, kind, scale]) => addMeter(label, value, kind, scale));
-
-    const hasAlert = state.phase !== "choose"
-      && state.phase !== "finish"
-      && meters.some(([label, , kind]) => kind === "hot" || (kind === "warn" && (label === "过熔风险" || label === "摆放准确度" || label === "熨烫粘连")));
-    if (els.statusButton) {
-      els.statusButton.classList.toggle("alert", hasAlert);
-    }
-    if (els.statusButtonDot) {
-      els.statusButtonDot.hidden = !hasAlert;
-    }
-
-    const selectedNeed = counts[state.selectedColor] || 0;
-    const placedCounts = getPlacedCounts();
-    const selectedPlaced = placedCounts[state.selectedColor] || 0;
-    const trayText = state.trayColor ? ` · 筛 ${beadIds[state.trayColor]} ${state.trayBeans}颗` : " · 筛空";
-    const heldText = state.tweezerBead ? ` · 镊 ${beadIds[state.tweezerBead]}` : "";
-    els.colorMeta.textContent = `${beadIds[state.selectedColor]} ${selectedPlaced}/${selectedNeed}${trayText}${heldText}`;
-  }
-
-  function qualitativeLabel(value, kind, scale) {
-    const v = clamp(value, 0, 100);
-    // For "hot" metrics (lower is better), use inverted thresholds.
-    if (scale === "inverse") {
-      if (v < 6) return { word: "几乎没有", tone: "good" };
-      if (v < 14) return { word: "少量", tone: "good" };
-      if (v < 24) return { word: "略多", tone: "warn" };
-      return { word: "明显偏多", tone: "hot" };
-    }
-    // Default: higher is better.
-    if (v < 30) return { word: "很差", tone: "warn" };
-    if (v < 55) return { word: "一般", tone: "warn" };
-    if (v < 78) return { word: "良好", tone: "" };
-    if (v < 92) return { word: "出色", tone: "good" };
-    return { word: "完美", tone: "good" };
-  }
-
-  function addMeter(label, value, kind = "", scale = "normal") {
-    const meter = document.createElement("div");
-    meter.className = "meter";
-    const rounded = Math.round(clamp(value, 0, 100));
-    const q = qualitativeLabel(rounded, kind, scale);
-    const tone = kind || q.tone;
-    meter.innerHTML = `
-      <div class="meter-head"><span>${label}</span><strong class="meter-word ${tone}">${q.word}</strong></div>
-      <div class="meter-track"><div class="meter-fill ${tone}" style="width:${rounded}%"></div></div>
-    `;
-    els.meterPanel.appendChild(meter);
-  }
-
   function renderSharePanel() {
     els.sharePanel.innerHTML = "";
     const card = document.createElement("div");
@@ -6807,6 +6811,14 @@
   }
 
   function clearBoard() {
+    const hasContent =
+      placedCount() > 0 ||
+      state.trayBeans > 0 ||
+      state.needleLoaded > 0 ||
+      state.tweezerBead ||
+      state.spill ||
+      state.fusedPieces.length > 0;
+    if (hasContent && !window.confirm("清空板面会移除已摆的全部豆子，确定吗？")) return;
     state.placed.fill(null);
     state.heat.fill(0);
     state.errors = [];
@@ -7341,7 +7353,7 @@
     };
     if (!state.savedCurrent) {
       collection.unshift(entry);
-      collection = collection.slice(0, 24);
+      collection = collection.slice(0, collectionLimit);
       const stored = writeCollection();
       state.savedCurrent = true;
       if (stored) showToast("作品已收入作品集。");
@@ -7585,10 +7597,6 @@
       if (Math.abs(state.cooling - prevCooling) > 0.0001 || Math.abs(state.flattening - prevFlatten) > 0.0001) {
         state.renderDirty = true;
       }
-      if (now - state.meterRefreshAt > 500) {
-        renderMeters();
-        state.meterRefreshAt = now;
-      }
     }
     if (state.renderDirty || state.uiDirty || state.previewDirty || shouldAnimateCanvas(now)) {
       render();
@@ -7608,13 +7616,12 @@
   sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   els.resetButton.addEventListener("click", () => {
+    const hasProgress = state.phase !== "choose" || placedCount() > 0;
+    if (hasProgress && !window.confirm("重置会清空当前所有进度，确定吗？")) return;
     loadPattern(state.selectedPattern);
     showToast("已重置当前作品。");
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
-  els.startNowButton?.addEventListener("click", () => {
-    if (state.phase === "choose") setPhase("place");
-  });
   els.chooseStartButton?.addEventListener("click", () => {
     if (state.phase === "choose") setPhase("place");
   });
@@ -7656,12 +7663,15 @@
   els.controlsModal?.addEventListener("click", (event) => {
     if (event.target === els.controlsModal) closeControlsModal();
   });
-  els.statusButton?.addEventListener("click", () => openStatusModal());
-  els.statusModalClose?.addEventListener("click", () => closeStatusModal());
-  els.statusModal?.addEventListener("click", (event) => {
-    if (event.target === els.statusModal) closeStatusModal();
+  els.settingsButton?.addEventListener("click", () => openSettingsModal());
+  els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
+  els.settingsModal?.addEventListener("click", (event) => {
+    if (event.target === els.settingsModal) closeSettingsModal();
   });
-  els.collectionButton?.addEventListener("click", () => openCollectionModal());
+  els.collectionButton?.addEventListener("click", () => {
+    closeSettingsModal();
+    openCollectionModal();
+  });
   els.collectionModalClose?.addEventListener("click", () => closeCollectionModal());
   els.collectionModal?.addEventListener("click", (event) => {
     if (event.target === els.collectionModal) closeCollectionModal();
@@ -7677,8 +7687,8 @@
     if (enlarged) { enlarged.classList.remove("show"); return; }
     if (state.remapModalOpen) closeRemapModal();
     if (state.controlsModalOpen) closeControlsModal();
-    if (state.statusModalOpen) closeStatusModal();
     if (state.collectionModalOpen) closeCollectionModal();
+    if (state.settingsModalOpen) closeSettingsModal();
     if (state.shareModalOpen) closeShareModal();
   });
 
