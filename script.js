@@ -50,10 +50,6 @@
     z: "#EDB045",
   };
 
-  // colorNames is kept as an empty object for API compatibility;
-  // MARD codes (beadIds) are the sole display labels.
-  const colorNames = {};
-
   const beadIds = {
     Q: "A1",
     q: "T1",
@@ -118,7 +114,6 @@
     mardCodeToWorkshopCode[normalized] = internalCode;
     palette[internalCode] = hex;
     beadIds[internalCode] = normalized;
-    if (!colorNames[internalCode]) colorNames[internalCode] = normalized;
   });
 
   const paletteSizeOptions = [48, 96, 221];
@@ -848,9 +843,11 @@
     patternsDirty: true,
     pendingWorkflowScroll: true,
     pendingPageReset: false,
+    placedVersion: 0,
   };
 
   const collectionKey = "beadWorkshopCollection.v1";
+  const sessionKey = "beadWorkshopSession.v1";
   const collectionLimit = 24;
   const achievementKey = "beadWorkshopAchievements.v1";
   const conceptAchievement = "观念先于熨烫";
@@ -1340,10 +1337,15 @@
     return getPatternAnalysis(pattern).total;
   }
 
+  let colorCodesCacheSize = null;
+  let colorCodesCache = null;
   function allColorCodes() {
+    if (colorCodesCache && colorCodesCacheSize === state.paletteSize) return colorCodesCache;
     const preset = palettePresetMardCodes[state.paletteSize] || palettePresetMardCodes[48];
-    return [...new Set(preset.map(workshopCodeForMard).filter((code) => palette[code]))]
+    colorCodesCacheSize = state.paletteSize;
+    colorCodesCache = [...new Set(preset.map(workshopCodeForMard).filter((code) => palette[code]))]
       .sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
+    return colorCodesCache;
   }
 
   function beadLabel(code) {
@@ -1482,13 +1484,22 @@
     return pattern.__sourceAnalysis;
   }
 
+  let placedCountsCacheVersion = -1;
+  let placedCountsCache = {};
+  function invalidatePlacedCounts() {
+    state.placedVersion += 1;
+  }
+
   function getPlacedCounts() {
+    if (placedCountsCacheVersion === state.placedVersion) return placedCountsCache;
     const counts = {};
     state.placed.forEach((code) => {
       if (!code) return;
       counts[code] = (counts[code] || 0) + 1;
     });
-    return counts;
+    placedCountsCache = counts;
+    placedCountsCacheVersion = state.placedVersion;
+    return placedCountsCache;
   }
 
   function normalizePatternSize(value) {
@@ -1678,6 +1689,7 @@
     setSizeControls(pattern.size);
     const total = pattern.size * pattern.size;
     state.placed = Array(total).fill(null);
+    invalidatePlacedCounts();
     state.heat = Array(total).fill(0);
     state.trayColor = null;
     state.trayProgress = 0;
@@ -1727,8 +1739,14 @@
     return window.matchMedia("(max-width: 860px)").matches;
   }
 
+  // True on any touch-primary device (phone + tablet); false on mouse/trackpad desktop.
+  function isTouchDevice() {
+    return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+  }
+
   function maxBoardScale() {
-    return useMobileDirectPlacement() ? 6 : 2.8;
+    // Touch devices (phone + tablet) benefit from a higher ceiling for close-up work.
+    return isTouchDevice() ? 6 : 2.8;
   }
 
   function shouldShowTray(layout = currentLayout()) {
@@ -1983,9 +2001,11 @@
 
 
   // --- Auto Save ---
+  let autoSaveTimer = 0;
+
   function autoSave() {
     if (state.phase === "choose") {
-      localStorage.removeItem("beadWorkshopSession.v1");
+      localStorage.removeItem(sessionKey);
       return;
     }
     const session = {
@@ -2010,19 +2030,24 @@
       spill: state.spill
     };
     try {
-      localStorage.setItem("beadWorkshopSession.v1", JSON.stringify(session));
+      localStorage.setItem(sessionKey, JSON.stringify(session));
     } catch(e) {}
+  }
+
+  function scheduleAutoSave(delay = 550) {
+    window.clearTimeout(autoSaveTimer);
+    autoSaveTimer = window.setTimeout(autoSave, delay);
   }
 
   function loadAutoSave() {
     try {
-      const data = localStorage.getItem("beadWorkshopSession.v1");
+      const data = localStorage.getItem(sessionKey);
       if (!data) return false;
       const session = JSON.parse(data);
       if (!session || session.phase === "choose") return false;
       
       const pattern = patterns.find(p => p.id === session.selectedPatternId);
-      if (!pattern && !session.sandboxMode) return false;
+      if (!pattern) return false;
       
       state.phase = session.phase;
       state.sandboxMode = session.sandboxMode;
@@ -2030,6 +2055,7 @@
       if (session.patternColorMaps) state.patternColorMaps = session.patternColorMaps;
       if (session.patternSize) state.patternSize = session.patternSize;
       state.placed = session.placed || [];
+      invalidatePlacedCounts();
       state.heat = session.heat || [];
       state.tool = session.tool || "needle";
       state.trayColor = session.trayColor || null;
@@ -2058,11 +2084,12 @@
   function markDirty() {
     state.renderDirty = true;
     state.uiDirty = true;
-    requestAnimationFrame(autoSave);
+    scheduleAutoSave();
   }
 
-  function markCanvasDirty() {
+  function markCanvasDirty(save = false) {
     state.renderDirty = true;
+    if (save) scheduleAutoSave();
   }
 
   function showToast(message) {
@@ -2107,8 +2134,7 @@
   // Quantize the canvas bounding rect so 1–2 px wiggles (e.g. from right-panel
    // content changing height between place↔inspect) don't recompute boardSize
    // and make the board visibly resize between phases.
-  function quantizedCanvasRect() {
-    const rect = sceneCanvas.getBoundingClientRect();
+  function quantizedCanvasRect(rect = sceneCanvas.getBoundingClientRect()) {
     const q = 8;
     return {
       width: Math.floor(rect.width / q) * q,
@@ -2122,8 +2148,8 @@
     _layoutCache = null;
   }
 
-  function currentLayout() {
-    const rect = quantizedCanvasRect();
+  function currentLayout(canvasRect = null) {
+    const rect = quantizedCanvasRect(canvasRect || sceneCanvas.getBoundingClientRect());
     const key = `${rect.width}x${rect.height}:${state.selectedPattern.size}`;
     if (_layoutCache && _layoutCacheKey === key) return _layoutCache;
     _layoutCache = computeLayout(rect);
@@ -2134,7 +2160,7 @@
   function boardViewTransform(layout = currentLayout()) {
     const scale = clamp(state.boardView.scale || 1, 1, maxBoardScale());
     const extra = (layout.boardSize * scale - layout.boardSize) * 0.5;
-    const basePan = useMobileDirectPlacement() ? layout.boardSize * 0.36 : 28;
+    const basePan = isTouchDevice() ? layout.boardSize * 0.36 : 28;
     const maxPan = extra + basePan;
     const panX = clamp(state.boardView.panX || 0, -maxPan, maxPan);
     const panY = clamp(state.boardView.panY || 0, -maxPan, maxPan);
@@ -2283,8 +2309,7 @@
     };
   }
 
-  function setupHiDpiCanvas(canvas, ctx) {
-    const rect = canvas.getBoundingClientRect();
+  function setupHiDpiCanvas(canvas, ctx, rect = canvas.getBoundingClientRect()) {
     const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     const width = Math.max(1, Math.round(rect.width * dpr));
     const height = Math.max(1, Math.round(rect.height * dpr));
@@ -2300,8 +2325,9 @@
       renderUI();
       state.uiDirty = false;
     }
-    setupHiDpiCanvas(sceneCanvas, scene);
-    const layout = currentLayout();
+    const sceneRect = sceneCanvas.getBoundingClientRect();
+    setupHiDpiCanvas(sceneCanvas, scene, sceneRect);
+    const layout = currentLayout(sceneRect);
     scene.clearRect(0, 0, layout.w, layout.h);
     drawWorkbench(layout);
     if (state.phase !== "choose") drawFloorDrops(layout);
@@ -4633,6 +4659,7 @@
     if (state.remapModalOpen) renderRemapModal();
   }
 
+  let patternColorStatsRenderKey = "";
   function renderPatternColorStats() {
     if (!els.patternColorStats) return;
     const sourceCounts = getSourceCounts();
@@ -4645,6 +4672,9 @@
       })
       .sort((a, b) => b.count - a.count || (beadIds[a.targetCode] || a.targetCode).localeCompare(beadIds[b.targetCode] || b.targetCode, "zh-Hans-CN", { numeric: true }))
       .slice(0, 10);
+    const key = items.map((item) => `${item.sourceCode}:${item.targetCode}:${item.count}`).join("|");
+    if (key === patternColorStatsRenderKey) return;
+    patternColorStatsRenderKey = key;
     els.patternColorStats.innerHTML = items.map((item) => {
       return `
       <button type="button" class="pattern-color-chip" data-source-code="${item.sourceCode}" title="点击换色：${beadIds[item.targetCode] || item.targetCode}" aria-label="换色 ${beadIds[item.targetCode] || item.targetCode}">
@@ -4656,11 +4686,15 @@
     }).join("");
   }
 
+  let sidebarReferenceRenderKey = "";
   function renderSidebarReference() {
     if (!els.sideReference || !sideReferenceCanvas || !sideReferenceCtx) return;
     const visible = state.phase !== "choose";
     els.sideReference.hidden = !visible;
-    if (!visible) return;
+    if (!visible) {
+      sidebarReferenceRenderKey = "hidden";
+      return;
+    }
 
     const pattern = state.selectedPattern;
     const size = pattern.size;
@@ -4671,6 +4705,10 @@
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const pixelW = Math.max(1, Math.round(cssW * dpr));
     const pixelH = Math.max(1, Math.round(cssH * dpr));
+    const effective = getEffectivePatternResult(pattern);
+    const key = `${baseIdFor(pattern)}:${effective.key}:${cssW}x${cssH}:${dpr}`;
+    if (key === sidebarReferenceRenderKey) return;
+    sidebarReferenceRenderKey = key;
     if (sideReferenceCanvas.width !== pixelW || sideReferenceCanvas.height !== pixelH) {
       sideReferenceCanvas.width = pixelW;
       sideReferenceCanvas.height = pixelH;
@@ -4684,7 +4722,7 @@
     const gridSize = cell * size;
     const x0 = Math.floor((w - gridSize) / 2);
     const y0 = Math.floor((h - gridSize) / 2);
-    const rows = getEffectiveTargetRows(pattern);
+    const rows = effective.rows;
 
     ctx.fillStyle = "#f7f9fc";
     ctx.fillRect(0, 0, w, h);
@@ -6374,21 +6412,38 @@
     `;
   }
 
+  let paletteRenderKey = "";
   function renderPalette() {
     if (state.phase === "inspect") {
       els.colorPalette.classList.add("inspect-mode");
       renderInspectAssistPanel();
+      paletteRenderKey = "inspect";
       return;
     }
     els.colorPalette.classList.remove("inspect-mode");
     if (state.phase !== "place") {
-      els.colorPalette.innerHTML = "";
+      if (paletteRenderKey !== `phase:${state.phase}`) {
+        els.colorPalette.innerHTML = "";
+        paletteRenderKey = `phase:${state.phase}`;
+      }
       return;
     }
-    els.colorPalette.innerHTML = "";
     const counts = getTargetCounts();
     const placedCounts = getPlacedCounts();
-    allColorCodes().forEach((code) => {
+    const codes = allColorCodes();
+    const key = [
+      "place",
+      state.paletteSize,
+      state.selectedColor,
+      state.tweezerBead || "",
+      state.placedVersion,
+      getPatternAnalysis().key,
+      useMobileDirectPlacement() ? "mobile" : "desktop",
+    ].join(":");
+    if (key === paletteRenderKey) return;
+    paletteRenderKey = key;
+    els.colorPalette.innerHTML = "";
+    codes.forEach((code) => {
       const placed = placedCounts[code] || 0;
       const needed = counts[code] || 0;
       const inPattern = needed > 0;
@@ -6412,6 +6467,20 @@
       });
       els.colorPalette.appendChild(button);
     });
+  }
+
+  function updateSelectedPaletteCount() {
+    if (!els.colorPalette || state.phase !== "place") return;
+    const chip = els.colorPalette.querySelector(".color-chip.active");
+    if (!chip) return;
+    const counts = getTargetCounts();
+    const placedCounts = getPlacedCounts();
+    const placed = placedCounts[state.selectedColor] || 0;
+    const needed = counts[state.selectedColor] || 0;
+    const remaining = Math.max(0, needed - placed);
+    chip.title = `${beadLabel(state.selectedColor)}：${placed}/${needed}`;
+    const count = chip.querySelector(".chip-count");
+    if (count) count.textContent = String(remaining);
   }
 
   function renderInspectAssistPanel() {
@@ -7168,6 +7237,7 @@
       state.fusedPieces.length > 0;
     if (hasContent && !window.confirm("清空板面会移除已摆的全部豆子，确定吗？")) return;
     state.placed.fill(null);
+    invalidatePlacedCounts();
     state.heat.fill(0);
     state.errors = [];
     state.cooling = 0;
@@ -7186,6 +7256,7 @@
 
   function resetPlacementForRemap() {
     state.placed.fill(null);
+    invalidatePlacedCounts();
     state.heat.fill(0);
     state.errors = [];
     state.showHints = false;
@@ -7238,7 +7309,7 @@
   }
 
   function placedCount() {
-    return state.placed.filter(Boolean).length;
+    return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
   }
 
   function pointerToCanvas(event) {
@@ -7352,9 +7423,9 @@
     if (state.phase === "place") {
       const cell = boardCellFromPoint(pos.x, pos.y);
       if (cell) {
-        if (useMobileDirectPlacement()) {
-          // Don't place immediately — wait to see if a second finger arrives.
-          // Committed on first move (drag-paint) or on pointerup (tap).
+        if (isTouchDevice()) {
+          // Don't place immediately on any touch device — wait to see if a second
+          // finger arrives (gesture). Committed on first move or on pointerup (tap).
           state.pointer.mode = "place-pending";
           state.pointer.pendingCell = { x: cell.x, y: cell.y };
           setToolPoseFromCell(cell.x, cell.y);
@@ -7543,8 +7614,10 @@
       state.placed[index] = state.selectedColor;
       state.heat[index] = 0;
     }
+    invalidatePlacedCounts();
     state.savedCurrent = false;
-    markDirty();
+    updateSelectedPaletteCount();
+    markCanvasDirty(true);
   }
 
   function useTweezers(x, y) {
@@ -7556,6 +7629,7 @@
       }
       state.tweezerBead = state.spill.code;
       state.placed[index] = null;
+      invalidatePlacedCounts();
       state.heat[index] = 0;
       state.spill = null;
       state.savedCurrent = false;
@@ -7570,6 +7644,7 @@
       }
       state.tweezerBead = state.placed[index];
       state.placed[index] = null;
+      invalidatePlacedCounts();
       state.heat[index] = 0;
       showToast("镊子取下一颗豆子。");
     } else {
@@ -7578,6 +7653,7 @@
         return;
       }
       state.placed[index] = state.tweezerBead;
+      invalidatePlacedCounts();
       state.tweezerBead = null;
     }
     state.savedCurrent = false;
@@ -7604,6 +7680,7 @@
       if (spill) {
         state.spill = spill;
         state.placed[spill.index] = spill.code;
+        invalidatePlacedCounts();
         state.heat[spill.index] = 0;
         state.needleLoaded = Math.max(0, state.needleLoaded - 1);
         state.trayProgress = clamp(state.trayProgress - 0.3, 0, 100);
@@ -7628,6 +7705,7 @@
       const index = indexFor(cx, cy);
       if (state.placed[index]) return;
       state.placed[index] = state.trayColor;
+      invalidatePlacedCounts();
       placedAny = true;
       used += 1;
     });
@@ -8188,6 +8266,48 @@
     if (event.target === els.shareModal) closeShareModal();
   });
   window.addEventListener("keydown", (event) => {
+    // WASD / Arrow keys: pan board.  Z / X: zoom in / out.
+    // Desktop only (non-touch), place/inspect phase, no modal open, no input focused.
+    if (!isTouchDevice()) {
+      const boardPhase = state.phase === "place" || state.phase === "inspect";
+      const tag = document.activeElement?.tagName;
+      const inputFocused = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if (boardPhase && !inputFocused && !getOpenModalEl()) {
+        const PAN = 40;
+        const k = event.key;
+        if (k === "w" || k === "W" || k === "ArrowUp") {
+          event.preventDefault();
+          setBoardZoom(state.boardView.scale, state.boardView.panX, state.boardView.panY - PAN);
+          return;
+        }
+        if (k === "s" || k === "S" || k === "ArrowDown") {
+          event.preventDefault();
+          setBoardZoom(state.boardView.scale, state.boardView.panX, state.boardView.panY + PAN);
+          return;
+        }
+        if (k === "a" || k === "A" || k === "ArrowLeft") {
+          event.preventDefault();
+          setBoardZoom(state.boardView.scale, state.boardView.panX - PAN, state.boardView.panY);
+          return;
+        }
+        if (k === "d" || k === "D" || k === "ArrowRight") {
+          event.preventDefault();
+          setBoardZoom(state.boardView.scale, state.boardView.panX + PAN, state.boardView.panY);
+          return;
+        }
+        if (k === "z" || k === "Z") {
+          event.preventDefault();
+          setBoardZoom(state.boardView.scale + 0.2, state.boardView.panX, state.boardView.panY);
+          return;
+        }
+        if (k === "x" || k === "X") {
+          event.preventDefault();
+          setBoardZoom(state.boardView.scale - 0.2, state.boardView.panX, state.boardView.panY);
+          return;
+        }
+      }
+    }
+
     // Trap Tab focus within the open modal (a11y).
     if (event.key === "Tab") {
       const modal = getOpenModalEl();
