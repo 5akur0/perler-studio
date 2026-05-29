@@ -756,9 +756,35 @@
   const craftOptions = ["原版", "钥匙扣", "杯垫", "摆件"];
   const sortedColorCodes = Object.keys(palette).sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
   const mardCodes = Object.keys(mardColorData).map(normalizeMardCode).sort(mardCodeSort);
+
+  // Explicit MARD colour sets — 48 ⊂ 96 ⊂ 221
+  // 48-colour starter palette (47 distinct codes, branded as "48色")
+  const MARD_SET_48 = [
+    "A4","A6","A7","A10","A11","A13",
+    "B3","B5","B8","B12",
+    "C2","C3","C5","C6","C7","C8","C10","C11","C13",
+    "D3","D6","D7","D9","D13","D15","D18","D19","D21",
+    "E2","E3","E4","E7",
+    "F5","F8","F13",
+    "G1","G5","G7","G8","G9","G13",
+    "H1","H2","H3","H4","H5","H7",
+  ];
+  // 96-colour expanded palette — strict superset of 48
+  const MARD_SET_96 = [
+    "A3","A4","A6","A7","A10","A11","A13","A14",
+    "B3","B5","B7","B8","B10","B12","B14","B17","B18","B19","B20",
+    "C2","C3","C5","C6","C7","C8","C10","C11","C13","C16",
+    "D2","D3","D5","D6","D7","D8","D9","D11","D12","D13","D14","D15","D16","D18","D19","D20","D21",
+    "E1","E2","E3","E4","E5","E6","E7","E8","E9","E10","E11","E12","E13","E14","E15",
+    "F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12","F13","F14",
+    "G1","G2","G3","G5","G7","G8","G9","G13","G14","G17",
+    "H1","H2","H3","H4","H5","H6","H7",
+    "M5","M6","M9","M12",
+  ];
+
   const palettePresetMardCodes = {
-    48: basePaletteMardCodes.slice().sort(mardCodeSort),
-    96: mardCodes.filter((code) => /^[A-C]\d+$/.test(code) || /^D[1-9]$/.test(code)).sort(mardCodeSort),
+    48: MARD_SET_48.map(normalizeMardCode).sort(mardCodeSort),
+    96: MARD_SET_96.map(normalizeMardCode).sort(mardCodeSort),
     221: mardCodes.filter((code) => /^[A-HM]\d+$/.test(code)).sort(mardCodeSort),
   };
   const TRAY_DESKTOP_ROWS = 10;
