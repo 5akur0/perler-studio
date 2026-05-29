@@ -555,6 +555,8 @@
     customWhiteToggle: $("#customWhiteToggle"),
     patternSizeSelect: $("#patternSizeSelect"),
     patternSizeInput: $("#patternSizeInput"),
+    patternSizeSlider: $("#patternSizeSlider"),
+    patternSizeValue: $("#patternSizeValue"),
     customSizeMeta: $("#customSizeMeta"),
     customStats: $("#customStats"),
     patternColorStats: $("#patternColorStats"),
@@ -601,6 +603,11 @@
     topToolStyleSelect: $("#topToolStyleSelect"),
     sandboxButton: $("#sandboxButton"),
     chooseStartButton: $("#chooseStartButton"),
+    boardZoomControls: $("#boardZoomControls"),
+    zoomOutButton: $("#zoomOutButton"),
+    zoomInButton: $("#zoomInButton"),
+    zoomResetButton: $("#zoomResetButton"),
+    boardPanButton: $("#boardPanButton"),
     resetButton: $("#resetButton"),
     toast: $("#toast"),
     placeHint: $("#placeHint"),
@@ -740,6 +747,22 @@
       lastX: 0,
       lastY: 0,
       lastT: 0,
+    },
+    boardView: {
+      scale: 1,
+      panX: 0,
+      panY: 0,
+      panMode: false,
+    },
+    gesture: {
+      active: false,
+      pointers: {},
+      startDistance: 0,
+      startScale: 1,
+      startPanX: 0,
+      startPanY: 0,
+      startMidX: 0,
+      startMidY: 0,
     },
     toolPose: {
       x: 0,
@@ -1455,11 +1478,17 @@
     state.patternSize = normalized;
     if (els.patternSizeSelect) els.patternSizeSelect.value = ["16", "24", "32", "40", "48"].includes(String(normalized)) ? String(normalized) : "";
     if (els.patternSizeInput) els.patternSizeInput.value = String(normalized);
+    if (els.patternSizeSlider) els.patternSizeSlider.value = String(normalized);
+    if (els.patternSizeValue) els.patternSizeValue.textContent = String(normalized);
     if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
   }
 
   function applyPatternSize(size) {
     const normalized = normalizePatternSize(size);
+    if (normalized === state.selectedPattern.size) {
+      setSizeControls(normalized);
+      return;
+    }
     setSizeControls(normalized);
     const base = findBasePattern();
     if (baseIdFor(base).startsWith("custom-") && base.sourceImageDataUrl) {
@@ -1510,6 +1539,12 @@
     state.conceptEasterType = null;
     state.projectedGuideCache = null;
     state.lampOn = false;
+    state.boardView.scale = 1;
+    state.boardView.panX = 0;
+    state.boardView.panY = 0;
+    state.boardView.panMode = false;
+    state.gesture.active = false;
+    state.gesture.pointers = {};
     state.tweezerBead = null;
     state.needleLoaded = 0;
     state.errors = [];
@@ -1632,12 +1667,23 @@
     state.pointer.down = false;
     state.pointer.mode = null;
     state.pointer.trayTapPending = false;
+    state.gesture.active = false;
+    state.gesture.pointers = {};
+    if (phase !== "place" && phase !== "inspect") {
+      state.boardView.panMode = false;
+      if (state.boardView.scale > 1.01) {
+        state.boardView.scale = 1;
+        state.boardView.panX = 0;
+        state.boardView.panY = 0;
+      }
+    }
     state.ironPos = null;
     if (phase !== "iron") state.emptyIronEaster = false;
     if (phase !== "finish") state.conceptEaster = false;
     if (phase !== "finish") state.conceptEasterType = null;
     if (phase !== "cool" && phase !== "finish") state.fusedPieces = [];
     if (phase !== "place") state.tweezerBead = null;
+    if (phase !== "choose" && state.remapModalOpen) closeRemapModal();
     if (phase === "inspect") runInspection();
     if (phase === "iron") {
       state.showHints = false;
@@ -1768,6 +1814,54 @@
     _layoutCache = computeLayout(rect);
     _layoutCacheKey = key;
     return _layoutCache;
+  }
+
+  function boardViewTransform(layout = currentLayout()) {
+    const scale = clamp(state.boardView.scale || 1, 1, 2.8);
+    const extra = (layout.boardSize * scale - layout.boardSize) * 0.5;
+    const maxPan = extra + 28;
+    const panX = clamp(state.boardView.panX || 0, -maxPan, maxPan);
+    const panY = clamp(state.boardView.panY || 0, -maxPan, maxPan);
+    state.boardView.scale = scale;
+    state.boardView.panX = panX;
+    state.boardView.panY = panY;
+    const cx = layout.boardX + layout.boardSize * 0.5;
+    const cy = layout.boardY + layout.boardSize * 0.5;
+    return { scale, panX, panY, cx, cy };
+  }
+
+  function setBoardZoom(nextScale, nextPanX = state.boardView.panX, nextPanY = state.boardView.panY) {
+    state.boardView.scale = clamp(nextScale, 1, 2.8);
+    state.boardView.panX = nextPanX;
+    state.boardView.panY = nextPanY;
+    boardViewTransform();
+    markCanvasDirty();
+  }
+
+  function resetBoardView() {
+    state.boardView.scale = 1;
+    state.boardView.panX = 0;
+    state.boardView.panY = 0;
+    state.boardView.panMode = false;
+    markCanvasDirty();
+  }
+
+  function gesturePointerCount() {
+    return Object.keys(state.gesture.pointers).length;
+  }
+
+  function gesturePrimaryPair() {
+    const ids = Object.keys(state.gesture.pointers);
+    if (ids.length < 2) return null;
+    return [state.gesture.pointers[ids[0]], state.gesture.pointers[ids[1]]];
+  }
+
+  function pointerDistance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  function pointerMid(a, b) {
+    return { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 };
   }
 
   function computeLayout(rect) {
@@ -2423,8 +2517,12 @@
   function drawBoard(layout) {
     const ctx = scene;
     const { boardX, boardY, boardSize, cell } = layout;
+    const boardView = boardViewTransform(layout);
     const size = state.selectedPattern.size;
     ctx.save();
+    ctx.translate(boardView.cx + boardView.panX, boardView.cy + boardView.panY);
+    ctx.scale(boardView.scale, boardView.scale);
+    ctx.translate(-boardView.cx, -boardView.cy);
     ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
     ctx.shadowBlur = 26;
     ctx.shadowOffsetY = 14;
@@ -4148,6 +4246,7 @@
     }
     els.statusLine.textContent = statusText();
     const showPlacementUi = state.phase === "place";
+    const showBoardZoomUi = state.phase === "place" || state.phase === "inspect";
     if (!showPlacementUi) {
       state.lastPlaceHintKey = "";
       hidePlaceHint();
@@ -4157,6 +4256,8 @@
     if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showPlacementUi ? "" : "none";
+    if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
+    if (els.boardPanButton) els.boardPanButton.classList.toggle("active", Boolean(state.boardView.panMode));
     if (state.remapModalOpen) renderRemapModal();
   }
 
@@ -4171,7 +4272,7 @@
     els.patternColorStats.innerHTML = items.map((item) => {
       const targetCode = effectiveMap[item.code] || item.code;
       return `
-      <span class="pattern-color-chip">
+      <button type="button" class="pattern-color-chip" data-source-code="${item.code}" title="点此换色">
         <span class="dot" style="background:${palette[item.code]}"></span>
         <span class="code">${beadIds[item.code] || item.code}</span>
         ${targetCode !== item.code
@@ -4182,7 +4283,7 @@
     ].join("")
     : ""}
         <span class="count">${item.count}</span>
-      </span>
+      </button>
     `;
     }).join("");
   }
@@ -5771,12 +5872,20 @@
   function openRemapModal(focusSource = null) {
     if (state.phase !== "choose") return;
     state.remapFocusSource = focusSource || null;
-    renderRemapInline();
+    state.remapModalOpen = true;
+    if (els.remapModal) {
+      els.remapModal.classList.add("show");
+      els.remapModal.setAttribute("aria-hidden", "false");
+    }
+    renderRemapModal();
   }
 
   function closeRemapModal() {
     state.remapModalOpen = false;
-    state.remapFocusSource = null;
+    if (els.remapModal) {
+      els.remapModal.classList.remove("show");
+      els.remapModal.setAttribute("aria-hidden", "true");
+    }
     renderRemapInline();
   }
 
@@ -5808,14 +5917,14 @@
   }
 
   function renderRemapModal() {
-    // Modal recolor is replaced by inline panel; keep this as a thin delegator
-    // so older callers still update the inline view.
-    renderRemapInline();
-    return;
-    // eslint-disable-next-line no-unreachable
     const allSourceColors = getSourcePatternColors();
     const focus = state.remapFocusSource;
     const sourceColors = focus && allSourceColors.includes(focus) ? [focus] : allSourceColors;
+    if (!els.remapModalBody) return;
+    if (!sourceColors.length) {
+      els.remapModalBody.innerHTML = "";
+      return;
+    }
     if (els.remapModalTitle) {
       els.remapModalTitle.textContent = sourceColors.length === 1
         ? `换色：${beadIds[sourceColors[0]]} ${colorNames[sourceColors[0]]}`
@@ -5872,7 +5981,6 @@
     }
     els.remapInline.hidden = false;
     const map = state.patternColorMap || {};
-    const allCodes = allColorCodes();
     const focused = sourceColors.includes(state.remapFocusSource) ? state.remapFocusSource : sourceColors[0];
     state.remapFocusSource = focused;
 
@@ -5902,8 +6010,7 @@
           : ""}
       `;
       chip.addEventListener("click", () => {
-        state.remapFocusSource = sourceCode;
-        renderRemapInline();
+        openRemapModal(sourceCode);
       });
       srcRow.appendChild(chip);
     });
@@ -5917,23 +6024,9 @@
         <span class="remap-swatch" style="background:${palette[currentTarget]}"></span>
         <span class="remap-label">${beadIds[currentTarget] || currentTarget} ${colorNames[currentTarget] || ""}</span>
       </div>
+      <button type="button" class="remap-open-picker">选新颜色</button>
     `;
-    const swatchGrid = document.createElement("div");
-    swatchGrid.className = "swatch-grid swatch-grid-inline";
-    allCodes.forEach((code) => {
-      const cell = document.createElement("button");
-      cell.type = "button";
-      cell.className = `swatch-cell${currentTarget === code ? " active" : ""}`;
-      cell.style.background = palette[code];
-      cell.title = `${beadIds[code]} ${colorNames[code] || ""}`;
-      cell.setAttribute("aria-label", cell.title);
-      cell.addEventListener("click", () => {
-        setPatternColorMapping(focused, code);
-        renderRemapInline();
-      });
-      swatchGrid.appendChild(cell);
-    });
-    targetArea.appendChild(swatchGrid);
+    targetArea.querySelector(".remap-open-picker")?.addEventListener("click", () => openRemapModal(focused));
   }
 
   function addToolToggle() {
@@ -6915,11 +7008,14 @@
 
   function boardCellFromPoint(x, y) {
     const layout = currentLayout();
+    const view = boardViewTransform(layout);
+    const ux = (x - (view.cx + view.panX)) / view.scale + view.cx;
+    const uy = (y - (view.cy + view.panY)) / view.scale + view.cy;
     const { boardX, boardY, boardSize, cell } = layout;
     const pad = Math.max(5, cell * 0.24);
-    if (x < boardX - pad || y < boardY - pad || x > boardX + boardSize + pad || y > boardY + boardSize + pad) return null;
-    const clampedX = clamp(x, boardX, boardX + boardSize - 0.01);
-    const clampedY = clamp(y, boardY, boardY + boardSize - 0.01);
+    if (ux < boardX - pad || uy < boardY - pad || ux > boardX + boardSize + pad || uy > boardY + boardSize + pad) return null;
+    const clampedX = clamp(ux, boardX, boardX + boardSize - 0.01);
+    const clampedY = clamp(uy, boardY, boardY + boardSize - 0.01);
     return {
       x: clamp(Math.floor((clampedX - boardX) / cell), 0, state.selectedPattern.size - 1),
       y: clamp(Math.floor((clampedY - boardY) / cell), 0, state.selectedPattern.size - 1),
@@ -6954,15 +7050,21 @@
 
   function setToolPoseFromCell(x, y) {
     const layout = currentLayout();
+    const view = boardViewTransform(layout);
+    const rawX = layout.boardX + x * layout.cell + layout.cell / 2;
+    const rawY = layout.boardY + y * layout.cell + layout.cell / 2;
     setToolPose(
-      layout.boardX + x * layout.cell + layout.cell / 2,
-      layout.boardY + y * layout.cell + layout.cell / 2
+      (rawX - view.cx) * view.scale + view.cx + view.panX,
+      (rawY - view.cy) * view.scale + view.cy + view.panY
     );
   }
 
   function onPointerDown(event) {
     event.preventDefault();
     const pos = pointerToCanvas(event);
+    if (state.phase === "place" || state.phase === "inspect") {
+      state.gesture.pointers[event.pointerId] = { x: pos.x, y: pos.y };
+    }
     state.pointer.down = true;
     state.pointer.x = pos.x;
     state.pointer.y = pos.y;
@@ -6972,11 +7074,36 @@
     state.lastCellKey = "";
     sceneCanvas.setPointerCapture?.(event.pointerId);
 
+    if ((state.phase === "place" || state.phase === "inspect") && gesturePointerCount() >= 2) {
+      const pair = gesturePrimaryPair();
+      if (pair) {
+        const [p1, p2] = pair;
+        const mid = pointerMid(p1, p2);
+        state.gesture.active = true;
+        state.gesture.startDistance = Math.max(16, pointerDistance(p1, p2));
+        state.gesture.startScale = state.boardView.scale;
+        state.gesture.startPanX = state.boardView.panX;
+        state.gesture.startPanY = state.boardView.panY;
+        state.gesture.startMidX = mid.x;
+        state.gesture.startMidY = mid.y;
+        state.pointer.down = false;
+        state.pointer.mode = "gesture";
+        state.pointer.trayTapPending = false;
+        markCanvasDirty();
+        return;
+      }
+    }
+
     if ((state.phase === "place" || state.phase === "inspect") && pointInLampSwitch(pos.x, pos.y)) {
       toggleLamp();
       state.pointer.down = false;
       state.pointer.mode = "lamp";
       state.pointer.trayTapPending = false;
+      return;
+    }
+
+    if ((state.phase === "place" || state.phase === "inspect") && state.boardView.panMode) {
+      state.pointer.mode = "board-pan";
       return;
     }
 
@@ -7019,6 +7146,32 @@
   function onPointerMove(event) {
     event.preventDefault();
     const pos = pointerToCanvas(event);
+    if (state.phase === "place" || state.phase === "inspect") {
+      if (state.gesture.pointers[event.pointerId]) {
+        state.gesture.pointers[event.pointerId] = { x: pos.x, y: pos.y };
+      }
+      if (state.gesture.active) {
+        if (gesturePointerCount() < 2) {
+          state.gesture.active = false;
+        } else {
+          const pair = gesturePrimaryPair();
+          if (pair) {
+            const [p1, p2] = pair;
+            const mid = pointerMid(p1, p2);
+            const distance = Math.max(16, pointerDistance(p1, p2));
+            const nextScale = clamp(
+              state.gesture.startScale * (distance / Math.max(16, state.gesture.startDistance)),
+              1,
+              2.8
+            );
+            const panX = state.gesture.startPanX + (mid.x - state.gesture.startMidX);
+            const panY = state.gesture.startPanY + (mid.y - state.gesture.startMidY);
+            setBoardZoom(nextScale, panX, panY);
+            return;
+          }
+        }
+      }
+    }
     const dx = pos.x - state.pointer.lastX;
     const dy = pos.y - state.pointer.lastY;
     const dt = Math.max(10, performance.now() - state.pointer.lastT);
@@ -7042,6 +7195,10 @@
       if (cell) handlePlaceAt(cell.x, cell.y, false);
     }
 
+    if (state.pointer.down && state.pointer.mode === "board-pan") {
+      setBoardZoom(state.boardView.scale, state.boardView.panX + dx, state.boardView.panY + dy);
+    }
+
     if (state.pointer.down && state.pointer.mode === "iron") {
       state.ironPos = pos;
       applyIronHeat(pos.x, pos.y, dt, Math.hypot(dx, dy));
@@ -7060,6 +7217,10 @@
   function onPointerUp(event) {
     event.preventDefault();
     const pos = pointerToCanvas(event);
+    if (state.gesture.pointers[event.pointerId]) delete state.gesture.pointers[event.pointerId];
+    if (state.gesture.active && gesturePointerCount() < 2) {
+      state.gesture.active = false;
+    }
     if (state.phase === "place" && state.pointer.mode === "tray" && state.pointer.trayTapPending) {
       handleTrayTap(pos);
     }
@@ -7629,6 +7790,12 @@
   sceneCanvas.addEventListener("pointerup", onPointerUp);
   sceneCanvas.addEventListener("pointercancel", onPointerUp);
   sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  sceneCanvas.addEventListener("wheel", (event) => {
+    if (state.phase !== "place" && state.phase !== "inspect") return;
+    event.preventDefault();
+    const delta = event.deltaY < 0 ? 0.14 : -0.14;
+    setBoardZoom(state.boardView.scale + delta, state.boardView.panX, state.boardView.panY);
+  }, { passive: false });
 
   els.resetButton.addEventListener("click", () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
@@ -7652,28 +7819,57 @@
     showToast(`工具换成${currentToolStyle().name}款。`);
     markDirty();
   });
-  els.patternSizeSelect.addEventListener("change", () => {
+  let sizeSliderTimer = null;
+  els.patternSizeSelect?.addEventListener("change", () => {
     const size = normalizePatternSize(els.patternSizeSelect.value);
-    els.patternSizeInput.value = String(size);
+    setSizeControls(size);
     applyPatternSize(size);
   });
-  els.patternSizeInput.addEventListener("change", () => {
+  els.patternSizeInput?.addEventListener("change", () => {
     const size = normalizePatternSize(els.patternSizeInput.value);
-    els.patternSizeInput.value = String(size);
+    setSizeControls(size);
     applyPatternSize(size);
   });
-  els.patternSizeInput.addEventListener("keydown", (event) => {
+  els.patternSizeInput?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     const size = normalizePatternSize(els.patternSizeInput.value);
-    els.patternSizeInput.value = String(size);
+    setSizeControls(size);
     applyPatternSize(size);
+  });
+  els.patternSizeSlider?.addEventListener("input", () => {
+    const size = normalizePatternSize(els.patternSizeSlider.value);
+    setSizeControls(size);
+    if (sizeSliderTimer) window.clearTimeout(sizeSliderTimer);
+    sizeSliderTimer = window.setTimeout(() => applyPatternSize(size), 110);
+  });
+  els.patternSizeSlider?.addEventListener("change", () => {
+    const size = normalizePatternSize(els.patternSizeSlider.value);
+    setSizeControls(size);
+    applyPatternSize(size);
+  });
+  els.zoomInButton?.addEventListener("click", () => {
+    setBoardZoom(state.boardView.scale + 0.2, state.boardView.panX, state.boardView.panY);
+  });
+  els.zoomOutButton?.addEventListener("click", () => {
+    setBoardZoom(state.boardView.scale - 0.2, state.boardView.panX, state.boardView.panY);
+  });
+  els.zoomResetButton?.addEventListener("click", () => {
+    resetBoardView();
+  });
+  els.boardPanButton?.addEventListener("click", () => {
+    state.boardView.panMode = !state.boardView.panMode;
+    if (state.boardView.panMode && state.boardView.scale < 1.04) {
+      setBoardZoom(1.4, state.boardView.panX, state.boardView.panY);
+    }
+    markDirty();
   });
   els.customImageInput.addEventListener("change", handleCustomImage);
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
   els.remapResetButton?.addEventListener("click", () => resetPatternColorMapping());
-  // Recolor modal is a side drawer; backdrop is transparent so clicks pass through
-  // to the workspace. No outside-click-to-close — use the × button or Esc.
+  els.remapModal?.addEventListener("click", (event) => {
+    if (event.target === els.remapModal) closeRemapModal();
+  });
   els.controlsModalClose?.addEventListener("click", () => closeControlsModal());
   els.controlsModal?.addEventListener("click", (event) => {
     if (event.target === els.controlsModal) closeControlsModal();

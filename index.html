@@ -108,8 +108,15 @@
             </div>
             <input id="customImageInput" type="file" accept="image/*" />
             <div class="choose-preview-main">
-              <div class="preview-canvas-frame">
-                <canvas id="previewCanvas" width="560" height="560" aria-label="当前图纸预览"></canvas>
+              <div class="preview-canvas-wrap">
+                <div class="preview-canvas-frame">
+                  <canvas id="previewCanvas" width="560" height="560" aria-label="当前图纸预览"></canvas>
+                </div>
+                <div class="size-rail" aria-label="图纸尺寸控制">
+                  <span class="size-rail-label">大小</span>
+                  <input id="patternSizeSlider" class="size-slider" type="range" min="12" max="48" step="1" value="24" aria-label="图纸大小竖向滑动条" />
+                  <strong id="patternSizeValue" class="size-rail-value">24</strong>
+                </div>
               </div>
               <aside class="preview-side">
                 <div id="patternColorStats" class="pattern-color-stats"></div>
@@ -122,6 +129,12 @@
             </div>
           </section>
           <canvas id="sceneCanvas" width="980" height="690" aria-label="拼豆工作台"></canvas>
+          <div id="boardZoomControls" class="board-zoom-controls" hidden>
+            <button id="zoomOutButton" class="icon-only-button board-zoom-button" type="button" title="缩小拼豆板" aria-label="缩小拼豆板">−</button>
+            <button id="zoomInButton" class="icon-only-button board-zoom-button" type="button" title="放大拼豆板" aria-label="放大拼豆板">+</button>
+            <button id="zoomResetButton" class="board-zoom-reset" type="button" title="重置缩放与位置" aria-label="重置缩放与位置">1:1</button>
+            <button id="boardPanButton" class="board-pan-button" type="button" title="拖动画板" aria-label="拖动画板">拖动</button>
+          </div>
         </section>
 
         <aside class="side-panel right-panel">
@@ -144,6 +157,20 @@
           <button id="controlsModalClose" type="button" aria-label="关闭操作窗口">×</button>
         </div>
         <div id="controlsModalBody" class="remap-modal-body"></div>
+      </div>
+    </div>
+
+    <div id="remapModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card remap-picker-modal-card" role="dialog" aria-modal="true" aria-labelledby="remapModalTitle">
+        <div class="remap-modal-head">
+          <strong id="remapModalTitle">图纸换色</strong>
+          <button id="remapModalClose" type="button" aria-label="关闭换色窗口">×</button>
+        </div>
+        <div id="remapModalBody" class="remap-modal-body"></div>
+        <div class="remap-modal-foot">
+          <button id="remapResetButton" type="button">恢复原色</button>
+          <button id="remapDoneButton" class="primary-button" type="button">完成</button>
+        </div>
       </div>
     </div>
 
