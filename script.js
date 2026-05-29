@@ -7326,9 +7326,9 @@
       const cell = boardCellFromPoint(pos.x, pos.y);
       if (cell) {
         if (useMobileDirectPlacement()) {
-          state.pointer.mode = "mobile-place-pending";
-          state.pointer.pendingCell = cell;
+          state.pointer.mode = "place";
           setToolPoseFromCell(cell.x, cell.y);
+          handlePlaceAt(cell.x, cell.y, true);
           return;
         }
         state.pointer.mode = "place";
@@ -7387,18 +7387,6 @@
       }
     }
 
-    if (state.pointer.down && state.pointer.mode === "mobile-place-pending") {
-      if (Math.hypot(pos.x - state.pointer.x, pos.y - state.pointer.y) > 5) {
-        const cell = boardCellFromPoint(pos.x, pos.y);
-        if (cell) {
-          state.pointer.mode = "place";
-          state.pointer.pendingCell = null;
-          setToolPoseFromCell(cell.x, cell.y);
-          handlePlaceAt(cell.x, cell.y, false);
-        }
-      }
-    }
-
     if (state.pointer.down && state.pointer.mode === "place") {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
         state.lastMoveDir = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx) || 1, y: 0 } : { x: 0, y: Math.sign(dy) || 1 };
@@ -7432,9 +7420,6 @@
     }
     if (state.phase === "place" && state.pointer.mode === "tray" && state.pointer.trayTapPending) {
       handleTrayTap(pos);
-    }
-    if (state.phase === "place" && state.pointer.mode === "mobile-place-pending" && state.pointer.pendingCell) {
-      handlePlaceAt(state.pointer.pendingCell.x, state.pointer.pendingCell.y, true);
     }
     state.pointer.down = false;
     state.pointer.mode = null;
