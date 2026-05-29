@@ -759,6 +759,7 @@ button:disabled {
 
 .preview-canvas-frame {
   position: relative;
+  min-width: 0;
   padding: 12px;
   border-radius: var(--r-lg);
   background:
@@ -788,6 +789,13 @@ button:disabled {
   align-items: start;
 }
 
+.preview-canvas-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: stretch;
+}
+
 .preview-side {
   display: grid;
   gap: 10px;
@@ -796,6 +804,7 @@ button:disabled {
 }
 
 .workbench {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -839,11 +848,7 @@ button:disabled {
 }
 
 .choose-size-bar {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 8px;
+  display: none;
 }
 
 .size-controls.compact {
@@ -852,6 +857,91 @@ button:disabled {
 
 .size-controls.compact button {
   grid-column: auto;
+}
+
+.size-rail {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border: 1px solid rgba(139, 148, 166, 0.34);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.size-rail-label {
+  color: #5b6170;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.size-rail-value {
+  min-width: 34px;
+  min-height: 24px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  background: rgba(77, 119, 184, 0.12);
+  color: #345684;
+  font-size: 12px;
+  font-weight: 760;
+  display: inline-grid;
+  place-items: center;
+}
+
+.size-slider {
+  width: 28px;
+  height: 260px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  background: transparent;
+  accent-color: var(--blue);
+}
+
+.size-slider:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--blue) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.board-zoom-controls {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 7;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(139, 148, 166, 0.42);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--sh-2);
+}
+
+.board-zoom-button {
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.board-zoom-reset,
+.board-pan-button {
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.board-pan-button.active {
+  border-color: #3f988b;
+  background: rgba(87, 184, 167, 0.14);
+  color: #1f6153;
 }
 
 .studio-grid:not([data-phase="choose"]) .choose-preview-panel {
@@ -1124,22 +1214,16 @@ button:disabled {
   pointer-events: auto;
 }
 
-/* The recolor modal stays as a side-drawer so the pattern preview is still
-   visible while picking colors — backdrop is transparent and clicks pass
-   through to the workspace. */
 #remapModal {
-  background: transparent;
-  backdrop-filter: none;
-  justify-content: flex-end;
-  align-items: stretch;
-  padding: 16px;
-  pointer-events: none;
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+  pointer-events: auto;
 }
 
 #remapModal .remap-modal-card {
-  pointer-events: auto;
-  width: min(440px, 92vw);
-  max-height: calc(100vh - 32px);
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(86vh, 760px);
   box-shadow: var(--sh-pop);
 }
 
@@ -1503,10 +1587,10 @@ button:disabled {
 .remap-inline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   background: #fff;
   min-width: 0;
   max-width: 100%;
@@ -1515,9 +1599,9 @@ button:disabled {
 .remap-target-area {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  min-height: 176px;
+  min-height: 0;
 }
 
 .remap-inline-head {
@@ -1595,7 +1679,7 @@ button:disabled {
 .remap-hint {
   color: var(--muted);
   font-size: 12px;
-  padding: 6px 2px;
+  padding: 4px 2px;
 }
 
 .remap-target-label {
@@ -1606,6 +1690,14 @@ button:disabled {
   font-weight: 700;
   color: #504d59;
   padding: 4px 0;
+}
+
+.remap-open-picker {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 760;
 }
 
 .remap-card {
@@ -1667,6 +1759,11 @@ button:disabled {
   gap: 4px;
   width: 100%;
   min-width: 0;
+}
+
+.remap-picker-modal-card {
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(86vh, 760px);
 }
 
 .swatch-cell {
@@ -2404,6 +2501,11 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .preview-canvas-wrap {
+    grid-template-columns: minmax(0, 1fr) 50px;
+    gap: 8px;
+  }
+
   .studio-grid[data-phase="choose"] .choose-preview-actions {
     position: sticky;
     bottom: 10px;
@@ -2457,11 +2559,18 @@ button:disabled {
   }
 
   .remap-target-area {
-    min-height: 166px;
+    min-height: 0;
   }
 
   .swatch-grid {
     grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .board-zoom-controls {
+    right: 10px;
+    bottom: 10px;
+    padding: 6px;
     gap: 5px;
   }
 }
@@ -2494,6 +2603,10 @@ button:disabled {
 
   .choose-size-bar {
     gap: 7px;
+  }
+
+  .size-slider {
+    height: 220px;
   }
 
   .right-panel {
