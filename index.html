@@ -2,9 +2,32 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>拼豆工坊</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>拼豆工坊 · 手作拼豆模拟器</title>
+    <meta
+      name="description"
+      content="拼豆工坊是一个静态浏览器小游戏，模拟从选图、取豆、豆筛整理、摆放、检查到熨烫、冷却、收藏分享的完整拼豆手作流程。"
+    />
+    <meta name="theme-color" content="#eef2f4" />
+    <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+    <!-- Open Graph / 社交分享卡片（小红书 / 微信 / Twitter 等）。如需图片预览，请补充 1200×630 的 og-image.png 并取消下方 og:image 注释。 -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="拼豆工坊" />
+    <meta property="og:title" content="拼豆工坊 · 手作拼豆模拟器" />
+    <meta
+      property="og:description"
+      content="模拟从选图、取豆、摆放到熨烫、收藏分享的完整拼豆手作流程，在浏览器里做一颗颗治愈的拼豆。"
+    />
+    <meta property="og:locale" content="zh_CN" />
+    <!-- <meta property="og:image" content="og-image.png" /> -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="拼豆工坊 · 手作拼豆模拟器" />
+    <meta
+      name="twitter:description"
+      content="模拟从选图、取豆、摆放到熨烫、收藏分享的完整拼豆手作流程，在浏览器里做一颗颗治愈的拼豆。"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -101,16 +124,6 @@
                 <button type="button" data-palette-size="96">96色</button>
                 <button type="button" data-palette-size="221">221色</button>
               </div>
-              <div class="size-controls compact">
-                <select id="patternSizeSelect" aria-label="图纸尺寸">
-                  <option value="16">16x16</option>
-                  <option value="24" selected>24x24</option>
-                  <option value="32">32x32</option>
-                  <option value="40">40x40</option>
-                  <option value="48">48x48</option>
-                </select>
-                <input id="patternSizeInput" type="number" min="12" max="48" value="24" aria-label="自定义尺寸" />
-              </div>
             </div>
             <input id="customImageInput" type="file" accept="image/*" />
             <div class="choose-preview-main">
@@ -127,7 +140,6 @@
               <aside class="preview-side">
                 <div id="patternColorStats" class="pattern-color-stats"></div>
                 <div id="customStats" class="custom-stats is-empty"></div>
-                <div id="remapInline" class="remap-inline" hidden></div>
               </aside>
             </div>
             <div class="choose-preview-actions">
@@ -155,16 +167,6 @@
       </main>
     </div>
 
-
-    <div id="controlsModal" class="remap-modal" aria-hidden="true">
-      <div class="remap-modal-card controls-modal-card" role="dialog" aria-modal="true" aria-labelledby="controlsModalTitle">
-        <div class="remap-modal-head">
-          <strong id="controlsModalTitle">操作面板</strong>
-          <button id="controlsModalClose" type="button" aria-label="关闭操作窗口">×</button>
-        </div>
-        <div id="controlsModalBody" class="remap-modal-body"></div>
-      </div>
-    </div>
 
     <div id="remapModal" class="remap-modal" aria-hidden="true">
       <div class="remap-modal-card remap-picker-modal-card" role="dialog" aria-modal="true" aria-labelledby="remapModalTitle">

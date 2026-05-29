@@ -638,8 +638,6 @@
     patternList: $("#patternList"),
     customImageInput: $("#customImageInput"),
     customWhiteToggle: $("#customWhiteToggle"),
-    patternSizeSelect: $("#patternSizeSelect"),
-    patternSizeInput: $("#patternSizeInput"),
     patternSizeSlider: $("#patternSizeSlider"),
     patternSizeValue: $("#patternSizeValue"),
     paletteSizePicker: $("#paletteSizePicker"),
@@ -675,9 +673,6 @@
     remapModalClose: $("#remapModalClose"),
     remapDoneButton: $("#remapDoneButton"),
     remapResetButton: $("#remapResetButton"),
-    controlsModal: $("#controlsModal"),
-    controlsModalBody: $("#controlsModalBody"),
-    controlsModalClose: $("#controlsModalClose"),
     toolRack: $("#toolRack"),
     rightPanelTitle: $("#rightPanelTitle"),
     colorPalette: $("#colorPalette"),
@@ -787,10 +782,10 @@
     customHiddenRecalcQueued: {},
     remapFocusSource: null,
     remapModalOpen: false,
-    controlsModalOpen: false,
     collectionModalOpen: false,
     settingsModalOpen: false,
     shareModalOpen: false,
+    modalReturnFocus: null,
     sandboxMode: false,
     bgTheme: "mist",
     toolStyle: "candy",
@@ -1648,8 +1643,6 @@
   function setSizeControls(size) {
     const normalized = normalizePatternSize(size);
     state.patternSize = normalized;
-    if (els.patternSizeSelect) els.patternSizeSelect.value = ["16", "24", "32", "40", "48"].includes(String(normalized)) ? String(normalized) : "";
-    if (els.patternSizeInput) els.patternSizeInput.value = String(normalized);
     if (els.patternSizeSlider) els.patternSizeSlider.value = String(normalized);
     if (els.patternSizeValue) els.patternSizeValue.textContent = String(normalized);
     if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
@@ -4694,9 +4687,12 @@
       try {
         const sourceImageDataUrl = String(reader.result || "");
         const image = await loadImageFromDataUrl(sourceImageDataUrl);
-        const size = normalizePatternSize(els.patternSizeInput.value || state.patternSize);
+        const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
         const removeWhite = els.customWhiteToggle.checked;
         setSizeControls(size);
+        // Yield a frame so the "正在识别图片…" toast paints before the
+        // synchronous conversion (which can briefly block on large images).
+        await new Promise((resolve) => setTimeout(resolve, 16));
         const result = convertImageToPattern(image, {
           removeWhite,
           size,
@@ -4737,6 +4733,7 @@
       showToast("图片读取失败。");
       event.target.value = "";
     };
+    showToast("正在识别图片…");
     reader.readAsDataURL(file);
   }
 
@@ -5708,22 +5705,39 @@
     }
   }
 
-  function isCompactControlsMode() {
-    return window.matchMedia("(max-width: 520px) and (max-height: 760px)").matches;
+
+  // --- Modal focus management (a11y): trap focus and restore on close ---
+  function getOpenModalEl() {
+    if (state.remapModalOpen) return els.remapModal;
+    if (state.collectionModalOpen) return els.collectionModal;
+    if (state.settingsModalOpen) return els.settingsModal;
+    if (state.shareModalOpen) return els.shareModal;
+    return null;
   }
 
-  function openControlsModal() {
-    if (!els.controlsModal) return;
-    state.controlsModalOpen = true;
-    els.controlsModal.classList.add("show");
-    els.controlsModal.setAttribute("aria-hidden", "false");
+  function focusablesIn(modalEl) {
+    if (!modalEl) return [];
+    return [...modalEl.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )].filter((el) => !el.disabled && el.offsetParent !== null && el.getAttribute("aria-hidden") !== "true");
   }
 
-  function closeControlsModal() {
-    if (!els.controlsModal) return;
-    state.controlsModalOpen = false;
-    els.controlsModal.classList.remove("show");
-    els.controlsModal.setAttribute("aria-hidden", "true");
+  function onModalOpened(modalEl) {
+    if (!modalEl) return;
+    const active = document.activeElement;
+    // Remember the real trigger (skip if focus is already inside any modal).
+    if (active && active !== document.body && !active.closest(".remap-modal")) {
+      state.modalReturnFocus = active;
+    }
+    const focusables = focusablesIn(modalEl);
+    if (focusables.length) focusables[0].focus();
+  }
+
+  function restoreModalFocus() {
+    if (getOpenModalEl()) return; // another modal is still open
+    const el = state.modalReturnFocus;
+    state.modalReturnFocus = null;
+    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
   }
 
   function openCollectionModal() {
@@ -5732,6 +5746,7 @@
     els.collectionModal.classList.add("show");
     els.collectionModal.setAttribute("aria-hidden", "false");
     renderCollection();
+    onModalOpened(els.collectionModal);
   }
 
   function closeCollectionModal() {
@@ -5741,6 +5756,7 @@
     els.collectionModal.setAttribute("aria-hidden", "true");
     const viewer = els.collectionModal.querySelector(".collection-enlarged");
     if (viewer) viewer.classList.remove("show");
+    restoreModalFocus();
   }
 
   function openShareModal() {
@@ -5749,6 +5765,7 @@
     els.shareModal.classList.add("show");
     els.shareModal.setAttribute("aria-hidden", "false");
     renderSharePanel();
+    onModalOpened(els.shareModal);
   }
 
   function closeShareModal() {
@@ -5756,6 +5773,7 @@
     state.shareModalOpen = false;
     els.shareModal.classList.remove("show");
     els.shareModal.setAttribute("aria-hidden", "true");
+    restoreModalFocus();
   }
 
   function openSettingsModal() {
@@ -5763,6 +5781,7 @@
     state.settingsModalOpen = true;
     els.settingsModal.classList.add("show");
     els.settingsModal.setAttribute("aria-hidden", "false");
+    onModalOpened(els.settingsModal);
   }
 
   function closeSettingsModal() {
@@ -5770,14 +5789,7 @@
     state.settingsModalOpen = false;
     els.settingsModal.classList.remove("show");
     els.settingsModal.setAttribute("aria-hidden", "true");
-  }
-
-  function finalizeControlsLayout(compactControls) {
-    if (!els.controlsModalBody || !els.stageControls) return;
-    els.controlsModalBody.innerHTML = "";
-    // Mobile keeps controls inline; no extra "open panel" button.
-    // Close modal to avoid stale floating panel after resize/rotation.
-    closeControlsModal();
+    restoreModalFocus();
   }
 
   function startIroning(forceSpill = false) {
@@ -5806,7 +5818,6 @@
 
   function renderControls() {
     els.stageControls.innerHTML = "";
-    const compactControls = isCompactControlsMode();
     els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "工具台";
     els.toolMeta.textContent = state.phase === "place"
       ? (state.tool === "needle"
@@ -5815,7 +5826,6 @@
       : "";
 
     if (state.phase === "choose") {
-      if (compactControls) closeControlsModal();
       return;
     }
 
@@ -5832,9 +5842,7 @@
       addControlRow([
         ["检查作品", "primary-button", () => setPhase("inspect")],
         ["清空板面", "danger-button", () => clearBoard()],
-      ]);
-      finalizeControlsLayout(compactControls);
-      return;
+      ]);      return;
     }
 
     if (state.phase === "inspect") {
@@ -5873,9 +5881,7 @@
       }
       if (!state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72) {
         addHint("误差较多，建议先修正再熨烫。");
-      }
-      finalizeControlsLayout(compactControls);
-      return;
+      }      return;
     }
 
     if (state.phase === "iron") {
@@ -5889,9 +5895,7 @@
       addControlRow([
         ["查看检查", "", () => setPhase("inspect")],
         ["进入冷却", "primary-button", () => setPhase("cool")],
-      ]);
-      finalizeControlsLayout(compactControls);
-      return;
+      ]);      return;
     }
 
     if (state.phase === "cool") {
@@ -5901,9 +5905,7 @@
         ["翻面再熨", "", () => flipAndIron(), state.flipCount >= 1],
       ]);
       addButton("完成收藏", "primary-button", () => completeWork());
-      if (state.cooling < 78) addHint("提前取下也能完成，但冷却不足会影响最终评级。");
-      finalizeControlsLayout(compactControls);
-      return;
+      if (state.cooling < 78) addHint("提前取下也能完成，但冷却不足会影响最终评级。");      return;
     }
 
     if (state.phase === "finish") {
@@ -5918,9 +5920,7 @@
             setPhase("choose");
           }],
         ]);
-        addButton("分享小红书", "", () => openShareModal());
-        finalizeControlsLayout(compactControls);
-        return;
+        addButton("分享小红书", "", () => openShareModal());        return;
       }
       addCraftToggle();
       addHint(`评级 ${finalGrade()}。可以换一种成品形式后再次保存。`);
@@ -5931,9 +5931,7 @@
           setPhase("choose");
         }],
       ]);
-      addButton("分享小红书", "", () => openShareModal());
-      finalizeControlsLayout(compactControls);
-    }
+      addButton("分享小红书", "", () => openShareModal());    }
   }
 
   function addButton(label, className, handler, disabled = false) {
@@ -5989,6 +5987,7 @@
       els.remapModal.setAttribute("aria-hidden", "false");
     }
     renderRemapModal();
+    onModalOpened(els.remapModal);
   }
 
   function closeRemapModal() {
@@ -5997,6 +5996,7 @@
       els.remapModal.classList.remove("show");
       els.remapModal.setAttribute("aria-hidden", "true");
     }
+    restoreModalFocus();
   }
 
   function resetPatternColorMapping() {
@@ -7869,22 +7869,6 @@
     markDirty();
   });
   let sizeSliderTimer = null;
-  els.patternSizeSelect?.addEventListener("change", () => {
-    const size = normalizePatternSize(els.patternSizeSelect.value);
-    setSizeControls(size);
-    applyPatternSize(size);
-  });
-  els.patternSizeInput?.addEventListener("change", () => {
-    const size = normalizePatternSize(els.patternSizeInput.value);
-    setSizeControls(size);
-    applyPatternSize(size);
-  });
-  els.patternSizeInput?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    const size = normalizePatternSize(els.patternSizeInput.value);
-    setSizeControls(size);
-    applyPatternSize(size);
-  });
   els.patternSizeSlider?.addEventListener("input", () => {
     const size = normalizePatternSize(els.patternSizeSlider.value);
     setSizeControls(size);
@@ -7926,10 +7910,6 @@
   els.remapModal?.addEventListener("click", (event) => {
     if (event.target === els.remapModal) closeRemapModal();
   });
-  els.controlsModalClose?.addEventListener("click", () => closeControlsModal());
-  els.controlsModal?.addEventListener("click", (event) => {
-    if (event.target === els.controlsModal) closeControlsModal();
-  });
   els.settingsButton?.addEventListener("click", () => openSettingsModal());
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
@@ -7948,12 +7928,31 @@
     if (event.target === els.shareModal) closeShareModal();
   });
   window.addEventListener("keydown", (event) => {
+    // Trap Tab focus within the open modal (a11y).
+    if (event.key === "Tab") {
+      const modal = getOpenModalEl();
+      if (!modal) return;
+      const focusables = focusablesIn(modal);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!modal.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if (event.key !== "Escape") return;
     // If the enlarge viewer is open within the collection modal, close it first.
     const enlarged = els.collectionModal?.querySelector(".collection-enlarged.show");
     if (enlarged) { enlarged.classList.remove("show"); return; }
     if (state.remapModalOpen) closeRemapModal();
-    if (state.controlsModalOpen) closeControlsModal();
     if (state.collectionModalOpen) closeCollectionModal();
     if (state.settingsModalOpen) closeSettingsModal();
     if (state.shareModalOpen) closeShareModal();
