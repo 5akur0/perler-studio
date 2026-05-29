@@ -760,6 +760,9 @@ button:disabled {
 .preview-canvas-frame {
   position: relative;
   min-width: 0;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
   padding: 12px;
   border-radius: var(--r-lg);
   background:
@@ -793,7 +796,7 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 56px;
   gap: 10px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .preview-side {
@@ -856,6 +859,7 @@ button:disabled {
 }
 
 .size-rail {
+  align-self: stretch;
   display: grid;
   justify-items: center;
   align-content: center;

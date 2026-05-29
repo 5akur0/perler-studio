@@ -2823,10 +2823,19 @@
     ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
     ctx.shadowBlur = 26;
     ctx.shadowOffsetY = 14;
+    const baseGradient = ctx.createLinearGradient(boardX, boardY - 14, boardX, boardY + boardSize + 14);
+    baseGradient.addColorStop(0, "#f6f8fa");
+    baseGradient.addColorStop(1, "#d9e0e4");
+    ctx.fillStyle = baseGradient;
+    roundedRect(boardX - 14, boardY - 14, boardSize + 28, boardSize + 28, 8);
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.strokeStyle = "rgba(108, 118, 130, 0.34)";
+    ctx.stroke();
+
     ctx.fillStyle = "#fbfcfd";
     roundedRect(boardX, boardY, boardSize, boardSize, 6);
     ctx.fill();
-    ctx.shadowColor = "transparent";
     ctx.strokeStyle = "rgba(70, 84, 96, 0.18)";
     ctx.stroke();
 
