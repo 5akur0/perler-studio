@@ -2138,7 +2138,8 @@
   function boardViewTransform(layout = currentLayout()) {
     const scale = clamp(state.boardView.scale || 1, 1, 2.8);
     const extra = (layout.boardSize * scale - layout.boardSize) * 0.5;
-    const maxPan = extra + 28;
+    const basePan = layout.w < 740 ? layout.boardSize * 0.36 : 28;
+    const maxPan = extra + basePan;
     const panX = clamp(state.boardView.panX || 0, -maxPan, maxPan);
     const panY = clamp(state.boardView.panY || 0, -maxPan, maxPan);
     state.boardView.scale = scale;
