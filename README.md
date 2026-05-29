@@ -2,6 +2,13 @@
 
 一个静态浏览器游戏原型，模拟拼豆手作从选图、取豆、豆筛整理、摆放、检查、熨烫、冷却到收藏的完整流程。
 
+## 开源与协议
+
+- 本项目采用 [AGPL-3.0](</Users/Sakuro/beam/LICENSE>) 协议发布。
+- 第三方来源与署名见 [THIRD_PARTY_NOTICES.md](/Users/Sakuro/beam/THIRD_PARTY_NOTICES.md)。
+- 图纸生成相关能力包含对 `Zippland/perler-beads` 的学习/改造，已按 AGPL 要求保留署名与同协议开源。
+- 在线版本用户可通过仓库获取完整对应源码：<https://github.com/5akur0/perler-studio>
+
 ## 运行
 
 1. 本地文件方式：直接打开 `index.html`。

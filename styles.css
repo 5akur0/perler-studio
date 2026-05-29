@@ -1288,6 +1288,31 @@ button:disabled {
   text-align: right;
 }
 
+.settings-link {
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.settings-link span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-link strong {
+  margin-left: auto;
+  color: #345684;
+  font-size: 13px;
+}
+
 .settings-sandbox-row {
   display: flex;
   align-items: center;
