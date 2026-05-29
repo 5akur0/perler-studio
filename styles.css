@@ -2467,6 +2467,10 @@ button:disabled {
 }
 
 @media (max-width: 860px) {
+  #boardZoomControls {
+    display: none !important;
+  }
+
   .app-shell {
     padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
       10px max(10px, env(safe-area-inset-left));
@@ -2569,55 +2573,14 @@ button:disabled {
     order: 1;
   }
 
-  /* Place / inspect: dock the palette (豆盒) to the bottom of the viewport so
-     the core loop (pick color → pour → place) no longer needs long scrolling.
-     This is pure-CSS repositioning of the existing panel — handlers unchanged.
-     Scoped to place/inspect because the palette is hidden in iron/cool/finish. */
-  .studio-grid[data-phase="place"] .right-panel,
-  .studio-grid[data-phase="inspect"] .right-panel {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 18;
-    margin: 0;
-    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--line);
-    border-radius: var(--r-lg) var(--r-lg) 0 0;
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(14px);
-    box-shadow: 0 -10px 30px rgba(49, 54, 68, 0.13);
-  }
 
-  .studio-grid[data-phase="place"] .right-panel section,
-  .studio-grid[data-phase="inspect"] .right-panel section {
-    padding: 0;
-    min-height: 0;
-  }
-
-  /* reserve space so trailing content can scroll clear of the fixed dock */
-  .studio-grid[data-phase="place"] .left-panel,
-  .studio-grid[data-phase="inspect"] .left-panel {
-    padding-bottom: 230px;
-  }
-
-  .studio-grid[data-phase="place"] .color-palette,
-  .studio-grid[data-phase="inspect"] .color-palette {
-    max-height: 150px;
-    overflow-y: auto;
-  }
 
   .studio-grid:not([data-phase="choose"]) #sceneCanvas {
     height: min(50vh, 440px);
     min-height: 300px;
   }
 
-  /* place-hint sits just above the docked palette instead of over the board */
-  .place-hint {
-    top: auto;
-    bottom: calc(208px + env(safe-area-inset-bottom, 0px));
-    max-width: calc(100vw - 20px);
-  }
+
 
   .studio-grid:not([data-phase="choose"]) .left-panel section[data-stage="working"] {
     display: flex;
@@ -2629,17 +2592,17 @@ button:disabled {
   }
 
   .studio-grid:not([data-phase="choose"]) #stageControls {
-    order: 1;
+    order: 3;
   }
 
   .studio-grid:not([data-phase="choose"]) #toolRack {
-    order: 2;
+    order: 1;
   }
 
   .studio-grid:not([data-phase="choose"]) .side-reference {
-    order: 3;
+    order: 2;
     margin-top: 10px;
-    margin-bottom: 0;
+    margin-bottom: 16px;
   }
 
   #sceneCanvas {

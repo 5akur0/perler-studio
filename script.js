@@ -2754,14 +2754,14 @@
           ctx.globalAlpha = 1;
         }
         if (index !== spillIndex) {
-          const pegR = Math.max(2, cell * 0.138);
+          const pegR = cell * 0.138;
           ctx.fillStyle = "rgba(91, 104, 118, 0.32)";
           ctx.beginPath();
           ctx.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = "rgba(255,255,255,0.58)";
           ctx.beginPath();
-          ctx.arc(px + cell / 2 - pegR * 0.22, py + cell / 2 - pegR * 0.22, Math.max(0.95, pegR * 0.36), 0, Math.PI * 2);
+          ctx.arc(px + cell / 2 - pegR * 0.22, py + cell / 2 - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -3170,14 +3170,14 @@
         const px = bx + x * displayCell;
         const py = by + y * displayCell;
         const index = indexFor(x, y);
-        const pegR = Math.max(1.45, displayCell * 0.122);
+        const pegR = displayCell * 0.122;
         ctx.fillStyle = "rgba(97, 107, 120, 0.22)";
         ctx.beginPath();
         ctx.arc(px + displayCell / 2, py + displayCell / 2, pegR, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "rgba(255,255,255,0.52)";
         ctx.beginPath();
-        ctx.arc(px + displayCell / 2 - pegR * 0.22, py + displayCell / 2 - pegR * 0.22, Math.max(0.6, pegR * 0.35), 0, Math.PI * 2);
+        ctx.arc(px + displayCell / 2 - pegR * 0.22, py + displayCell / 2 - pegR * 0.22, pegR * 0.35, 0, Math.PI * 2);
         ctx.fill();
         if (fullMode) {
           const code = state.placed[index] || state.selectedColor;
@@ -3363,7 +3363,7 @@
         if (index === spillIndex) continue;
         const px = boardX + x * cell;
         const py = boardY + y * cell;
-        const pegR = Math.max(2, cell * 0.138);
+        const pegR = cell * 0.138;
         ctx.fillStyle = "rgba(91, 104, 118, 0.24)";
         ctx.beginPath();
         ctx.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
