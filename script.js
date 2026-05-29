@@ -4517,9 +4517,12 @@
     const w = rect.width;
     const h = rect.height;
     const size = state.selectedPattern.size;
-    const cell = Math.max(1, Math.floor(Math.min((w - 28) / size, (h - 28) / size)));
-    const x0 = (w - cell * size) / 2;
-    const y0 = (h - cell * size) / 2;
+    // Fix the board to a constant square footprint so changing the grid
+    // resolution (size) only changes cell density, not the total board area.
+    const boardSide = Math.max(1, Math.min(w - 28, h - 28));
+    const cell = boardSide / size;
+    const x0 = (w - boardSide) / 2;
+    const y0 = (h - boardSide) / 2;
     return { w, h, cell, x0, y0, size };
   }
 
