@@ -1728,6 +1728,14 @@
     return window.matchMedia("(max-width: 860px)").matches;
   }
 
+  function useMobileDirectPlacement() {
+    return window.matchMedia("(max-width: 739px)").matches;
+  }
+
+  function shouldShowTray(layout = currentLayout()) {
+    return !useMobileDirectPlacement() && layout.trayW > 0 && layout.trayH > 0;
+  }
+
   function trayDimensions() {
     return useMobileTrayGrid()
       ? { rows: TRAY_MOBILE_ROWS, cols: TRAY_MOBILE_COLS }
@@ -2176,16 +2184,14 @@
     const h = rect.height;
     if (w < 740) {
       const boardY = 16;
-      const refH = clamp(Math.round(h * 0.16), 86, 112);
-      const trayMinH = clamp(Math.round(h * 0.24), 120, 176);
-      const maxBoardByHeight = h - boardY - 14 - refH - 10 - trayMinH - 16;
+      const refH = clamp(Math.round(h * 0.18), 92, 124);
+      const maxBoardByHeight = h - boardY - 14 - refH - 18;
       const rawBoard = clamp(maxBoardByHeight, 240, Math.min(w - 24, 468));
       const boardSize = Math.floor(rawBoard / 8) * 8;
       const boardX = Math.floor((w - boardSize) / 2);
       const refX = 12;
       const refY = boardY + boardSize + 14;
       const refW = w - 24;
-      const trayY = refY + refH + 10;
       return {
         w,
         h,
@@ -2197,10 +2203,10 @@
         refY,
         refW,
         refH,
-        trayX: 12,
-        trayY,
-        trayW: w - 24,
-        trayH: Math.max(trayMinH, h - trayY - 16),
+        trayX: 0,
+        trayY: 0,
+        trayW: 0,
+        trayH: 0,
       };
     }
     const rawBoard = Math.min(h - 78, w * 0.64, 590);
@@ -2260,7 +2266,7 @@
     } else {
       drawBoard(layout);
       drawReferenceSheet(layout);
-      if (state.phase === "place" || state.phase === "inspect") {
+      if ((state.phase === "place" || state.phase === "inspect") && shouldShowTray(layout)) {
         if (state.trayColor) syncTrayMatrixShape();
         drawTray(layout, true);
       }
@@ -2269,7 +2275,7 @@
       if (state.phase === "cool") drawCoolingLayer(layout);
     }
     drawLampSwitch(layout);
-    drawToolEntities(layout.w, layout.h);
+    if (!useMobileDirectPlacement()) drawToolEntities(layout.w, layout.h);
 
     if (state.previewDirty) {
       drawPreview();
@@ -2289,7 +2295,8 @@
     ctx.save();
 
     // Table edge: stop the table at this Y; below it is the floor.
-    const matBottom = Math.min(h - 90, Math.max(boardY + boardSize + 24, trayY + trayH + 10));
+    const activeBottom = trayH > 0 ? Math.max(boardY + boardSize + 24, trayY + trayH + 10) : Math.max(boardY + boardSize + 24, layout.refY + layout.refH + 14);
+    const matBottom = Math.min(h - 90, activeBottom);
     const tableEdgeY = Math.min(h - 18, matBottom + 30);
     const floorTop = tableEdgeY;
 
@@ -2347,8 +2354,8 @@
 
   function canDropToFloorAt(x, y) {
     if (boardCellFromPoint(x, y)) return false;
-    if (pointInTray(x, y)) return false;
-    if (pointInTrayDumpButton(x, y)) return false;
+    if (shouldShowTray() && pointInTray(x, y)) return false;
+    if (shouldShowTray() && pointInTrayDumpButton(x, y)) return false;
     if (pointInReferenceSheet(x, y)) return false;
     if (pointInLampSwitch(x, y)) return false;
     return true;
@@ -2356,6 +2363,7 @@
 
   function dropHeldBeadToFloor(x, y) {
     if (state.phase !== "place") return false;
+    if (useMobileDirectPlacement()) return false;
     if (!canDropToFloorAt(x, y)) return false;
     let code = null;
     if (state.tool === "tweezers") {
@@ -4550,18 +4558,21 @@
       }
       els.topToolStyleSelect.value = state.toolStyle;
     }
+    const toolStyleField = els.topToolStyleSelect?.closest(".tool-style-picker");
+    if (toolStyleField) toolStyleField.style.display = useMobileDirectPlacement() ? "none" : "";
     els.statusLine.textContent = statusText();
     const showPlacementUi = state.phase === "place";
+    const showToolUi = showPlacementUi && !useMobileDirectPlacement();
     const showBoardZoomUi = state.phase === "place" || state.phase === "inspect";
     if (!showPlacementUi) {
       state.lastPlaceHintKey = "";
       hidePlaceHint();
     }
     const showRightPanelUi = state.phase === "place" || state.phase === "inspect";
-    if (els.toolRack) els.toolRack.style.display = showPlacementUi ? "" : "none";
+    if (els.toolRack) els.toolRack.style.display = showToolUi ? "" : "none";
     if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
-    if (els.toolMeta) els.toolMeta.style.display = showPlacementUi ? "" : "none";
+    if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
     if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
     if (els.boardPanButton) els.boardPanButton.classList.toggle("active", Boolean(state.boardView.panMode));
     if (state.remapModalOpen) renderRemapModal();
@@ -5942,7 +5953,7 @@
   function renderControls() {
     els.stageControls.innerHTML = "";
     els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "工具台";
-    els.toolMeta.textContent = state.phase === "place"
+    els.toolMeta.textContent = state.phase === "place" && !useMobileDirectPlacement()
       ? (state.tool === "needle"
         ? "豆针"
         : `镊子${state.tweezerBead ? ` · ${beadIds[state.tweezerBead]}` : " · 空夹"}`)
@@ -5955,12 +5966,16 @@
     if (state.phase === "place") {
       const placeHintText = state.spill
         ? "有一颗豆子倒下来卡住了。你可以先继续摆放，熨烫前记得处理。"
-        : (state.tool === "needle"
+        : (useMobileDirectPlacement()
+          ? "从豆盒选颜色，点格子放置或替换；同色再点一次会取下。"
+          : (state.tool === "needle"
           ? `点击豆盒倒豆进筛；点豆筛某条槽给豆针上豆（最多 ${needleCapacity()} 颗）。`
-          : (state.tweezerBead ? `镊子正夹着 ${beadLabel(state.tweezerBead)}，点击空格放下。` : "镊子可从豆筛点取一颗，或从板面夹起一颗再放下。"));
+          : (state.tweezerBead ? `镊子正夹着 ${beadLabel(state.tweezerBead)}，点击空格放下。` : "镊子可从豆筛点取一颗，或从板面夹起一颗再放下。")));
       const placeHintKey = state.spill
         ? `spill:${state.spill.index}:${state.spill.code}`
-        : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`;
+        : (useMobileDirectPlacement()
+          ? `mobile:${state.selectedColor}`
+          : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`);
       showPlaceHint(placeHintText, placeHintKey);
       addControlRow([
         ["检查作品", "primary-button", () => setPhase("inspect")],
@@ -6256,7 +6271,7 @@
 
   function renderToolRack() {
     if (!els.toolRack) return;
-    if (state.phase !== "place") {
+    if (state.phase !== "place" || useMobileDirectPlacement()) {
       els.toolRack.innerHTML = "";
       return;
     }
@@ -6324,7 +6339,8 @@
       const remaining = Math.max(0, needed - placed);
       const isSelected = state.selectedColor === code;
       const button = document.createElement("button");
-      button.className = `color-chip${isSelected ? " active" : ""}${inPattern ? " needed" : ""}${state.tweezerBead === code ? " held" : ""}`;
+      const isHeld = !useMobileDirectPlacement() && state.tweezerBead === code;
+      button.className = `color-chip${isSelected ? " active" : ""}${inPattern ? " needed" : ""}${isHeld ? " held" : ""}`;
       button.type = "button";
       button.title = `${beadLabel(code)}：${placed}/${needed}`;
       button.innerHTML = `
@@ -6334,7 +6350,7 @@
       `;
       button.addEventListener("click", () => {
         state.selectedColor = code;
-        if (state.phase === "place") pourSelectedColor();
+        if (state.phase === "place" && !useMobileDirectPlacement()) pourSelectedColor();
         markDirty();
       });
       els.colorPalette.appendChild(button);
@@ -7277,14 +7293,14 @@
       return;
     }
 
-    if (state.phase === "place" && pointInTrayDumpButton(pos.x, pos.y)) {
+    if (state.phase === "place" && shouldShowTray() && pointInTrayDumpButton(pos.x, pos.y)) {
       dumpTray();
       state.pointer.mode = null;
       state.pointer.trayTapPending = false;
       return;
     }
 
-    if (state.phase === "place" && pointInTray(pos.x, pos.y)) {
+    if (state.phase === "place" && shouldShowTray() && pointInTray(pos.x, pos.y)) {
       state.pointer.mode = "tray";
       state.pointer.trayTapPending = true;
       return;
@@ -7405,14 +7421,39 @@
   function handlePlaceAt(x, y, initial) {
     setToolPoseFromCell(x, y);
     const spillKey = state.spill ? `${state.spill.index}:${state.spill.code}` : "-";
-    const key = `${x}:${y}:${state.tool}:${state.selectedColor}:${state.trayColor || "-"}:${state.tweezerBead || "-"}:${spillKey}`;
+    const key = useMobileDirectPlacement()
+      ? `${x}:${y}:mobile:${state.selectedColor}:${spillKey}`
+      : `${x}:${y}:${state.tool}:${state.selectedColor}:${state.trayColor || "-"}:${state.tweezerBead || "-"}:${spillKey}`;
     if (!initial && key === state.lastCellKey) return;
     state.lastCellKey = key;
+    if (useMobileDirectPlacement()) {
+      placeSelectedBead(x, y, initial);
+      return;
+    }
     if (state.tool === "tweezers") {
       useTweezers(x, y);
       return;
     }
     useNeedle(x, y);
+  }
+
+  function placeSelectedBead(x, y, initial = true) {
+    const index = indexFor(x, y);
+    if (state.spill && state.spill.index === index) {
+      state.spill = null;
+    }
+    const current = state.placed[index];
+    if (current === state.selectedColor && initial) {
+      state.placed[index] = null;
+      state.heat[index] = 0;
+    } else if (current === state.selectedColor) {
+      return;
+    } else {
+      state.placed[index] = state.selectedColor;
+      state.heat[index] = 0;
+    }
+    state.savedCurrent = false;
+    markDirty();
   }
 
   function useTweezers(x, y) {
@@ -7766,7 +7807,7 @@
     ctx.fillText("拼豆工坊 · 浏览器手作模拟", w / 2, h - 76);
     ctx.font = "600 22px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
     ctx.fillStyle = "rgba(38, 36, 43, 0.46)";
-    ctx.fillText("从散豆、豆筛、镊子到熨烫定型", w / 2, h - 42);
+    ctx.fillText(useMobileDirectPlacement() ? "从豆盒选色、直接摆放到熨烫定型" : "从散豆、豆筛、镊子到熨烫定型", w / 2, h - 42);
 
     ctx.save();
     ctx.translate(w - 42, h * 0.55);
@@ -7844,10 +7885,13 @@
   }
 
   function copyShareText() {
+    const flowText = useMobileDirectPlacement()
+      ? `从豆盒选色、直接摆放，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`
+      : `从豆盒选色、豆筛抖豆、镊子修正，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`;
     const text = [
       `女朋友爱玩的拼豆，我做成了浏览器小游戏。`,
       `今天做的是「${state.selectedPattern.name}」，${getTargetTotal()}颗、${getPatternColors().length}个色号，最后评级 ${finalGrade()}。`,
-      `从豆盒选色、豆筛抖豆、镊子修正，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`,
+      flowText,
       `#拼豆 #手作 #像素画 #情侣日常 #小游戏`,
     ].join("\n");
     if (navigator.clipboard?.writeText) {
@@ -7899,11 +7943,16 @@
   function statusText() {
     const phase = state.phase;
     if (state.sandboxMode && phase === "place") {
-      return "沙盒模式：自由拼摆中。点豆筛取豆、任意排布，不受图纸限制。";
+      return useMobileDirectPlacement()
+        ? "沙盒模式：自由拼摆中。从豆盒选色，直接点格子摆放。"
+        : "沙盒模式：自由拼摆中。点豆筛取豆、任意排布，不受图纸限制。";
     }
     if (phase === "choose") return "选择一张图纸，开始今天的手作。";
     if (phase === "place") {
       if (state.spill) return "有豆子倒下来卡住了。可先继续摆放，熨烫前再处理。";
+      if (useMobileDirectPlacement()) {
+        return `已选 ${beadLabel(state.selectedColor)} · 点格子放置或替换。${state.lampOn ? " 投影开" : ""}`;
+      }
       if (state.tool === "needle") {
         if (!state.trayColor) return `针工具需要先把某个色号倒入豆筛。${state.lampOn ? " 投影色稿已开启。" : " 可打开工作灯查看投影色稿。"} `;
         return `豆筛 ${state.trayBeans} 颗 ${beadIds[state.trayColor]} · ${state.lampOn ? "投影开" : "投影关"}`;
