@@ -8177,19 +8177,19 @@
     const ZOOM_DECEL = 10;
     const ZOOM_MAX   = 2.2;
 
-    // Horizontal
+    // Horizontal: A/← moves viewport left → board pans right → panX increases
     const wantLeft  = nav.left  && !nav.right;
     const wantRight = nav.right && !nav.left;
-    if (wantLeft)        bv.velX = Math.max(-PAN_MAX,  bv.velX - PAN_ACCEL * dtSec);
-    else if (wantRight)  bv.velX = Math.min( PAN_MAX,  bv.velX + PAN_ACCEL * dtSec);
+    if (wantLeft)         bv.velX = Math.min( PAN_MAX,  bv.velX + PAN_ACCEL * dtSec);
+    else if (wantRight)   bv.velX = Math.max(-PAN_MAX,  bv.velX - PAN_ACCEL * dtSec);
     else if (bv.velX > 0) bv.velX = Math.max(0, bv.velX - PAN_DECEL * dtSec);
     else if (bv.velX < 0) bv.velX = Math.min(0, bv.velX + PAN_DECEL * dtSec);
 
-    // Vertical
+    // Vertical: W/↑ moves viewport up → board pans down → panY increases
     const wantUp   = nav.up   && !nav.down;
     const wantDown = nav.down && !nav.up;
-    if (wantUp)          bv.velY = Math.max(-PAN_MAX,  bv.velY - PAN_ACCEL * dtSec);
-    else if (wantDown)   bv.velY = Math.min( PAN_MAX,  bv.velY + PAN_ACCEL * dtSec);
+    if (wantUp)           bv.velY = Math.min( PAN_MAX,  bv.velY + PAN_ACCEL * dtSec);
+    else if (wantDown)    bv.velY = Math.max(-PAN_MAX,  bv.velY - PAN_ACCEL * dtSec);
     else if (bv.velY > 0) bv.velY = Math.max(0, bv.velY - PAN_DECEL * dtSec);
     else if (bv.velY < 0) bv.velY = Math.min(0, bv.velY + PAN_DECEL * dtSec);
 
