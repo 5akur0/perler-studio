@@ -1735,7 +1735,7 @@
   }
 
   function useMobileDirectPlacement() {
-    return window.matchMedia("(max-width: 739px)").matches;
+    return window.matchMedia("(max-width: 860px)").matches;
   }
 
   function shouldShowTray(layout = currentLayout()) {
@@ -2237,7 +2237,7 @@
   function computeLayout(rect) {
     const w = rect.width;
     const h = rect.height;
-    if (w < 740) {
+    if (useMobileDirectPlacement()) {
       const boardY = 16;
       const refH = clamp(Math.round(h * 0.18), 92, 124);
       const maxBoardByHeight = h - boardY - 14 - refH - 18;
