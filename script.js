@@ -4335,6 +4335,30 @@
       ctx.closePath();
     };
 
+    // H1 = transparent/clear bead: glass look instead of opaque fill
+    if (beadIds[code] === "H1") {
+      ctx.save();
+      // faint ghost fill so the shape reads
+      ctx.globalAlpha = 0.14;
+      ctx.fillStyle = "#d6e8f8";
+      buildPath(x, y);
+      ctx.fill();
+      // crisp outline — the main visual cue
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = "rgba(110, 150, 200, 0.85)";
+      ctx.lineWidth = Math.max(0.8, r * 0.12);
+      buildPath(x, y);
+      ctx.stroke();
+      // glass specular highlight
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.12)";
     buildPath(x + r * 0.08, y + r * 0.13);
