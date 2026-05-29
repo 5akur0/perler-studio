@@ -677,6 +677,8 @@
   const sortedColorCodes = Object.keys(palette).sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
   const TRAY_ROWS = 10;
   const TRAY_COLS = 12;
+  const ZIPPLAND_DIRECT_MODE = "dominant";
+  const ZIPPLAND_DIRECT_SIMILARITY_THRESHOLD = 30;
 
   const state = {
     phase: "choose",
@@ -4623,30 +4625,180 @@
     const targetSize = normalizePatternSize(options.size || state.patternSize);
     const removeWhite = options.removeWhite !== false;
     const excludedCodes = new Set((options.excludedCodes || []).filter((code) => palette[code]));
-    const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
     const raw = sampleImageToRgba(image, targetSize, false);
     const rawMask = buildActiveMask(raw, removeWhite);
     const sourceProfile = estimateSourceProfile(raw, rawMask);
-    const dominant = convertImageToDominantGrid(
-      image,
+    try {
+      return convertImageToPatternZipplandDirect(image, targetSize, removeWhite, sourceProfile, excludedCodes);
+    } catch (error) {
+      console.warn("Zippland direct conversion failed, fallback to legacy pipeline.", error);
+      const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
+      const dominant = convertImageToDominantGrid(
+        image,
+        targetSize,
+        removeWhite,
+        sourceProfile,
+        excludedCodes,
+        allowExpansion
+      );
+      if (!dominant.activeCells.length) {
+        return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile);
+      }
+      const grid = dominant.grid;
+      const preCleanupColorCount = countGridColors(grid).colors.length;
+      let cleaned = removeSpeckles(grid, targetSize, 1, sourceProfile);
+      if (sourceProfile.logoLike || targetSize <= 16) {
+        cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
+      }
+      cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
+      const rows = gridToRows(cleaned, targetSize);
+      return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile);
+    }
+  }
+
+  function convertImageToPatternZipplandDirect(image, targetSize, removeWhite, sourceProfile, excludedCodes) {
+    const analysisSize = clamp(
+      Math.round(targetSize * (sourceProfile.logoLike ? 7.5 : sourceProfile.likelyPixelArt ? 6.5 : 6)),
       targetSize,
-      removeWhite,
-      sourceProfile,
-      excludedCodes,
-      allowExpansion
+      960
     );
-    if (!dominant.activeCells.length) {
+    const analysis = sampleImageToRgba(image, analysisSize, true);
+    const externalWhiteMask = removeWhite ? buildExternalWhiteMask(analysis, analysisSize) : null;
+    const availableCodes = allColorCodes().filter((code) => !excludedCodes.has(code));
+    if (!availableCodes.length) {
       return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile);
     }
-    const grid = dominant.grid;
-    const preCleanupColorCount = countGridColors(grid).colors.length;
-    let cleaned = removeSpeckles(grid, targetSize, 1, sourceProfile);
-    if (sourceProfile.logoLike || targetSize <= 16) {
-      cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
+    const cellWidth = analysisSize / targetSize;
+    const cellHeight = analysisSize / targetSize;
+    const grid = Array(targetSize * targetSize).fill(".");
+    for (let y = 0; y < targetSize; y += 1) {
+      for (let x = 0; x < targetSize; x += 1) {
+        const startX = Math.floor(x * cellWidth);
+        const startY = Math.floor(y * cellHeight);
+        const endX = Math.min(analysisSize, Math.ceil((x + 1) * cellWidth));
+        const endY = Math.min(analysisSize, Math.ceil((y + 1) * cellHeight));
+        const representativeRgb = calculateZipplandCellRepresentativeColor(
+          analysis,
+          analysisSize,
+          startX,
+          startY,
+          Math.max(1, endX - startX),
+          Math.max(1, endY - startY),
+          ZIPPLAND_DIRECT_MODE,
+          removeWhite,
+          externalWhiteMask
+        );
+        if (!representativeRgb) continue;
+        const mappedCode = nearestColorCode(representativeRgb.r, representativeRgb.g, representativeRgb.b, excludedCodes);
+        if (mappedCode) grid[y * targetSize + x] = mappedCode;
+      }
     }
-    cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
-    const rows = gridToRows(cleaned, targetSize);
-    return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile);
+    const mergedGrid = mergeGridSimilarColorsByFrequency(
+      grid,
+      targetSize,
+      ZIPPLAND_DIRECT_SIMILARITY_THRESHOLD
+    );
+    const preCleanupColorCount = countGridColors(grid).colors.length;
+    const simplifiedColorCount = countGridColors(mergedGrid).colors.length;
+    return makeConversionResult(
+      gridToRows(mergedGrid, targetSize),
+      targetSize,
+      simplifiedColorCount,
+      preCleanupColorCount,
+      sourceProfile
+    );
+  }
+
+  function calculateZipplandCellRepresentativeColor(
+    data,
+    width,
+    startX,
+    startY,
+    cellWidth,
+    cellHeight,
+    mode,
+    removeWhite,
+    externalWhiteMask = null
+  ) {
+    const endX = Math.min(width, startX + cellWidth);
+    const endY = Math.min(width, startY + cellHeight);
+    let rSum = 0;
+    let gSum = 0;
+    let bSum = 0;
+    let pixelCount = 0;
+    const colorCounts = {};
+    let dominantRgb = null;
+    let maxCount = 0;
+    for (let y = startY; y < endY; y += 1) {
+      for (let x = startX; x < endX; x += 1) {
+        const index = y * width + x;
+        const offset = index * 4;
+        const alpha = data[offset + 3];
+        if (alpha < 128) continue;
+        if (removeWhite && externalWhiteMask?.[index]) continue;
+        const r = data[offset];
+        const g = data[offset + 1];
+        const b = data[offset + 2];
+        pixelCount += 1;
+        if (mode === "average") {
+          rSum += r;
+          gSum += g;
+          bSum += b;
+        } else {
+          const key = `${r},${g},${b}`;
+          colorCounts[key] = (colorCounts[key] || 0) + 1;
+          if (colorCounts[key] > maxCount) {
+            maxCount = colorCounts[key];
+            dominantRgb = { r, g, b };
+          }
+        }
+      }
+    }
+    if (!pixelCount) return null;
+    if (mode === "average") {
+      return {
+        r: Math.round(rSum / pixelCount),
+        g: Math.round(gSum / pixelCount),
+        b: Math.round(bSum / pixelCount),
+      };
+    }
+    return dominantRgb;
+  }
+
+  function mergeGridSimilarColorsByFrequency(grid, size, threshold) {
+    const out = grid.slice();
+    const counts = {};
+    out.forEach((code) => {
+      if (code !== ".") counts[code] = (counts[code] || 0) + 1;
+    });
+    const colorsByFrequency = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([code]) => code);
+    const replacedColors = new Set();
+    for (let i = 0; i < colorsByFrequency.length; i += 1) {
+      const currentCode = colorsByFrequency[i];
+      if (replacedColors.has(currentCode)) continue;
+      const currentLab = beadOklab(currentCode);
+      for (let j = i + 1; j < colorsByFrequency.length; j += 1) {
+        const lowerCode = colorsByFrequency[j];
+        if (replacedColors.has(lowerCode)) continue;
+        const distance = zipplandOklabDistance100(currentLab, beadOklab(lowerCode));
+        if (distance < threshold) {
+          replacedColors.add(lowerCode);
+          for (let k = 0; k < out.length; k += 1) {
+            if (out[k] === lowerCode) out[k] = currentCode;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  function zipplandOklabDistance100(a, b) {
+    const dl = a.l - b.l;
+    const da = a.a - b.a;
+    const db = a.b - b.b;
+    return Math.sqrt(dl * dl + da * da + db * db) * 100;
   }
 
   function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion) {
