@@ -1,0 +1,19 @@
+{
+  "name": "拼豆工坊",
+  "short_name": "拼豆工坊",
+  "description": "模拟从选图、取豆、豆筛整理、摆放、检查到熨烫、冷却、收藏分享的完整拼豆手作流程。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef2f4",
+  "theme_color": "#eef2f4",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "orientation": "portrait",
+  "categories": ["games", "simulation", "entertainment"]
+}
