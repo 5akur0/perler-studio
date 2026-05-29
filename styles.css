@@ -2185,6 +2185,17 @@ button:disabled {
     inset 0 -2px 4px rgba(0, 0, 0, 0.12);
 }
 
+/* H1 transparent bead — checkered pattern, no tinted background */
+.swatch.is-transparent,
+.swatch-cell.is-transparent,
+.remap-swatch.is-transparent {
+  background:
+    repeating-conic-gradient(#d8dde4 0% 25%, #f2f4f7 0% 50%)
+    0 0 / 8px 8px !important;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: none;
+}
+
 .chip-label {
   display: block;
   margin-top: 3px;
