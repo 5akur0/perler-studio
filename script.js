@@ -688,7 +688,6 @@
     zoomOutButton: $("#zoomOutButton"),
     zoomInButton: $("#zoomInButton"),
     zoomResetButton: $("#zoomResetButton"),
-    boardPanButton: $("#boardPanButton"),
     resetButton: $("#resetButton"),
     toast: $("#toast"),
     placeHint: $("#placeHint"),
@@ -832,6 +831,7 @@
       down: false,
       mode: null,
       trayTapPending: false,
+      pendingCell: null,
       x: 0,
       y: 0,
       lastX: 0,
@@ -842,7 +842,6 @@
       scale: 1,
       panX: 0,
       panY: 0,
-      panMode: false,
     },
     gesture: {
       active: false,
@@ -1707,7 +1706,6 @@
     state.boardView.scale = 1;
     state.boardView.panX = 0;
     state.boardView.panY = 0;
-    state.boardView.panMode = false;
     state.gesture.active = false;
     state.gesture.pointers = {};
     state.tweezerBead = null;
@@ -1913,10 +1911,10 @@
     state.pointer.down = false;
     state.pointer.mode = null;
     state.pointer.trayTapPending = false;
+    state.pointer.pendingCell = null;
     state.gesture.active = false;
     state.gesture.pointers = {};
     if (phase !== "place" && phase !== "inspect") {
-      state.boardView.panMode = false;
       if (state.boardView.scale > 1.01) {
         state.boardView.scale = 1;
         state.boardView.panX = 0;
@@ -2163,7 +2161,6 @@
     state.boardView.scale = 1;
     state.boardView.panX = 0;
     state.boardView.panY = 0;
-    state.boardView.panMode = false;
     markCanvasDirty();
   }
 
@@ -4556,7 +4553,6 @@
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
     if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
-    if (els.boardPanButton) els.boardPanButton.classList.toggle("active", Boolean(state.boardView.panMode));
     if (state.remapModalOpen) renderRemapModal();
   }
 
@@ -7257,6 +7253,7 @@
         state.pointer.down = false;
         state.pointer.mode = "gesture";
         state.pointer.trayTapPending = false;
+        state.pointer.pendingCell = null;
         markCanvasDirty();
         return;
       }
@@ -7270,15 +7267,11 @@
       return;
     }
 
-    if ((state.phase === "place" || state.phase === "inspect") && state.boardView.panMode) {
-      state.pointer.mode = "board-pan";
-      return;
-    }
-
     if (state.phase === "place" && shouldShowTray() && pointInTrayDumpButton(pos.x, pos.y)) {
       dumpTray();
       state.pointer.mode = null;
       state.pointer.trayTapPending = false;
+      state.pointer.pendingCell = null;
       return;
     }
 
@@ -7291,6 +7284,12 @@
     if (state.phase === "place") {
       const cell = boardCellFromPoint(pos.x, pos.y);
       if (cell) {
+        if (useMobileDirectPlacement()) {
+          state.pointer.mode = "mobile-place-pending";
+          state.pointer.pendingCell = cell;
+          setToolPoseFromCell(cell.x, cell.y);
+          return;
+        }
         state.pointer.mode = "place";
         setToolPoseFromCell(cell.x, cell.y);
         handlePlaceAt(cell.x, cell.y, true);
@@ -7355,16 +7354,24 @@
       }
     }
 
+    if (state.pointer.down && state.pointer.mode === "mobile-place-pending") {
+      if (Math.hypot(pos.x - state.pointer.x, pos.y - state.pointer.y) > 5) {
+        const cell = boardCellFromPoint(pos.x, pos.y);
+        if (cell) {
+          state.pointer.mode = "place";
+          state.pointer.pendingCell = null;
+          setToolPoseFromCell(cell.x, cell.y);
+          handlePlaceAt(cell.x, cell.y, false);
+        }
+      }
+    }
+
     if (state.pointer.down && state.pointer.mode === "place") {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
         state.lastMoveDir = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx) || 1, y: 0 } : { x: 0, y: Math.sign(dy) || 1 };
       }
       const cell = boardCellFromPoint(pos.x, pos.y);
       if (cell) handlePlaceAt(cell.x, cell.y, false);
-    }
-
-    if (state.pointer.down && state.pointer.mode === "board-pan") {
-      setBoardZoom(state.boardView.scale, state.boardView.panX + dx, state.boardView.panY + dy);
     }
 
     if (state.pointer.down && state.pointer.mode === "iron") {
@@ -7392,9 +7399,13 @@
     if (state.phase === "place" && state.pointer.mode === "tray" && state.pointer.trayTapPending) {
       handleTrayTap(pos);
     }
+    if (state.phase === "place" && state.pointer.mode === "mobile-place-pending" && state.pointer.pendingCell) {
+      handlePlaceAt(state.pointer.pendingCell.x, state.pointer.pendingCell.y, true);
+    }
     state.pointer.down = false;
     state.pointer.mode = null;
     state.pointer.trayTapPending = false;
+    state.pointer.pendingCell = null;
     state.lastCellKey = "";
     if (state.phase === "iron") state.ironPos = pos;
     markCanvasDirty();
@@ -8049,13 +8060,6 @@
   });
   els.zoomResetButton?.addEventListener("click", () => {
     resetBoardView();
-  });
-  els.boardPanButton?.addEventListener("click", () => {
-    state.boardView.panMode = !state.boardView.panMode;
-    if (state.boardView.panMode && state.boardView.scale < 1.04) {
-      setBoardZoom(1.4, state.boardView.panX, state.boardView.panY);
-    }
-    markDirty();
   });
   els.customImageInput.addEventListener("change", handleCustomImage);
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
