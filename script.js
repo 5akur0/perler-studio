@@ -50,56 +50,9 @@
     z: "#EDB045",
   };
 
-  const colorNames = {
-    A: "香草",
-    a: "杏橙",
-    C: "青绿",
-    c: "嫩绿",
-    E: "孔雀绿",
-    e: "薄荷",
-    F: "樱粉",
-    f: "浅樱",
-    H: "莓红",
-    h: "玫红",
-    I: "靛紫",
-    i: "浅紫",
-    J: "天蓝",
-    j: "雾蓝",
-    K: "黑",
-    k: "炭灰",
-    N: "夜蓝",
-    n: "牛仔蓝",
-    Q: "米白",
-    q: "纯白",
-    T: "松绿",
-    t: "豆绿",
-    W: "奶白",
-    w: "燕麦",
-    P: "粉",
-    p: "蜜桃粉",
-    R: "红",
-    r: "珊瑚红",
-    G: "绿",
-    g: "深绿",
-    L: "浅蓝",
-    l: "湖蓝",
-    B: "蓝",
-    b: "深蓝",
-    Y: "黄",
-    y: "柠檬黄",
-    O: "橙",
-    o: "浅橙",
-    S: "灰",
-    s: "浅灰",
-    M: "棕",
-    m: "焦糖",
-    V: "紫",
-    v: "薰衣草",
-    D: "酒莓",
-    d: "雾梅",
-    Z: "南瓜",
-    z: "蜂蜜橙",
-  };
+  // colorNames is kept as an empty object for API compatibility;
+  // MARD codes (beadIds) are the sole display labels.
+  const colorNames = {};
 
   const beadIds = {
     Q: "A1",
@@ -913,7 +866,7 @@
       if (badRow >= 0) {
         throw new Error(`${pattern.name} 第 ${badRow + 1} 行长度不是 ${pattern.size}`);
       }
-      const unknownCodes = [...new Set(pattern.rows.join("").replace(/\./g, "").split(""))].filter((code) => !palette[code] || !colorNames[code] || !beadIds[code]);
+      const unknownCodes = [...new Set(pattern.rows.join("").replace(/\./g, "").split(""))].filter((code) => !palette[code] || !beadIds[code]);
       if (unknownCodes.length) {
         throw new Error(`${pattern.name} 使用了未登记颜色：${unknownCodes.join(", ")}`);
       }
@@ -1394,7 +1347,7 @@
   }
 
   function beadLabel(code) {
-    return `${beadIds[code] || code} ${colorNames[code] || code}`;
+    return beadIds[code] || code;
   }
 
   function activePaletteColorCount() {
@@ -4655,7 +4608,7 @@
       .slice(0, 10);
     els.patternColorStats.innerHTML = items.map((item) => {
       return `
-      <button type="button" class="pattern-color-chip" data-source-code="${item.sourceCode}" title="点击换色：${beadIds[item.targetCode] || item.targetCode} ${colorNames[item.targetCode] || ""}" aria-label="换色 ${beadIds[item.targetCode] || item.targetCode}">
+      <button type="button" class="pattern-color-chip" data-source-code="${item.sourceCode}" title="点击换色：${beadIds[item.targetCode] || item.targetCode}" aria-label="换色 ${beadIds[item.targetCode] || item.targetCode}">
         <span class="dot" style="background:${palette[item.targetCode]}"></span>
         <span class="code">${beadIds[item.targetCode] || item.targetCode}</span>
         <span class="count">${item.count}</span>
@@ -6238,7 +6191,7 @@
     }
     if (els.remapModalTitle) {
       els.remapModalTitle.textContent = sourceColors.length === 1
-        ? `换色：${beadIds[sourceColors[0]]} ${colorNames[sourceColors[0]]}`
+        ? `换色：${beadIds[sourceColors[0]]}`
         : "图纸换色";
     }
     const map = state.patternColorMap || {};
@@ -6252,8 +6205,8 @@
       card.innerHTML = `
         <div class="remap-card-head">
           <span class="remap-to">
-            <span class="remap-swatch" style="background:${palette[currentTarget]}"></span>
-            <span class="remap-label">${beadIds[currentTarget]} ${colorNames[currentTarget] || ""}</span>
+            <span class="remap-swatch${beadIds[currentTarget] === "H1" ? " is-transparent" : ""}" style="${beadIds[currentTarget] === "H1" ? "" : `background:${palette[currentTarget]}`}"></span>
+            <span class="remap-label">${beadIds[currentTarget]}</span>
           </span>
         </div>
       `;
@@ -6262,9 +6215,10 @@
       allCodes.forEach((code) => {
         const cell = document.createElement("button");
         cell.type = "button";
-        cell.className = `swatch-cell${currentTarget === code ? " active" : ""}`;
-        cell.style.background = palette[code];
-        cell.title = `${beadIds[code]} ${colorNames[code] || ""}`;
+        const isCellTransparent = beadIds[code] === "H1";
+        cell.className = `swatch-cell${currentTarget === code ? " active" : ""}${isCellTransparent ? " is-transparent" : ""}`;
+        if (!isCellTransparent) cell.style.background = palette[code];
+        cell.title = beadIds[code] || code;
         cell.setAttribute("aria-label", cell.title);
         cell.addEventListener("click", () => {
           setPatternColorMapping(sourceCode, code);
@@ -6406,8 +6360,9 @@
       button.className = `color-chip${isSelected ? " active" : ""}${inPattern ? " needed" : ""}${isHeld ? " held" : ""}`;
       button.type = "button";
       button.title = `${beadLabel(code)}：${placed}/${needed}`;
+      const isTransparent = beadIds[code] === "H1";
       button.innerHTML = `
-        <span class="swatch" style="background:${palette[code]}"></span>
+        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
         <span class="chip-label">${beadIds[code] || code}</span>
         ${inPattern && isSelected ? `<span class="chip-count">${remaining}</span>` : ""}
       `;
