@@ -845,6 +845,7 @@
     },
     gesture: {
       active: false,
+      touchActive: false,
       pointers: {},
       startDistance: 0,
       startScale: 1,
@@ -1707,6 +1708,7 @@
     state.boardView.panX = 0;
     state.boardView.panY = 0;
     state.gesture.active = false;
+    state.gesture.touchActive = false;
     state.gesture.pointers = {};
     state.tweezerBead = null;
     state.needleLoaded = 0;
@@ -1913,6 +1915,7 @@
     state.pointer.trayTapPending = false;
     state.pointer.pendingCell = null;
     state.gesture.active = false;
+    state.gesture.touchActive = false;
     state.gesture.pointers = {};
     if (phase !== "place" && phase !== "inspect") {
       if (state.boardView.scale > 1.01) {
@@ -2181,6 +2184,44 @@
 
   function pointerMid(a, b) {
     return { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 };
+  }
+
+  function startBoardGesture(p1, p2, touchActive = false) {
+    const mid = pointerMid(p1, p2);
+    state.gesture.active = true;
+    state.gesture.touchActive = Boolean(touchActive);
+    state.gesture.startDistance = Math.max(16, pointerDistance(p1, p2));
+    state.gesture.startScale = state.boardView.scale;
+    state.gesture.startPanX = state.boardView.panX;
+    state.gesture.startPanY = state.boardView.panY;
+    state.gesture.startMidX = mid.x;
+    state.gesture.startMidY = mid.y;
+    state.pointer.down = false;
+    state.pointer.mode = "gesture";
+    state.pointer.trayTapPending = false;
+    state.pointer.pendingCell = null;
+    markCanvasDirty();
+  }
+
+  function updateBoardGesture(p1, p2) {
+    const mid = pointerMid(p1, p2);
+    const distance = Math.max(16, pointerDistance(p1, p2));
+    const nextScale = clamp(
+      state.gesture.startScale * (distance / Math.max(16, state.gesture.startDistance)),
+      1,
+      2.8
+    );
+    const panX = state.gesture.startPanX + (mid.x - state.gesture.startMidX);
+    const panY = state.gesture.startPanY + (mid.y - state.gesture.startMidY);
+    setBoardZoom(nextScale, panX, panY);
+  }
+
+  function touchToCanvas(touch) {
+    const rect = sceneCanvas.getBoundingClientRect();
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
   }
 
   function computeLayout(rect) {
@@ -7226,6 +7267,7 @@
 
   function onPointerDown(event) {
     event.preventDefault();
+    if (state.gesture.touchActive) return;
     const pos = pointerToCanvas(event);
     if (state.phase === "place" || state.phase === "inspect") {
       state.gesture.pointers[event.pointerId] = { x: pos.x, y: pos.y };
@@ -7243,19 +7285,7 @@
       const pair = gesturePrimaryPair();
       if (pair) {
         const [p1, p2] = pair;
-        const mid = pointerMid(p1, p2);
-        state.gesture.active = true;
-        state.gesture.startDistance = Math.max(16, pointerDistance(p1, p2));
-        state.gesture.startScale = state.boardView.scale;
-        state.gesture.startPanX = state.boardView.panX;
-        state.gesture.startPanY = state.boardView.panY;
-        state.gesture.startMidX = mid.x;
-        state.gesture.startMidY = mid.y;
-        state.pointer.down = false;
-        state.pointer.mode = "gesture";
-        state.pointer.trayTapPending = false;
-        state.pointer.pendingCell = null;
-        markCanvasDirty();
+        startBoardGesture(p1, p2);
         return;
       }
     }
@@ -7313,6 +7343,7 @@
 
   function onPointerMove(event) {
     event.preventDefault();
+    if (state.gesture.touchActive) return;
     const pos = pointerToCanvas(event);
     if (state.phase === "place" || state.phase === "inspect") {
       if (state.gesture.pointers[event.pointerId]) {
@@ -7325,16 +7356,7 @@
           const pair = gesturePrimaryPair();
           if (pair) {
             const [p1, p2] = pair;
-            const mid = pointerMid(p1, p2);
-            const distance = Math.max(16, pointerDistance(p1, p2));
-            const nextScale = clamp(
-              state.gesture.startScale * (distance / Math.max(16, state.gesture.startDistance)),
-              1,
-              2.8
-            );
-            const panX = state.gesture.startPanX + (mid.x - state.gesture.startMidX);
-            const panY = state.gesture.startPanY + (mid.y - state.gesture.startMidY);
-            setBoardZoom(nextScale, panX, panY);
+            updateBoardGesture(p1, p2);
             return;
           }
         }
@@ -7392,6 +7414,7 @@
 
   function onPointerUp(event) {
     event.preventDefault();
+    if (state.gesture.touchActive) return;
     const pos = pointerToCanvas(event);
     if (state.gesture.pointers[event.pointerId]) delete state.gesture.pointers[event.pointerId];
     if (state.gesture.active && gesturePointerCount() < 2) {
@@ -7409,6 +7432,40 @@
     state.pointer.pendingCell = null;
     state.lastCellKey = "";
     if (state.phase === "iron") state.ironPos = pos;
+    markCanvasDirty();
+  }
+
+  function onTouchStart(event) {
+    if (state.phase !== "place" && state.phase !== "inspect") return;
+    if (event.touches.length < 2) return;
+    event.preventDefault();
+    startBoardGesture(touchToCanvas(event.touches[0]), touchToCanvas(event.touches[1]), true);
+  }
+
+  function onTouchMove(event) {
+    if (!state.gesture.touchActive) return;
+    event.preventDefault();
+    if (event.touches.length < 2) {
+      state.gesture.active = false;
+      state.gesture.touchActive = false;
+      return;
+    }
+    updateBoardGesture(touchToCanvas(event.touches[0]), touchToCanvas(event.touches[1]));
+  }
+
+  function onTouchEnd(event) {
+    if (!state.gesture.touchActive) return;
+    event.preventDefault();
+    if (event.touches.length >= 2) {
+      startBoardGesture(touchToCanvas(event.touches[0]), touchToCanvas(event.touches[1]), true);
+      return;
+    }
+    state.gesture.active = false;
+    state.gesture.touchActive = false;
+    state.gesture.pointers = {};
+    state.pointer.down = false;
+    state.pointer.mode = null;
+    state.pointer.pendingCell = null;
     markCanvasDirty();
   }
 
@@ -8003,6 +8060,10 @@
   sceneCanvas.addEventListener("pointermove", onPointerMove);
   sceneCanvas.addEventListener("pointerup", onPointerUp);
   sceneCanvas.addEventListener("pointercancel", onPointerUp);
+  sceneCanvas.addEventListener("touchstart", onTouchStart, { passive: false });
+  sceneCanvas.addEventListener("touchmove", onTouchMove, { passive: false });
+  sceneCanvas.addEventListener("touchend", onTouchEnd, { passive: false });
+  sceneCanvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
   sceneCanvas.addEventListener("wheel", (event) => {
     if (state.phase !== "place" && state.phase !== "inspect") return;
