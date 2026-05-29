@@ -1846,6 +1846,54 @@
     return ((h >>> 0) % 10000) / 10000;
   }
 
+
+  // --- Audio & Haptics ---
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) { }
+    }
+  }
+
+  function playClickSound(type = "light") {
+    if (!audioCtx) return;
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    if (type === "light") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.04);
+    } else if (type === "heavy") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.06);
+      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.06);
+    }
+  }
+
+  function triggerHaptic(type = "light") {
+    initAudio();
+    if (navigator.vibrate) {
+      if (type === "light") navigator.vibrate(5);
+      else if (type === "heavy") navigator.vibrate(10);
+      else if (type === "error") navigator.vibrate([15, 30, 15]);
+    }
+    playClickSound(type);
+  }
+
   function setPhase(phase) {
     state.phase = phase;
     state.pointer.down = false;
@@ -1925,9 +1973,84 @@
     markDirty();
   }
 
+
+  // --- Auto Save ---
+  function autoSave() {
+    if (state.phase === "choose") {
+      localStorage.removeItem("beadWorkshopSession.v1");
+      return;
+    }
+    const session = {
+      phase: state.phase,
+      sandboxMode: state.sandboxMode,
+      selectedPatternId: state.selectedPattern ? state.selectedPattern.id : null,
+      patternColorMaps: state.patternColorMaps,
+      patternSize: state.patternSize,
+      placed: state.placed,
+      heat: state.heat,
+      tool: state.tool,
+      trayColor: state.trayColor,
+      trayBeans: state.trayBeans,
+      trayMatrix: state.trayMatrix,
+      tweezerBead: state.tweezerBead,
+      needleLoaded: state.needleLoaded,
+      errors: state.errors,
+      temperature: state.temperature,
+      pressure: state.pressure,
+      warp: state.warp,
+      cooling: state.cooling,
+      spill: state.spill
+    };
+    try {
+      localStorage.setItem("beadWorkshopSession.v1", JSON.stringify(session));
+    } catch(e) {}
+  }
+
+  function loadAutoSave() {
+    try {
+      const data = localStorage.getItem("beadWorkshopSession.v1");
+      if (!data) return false;
+      const session = JSON.parse(data);
+      if (!session || session.phase === "choose") return false;
+      
+      const pattern = patterns.find(p => p.id === session.selectedPatternId);
+      if (!pattern && !session.sandboxMode) return false;
+      
+      state.phase = session.phase;
+      state.sandboxMode = session.sandboxMode;
+      state.selectedPattern = pattern;
+      if (session.patternColorMaps) state.patternColorMaps = session.patternColorMaps;
+      if (session.patternSize) state.patternSize = session.patternSize;
+      state.placed = session.placed || [];
+      state.heat = session.heat || [];
+      state.tool = session.tool || "needle";
+      state.trayColor = session.trayColor || null;
+      state.trayBeans = ~~session.trayBeans;
+      state.trayMatrix = session.trayMatrix || [];
+      state.tweezerBead = session.tweezerBead || null;
+      state.needleLoaded = ~~session.needleLoaded;
+      state.errors = session.errors || [];
+      state.temperature = session.temperature || 62;
+      state.pressure = session.pressure || 56;
+      state.warp = session.warp || 18;
+      state.cooling = session.cooling || 0;
+      state.spill = session.spill || null;
+      
+      // restore transient states
+      if (state.selectedPattern) loadPattern(state.selectedPattern);
+      if (state.phase !== "choose") compileCurrentPattern();
+      syncFusionMatrix();
+      setPhase(state.phase);
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
   function markDirty() {
     state.renderDirty = true;
     state.uiDirty = true;
+    requestAnimationFrame(autoSave);
   }
 
   function markCanvasDirty() {
@@ -7963,6 +8086,9 @@
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));
   applyBackgroundTheme(state.bgTheme);
+  if (!loadAutoSave()) {
+    setPhase("choose");
+  }
   renderUI();
   requestAnimationFrame(tick);
 })();
