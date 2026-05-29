@@ -2740,6 +2740,82 @@ button:disabled {
     min-height: 36px;
     padding: 0 8px;
   }
+
+  /* ── Mobile palette: give chips room so box-shadow/::before glow isn't clipped ── */
+  .color-palette {
+    padding: 4px;
+  }
+
+  /* ── Active chip on mobile: outline is never clipped by overflow:auto ── */
+  .color-chip.active {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    box-shadow:
+      inset 0 0 0 2px rgba(38, 36, 43, 0.08),
+      0 0 0 4px rgba(38, 36, 43, 0.06);
+  }
+
+  .color-chip.active.needed {
+    outline-color: #258878;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Orientation overlay
+   Phones must be portrait; tablets must be landscape.
+   Web can't lock OS rotation — show a full-screen prompt.
+═══════════════════════════════════════════════════════ */
+.orientation-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: var(--bg);
+  color: var(--ink);
+  text-align: center;
+  padding: 32px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.orientation-overlay .msg-portrait,
+.orientation-overlay .msg-landscape {
+  display: none;
+  margin: 0;
+}
+
+.orientation-overlay svg {
+  opacity: 0.72;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  40%       { transform: rotate(18deg); }
+  60%       { transform: rotate(-18deg); }
+}
+
+/* Phone in landscape → ask to go portrait */
+@media (hover: none) and (pointer: coarse) and (max-width: 860px) and (orientation: landscape) {
+  .orientation-overlay {
+    display: flex;
+  }
+  .orientation-overlay .msg-portrait { display: block; }
+  .orientation-overlay .msg-landscape { display: none; }
+}
+
+/* Tablet (touch) in portrait → ask to go landscape */
+@media (hover: none) and (pointer: coarse) and (min-width: 861px) and (orientation: portrait) {
+  .orientation-overlay {
+    display: flex;
+  }
+  .orientation-overlay .msg-portrait { display: none; }
+  .orientation-overlay .msg-landscape { display: block; }
 }
 
 @media (max-width: 620px) {

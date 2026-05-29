@@ -1738,6 +1738,10 @@
     return window.matchMedia("(max-width: 860px)").matches;
   }
 
+  function maxBoardScale() {
+    return useMobileDirectPlacement() ? 6 : 2.8;
+  }
+
   function shouldShowTray(layout = currentLayout()) {
     return !useMobileDirectPlacement() && layout.trayW > 0 && layout.trayH > 0;
   }
@@ -2139,9 +2143,9 @@
   }
 
   function boardViewTransform(layout = currentLayout()) {
-    const scale = clamp(state.boardView.scale || 1, 1, 2.8);
+    const scale = clamp(state.boardView.scale || 1, 1, maxBoardScale());
     const extra = (layout.boardSize * scale - layout.boardSize) * 0.5;
-    const basePan = layout.w < 740 ? layout.boardSize * 0.36 : 28;
+    const basePan = useMobileDirectPlacement() ? layout.boardSize * 0.36 : 28;
     const maxPan = extra + basePan;
     const panX = clamp(state.boardView.panX || 0, -maxPan, maxPan);
     const panY = clamp(state.boardView.panY || 0, -maxPan, maxPan);
@@ -2154,7 +2158,7 @@
   }
 
   function setBoardZoom(nextScale, nextPanX = state.boardView.panX, nextPanY = state.boardView.panY) {
-    state.boardView.scale = clamp(nextScale, 1, 2.8);
+    state.boardView.scale = clamp(nextScale, 1, maxBoardScale());
     state.boardView.panX = nextPanX;
     state.boardView.panY = nextPanY;
     boardViewTransform();
@@ -2209,7 +2213,7 @@
     const nextScale = clamp(
       state.gesture.startScale * (distance / Math.max(16, state.gesture.startDistance)),
       1,
-      2.8
+      maxBoardScale()
     );
     // Anchor the zoom on the fingers: keep the board point that was under the
     // initial two-finger midpoint locked under the current midpoint. This makes
