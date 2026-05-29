@@ -2248,6 +2248,10 @@
   }
 
   function render() {
+    if (state.uiDirty) {
+      renderUI();
+      state.uiDirty = false;
+    }
     setupHiDpiCanvas(sceneCanvas, scene);
     const layout = currentLayout();
     scene.clearRect(0, 0, layout.w, layout.h);
@@ -2280,10 +2284,6 @@
     if (state.previewDirty) {
       drawPreview();
       state.previewDirty = false;
-    }
-    if (state.uiDirty) {
-      renderUI();
-      state.uiDirty = false;
     }
     state.renderDirty = false;
   }
@@ -2820,46 +2820,13 @@
     ctx.scale(boardView.scale, boardView.scale);
     ctx.translate(-boardView.cx, -boardView.cy);
 
-    // The mat travels with the board so zoom/pan keeps them visually fused.
-    const matX = Math.max(16, boardX - 24);
-    const matY = Math.max(18, boardY - 24);
-    const matRight = Math.min(layout.w - 16, boardX + boardSize + 24);
-    const matBottom = Math.min(layout.h - 96, boardY + boardSize + 24);
-    ctx.fillStyle = currentBackgroundTheme().matFill;
-    roundedRect(matX, matY, matRight - matX, matBottom - matY, 8);
-    ctx.fill();
-    ctx.strokeStyle = currentBackgroundTheme().matStroke;
-    ctx.stroke();
-    ctx.strokeStyle = currentBackgroundTheme().gridStroke;
-    for (let x = matX + 22; x < matRight; x += 24) {
-      ctx.beginPath();
-      ctx.moveTo(x, matY + 8);
-      ctx.lineTo(x, matBottom - 8);
-      ctx.stroke();
-    }
-    for (let y = matY + 22; y < matBottom; y += 24) {
-      ctx.beginPath();
-      ctx.moveTo(matX + 8, y);
-      ctx.lineTo(matRight - 8, y);
-      ctx.stroke();
-    }
-
     ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
     ctx.shadowBlur = 26;
     ctx.shadowOffsetY = 14;
-    const baseGradient = ctx.createLinearGradient(boardX, boardY - 14, boardX, boardY + boardSize + 14);
-    baseGradient.addColorStop(0, "#f6f8fa");
-    baseGradient.addColorStop(1, "#d9e0e4");
-    ctx.fillStyle = baseGradient;
-    roundedRect(boardX - 14, boardY - 14, boardSize + 28, boardSize + 28, 8);
-    ctx.fill();
-    ctx.shadowColor = "transparent";
-    ctx.strokeStyle = "rgba(108, 118, 130, 0.34)";
-    ctx.stroke();
-
     ctx.fillStyle = "#fbfcfd";
     roundedRect(boardX, boardY, boardSize, boardSize, 6);
     ctx.fill();
+    ctx.shadowColor = "transparent";
     ctx.strokeStyle = "rgba(70, 84, 96, 0.18)";
     ctx.stroke();
 
