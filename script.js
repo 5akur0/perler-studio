@@ -1643,7 +1643,13 @@
   function setSizeControls(size) {
     const normalized = normalizePatternSize(size);
     state.patternSize = normalized;
-    if (els.patternSizeSlider) els.patternSizeSlider.value = String(normalized);
+    if (els.patternSizeSlider) {
+      els.patternSizeSlider.value = String(normalized);
+      const min = Number(els.patternSizeSlider.min) || 12;
+      const max = Number(els.patternSizeSlider.max) || 48;
+      const progress = clamp((normalized - min) / Math.max(1, max - min), 0, 1);
+      els.patternSizeSlider.style.setProperty("--size-progress", `${Math.round(progress * 100)}%`);
+    }
     if (els.patternSizeValue) els.patternSizeValue.textContent = String(normalized);
     if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
   }
