@@ -7353,9 +7353,11 @@
       const cell = boardCellFromPoint(pos.x, pos.y);
       if (cell) {
         if (useMobileDirectPlacement()) {
-          state.pointer.mode = "place";
+          // Don't place immediately — wait to see if a second finger arrives.
+          // Committed on first move (drag-paint) or on pointerup (tap).
+          state.pointer.mode = "place-pending";
+          state.pointer.pendingCell = { x: cell.x, y: cell.y };
           setToolPoseFromCell(cell.x, cell.y);
-          handlePlaceAt(cell.x, cell.y, true);
           return;
         }
         state.pointer.mode = "place";
@@ -7414,6 +7416,17 @@
       }
     }
 
+    if (state.pointer.down && state.pointer.mode === "place-pending") {
+      // Finger moved before a second finger arrived → commit the first bead and start continuous painting.
+      const pending = state.pointer.pendingCell;
+      if (pending) {
+        handlePlaceAt(pending.x, pending.y, true);
+        state.pointer.pendingCell = null;
+      }
+      state.pointer.mode = "place";
+      // fall through to the "place" block below to also handle the current cell
+    }
+
     if (state.pointer.down && state.pointer.mode === "place") {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
         state.lastMoveDir = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx) || 1, y: 0 } : { x: 0, y: Math.sign(dy) || 1 };
@@ -7447,6 +7460,11 @@
     }
     if (state.phase === "place" && state.pointer.mode === "tray" && state.pointer.trayTapPending) {
       handleTrayTap(pos);
+    }
+    // Commit a pending mobile tap (finger lifted without moving = single-bead tap).
+    if (state.phase === "place" && state.pointer.mode === "place-pending") {
+      const pending = state.pointer.pendingCell;
+      if (pending) handlePlaceAt(pending.x, pending.y, true);
     }
     state.pointer.down = false;
     state.pointer.mode = null;
