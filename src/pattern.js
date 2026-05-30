@@ -395,6 +395,10 @@ export function getPlacedCounts() {
   return placedCountsCache;
 }
 
+export function placedCount() {
+  return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
+}
+
 export function normalizePatternSize(value) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return 48;
