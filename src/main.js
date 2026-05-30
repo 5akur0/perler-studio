@@ -49,7 +49,7 @@ import {
   scoreLabel, finalGrade, statusText,
   boardCellFromPoint, pointInTray, trayDumpButtonRect, pointInTrayDumpButton,
   isSpillDamagedIndex, drawSpillDamages, drawInspectionHints,
-  drawShareImage, setAutoSaveHook,
+  drawShareImage, setAutoSaveHook, markDirty,
 } from './render.js';
 import { placedCount } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from './notify.js';
@@ -497,12 +497,6 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
     } catch(e) {
       return false;
     }
-  }
-
-  function markDirty() {
-    state.renderDirty = true;
-    state.uiDirty = true;
-    scheduleAutoSave();
   }
 
 
