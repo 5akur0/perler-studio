@@ -49,6 +49,7 @@ import {
   scoreLabel, finalGrade, statusText,
   boardCellFromPoint, pointInTray, trayDumpButtonRect, pointInTrayDumpButton,
   isSpillDamagedIndex, drawSpillDamages, drawInspectionHints,
+  drawShareImage, setAutoSaveHook,
 } from './render.js';
 import { placedCount } from './pattern.js';
 
@@ -2556,6 +2557,129 @@ import { placedCount } from './pattern.js';
     }
   }
 
+  function pressFlat() {
+    const heat = heatStats();
+    const heatedFactor = clamp(heat.heated / Math.max(1, heat.total), 0, 1);
+    const bondedFactor = clamp(heat.bonded / Math.max(1, heat.total), 0, 1);
+    const effective = clamp(heatedFactor * 0.45 + bondedFactor * 0.55, 0, 1);
+    const flattenGain = lerp(5, 30, effective);
+    const warpReduce = lerp(2, 12, effective);
+    state.flattening = clamp(state.flattening + flattenGain, 0, 100);
+    state.warp = clamp(state.warp - warpReduce, 0, 80);
+    // Trigger the scraper-from-bottom animation.
+    state.pressAnim = { startedAt: performance.now(), duration: 820 };
+    if (effective < 0.2) {
+      showToast("受热不足，压平效果很小。再熨一会儿会更好压。");
+    } else {
+      showToast("压板压住作品，边缘更平了。");
+    }
+    markDirty();
+  }
+
+  function flipAndIron() {
+    state.flipCount += 1;
+    state.cooling = 20;
+    state.heat = state.heat.map((heat) => heat * 0.82);
+    showToast("翻面完成，再轻熨一次。");
+    setPhase("iron");
+  }
+
+  function completeWork() {
+    if (state.sandboxMode) {
+      const placed = placedCount();
+      const totalSlots = state.placed.length;
+      if (placed === 0) {
+        enterConceptEaster("empty");
+        return;
+      }
+      if (placed === totalSlots && totalSlots > 0) {
+        enterConceptEaster("full");
+        return;
+      }
+    }
+    setPhase("finish");
+    saveCurrentWork();
+  }
+
+  function enterConceptEaster(type) {
+    state.conceptEaster = true;
+    state.conceptEasterType = type;
+    if (type === "full") {
+      unlockAchievement(fullBoardAchievement, showAchievementToast);
+    } else {
+      unlockAchievement(conceptAchievement, showAchievementToast);
+    }
+    setPhase("finish");
+    state.savedCurrent = false;
+    markDirty();
+  }
+
+  function saveCurrentWork() {
+    const entry = {
+      id: `${Date.now()}-${state.selectedPattern.id}`,
+      name: state.selectedPattern.name,
+      craft: state.craft,
+      grade: finalGrade(),
+      date: new Date().toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }),
+      size: state.selectedPattern.size,
+      placed: state.placed.slice(),
+    };
+    if (!state.savedCurrent) {
+      collection.unshift(entry);
+      collection = collection.slice(0, collectionLimit);
+      const stored = writeCollection(collection);
+      state.savedCurrent = true;
+      if (stored) showToast("作品已收入作品集。");
+    } else {
+      showToast("这个版本已经保存过。");
+    }
+    markDirty();
+  }
+
+  function exportShareImage(format) {
+    const portrait = format === "portrait";
+    const canvas = document.createElement("canvas");
+    canvas.width = portrait ? 1080 : 1080;
+    canvas.height = portrait ? 1440 : 1080;
+    const ctx = canvas.getContext("2d");
+    drawShareImage(ctx, canvas.width, canvas.height, portrait);
+
+    const filename = `拼豆工坊-${state.selectedPattern.name}-${portrait ? "竖图" : "方图"}.png`;
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    showToast("已导出带水印分享图。");
+  }
+
+  function copyShareText() {
+    const flowText = useMobileDirectPlacement()
+      ? `从豆盒选色、直接摆放，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`
+      : `从豆盒选色、豆筛抖豆、镊子修正，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`;
+    const text = [
+      `女朋友爱玩的拼豆，我做成了浏览器小游戏。`,
+      `今天做的是「${state.selectedPattern.name}」，${getTargetTotal()}颗、${getPatternColors().length}个色号，最后评级 ${finalGrade()}。`,
+      flowText,
+      `#拼豆 #手作 #像素画 #情侣日常 #小游戏`,
+    ].join("\n");
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => showToast("文案已复制。")).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand?.("copy");
+    area.remove();
+    showToast("文案已复制。");
+  }
+
+
 
   function shouldAnimateCanvas(now) {
     if (state.pointer.down) return true;
@@ -2639,7 +2763,11 @@ import { placedCount } from './pattern.js';
         state.renderDirty = true;
       }
     }
-    if (state.renderDirty || state.uiDirty || state.previewDirty || shouldAnimateCanvas(now)) {
+    if (state.uiDirty) {
+      renderUI();
+      state.uiDirty = false;
+    }
+    if (state.renderDirty || state.previewDirty || shouldAnimateCanvas(now)) {
       render();
     }
     requestAnimationFrame(tick);
@@ -2804,6 +2932,7 @@ import { placedCount } from './pattern.js';
 
   window.addEventListener("resize", onResize);
 
+  setAutoSaveHook(scheduleAutoSave);
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));
   applyBackgroundTheme(state.bgTheme);
