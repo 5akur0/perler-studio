@@ -263,6 +263,9 @@
     <div id="placeHint" class="place-hint" role="status" aria-live="polite"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script type="module" src="src/main.js"></script>
+    <!-- 打包产物：由 `npm run build`（或 `npm run watch`）从 src/main.js 生成。
+         用普通脚本（非 module）以便直接双击 index.html（file://）也能运行。
+         开发时只改 src/ 下的源码即可，watch 会自动重建此文件。 -->
+    <script defer src="app.bundle.js"></script>
   </body>
 </html>

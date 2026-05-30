@@ -2133,7 +2133,7 @@ import {
       }
     }
 
-    if ((state.phase === "place" || state.phase === "inspect") && pointInLampSwitch(pos.x, pos.y)) {
+    if (!useMobileDirectPlacement() && (state.phase === "place" || state.phase === "inspect") && pointInLampSwitch(pos.x, pos.y)) {
       toggleLamp();
       state.pointer.down = false;
       state.pointer.mode = "lamp";
