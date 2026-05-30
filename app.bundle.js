@@ -2510,7 +2510,8 @@
     resetButton: $("#resetButton"),
     toast: $("#toast"),
     placeHint: $("#placeHint"),
-    achievementToast: $("#achievementToast")
+    achievementToast: $("#achievementToast"),
+    stepBadge: $("#stepBadge")
   };
 
   // src/render.js
@@ -2816,7 +2817,7 @@
     const sceneRect = sceneCanvas.getBoundingClientRect();
     setupHiDpiCanvas(sceneCanvas, scene, sceneRect);
     const layout = currentLayout(sceneRect);
-    scene.clearRect(0, 0, layout.w, layout.h);
+    scene.clearRect(0, 0, sceneRect.width, sceneRect.height);
     drawWorkbench(layout);
     if (state.phase !== "choose") drawFloorDrops(layout);
     if (state.phase === "choose") {
@@ -2967,33 +2968,43 @@
     const cordStartY = rect.y - 2;
     const cordEndX = layout.w - 22;
     const cordEndY = 2;
-    ctx.strokeStyle = "rgba(36, 40, 50, 0.42)";
-    ctx.lineWidth = 2.6;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(cordStartX, cordStartY);
-    ctx.bezierCurveTo(
-      cordStartX + 22,
-      cordStartY - 50,
-      cordEndX - 24,
-      cordEndY + 80,
-      cordEndX,
-      cordEndY
-    );
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(cordStartX, cordStartY);
-    ctx.bezierCurveTo(
-      cordStartX + 22,
-      cordStartY - 50,
-      cordEndX - 24,
-      cordEndY + 80,
-      cordEndX,
-      cordEndY
-    );
-    ctx.stroke();
+    {
+      const cordGrad = ctx.createLinearGradient(cordStartX, cordStartY, cordEndX, cordEndY);
+      cordGrad.addColorStop(0, "rgba(36, 40, 50, 0.44)");
+      cordGrad.addColorStop(0.68, "rgba(36, 40, 50, 0.28)");
+      cordGrad.addColorStop(1, "rgba(36, 40, 50, 0)");
+      ctx.strokeStyle = cordGrad;
+      ctx.lineWidth = 2.6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cordStartX, cordStartY);
+      ctx.bezierCurveTo(
+        cordStartX + 22,
+        cordStartY - 50,
+        cordEndX - 24,
+        cordEndY + 80,
+        cordEndX,
+        cordEndY
+      );
+      ctx.stroke();
+      const cordHighlight = ctx.createLinearGradient(cordStartX, cordStartY, cordEndX, cordEndY);
+      cordHighlight.addColorStop(0, "rgba(255, 255, 255, 0.22)");
+      cordHighlight.addColorStop(0.7, "rgba(255, 255, 255, 0.08)");
+      cordHighlight.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.strokeStyle = cordHighlight;
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(cordStartX, cordStartY);
+      ctx.bezierCurveTo(
+        cordStartX + 22,
+        cordStartY - 50,
+        cordEndX - 24,
+        cordEndY + 80,
+        cordEndX,
+        cordEndY
+      );
+      ctx.stroke();
+    }
     if (state.lampOn) {
       const glow = ctx.createRadialGradient(cx, cy, bodyR * 0.5, cx, cy, rect.w * 1.45);
       glow.addColorStop(0, "rgba(255, 235, 166, 0.34)");
@@ -6199,6 +6210,12 @@
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
     if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
+    if (els.stepBadge) {
+      const phaseIdx = phases.findIndex((p) => p.id === state.phase);
+      const phaseName = phases[phaseIdx]?.name ?? "";
+      els.stepBadge.textContent = state.phase !== "choose" ? `${phaseIdx + 1}/${phases.length} ${phaseName}` : "";
+      els.stepBadge.hidden = state.phase === "choose";
+    }
   }
 
   // src/main.js

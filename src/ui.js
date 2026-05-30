@@ -1016,4 +1016,12 @@ export function renderUI() {
   if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
   if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
   if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
+
+  // P2-3: 手机端步骤徽章（桌面端 CSS display:none，JS 控制内容）
+  if (els.stepBadge) {
+    const phaseIdx = phases.findIndex((p) => p.id === state.phase);
+    const phaseName = phases[phaseIdx]?.name ?? "";
+    els.stepBadge.textContent = state.phase !== "choose" ? `${phaseIdx + 1}/${phases.length} ${phaseName}` : "";
+    els.stepBadge.hidden = state.phase === "choose";
+  }
 }
