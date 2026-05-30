@@ -7,9 +7,10 @@ import {
   collectionLimit, conceptAchievement, fullBoardAchievement,
 } from './constants.js';
 import { clamp, lerp, easeOut, mixColor } from './color-utils.js';
+import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import {
   targetAt, indexFor, getEffectiveTargetRows, getTargetCounts, getTargetTotal,
-  beadLabel, getPatternColors, getPlacedCounts, baseIdFor,
+  beadLabel, getPatternColors, getPlacedCounts, baseIdFor, getPatternColorMap,
 } from './pattern.js';
 
 export function useMobileTrayGrid() {
@@ -151,9 +152,15 @@ export function pseudoRandom(seed) {
   h += h << 5;
   return ((h >>> 0) % 10000) / 10000;
 }
+// Autosave is owned by main.js (persistence layer). main.js injects it via
+// setAutoSaveHook so render.js stays free of a main.js dependency.
+let autoSaveHook = null;
+export function setAutoSaveHook(fn) {
+  autoSaveHook = fn;
+}
 export function markCanvasDirty(save = false) {
   state.renderDirty = true;
-  if (save) scheduleAutoSave();
+  if (save) autoSaveHook?.();
 }
 // Quantize the canvas bounding rect so 1–2 px wiggles (e.g. from right-panel
  // content changing height between place↔inspect) don't recompute boardSize
@@ -350,10 +357,8 @@ export function setupHiDpiCanvas(canvas, ctx, rect = canvas.getBoundingClientRec
 }
 
 export function render() {
-  if (state.uiDirty) {
-    renderUI();
-    state.uiDirty = false;
-  }
+  // UI (DOM) rendering is driven by the tick loop in main.js before render()
+  // is called — see the uiDirty handling there. render() only paints canvases.
   const sceneRect = sceneCanvas.getBoundingClientRect();
   setupHiDpiCanvas(sceneCanvas, scene, sceneRect);
   const layout = currentLayout(sceneRect);
@@ -2960,102 +2965,8 @@ export function estimateWarp() {
   return clamp(14 + under * 0.08 + stats.over * 0.42, 0, 75);
 }
 
-function pressFlat() {
-  const heat = heatStats();
-  const heatedFactor = clamp(heat.heated / Math.max(1, heat.total), 0, 1);
-  const bondedFactor = clamp(heat.bonded / Math.max(1, heat.total), 0, 1);
-  const effective = clamp(heatedFactor * 0.45 + bondedFactor * 0.55, 0, 1);
-  const flattenGain = lerp(5, 30, effective);
-  const warpReduce = lerp(2, 12, effective);
-  state.flattening = clamp(state.flattening + flattenGain, 0, 100);
-  state.warp = clamp(state.warp - warpReduce, 0, 80);
-  // Trigger the scraper-from-bottom animation.
-  state.pressAnim = { startedAt: performance.now(), duration: 820 };
-  if (effective < 0.2) {
-    showToast("受热不足，压平效果很小。再熨一会儿会更好压。");
-  } else {
-    showToast("压板压住作品，边缘更平了。");
-  }
-  markDirty();
-}
 
-function flipAndIron() {
-  state.flipCount += 1;
-  state.cooling = 20;
-  state.heat = state.heat.map((heat) => heat * 0.82);
-  showToast("翻面完成，再轻熨一次。");
-  setPhase("iron");
-}
-
-function completeWork() {
-  if (state.sandboxMode) {
-    const placed = placedCount();
-    const totalSlots = state.placed.length;
-    if (placed === 0) {
-      enterConceptEaster("empty");
-      return;
-    }
-    if (placed === totalSlots && totalSlots > 0) {
-      enterConceptEaster("full");
-      return;
-    }
-  }
-  setPhase("finish");
-  saveCurrentWork();
-}
-
-function enterConceptEaster(type) {
-  state.conceptEaster = true;
-  state.conceptEasterType = type;
-  if (type === "full") {
-    unlockAchievement(fullBoardAchievement, showAchievementToast);
-  } else {
-    unlockAchievement(conceptAchievement, showAchievementToast);
-  }
-  setPhase("finish");
-  state.savedCurrent = false;
-  markDirty();
-}
-
-function saveCurrentWork() {
-  const entry = {
-    id: `${Date.now()}-${state.selectedPattern.id}`,
-    name: state.selectedPattern.name,
-    craft: state.craft,
-    grade: finalGrade(),
-    date: new Date().toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }),
-    size: state.selectedPattern.size,
-    placed: state.placed.slice(),
-  };
-  if (!state.savedCurrent) {
-    collection.unshift(entry);
-    collection = collection.slice(0, collectionLimit);
-    const stored = writeCollection(collection);
-    state.savedCurrent = true;
-    if (stored) showToast("作品已收入作品集。");
-  } else {
-    showToast("这个版本已经保存过。");
-  }
-  markDirty();
-}
-
-function exportShareImage(format) {
-  const portrait = format === "portrait";
-  const canvas = document.createElement("canvas");
-  canvas.width = portrait ? 1080 : 1080;
-  canvas.height = portrait ? 1440 : 1080;
-  const ctx = canvas.getContext("2d");
-  drawShareImage(ctx, canvas.width, canvas.height, portrait);
-
-  const filename = `拼豆工坊-${state.selectedPattern.name}-${portrait ? "竖图" : "方图"}.png`;
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-  showToast("已导出带水印分享图。");
-}
-
-function drawShareImage(ctx, w, h, portrait) {
+export function drawShareImage(ctx, w, h, portrait) {
   const bg = ctx.createLinearGradient(0, 0, w, h);
   bg.addColorStop(0, "#fff7f3");
   bg.addColorStop(0.52, "#eef8f5");
@@ -3107,7 +3018,7 @@ function drawShareImage(ctx, w, h, portrait) {
   ctx.restore();
 }
 
-function drawShareArtwork(ctx, x, y, size) {
+export function drawShareArtwork(ctx, x, y, size) {
   ctx.save();
   ctx.shadowColor = "rgba(38, 36, 43, 0.2)";
   ctx.shadowBlur = 34;
@@ -3149,7 +3060,7 @@ function drawShareArtwork(ctx, x, y, size) {
   ctx.restore();
 }
 
-function drawShareStats(ctx, x, y, w) {
+export function drawShareStats(ctx, x, y, w) {
   const stats = [
     ["图纸", state.selectedPattern.name],
     ["颗数", `${getTargetTotal()}颗`],
@@ -3173,32 +3084,6 @@ function drawShareStats(ctx, x, y, w) {
   });
 }
 
-function copyShareText() {
-  const flowText = useMobileDirectPlacement()
-    ? `从豆盒选色、直接摆放，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`
-    : `从豆盒选色、豆筛抖豆、镊子修正，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`;
-  const text = [
-    `女朋友爱玩的拼豆，我做成了浏览器小游戏。`,
-    `今天做的是「${state.selectedPattern.name}」，${getTargetTotal()}颗、${getPatternColors().length}个色号，最后评级 ${finalGrade()}。`,
-    flowText,
-    `#拼豆 #手作 #像素画 #情侣日常 #小游戏`,
-  ].join("\n");
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).then(() => showToast("文案已复制。")).catch(() => fallbackCopy(text));
-  } else {
-    fallbackCopy(text);
-  }
-}
-
-function fallbackCopy(text) {
-  const area = document.createElement("textarea");
-  area.value = text;
-  document.body.appendChild(area);
-  area.select();
-  document.execCommand?.("copy");
-  area.remove();
-  showToast("文案已复制。");
-}
 
 export function scoreLabel() {
   if (state.sandboxMode) return "沙盒";
