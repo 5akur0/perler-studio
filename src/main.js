@@ -82,6 +82,11 @@ import {
     root.style.setProperty("--page-glow-b", theme.pageGlowB);
     root.style.setProperty("--table", theme.table[1]);
     root.style.setProperty("--table-deep", theme.table[2]);
+    root.style.setProperty("--brand", theme.brand || "#57b8a7");
+    root.style.setProperty("--brand-ink", theme.brandInk || "#1f6153");
+    root.style.setProperty("--brand-edge", theme.brandEdge || "#3f988b");
+    root.style.setProperty("--brand-tint", theme.brandTint || "rgba(87, 184, 167, 0.16)");
+    root.style.setProperty("--brand-tint-strong", theme.brandTintStrong || "rgba(87, 184, 167, 0.25)");
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     markDirty();
   }
