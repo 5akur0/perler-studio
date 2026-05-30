@@ -2555,14 +2555,9 @@ button:disabled {
     font-size: 20px;
   }
 
+  /* Mobile: hide the step/progress bar by default so it doesn't eat vertical height. */
   .workflow-progress {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: flex-start;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding: 3px 6px;
-    min-height: 34px;
+    display: none;
   }
 
   .workflow-progress::-webkit-scrollbar {
@@ -2625,8 +2620,10 @@ button:disabled {
 
 
   .studio-grid:not([data-phase="choose"]) #sceneCanvas {
-    height: min(50vh, 440px);
-    min-height: 300px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    min-height: 0;
+    max-height: 72vh;
   }
 
 

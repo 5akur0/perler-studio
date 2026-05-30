@@ -1003,7 +1003,8 @@ export function renderUI() {
   if (toolStyleField) toolStyleField.style.display = useMobileDirectPlacement() ? "none" : "";
   if (els.statusLine) els.statusLine.textContent = statusText();
   const showPlacementUi = state.phase === "place";
-  const showToolUi = showPlacementUi;
+  // Mobile uses direct tap-to-place — no needle/tweezers tool selection.
+  const showToolUi = showPlacementUi && !useMobileDirectPlacement();
   const showBoardZoomUi = state.phase === "place" || state.phase === "inspect";
   if (!showPlacementUi) {
     state.lastPlaceHintKey = "";

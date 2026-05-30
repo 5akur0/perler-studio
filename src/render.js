@@ -293,15 +293,12 @@ export function computeLayout(rect) {
   const w = rect.width;
   const h = rect.height;
   if (useMobileDirectPlacement()) {
-    const boardY = 16;
-    const refH = clamp(Math.round(h * 0.18), 92, 124);
-    const maxBoardByHeight = h - boardY - 14 - refH - 18;
-    const rawBoard = clamp(maxBoardByHeight, 240, Math.min(w - 24, 468));
+    // Mobile: board only, centered in a square region (no reference note, no lamp).
+    const margin = 12;
+    const rawBoard = clamp(Math.min(w - margin * 2, h - margin * 2), 240, 520);
     const boardSize = Math.floor(rawBoard / 8) * 8;
     const boardX = Math.floor((w - boardSize) / 2);
-    const refX = 12;
-    const refY = boardY + boardSize + 14;
-    const refW = w - 24;
+    const boardY = Math.floor((h - boardSize) / 2);
     return {
       w,
       h,
@@ -309,10 +306,10 @@ export function computeLayout(rect) {
       boardY,
       boardSize,
       cell: boardSize / state.selectedPattern.size,
-      refX,
-      refY,
-      refW,
-      refH,
+      refX: 0,
+      refY: 0,
+      refW: 0,
+      refH: 0,
       trayX: 0,
       trayY: 0,
       trayW: 0,
@@ -382,7 +379,8 @@ export function render() {
     }
   } else {
     drawBoard(layout);
-    drawReferenceSheet(layout);
+    // Mobile keeps only the board itself — no taped reference note (贴纸便签).
+    if (!useMobileDirectPlacement()) drawReferenceSheet(layout);
     if ((state.phase === "place" || state.phase === "inspect") && shouldShowTray(layout)) {
       if (state.trayColor) syncTrayMatrixShape();
       drawTray(layout, true);
@@ -391,7 +389,8 @@ export function render() {
     if (state.phase === "iron") drawIronLayer(layout);
     if (state.phase === "cool") drawCoolingLayer(layout);
   }
-  drawLampSwitch(layout);
+  // Mobile removes the desk lamp (灯光) entirely — board only.
+  if (!useMobileDirectPlacement()) drawLampSwitch(layout);
   if (!useMobileDirectPlacement()) drawToolEntities(layout.w, layout.h);
 
   if (state.previewDirty) {
@@ -909,7 +908,7 @@ export function drawBoard(layout) {
   ctx.strokeStyle = "rgba(70, 84, 96, 0.18)";
   ctx.stroke();
 
-  const guideVisible = state.lampOn && (state.phase === "place" || state.phase === "inspect");
+  const guideVisible = state.lampOn && !useMobileDirectPlacement() && (state.phase === "place" || state.phase === "inspect");
   const templateOpacity = guideVisible ? (state.phase === "place" ? 0.1 : 0.08) : 0;
   if (guideVisible) {
     drawProjectedGuide(layout);
