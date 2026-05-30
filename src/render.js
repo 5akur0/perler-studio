@@ -520,7 +520,7 @@ function lampSwitchRect(layout = currentLayout()) {
   };
 }
 
-function pointInLampSwitch(x, y) {
+export function pointInLampSwitch(x, y) {
   if (!(state.phase === "place" || state.phase === "inspect")) return false;
   const rect = lampSwitchRect();
   return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
@@ -2874,7 +2874,7 @@ export function placedCount() {
   return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
 }
 
-function pointerToCanvas(event) {
+export function pointerToCanvas(event) {
   const rect = sceneCanvas.getBoundingClientRect();
   return {
     x: event.clientX - rect.left,
