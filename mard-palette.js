@@ -1,4 +1,4 @@
-window.MARD_COLOR_DATA = {
+export const MARD_COLOR_DATA = {
   "A1": "#FAF4C8",
   "A2": "#FFFFD5",
   "A3": "#FEFF8B",
