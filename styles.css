@@ -287,6 +287,11 @@ button:disabled {
   background: var(--blue);
 }
 
+/* P2-3: 步骤徽章 — 桌面默认隐藏，手机端样式在 @media(860px) 块内 */
+.step-badge {
+  display: none;
+}
+
 .top-stats {
   display: flex;
   align-items: center;
@@ -2131,7 +2136,22 @@ button:disabled {
 
 .color-chip.active {
   border-color: var(--ink);
-  box-shadow: inset 0 0 0 2px rgba(38, 36, 43, 0.1);
+  border-width: 2px;
+  box-shadow: inset 0 0 0 1px rgba(38, 36, 43, 0.12);
+}
+
+/* P2-4: checkmark badge 让深色色块的选中态也清晰可见 */
+.color-chip.active::after {
+  content: "✓";
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
 }
 
 .color-chip.needed {
@@ -2386,7 +2406,7 @@ button:disabled {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px));
   z-index: 20;
   max-width: min(460px, calc(100vw - 32px));
   padding: 11px 14px;
@@ -2522,7 +2542,7 @@ button:disabled {
 
   .app-shell {
     padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
-      10px max(10px, env(safe-area-inset-left));
+      max(16px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
   }
 
   .topbar,
@@ -2637,23 +2657,19 @@ button:disabled {
     order: 0;
   }
 
+  /* P1-6: 检查/清空按钮靠近 canvas，优先级高于参考图和侧边栏 */
   .studio-grid:not([data-phase="choose"]) #stageControls {
-    order: 3;
-  }
-
-  .studio-grid:not([data-phase="choose"]) #toolRack {
     order: 1;
   }
 
-  .studio-grid:not([data-phase="choose"]) .side-reference {
+  .studio-grid:not([data-phase="choose"]) #toolRack {
     order: 2;
-    margin-top: 10px;
-    margin-bottom: 16px;
   }
 
-  #sceneCanvas {
-    height: min(78vh, 640px);
-    min-height: 520px;
+  .studio-grid:not([data-phase="choose"]) .side-reference {
+    order: 3;
+    margin-top: 10px;
+    margin-bottom: 16px;
   }
 
   .color-palette {
@@ -2772,6 +2788,42 @@ button:disabled {
 
   .color-chip.active.needed {
     outline-color: var(--brand-edge);
+  }
+
+  /* P0-1: place-hint — push below topbar on phones incl. notch */
+  .place-hint {
+    top: max(72px, calc(env(safe-area-inset-top, 0px) + 64px));
+  }
+
+  /* P1-1: iron/cool 阶段右侧面板（豆盒）在手机上不占高度 */
+  .studio-grid[data-phase="iron"] .right-panel,
+  .studio-grid[data-phase="cool"] .right-panel {
+    display: none !important;
+  }
+
+  /* P1-2: inspect 辅助 canvas 在手机上高度减半 */
+  .inspect-canvas {
+    height: 140px;
+  }
+
+  /* P1-4: 豆盒底部留出 home bar 空间 */
+  .color-palette {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* P2-3: 当前步骤徽章 — 仅手机端显示 */
+  .step-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--brand) 14%, white);
+    border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
+    color: var(--brand-ink);
+    font-size: 12px;
+    font-weight: 750;
+    white-space: nowrap;
+    line-height: 1.3;
   }
 }
 
@@ -2933,5 +2985,10 @@ button:disabled {
   .collection-tile:hover,
   .swatch-cell:hover {
     transform: none !important;
+  }
+
+  /* P2-7: orientation-overlay 旋转动画显式停止 */
+  .orientation-overlay svg {
+    animation: none !important;
   }
 }
