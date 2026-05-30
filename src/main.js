@@ -13,6 +13,10 @@ import {
   clamp, lerp, easeOut, mixColor, rgbToOklab, oklabDistance,
   hexToRgb, beadOklab,
 } from './color-utils.js';
+import { state } from './state.js';
+import { readCollection, writeCollection } from './storage.js';
+import { readAchievements, writeAchievements, hasAchievement, unlockAchievement } from './achievements.js';
+import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 
 
 
@@ -87,183 +91,18 @@ import {
   };
 
 
-  const state = {
-    phase: "choose",
-    patternSize: 24,
-    paletteSize: readPaletteSize(),
-    selectedPattern: patterns[0],
-    patternColorMaps: {},
-    patternColorMap: {},
-    patternHiddenSources: {},
-    patternEffectiveMapCache: {},
-    patternAnalysisCache: {},
-    customHiddenRecalcCache: {},
-    customHiddenRecalcPending: {},
-    customHiddenRecalcQueued: {},
-    remapFocusSource: null,
-    remapModalOpen: false,
-    collectionModalOpen: false,
-    settingsModalOpen: false,
-    shareModalOpen: false,
-    modalReturnFocus: null,
-    sandboxMode: false,
-    bgTheme: "mist",
-    toolStyle: "candy",
-    lampOn: false,
-    lampSwitchFlashUntil: 0,
-    pressAnim: null, // { startedAt, duration } — scraper sliding bottom→up
-    projectedGuideCache: null,
-    selectedColor: "K",
-    trayColor: null,
-    trayProgress: 0,
-    trayBeans: 0,
-    trayCapacity: 0,
-    trayMatrix: [],
-    trayPourId: 0,
-    spill: null,
-    spillDamages: [],
-    fusedPieces: [],
-    emptyIronEaster: false,
-    conceptEaster: false,
-    conceptEasterType: null,
-    achievements: [],
-    floorDrops: [],
-    tweezerBead: null,
-    needleLoaded: 0,
-    placed: [],
-    heat: [],
-    tool: "needle",
-    needleTier: 1,
-    lastMoveDir: { x: 1, y: 0 },
-    lastCellKey: "",
-    errors: [],
-    showHints: false,
-    pressure: 56,
-    temperature: 62,
-    ironPos: null,
-    cooling: 0,
-    flattening: 0,
-    warp: 18,
-    flipCount: 0,
-    craft: "钥匙扣",
-    savedCurrent: false,
-    lastConversionStats: null,
-    pointer: {
-      down: false,
-      mode: null,
-      trayTapPending: false,
-      pendingCell: null,
-      x: 0,
-      y: 0,
-      lastX: 0,
-      lastY: 0,
-      lastT: 0,
-    },
-    boardView: {
-      scale: 1,
-      panX: 0,
-      panY: 0,
-      velX: 0,     // keyboard pan velocity (px/s)
-      velY: 0,
-      velScale: 0, // keyboard zoom velocity (scale/s)
-    },
-    kbdNav: {
-      up: false, down: false, left: false, right: false,
-      zoomIn: false, zoomOut: false,
-    },
-    gesture: {
-      active: false,
-      touchActive: false,
-      pointers: {},
-      startDistance: 0,
-      startScale: 1,
-      startPanX: 0,
-      startPanY: 0,
-      startMidX: 0,
-      startMidY: 0,
-    },
-    toolPose: {
-      x: 0,
-      y: 0,
-      visible: false,
-    },
-    toastTimer: null,
-    placeHintTimer: null,
-    lastPlaceHintKey: "",
-    achievementTimer: null,
-    renderDirty: true,
-    uiDirty: true,
-    previewDirty: true,
-    patternsDirty: true,
-    pendingWorkflowScroll: true,
-    pendingPageReset: false,
-    placedVersion: 0,
-  };
 
   let collection = readCollection();
   state.achievements = readAchievements();
   let lastFrame = performance.now();
 
 
-  function readCollection() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(collectionKey) || "[]");
-      if (!Array.isArray(parsed)) return [];
-      return parsed.slice(0, collectionLimit);
-    } catch (error) {
-      return [];
-    }
-  }
 
-  function readAchievements() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(achievementKey) || "[]");
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter((item) => typeof item === "string");
-    } catch (error) {
-      return [];
-    }
-  }
 
-  function writeAchievements() {
-    try {
-      localStorage.setItem(achievementKey, JSON.stringify(state.achievements.slice(0, 24)));
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
 
-  function hasAchievement(name) {
-    return state.achievements.includes(name);
-  }
 
-  function unlockAchievement(name) {
-    if (hasAchievement(name)) return false;
-    state.achievements.unshift(name);
-    state.achievements = [...new Set(state.achievements)].slice(0, 24);
-    writeAchievements();
-    showAchievementToast(name);
-    return true;
-  }
 
-  function writeCollection() {
-    try {
-      localStorage.setItem(collectionKey, JSON.stringify(collection.slice(0, collectionLimit)));
-      return true;
-    } catch (error) {
-      showToast("浏览器阻止了本地保存，但作品已经完成。");
-      return false;
-    }
-  }
 
-  function currentBackgroundTheme() {
-    return backgroundThemes[state.bgTheme] || backgroundThemes.mist;
-  }
-
-  function currentToolStyle() {
-    return toolStyles[state.toolStyle] || toolStyles.candy;
-  }
 
   function applyBackgroundTheme(themeId = state.bgTheme) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
@@ -6067,7 +5906,7 @@ import {
       if (!collection.length) return;
       if (!window.confirm("确定清空所有作品？此操作不可撤销。")) return;
       collection = [];
-      writeCollection();
+      writeCollection(collection);
       renderCollection();
       showToast("作品集已清空。");
     });
@@ -6098,7 +5937,7 @@ import {
         e.stopPropagation();
         if (!window.confirm(`删除 ${item.name}？`)) return;
         collection = collection.filter((entry) => entry.id !== item.id);
-        writeCollection();
+        writeCollection(collection);
         renderCollection();
         showToast("已删除。");
       });
@@ -7084,9 +6923,9 @@ import {
     state.conceptEaster = true;
     state.conceptEasterType = type;
     if (type === "full") {
-      unlockAchievement(fullBoardAchievement);
+      unlockAchievement(fullBoardAchievement, showAchievementToast);
     } else {
-      unlockAchievement(conceptAchievement);
+      unlockAchievement(conceptAchievement, showAchievementToast);
     }
     setPhase("finish");
     state.savedCurrent = false;
@@ -7106,7 +6945,7 @@ import {
     if (!state.savedCurrent) {
       collection.unshift(entry);
       collection = collection.slice(0, collectionLimit);
-      const stored = writeCollection();
+      const stored = writeCollection(collection);
       state.savedCurrent = true;
       if (stored) showToast("作品已收入作品集。");
     } else {
