@@ -162,6 +162,11 @@ export function markCanvasDirty(save = false) {
   state.renderDirty = true;
   if (save) autoSaveHook?.();
 }
+export function markDirty() {
+  state.renderDirty = true;
+  state.uiDirty = true;
+  autoSaveHook?.();
+}
 // Quantize the canvas bounding rect so 1–2 px wiggles (e.g. from right-panel
  // content changing height between place↔inspect) don't recompute boardSize
  // and make the board visibly resize between phases.
