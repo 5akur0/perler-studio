@@ -2747,8 +2747,14 @@ button:disabled {
     background: rgba(255, 255, 255, 0.72);
   }
 
+  .board-zoom-button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .board-zoom-reset {
-    min-height: 36px;
+    min-height: 44px;
     padding: 0 8px;
   }
 
@@ -2821,7 +2827,7 @@ button:disabled {
 }
 
 /* Tablet (touch) in portrait → ask to go landscape */
-@media (hover: none) and (pointer: coarse) and (min-width: 861px) and (orientation: portrait) {
+@media (hover: none) and (pointer: coarse) and (min-width: 768px) and (orientation: portrait) {
   .orientation-overlay {
     display: flex;
   }

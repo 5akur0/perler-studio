@@ -48,11 +48,15 @@ import {
   inspectionSummary, placementAccuracy, heatStats, estimateWarp,
   scoreLabel, finalGrade, statusText,
   boardCellFromPoint, pointInTray, trayDumpButtonRect, pointInTrayDumpButton,
-  isSpillDamagedIndex, drawSpillDamages, drawInspectionHints,
+  isSpillDamagedIndex, drawSpillDamages, drawInspectionHints, pointerToCanvas, pointInLampSwitch,
   drawShareImage, setAutoSaveHook, markDirty,
 } from './render.js';
 import { placedCount } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from './notify.js';
+import {
+  setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
+  renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
+} from './ui.js';
 
 
 
@@ -214,10 +218,10 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
   function applyPatternSize(size) {
     const normalized = normalizePatternSize(size);
     if (normalized === state.selectedPattern.size) {
-      setSizeControls(normalized);
+      uiSetSizeControls(normalized);
       return;
     }
-    setSizeControls(normalized);
+    uiSetSizeControls(normalized);
     const base = findBasePattern();
     if (baseIdFor(base).startsWith("custom-") && base.sourceImageDataUrl) {
       reconvertCustomPatternAtSize(base, normalized, state.phase !== "choose");
@@ -243,7 +247,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
       void recomputeCustomHiddenRowsFromOriginal(pattern);
     }
     state.patternColorMap = normalizedMap;
-    setSizeControls(pattern.size);
+    uiSetSizeControls(pattern.size);
     const total = pattern.size * pattern.size;
     state.placed = Array(total).fill(null);
     invalidatePlacedCounts();
@@ -868,7 +872,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
         const image = await loadImageFromDataUrl(sourceImageDataUrl);
         const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
         const removeWhite = els.customWhiteToggle.checked;
-        setSizeControls(size);
+        uiSetSizeControls(size);
         // Yield a frame so the "正在识别图片…" toast paints before the
         // synchronous conversion (which can briefly block on large images).
         await new Promise((resolve) => setTimeout(resolve, 16));
@@ -1036,7 +1040,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
     state.collectionModalOpen = true;
     els.collectionModal.classList.add("show");
     els.collectionModal.setAttribute("aria-hidden", "false");
-    renderCollection();
+    uiRenderCollection();
     onModalOpened(els.collectionModal);
   }
 
@@ -1055,7 +1059,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
     state.shareModalOpen = true;
     els.shareModal.classList.add("show");
     els.shareModal.setAttribute("aria-hidden", "false");
-    renderSharePanel();
+    uiRenderSharePanel();
     onModalOpened(els.shareModal);
   }
 
@@ -2342,7 +2346,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
     }
     invalidatePlacedCounts();
     state.savedCurrent = false;
-    updateSelectedPaletteCount();
+    uiUpdateSelectedPaletteCount();
     markCanvasDirty(true);
   }
 
@@ -2720,7 +2724,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
       }
     }
     if (state.uiDirty) {
-      renderUI();
+      uiRenderUI();
       state.uiDirty = false;
     }
     if (state.renderDirty || state.previewDirty || shouldAnimateCanvas(now)) {
@@ -2762,7 +2766,6 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
     if (state.phase === "choose") setPhase("place");
   });
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
-  els.patternColorStats?.addEventListener("click", handlePatternColorChipToggle);
   els.bgThemeSelect?.addEventListener("change", () => {
     applyBackgroundTheme(els.bgThemeSelect.value);
     showToast(`背景已切换为 ${currentBackgroundTheme().name}。`);
@@ -2889,11 +2892,34 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from '.
   window.addEventListener("resize", onResize);
 
   setAutoSaveHook(scheduleAutoSave);
+  setUIActions({
+    getCollection: () => collection,
+    updateCollection: (nextCollection) => {
+      collection = nextCollection;
+      writeCollection(collection);
+    },
+    loadPattern,
+    setPhase,
+    openRemapModal,
+    setPatternColorMapping,
+    resetPatternColorMapping,
+    pourSelectedColor,
+    clearBoard,
+    startIroning,
+    pressFlat,
+    flipAndIron,
+    completeWork,
+    saveCurrentWork,
+    openShareModal,
+    openCollectionEntry,
+    exportShareImage,
+    copyShareText,
+  });
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));
   applyBackgroundTheme(state.bgTheme);
   if (!loadAutoSave()) {
     setPhase("choose");
   }
-  renderUI();
+  uiRenderUI();
   requestAnimationFrame(tick);
