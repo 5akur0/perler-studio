@@ -74,3 +74,20 @@ export function beadOklab(code) {
   }
   return beadOklabCache[code];
 }
+
+// Find the nearest bead code within a given candidate array by OkLab distance.
+// When no candidate survives the excludedCodes filter, returns the first candidate.
+// For full-palette fallback, use nearestColorCodeByLab (image-convert.js).
+export function nearestCodeFromSet(lab, codes, excludedCodes = null) {
+  let best = codes[0] || "K";
+  let bestDistance = Infinity;
+  codes.forEach((code) => {
+    if (excludedCodes?.has(code)) return;
+    const distance = oklabDistance(lab, beadOklab(code));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = code;
+    }
+  });
+  return best;
+}
