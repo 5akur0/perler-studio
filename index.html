@@ -457,6 +457,9 @@
     <!-- 打包产物：由 `npm run build`（或 `npm run watch`）从 src/main.js 生成。
          用普通脚本（非 module）以便直接双击 index.html（file://）也能运行。
          开发时只改 src/ 下的源码即可，watch 会自动重建此文件。 -->
+    <script>
+      window.BEAM_SHARE_API_BASE = "https://perler-share-api.wxiangyu231.workers.dev";
+    </script>
     <script defer src="app.bundle.js"></script>
   </body>
 </html>
