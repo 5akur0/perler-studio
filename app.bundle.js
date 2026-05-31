@@ -2900,6 +2900,7 @@
     drawUsePatternButton: $("#drawUsePatternButton"),
     drawCodeInput: $("#drawCodeInput"),
     drawPaletteMeta: $("#drawPaletteMeta"),
+    drawRecentColors: $("#drawRecentColors"),
     drawPalette: $("#drawPalette"),
     beadBackButton: $("#beadBackButton"),
     statusLine: $("#statusLine"),
@@ -2956,8 +2957,7 @@
     resetButton: $("#resetButton"),
     toast: $("#toast"),
     placeHint: $("#placeHint"),
-    achievementToast: $("#achievementToast"),
-    stepBadge: $("#stepBadge")
+    achievementToast: $("#achievementToast")
   };
 
   // src/render.js
@@ -5927,28 +5927,51 @@
   function renderPatterns() {
     els.patternList.innerHTML = "";
     const customPattern = findCustomPattern();
-    const customButton = document.createElement("button");
-    customButton.className = `pattern-card${state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
-    customButton.type = "button";
-    customButton.innerHTML = `
-      <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-      <span><strong>\u81EA\u5B9A\u4E49\u56FE\u7EB8</strong><span>${customPattern ? `${customPattern.size}x${customPattern.size}` : "--"}</span></span>
-    `;
-    customButton.addEventListener("click", () => {
-      const customSelected = state.selectedPattern.id.startsWith("custom-");
-      if (!customPattern || customSelected) {
-        els.customImageInput?.click();
+    const importRow = document.createElement("div");
+    importRow.className = "pattern-import-row";
+    const imageButton = document.createElement("button");
+    imageButton.className = `pattern-import-half${customPattern && state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
+    imageButton.type = "button";
+    imageButton.textContent = "\u5BFC\u5165\u56FE\u7247";
+    imageButton.addEventListener("click", () => els.customImageInput?.click());
+    const codeButton = document.createElement("button");
+    codeButton.className = "pattern-import-half";
+    codeButton.type = "button";
+    codeButton.textContent = "\u5BFC\u5165\u77ED\u7801";
+    codeButton.addEventListener("click", () => {
+      const raw = window.prompt("\u8BF7\u7C98\u8D34\u56FE\u7EB8\u77ED\u7801\uFF1A");
+      if (!raw) return;
+      const extracted = extractPatternCode(raw.trim());
+      if (!extracted) {
+        showToast2("\u77ED\u7801\u65E0\u6548\u3002");
         return;
       }
-      uiActions.loadPattern(customPattern, state.phase !== "choose");
-      if (state.phase !== "choose") uiActions.setPhase("place");
-      showToast2("\u5DF2\u5207\u6362\u5230\u81EA\u5B9A\u4E49\u56FE\u7EB8\u3002");
+      try {
+        const decoded = decodePatternCode(extracted);
+        const imported = {
+          id: `custom-${Date.now()}`,
+          name: "\u5BFC\u5165\u56FE\u7EB8",
+          size: decoded.size,
+          rows: decoded.rows,
+          craft: decoded.craft || state.craft
+        };
+        for (let i = patterns.length - 1; i >= 0; i -= 1) {
+          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+        }
+        patterns.unshift(imported);
+        uiActions.loadPattern(imported, false);
+        renderPatterns();
+        showToast2(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
+      } catch {
+        showToast2("\u77ED\u7801\u65E0\u6548\uFF0C\u5BFC\u5165\u5931\u8D25\u3002");
+      }
     });
-    els.patternList.appendChild(customButton);
-    if (customPattern) drawPatternThumb(customButton.querySelector("canvas"), customPattern);
-    else drawCustomPatternPlaceholder(customButton.querySelector("canvas"));
-    patterns.filter((item) => !item.id.startsWith("custom-")).forEach((pattern) => {
-      const displayPattern = resizePattern(pattern, state.patternSize);
+    importRow.appendChild(imageButton);
+    importRow.appendChild(codeButton);
+    els.patternList.appendChild(importRow);
+    patterns.forEach((pattern) => {
+      const isCustom = pattern.id.startsWith("custom-");
+      const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
       const button = document.createElement("button");
       button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
       button.type = "button";
@@ -5957,7 +5980,7 @@
         <span><strong>${pattern.name}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
       `;
       button.addEventListener("click", () => {
-        uiActions.loadPattern(resizePattern(pattern, state.patternSize), state.phase !== "choose");
+        uiActions.loadPattern(displayPattern, state.phase !== "choose");
         if (state.phase !== "choose") uiActions.setPhase("place");
         showToast2(`\u5DF2\u6362\u6210 ${pattern.name}`);
       });
@@ -5990,23 +6013,6 @@
         ctx.fillRect(px, py, pw, ph);
       });
     });
-  }
-  function drawCustomPatternPlaceholder(canvas) {
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#f3f6fa";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "rgba(128, 140, 156, 0.46)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(6.5, 6.5, canvas.width - 13, canvas.height - 13);
-    ctx.strokeStyle = "rgba(102, 116, 134, 0.72)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 18);
-    ctx.lineTo(canvas.width / 2, canvas.height - 18);
-    ctx.moveTo(18, canvas.height / 2);
-    ctx.lineTo(canvas.width - 18, canvas.height / 2);
-    ctx.stroke();
   }
   function prefersReducedMotion() {
     return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
@@ -6646,12 +6652,6 @@
     if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
-    if (els.stepBadge) {
-      const phaseIdx = phases.findIndex((p) => p.id === state.phase);
-      const phaseName = phases[phaseIdx]?.name ?? "";
-      els.stepBadge.textContent = state.phase !== "choose" ? `${phaseIdx + 1}/${phases.length} ${phaseName}` : "";
-      els.stepBadge.hidden = state.phase === "choose";
-    }
   }
 
   // src/main.js
@@ -6665,7 +6665,8 @@
     grid: [],
     drawing: false,
     lastCellKey: "",
-    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 }
+    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
+    recentColors: []
   };
   var drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
   var drawPointers = {};
@@ -6676,6 +6677,16 @@
   }
   function drawIndex(x, y, size = drawState.size) {
     return y * size + x;
+  }
+  function recordRecentColor(code) {
+    if (!code || code === ".") return false;
+    const arr = drawState.recentColors;
+    const i = arr.indexOf(code);
+    if (i === 0) return false;
+    if (i !== -1) arr.splice(i, 1);
+    arr.unshift(code);
+    if (arr.length > 5) arr.length = 5;
+    return true;
   }
   function ensureDrawPaletteColor() {
     const codes = allColorCodes();
@@ -6952,12 +6963,25 @@
       const pick = drawState.grid[drawIndex(x, y)];
       if (pick && pick !== "." && pick !== drawState.selectedColor) {
         drawState.selectedColor = pick;
+        recordRecentColor(pick);
         renderDrawStudio();
       }
       return false;
     }
-    if (drawState.tool === "fill") return floodFillDraw(x, y, drawState.selectedColor);
-    return paintDrawCell(x, y, drawState.selectedColor);
+    if (drawState.tool === "fill") {
+      const result2 = floodFillDraw(x, y, drawState.selectedColor);
+      if (result2 && recordRecentColor(drawState.selectedColor)) {
+        drawRenderKey = "";
+        renderDrawPalette();
+      }
+      return result2;
+    }
+    const result = paintDrawCell(x, y, drawState.selectedColor);
+    if (result && recordRecentColor(drawState.selectedColor)) {
+      drawRenderKey = "";
+      renderDrawPalette();
+    }
+    return result;
   }
   function drawCanvasPaint() {
     if (!els.drawCanvas) return;
@@ -7024,7 +7048,7 @@
     if (!els.drawPalette) return;
     ensureDrawPaletteColor();
     const codes = allColorCodes();
-    const key = `${drawState.selectedColor}:${codes.join(",")}`;
+    const key = `${drawState.selectedColor}:${drawState.recentColors.join(",")}:${codes.join(",")}`;
     if (key === drawRenderKey) return;
     drawRenderKey = key;
     if (els.drawPaletteMeta) {
@@ -7037,6 +7061,17 @@
     }
     if (els.drawCurrentColorCode) {
       els.drawCurrentColorCode.textContent = beadIds[drawState.selectedColor] || drawState.selectedColor;
+    }
+    if (els.drawRecentColors) {
+      els.drawRecentColors.innerHTML = drawState.recentColors.map((code) => {
+        const selected = drawState.selectedColor === code;
+        const label = beadIds[code] || code;
+        const isTransparent = beadIds[code] === "H1";
+        return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
+          <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+          <span class="chip-label">${label}</span>
+        </button>`;
+      }).join("");
     }
     els.drawPalette.innerHTML = codes.map((code) => {
       const selected = drawState.selectedColor === code;
@@ -8668,7 +8703,10 @@
       craft: "\u539F\u7248"
     };
     const code = encodePatternCode(pattern);
-    if (els.drawCodeInput) els.drawCodeInput.value = code;
+    if (els.drawCodeInput) {
+      els.drawCodeInput.dataset.open = "1";
+      els.drawCodeInput.value = code;
+    }
     try {
       await navigator.clipboard.writeText(code);
       showToast2("\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
@@ -8677,6 +8715,10 @@
     }
   });
   els.drawImportButton?.addEventListener("click", () => {
+    if (els.drawCodeInput) {
+      els.drawCodeInput.dataset.open = "1";
+      els.drawCodeInput.focus();
+    }
     const raw = els.drawCodeInput?.value || "";
     const extracted = extractPatternCode(raw);
     if (!extracted) {

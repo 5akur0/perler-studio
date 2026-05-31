@@ -73,6 +73,7 @@ import {
     drawing: false,
     lastCellKey: "",
     view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
+    recentColors: [],
   };
   const drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
   const drawPointers = {};
@@ -85,6 +86,17 @@ import {
 
   function drawIndex(x, y, size = drawState.size) {
     return y * size + x;
+  }
+
+  function recordRecentColor(code) {
+    if (!code || code === ".") return false;
+    const arr = drawState.recentColors;
+    const i = arr.indexOf(code);
+    if (i === 0) return false;
+    if (i !== -1) arr.splice(i, 1);
+    arr.unshift(code);
+    if (arr.length > 5) arr.length = 5;
+    return true;
   }
 
   function ensureDrawPaletteColor() {
@@ -390,12 +402,19 @@ import {
       const pick = drawState.grid[drawIndex(x, y)];
       if (pick && pick !== "." && pick !== drawState.selectedColor) {
         drawState.selectedColor = pick;
+        recordRecentColor(pick);
         renderDrawStudio();
       }
       return false;
     }
-    if (drawState.tool === "fill") return floodFillDraw(x, y, drawState.selectedColor);
-    return paintDrawCell(x, y, drawState.selectedColor);
+    if (drawState.tool === "fill") {
+      const result = floodFillDraw(x, y, drawState.selectedColor);
+      if (result && recordRecentColor(drawState.selectedColor)) { drawRenderKey = ""; renderDrawPalette(); }
+      return result;
+    }
+    const result = paintDrawCell(x, y, drawState.selectedColor);
+    if (result && recordRecentColor(drawState.selectedColor)) { drawRenderKey = ""; renderDrawPalette(); }
+    return result;
   }
 
   function drawCanvasPaint() {
@@ -467,7 +486,7 @@ import {
     if (!els.drawPalette) return;
     ensureDrawPaletteColor();
     const codes = allColorCodes();
-    const key = `${drawState.selectedColor}:${codes.join(",")}`;
+    const key = `${drawState.selectedColor}:${drawState.recentColors.join(",")}:${codes.join(",")}`;
     if (key === drawRenderKey) return;
     drawRenderKey = key;
     if (els.drawPaletteMeta) {
@@ -480,6 +499,17 @@ import {
     }
     if (els.drawCurrentColorCode) {
       els.drawCurrentColorCode.textContent = beadIds[drawState.selectedColor] || drawState.selectedColor;
+    }
+    if (els.drawRecentColors) {
+      els.drawRecentColors.innerHTML = drawState.recentColors.map((code) => {
+        const selected = drawState.selectedColor === code;
+        const label = beadIds[code] || code;
+        const isTransparent = beadIds[code] === "H1";
+        return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="选择 ${label}" title="${label}">
+          <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+          <span class="chip-label">${label}</span>
+        </button>`;
+      }).join("");
     }
     els.drawPalette.innerHTML = codes.map((code) => {
       const selected = drawState.selectedColor === code;
@@ -1207,29 +1237,51 @@ import {
   function renderPatterns() {
     els.patternList.innerHTML = "";
     const customPattern = findCustomPattern();
-    const customButton = document.createElement("button");
-    customButton.className = `pattern-card${state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
-    customButton.type = "button";
-    customButton.innerHTML = `
-      <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-      <span><strong>自定义图纸</strong><span>${customPattern ? `${customPattern.size}x${customPattern.size}` : "--"}</span></span>
-    `;
-    customButton.addEventListener("click", () => {
-      const customSelected = state.selectedPattern.id.startsWith("custom-");
-      if (!customPattern || customSelected) {
-        els.customImageInput?.click();
-        return;
-      }
-      loadPattern(customPattern, state.phase !== "choose");
-      if (state.phase !== "choose") setPhase("place");
-      showToast("已切换到自定义图纸。");
-    });
-    els.patternList.appendChild(customButton);
-    if (customPattern) drawPatternThumb(customButton.querySelector("canvas"), customPattern);
-    else drawCustomPatternPlaceholder(customButton.querySelector("canvas"));
 
-    patterns.filter((item) => !item.id.startsWith("custom-")).forEach((pattern) => {
-      const displayPattern = resizePattern(pattern, state.patternSize);
+    const importRow = document.createElement("div");
+    importRow.className = "pattern-import-row";
+
+    const imgBtn = document.createElement("button");
+    imgBtn.type = "button";
+    imgBtn.className = `pattern-import-half${customPattern && state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
+    imgBtn.textContent = "导入图片";
+    imgBtn.addEventListener("click", () => els.customImageInput?.click());
+
+    const codeBtn = document.createElement("button");
+    codeBtn.type = "button";
+    codeBtn.className = "pattern-import-half";
+    codeBtn.textContent = "导入短码";
+    codeBtn.addEventListener("click", () => {
+      const raw = window.prompt("请粘贴图纸短码：");
+      if (!raw) return;
+      const extracted = extractPatternCode(raw.trim());
+      if (!extracted) { showToast("短码无效。"); return; }
+      try {
+        const decoded = decodePatternCode(extracted);
+        const imported = {
+          id: `custom-${Date.now()}`,
+          name: "导入图纸",
+          size: decoded.size,
+          rows: decoded.rows,
+          craft: decoded.craft || state.craft,
+        };
+        for (let i = patterns.length - 1; i >= 0; i -= 1) {
+          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+        }
+        patterns.unshift(imported);
+        loadPattern(imported, false);
+        renderPatterns();
+        showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
+      } catch { showToast("短码无效，导入失败。"); }
+    });
+
+    importRow.appendChild(imgBtn);
+    importRow.appendChild(codeBtn);
+    els.patternList.appendChild(importRow);
+
+    patterns.forEach((pattern) => {
+      const isCustom = pattern.id.startsWith("custom-");
+      const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
       const button = document.createElement("button");
       button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
       button.type = "button";
@@ -1238,7 +1290,7 @@ import {
         <span><strong>${pattern.name}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
       `;
       button.addEventListener("click", () => {
-        loadPattern(resizePattern(pattern, state.patternSize), state.phase !== "choose");
+        loadPattern(isCustom ? pattern : resizePattern(pattern, state.patternSize), state.phase !== "choose");
         if (state.phase !== "choose") setPhase("place");
         showToast(`已换成 ${pattern.name}`);
       });
@@ -3336,7 +3388,10 @@ import {
       craft: "原版",
     };
     const code = encodePatternCode(pattern);
-    if (els.drawCodeInput) els.drawCodeInput.value = code;
+    if (els.drawCodeInput) {
+      els.drawCodeInput.dataset.open = "1";
+      els.drawCodeInput.value = code;
+    }
     try {
       await navigator.clipboard.writeText(code);
       showToast("图纸码已复制。");
@@ -3345,6 +3400,10 @@ import {
     }
   });
   els.drawImportButton?.addEventListener("click", () => {
+    if (els.drawCodeInput) {
+      els.drawCodeInput.dataset.open = "1";
+      els.drawCodeInput.focus();
+    }
     const raw = els.drawCodeInput?.value || "";
     const extracted = extractPatternCode(raw);
     if (!extracted) {

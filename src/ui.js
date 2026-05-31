@@ -9,6 +9,7 @@ import {
   baseIdFor,
 } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint } from './notify.js';
+import { decodePatternCode, extractPatternCode } from './pattern-code.js';
 import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
@@ -165,29 +166,56 @@ export function renderSidebarReference() {
 export function renderPatterns() {
   els.patternList.innerHTML = "";
   const customPattern = findCustomPattern();
-  const customButton = document.createElement("button");
-  customButton.className = `pattern-card${state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
-  customButton.type = "button";
-  customButton.innerHTML = `
-      <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-      <span><strong>自定义图纸</strong><span>${customPattern ? `${customPattern.size}x${customPattern.size}` : "--"}</span></span>
-    `;
-  customButton.addEventListener("click", () => {
-    const customSelected = state.selectedPattern.id.startsWith("custom-");
-    if (!customPattern || customSelected) {
-      els.customImageInput?.click();
+
+  const importRow = document.createElement("div");
+  importRow.className = "pattern-import-row";
+
+  const imageButton = document.createElement("button");
+  imageButton.className = `pattern-import-half${customPattern && state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
+  imageButton.type = "button";
+  imageButton.textContent = "导入图片";
+  imageButton.addEventListener("click", () => els.customImageInput?.click());
+
+  const codeButton = document.createElement("button");
+  codeButton.className = "pattern-import-half";
+  codeButton.type = "button";
+  codeButton.textContent = "导入短码";
+  codeButton.addEventListener("click", () => {
+    const raw = window.prompt("请粘贴图纸短码：");
+    if (!raw) return;
+    const extracted = extractPatternCode(raw.trim());
+    if (!extracted) {
+      showToast("短码无效。");
       return;
     }
-    uiActions.loadPattern(customPattern, state.phase !== "choose");
-    if (state.phase !== "choose") uiActions.setPhase("place");
-    showToast("已切换到自定义图纸。");
+    try {
+      const decoded = decodePatternCode(extracted);
+      const imported = {
+        id: `custom-${Date.now()}`,
+        name: "导入图纸",
+        size: decoded.size,
+        rows: decoded.rows,
+        craft: decoded.craft || state.craft,
+      };
+      for (let i = patterns.length - 1; i >= 0; i -= 1) {
+        if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+      }
+      patterns.unshift(imported);
+      uiActions.loadPattern(imported, false);
+      renderPatterns();
+      showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
+    } catch {
+      showToast("短码无效，导入失败。");
+    }
   });
-  els.patternList.appendChild(customButton);
-  if (customPattern) drawPatternThumb(customButton.querySelector("canvas"), customPattern);
-  else drawCustomPatternPlaceholder(customButton.querySelector("canvas"));
 
-  patterns.filter((item) => !item.id.startsWith("custom-")).forEach((pattern) => {
-    const displayPattern = resizePattern(pattern, state.patternSize);
+  importRow.appendChild(imageButton);
+  importRow.appendChild(codeButton);
+  els.patternList.appendChild(importRow);
+
+  patterns.forEach((pattern) => {
+    const isCustom = pattern.id.startsWith("custom-");
+    const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
     const button = document.createElement("button");
     button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
     button.type = "button";
@@ -196,7 +224,7 @@ export function renderPatterns() {
         <span><strong>${pattern.name}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
       `;
     button.addEventListener("click", () => {
-      uiActions.loadPattern(resizePattern(pattern, state.patternSize), state.phase !== "choose");
+      uiActions.loadPattern(displayPattern, state.phase !== "choose");
       if (state.phase !== "choose") uiActions.setPhase("place");
       showToast(`已换成 ${pattern.name}`);
     });
@@ -1016,11 +1044,4 @@ export function renderUI() {
   if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
   if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
 
-  // P2-3: 手机端步骤徽章（桌面端 CSS display:none，JS 控制内容）
-  if (els.stepBadge) {
-    const phaseIdx = phases.findIndex((p) => p.id === state.phase);
-    const phaseName = phases[phaseIdx]?.name ?? "";
-    els.stepBadge.textContent = state.phase !== "choose" ? `${phaseIdx + 1}/${phases.length} ${phaseName}` : "";
-    els.stepBadge.hidden = state.phase === "choose";
-  }
 }

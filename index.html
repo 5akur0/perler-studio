@@ -42,31 +42,40 @@
     <div class="app-shell">
       <section class="start-screen" id="startScreen" aria-labelledby="startScreenTitle">
         <div class="start-screen-inner">
-          <div class="start-copy">
+          <div class="start-brand">
             <span class="start-kicker">拼豆工坊</span>
             <h1 id="startScreenTitle">今天想做什么？</h1>
-            <p>先选择工作台：去拼豆台完成作品，或去绘图台设计自己的图纸。</p>
           </div>
-          <div class="start-actions" aria-label="工作台选择">
-            <button class="start-card start-card-bead" id="startBeadButton" type="button">
-              <span class="start-card-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <div class="start-rows" aria-label="工作台选择">
+            <button class="start-row start-row-bead" id="startBeadButton" type="button">
+              <span class="start-row-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="4" y="4" width="16" height="16" rx="2"/>
                   <path d="M4 10H20M4 14H20M10 4V20M14 4V20"/>
                 </svg>
               </span>
-              <strong>拼豆</strong>
-              <small>选择图纸，开始摆豆和熨烫。</small>
+              <span class="start-row-body">
+                <strong>拼豆台</strong>
+                <small>选择图纸，开始摆豆和熨烫。</small>
+              </span>
+              <svg class="start-row-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
             </button>
-            <button class="start-card start-card-draw" id="startDrawButton" type="button">
-              <span class="start-card-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <button class="start-row start-row-draw" id="startDrawButton" type="button">
+              <span class="start-row-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 21L8.2 19.8L19 9L15 5L4.2 15.8L3 21Z"/>
                   <path d="M13.5 6.5L17.5 10.5"/>
                 </svg>
               </span>
-              <strong>绘图</strong>
-              <small>绘制、导入和整理自己的图纸。</small>
+              <span class="start-row-body">
+                <strong>绘图台</strong>
+                <small>绘制、导入和整理自己的图纸。</small>
+              </span>
+              <svg class="start-row-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -186,6 +195,7 @@
                   <span>豆盒</span>
                   <small id="drawPaletteMeta"></small>
                 </div>
+                <div id="drawRecentColors" class="draw-recent-colors" aria-label="最近用色"></div>
                 <div id="drawPalette" class="color-palette"></div>
               </section>
             </aside>
@@ -217,8 +227,6 @@
         <nav class="workflow-progress" id="workflowProgress" aria-label="流程进度"></nav>
 
         <div class="top-stats">
-          <!-- P2-3: 移动端当前步骤徽章 (桌面CSS隐藏) -->
-          <span id="stepBadge" class="step-badge" aria-live="polite" hidden></span>
           <button class="icon-only-button" id="beadBackButton" type="button" title="返回入口" aria-label="返回入口">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M10 6L4 12L10 18"/>
