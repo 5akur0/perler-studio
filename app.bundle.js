@@ -5816,6 +5816,9 @@
     createCloudShare: async () => null,
     importPatternCode: async () => false
   };
+  function escapeHtml(value) {
+    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  }
   function setUIActions(nextActions = {}) {
     uiActions = { ...uiActions, ...nextActions };
   }
@@ -5952,12 +5955,13 @@
     patterns.forEach((pattern) => {
       const isCustom = pattern.id.startsWith("custom-");
       const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
+      const safePatternName = escapeHtml(pattern.name);
       const button = document.createElement("button");
       button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
       button.type = "button";
       button.innerHTML = `
         <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-        <span><strong>${pattern.name}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
+        <span><strong>${safePatternName}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
       `;
       button.addEventListener("click", () => {
         uiActions.loadPattern(displayPattern, state.phase !== "choose");
@@ -6387,10 +6391,11 @@
   }
   function renderSharePanel() {
     els.sharePanel.innerHTML = "";
+    const safePatternName = escapeHtml(state.selectedPattern.name);
     const card = document.createElement("div");
     card.className = "share-card";
     card.innerHTML = `
-      <strong>${state.selectedPattern.name}</strong>
+      <strong>${safePatternName}</strong>
       <span>${normalizeCraft(state.selectedPattern.craft)} \xB7 \u8BC4\u7EA7 ${state.phase === "finish" ? finalGrade() : scoreLabel()} \xB7 ${placedCount2()}/${getTargetTotal()} \u9897</span>
     `;
     els.sharePanel.appendChild(card);
@@ -6484,14 +6489,15 @@
     grid.className = "collection-grid";
     els.collectionPanel.appendChild(grid);
     collection2.forEach((item) => {
+      const safeItemName = escapeHtml(item.name);
       const tile = document.createElement("div");
       tile.className = "collection-tile";
       const thumbSize = 168;
       tile.innerHTML = `
-        <button type="button" class="collection-tile-body" aria-label="\u653E\u5927 ${item.name}">
+        <button type="button" class="collection-tile-body" aria-label="\u653E\u5927 ${safeItemName}">
           <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
           <div class="collection-tile-meta">
-            <strong>${item.name}</strong>
+            <strong>${safeItemName}</strong>
             <span>${normalizeCraft(item.craft)} \xB7 \u8BC4\u7EA7 ${item.grade} \xB7 ${item.date}</span>
           </div>
         </button>
