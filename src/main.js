@@ -79,6 +79,8 @@ import {
   const drawPointers = {};
   let drawGesture = null;
   let drawRenderKey = "";
+  const shareApiBase = String(window.BEAM_SHARE_API_BASE || "").replace(/\/+$/, "");
+  const cloudShortIdPattern = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}$/;
 
   function createDrawGrid(size, fill = ".") {
     return Array(size * size).fill(fill);
@@ -86,6 +88,99 @@ import {
 
   function drawIndex(x, y, size = drawState.size) {
     return y * size + x;
+  }
+
+  function shareApiUrl(path) {
+    return `${shareApiBase}${path}`;
+  }
+
+  function extractCloudShortId(text) {
+    const source = String(text || "").trim();
+    if (cloudShortIdPattern.test(source)) return source;
+    const match = source.match(/[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}/);
+    return match && cloudShortIdPattern.test(match[0]) ? match[0] : "";
+  }
+
+  async function requestShareApi(path, payload) {
+    const response = await fetch(shareApiUrl(path), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json?.ok) {
+      throw new Error(json?.error?.message || "Share request failed.");
+    }
+    return json.data;
+  }
+
+  function applyImportedPattern(decoded, name = "导入图纸") {
+    const imported = {
+      id: `custom-${Date.now()}`,
+      name,
+      size: decoded.size,
+      rows: decoded.rows,
+      craft: decoded.craft || state.craft,
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(imported);
+    loadPattern(imported, false);
+    state.patternsDirty = true;
+    uiRenderUI();
+    showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
+    return imported;
+  }
+
+  async function createCloudShareForPattern(pattern) {
+    try {
+      const patternCode = encodePatternCode(pattern);
+      const share = await requestShareApi("/api/share/create", {
+        name: pattern.name,
+        patternCode,
+      });
+      if (share?.shortId) {
+        await navigator.clipboard?.writeText?.(share.shortId).catch(() => {});
+        showToast(`短码已生成：${share.shortId}`);
+      }
+      return share;
+    } catch {
+      showToast("短码服务暂时不可用。");
+      return null;
+    }
+  }
+
+  async function createCloudShare() {
+    return createCloudShareForPattern(state.selectedPattern);
+  }
+
+  async function importPatternCode(raw) {
+    const localCode = extractPatternCode(raw);
+    if (localCode) {
+      try {
+        const decoded = decodePatternCode(localCode);
+        applyImportedPattern(decoded);
+        return true;
+      } catch {
+        showToast("短码无效，导入失败。");
+        return false;
+      }
+    }
+    const shortId = extractCloudShortId(raw);
+    if (!shortId) {
+      showToast("短码无效。");
+      return false;
+    }
+    try {
+      const share = await requestShareApi("/api/share/open", { shortId });
+      const decoded = decodePatternCode(share.patternCode, { name: share.name });
+      applyImportedPattern(decoded, share.name || "导入图纸");
+      return true;
+    } catch {
+      showToast("短码无效或已过期。");
+      return false;
+    }
   }
 
   function recordRecentColor(code) {
@@ -315,6 +410,17 @@ import {
       rows.push(drawState.grid.slice(y * drawState.size, (y + 1) * drawState.size).join(""));
     }
     return rows;
+  }
+
+  function makeDrawPattern(name = "绘制图纸") {
+    ensureDrawGrid();
+    return {
+      id: "draw-export",
+      name,
+      size: drawState.size,
+      rows: drawRowsFromGrid(),
+      craft: "原版",
+    };
   }
 
   function loadDrawRows(rows) {
@@ -1251,28 +1357,10 @@ import {
     codeBtn.type = "button";
     codeBtn.className = "pattern-import-half";
     codeBtn.textContent = "导入短码";
-    codeBtn.addEventListener("click", () => {
+    codeBtn.addEventListener("click", async () => {
       const raw = window.prompt("请粘贴图纸短码：");
       if (!raw) return;
-      const extracted = extractPatternCode(raw.trim());
-      if (!extracted) { showToast("短码无效。"); return; }
-      try {
-        const decoded = decodePatternCode(extracted);
-        const imported = {
-          id: `custom-${Date.now()}`,
-          name: "导入图纸",
-          size: decoded.size,
-          rows: decoded.rows,
-          craft: decoded.craft || state.craft,
-        };
-        for (let i = patterns.length - 1; i >= 0; i -= 1) {
-          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-        }
-        patterns.unshift(imported);
-        loadPattern(imported, false);
-        renderPatterns();
-        showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
-      } catch { showToast("短码无效，导入失败。"); }
+      await importPatternCode(raw);
     });
 
     importRow.appendChild(imgBtn);
@@ -3379,14 +3467,7 @@ import {
     useDrawPattern();
   });
   els.drawExportButton?.addEventListener("click", async () => {
-    ensureDrawGrid();
-    const pattern = {
-      id: "draw-export",
-      name: "绘制图纸",
-      size: drawState.size,
-      rows: drawRowsFromGrid(),
-      craft: "原版",
-    };
+    const pattern = makeDrawPattern();
     const code = encodePatternCode(pattern);
     if (els.drawCodeInput) {
       els.drawCodeInput.dataset.open = "1";
@@ -3399,23 +3480,41 @@ import {
       showToast("图纸码已生成。");
     }
   });
-  els.drawImportButton?.addEventListener("click", () => {
+  els.drawShortCodeButton?.addEventListener("click", async () => {
+    const button = els.drawShortCodeButton;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "生成中";
+    }
+    const share = await createCloudShareForPattern(makeDrawPattern());
+    if (els.drawCodeInput && share?.shortId) {
+      els.drawCodeInput.dataset.open = "1";
+      els.drawCodeInput.value = share.shortId;
+    }
+    if (button) {
+      button.disabled = false;
+      button.textContent = "生成短码";
+    }
+  });
+  els.drawImportButton?.addEventListener("click", async () => {
     if (els.drawCodeInput) {
       els.drawCodeInput.dataset.open = "1";
       els.drawCodeInput.focus();
     }
     const raw = els.drawCodeInput?.value || "";
     const extracted = extractPatternCode(raw);
-    if (!extracted) {
-      showToast("请先粘贴图纸码。");
+    const shortId = extractCloudShortId(raw);
+    if (!extracted && !shortId) {
+      showToast("请先粘贴图纸码或短码。");
       return;
     }
     try {
-      const decoded = decodePatternCode(extracted);
+      const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
+      const decoded = decodePatternCode(code);
       loadDrawRows(decoded.rows);
       showToast(`已倒入图纸：${decoded.size}x${decoded.size}。`);
     } catch (error) {
-      showToast("图纸码无效，倒入失败。");
+      showToast("图纸码无效或已过期。");
     }
   });
   const handleDrawPointer = (event) => {
@@ -3674,6 +3773,8 @@ import {
     openCollectionEntry,
     exportShareImage,
     copyShareText,
+    createCloudShare,
+    importPatternCode,
   });
   validatePatterns();
   setAppMode("home");

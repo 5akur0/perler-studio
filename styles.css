@@ -2542,6 +2542,22 @@ body[data-app-mode="draw"] .bead-studio-grid {
   font-weight: 700;
 }
 
+.share-code-result {
+  min-height: 0;
+  display: grid;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.share-code-result strong {
+  color: var(--brand-ink);
+  font-family: "Varela Round", "Nunito", "PingFang SC", sans-serif;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
 .color-palette {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
