@@ -4,6 +4,10 @@ import { patterns, resamplePatternRows } from './patterns-data.js';
 import { clamp, beadOklab, nearestCodeFromSet } from './color-utils.js';
 import { craftOptions } from './constants.js';
 
+const transparentWhiteCode = workshopCodeForMard("H1");
+const opaqueWhiteCode = workshopCodeForMard("H2");
+const builtInTransparentWhitePatternIds = new Set(["ghost", "milk-tea", "sweet-heart"]);
+
 export function targetAt(x, y) {
   const pattern = state.selectedPattern;
   const row = getEffectiveTargetRows(pattern)[y];
@@ -35,6 +39,13 @@ export function invalidateEffectiveMap(pattern = state.selectedPattern) {
   const id = baseIdFor(pattern);
   delete state.patternEffectiveMapCache[id];
   delete state.patternAnalysisCache[id];
+}
+
+export function invalidatePatternDataCaches(pattern = state.selectedPattern) {
+  if (!pattern) return;
+  delete pattern.__gridFingerprint;
+  delete pattern.__sourceAnalysis;
+  invalidateEffectiveMap(pattern);
 }
 
 export function getPatternHiddenSourceList(pattern = state.selectedPattern) {
@@ -285,12 +296,10 @@ export function getTargetTotal(pattern = state.selectedPattern) {
   return getPatternAnalysis(pattern).total;
 }
 
-let colorCodesCacheSize = null;
 export let colorCodesCache = null;
 export function allColorCodes() {
-  if (colorCodesCache && colorCodesCacheSize === state.paletteSize) return colorCodesCache;
-  const preset = palettePresetMardCodes[state.paletteSize] || palettePresetMardCodes[48];
-  colorCodesCacheSize = state.paletteSize;
+  if (colorCodesCache) return colorCodesCache;
+  const preset = palettePresetMardCodes[221];
   colorCodesCache = [...new Set(preset.map(workshopCodeForMard).filter((code) => palette[code]))]
     .sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
   return colorCodesCache;
@@ -310,8 +319,17 @@ export function normalizePatternColorMapForActivePalette(pattern = state.selecte
   const activeCodesArr = [...activeCodes];
   const previousMap = state.patternColorMaps[patternId] || {};
   const normalizedMap = {};
+  const lockOpaqueWhite = !patternId.startsWith("custom-") && !builtInTransparentWhitePatternIds.has(patternId);
   getSourcePatternColors(pattern).forEach((code) => {
     const mapped = previousMap[code];
+    if (lockOpaqueWhite && code === opaqueWhiteCode) {
+      normalizedMap[code] = opaqueWhiteCode;
+      return;
+    }
+    if (lockOpaqueWhite && code === transparentWhiteCode) {
+      normalizedMap[code] = opaqueWhiteCode;
+      return;
+    }
     if (mapped && activeCodes.has(mapped)) {
       // user's manual remap is still valid
       normalizedMap[code] = mapped;
@@ -445,7 +463,7 @@ export function resizePattern(pattern, targetSize) {
     };
   }
   const rows = resamplePatternRows(sourceRows, sourceSize, size);
-  return {
+  const resized = {
     ...pattern,
     id: `${baseIdFor(pattern)}-${size}`,
     sourceId: baseIdFor(pattern),
@@ -455,6 +473,9 @@ export function resizePattern(pattern, targetSize) {
     rows,
     note: "",
   };
+  delete resized.__gridFingerprint;
+  delete resized.__sourceAnalysis;
+  return resized;
 }
 
 export function findBasePattern(pattern = state.selectedPattern) {
@@ -465,4 +486,3 @@ export function findBasePattern(pattern = state.selectedPattern) {
 export function findCustomPattern() {
   return patterns.find((item) => item.id.startsWith("custom-")) || null;
 }
-

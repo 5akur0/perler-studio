@@ -309,6 +309,7 @@
   var palette = {
     Q: "#FAF4C8",
     q: "#FFFFFF",
+    U: "#FDFBFF",
     W: "#FDFBFF",
     w: "#F2D9BA",
     A: "#FFDD99",
@@ -359,7 +360,8 @@
   var beadIds = {
     Q: "A1",
     q: "T1",
-    W: "H1",
+    U: "H1",
+    W: "H2",
     w: "G16",
     A: "A11",
     a: "A18",
@@ -420,12 +422,6 @@
     palette[internalCode] = hex;
     beadIds[internalCode] = normalized;
   });
-  var paletteSizeOptions = [48, 96, 221];
-  var paletteSizeKey = "beadWorkshopPaletteSize.v1";
-  function readPaletteSize() {
-    const stored = Number.parseInt(localStorage.getItem(paletteSizeKey) || "", 10);
-    return paletteSizeOptions.includes(stored) ? stored : 48;
-  }
   function workshopCodeForMard(mardCode) {
     return mardCodeToWorkshopCode[normalizeMardCode(mardCode)] || normalizeMardCode(mardCode);
   }
@@ -719,25 +715,25 @@
     },
     {
       id: "lake-whale",
-      name: "\u6E56\u8FB9\u5C0F\u9CB8",
+      name: "\u70ED\u5E26\u5C0F\u9C7C",
       size: 16,
       craft: "\u676F\u57AB",
       rows: [
         "................",
-        ".......W........",
-        "......W.W.......",
         "................",
+        "........Y.......",
+        ".......YYY......",
+        ".....OOOYY......",
+        "...OOOORYYY..Y..",
+        "..OOOOKRYYYY.YY.",
+        ".OOOOORRYYYYYYYY",
+        ".OOOOORRYYYYYYYY",
+        "..OOOORYYYYY.YY.",
+        "...OOOYYYYY..Y..",
+        ".....OOYYYY.....",
+        ".......YY.......",
+        "........Y.......",
         "................",
-        ".....BBBBBB.....",
-        "...BBBBBBBBBB...",
-        "..BBBBBBBBBBBB..",
-        ".BBBBWWBBBBBBBB.",
-        "BBBBWWBBBBBBBBBB",
-        "BBBBBBBBBBBBBBBB",
-        ".BBBBBBBBBBBBBB.",
-        "..BBBBBBBBBBBB..",
-        "...BBBB..BBBB...",
-        ".....BB..BB.....",
         "................"
       ],
       note: ""
@@ -753,11 +749,11 @@
         "...RPRR..RRPR...",
         "..RPPPRRRRPPPR..",
         ".RPPPPPPPPPPPPR.",
-        ".RPPPPPWPPPPPPR.",
-        ".RPPPPWWWPPPPPR.",
-        "..RPPWWWWWPPPR..",
-        "...RPPWWWPPPR...",
-        "....RPPWPPPR....",
+        ".RPPPPPUPPPPPPR.",
+        ".RPPPPUUUPPPPPR.",
+        "..RPPUUUUUPPPR..",
+        "...RPPUUUPPPR...",
+        "....RPPUPPPR....",
         ".....RPPPPR.....",
         "......RPPR......",
         ".......RR.......",
@@ -775,8 +771,8 @@
       rows: [
         "................",
         "....KKKKKKKK....",
-        "...KWWWWWWWK....",
-        "...KWWWWWWWK....",
+        "...KUUUUUUUK....",
+        "...KUUUUUUUK....",
         "...KAAAAAAAKKK..",
         "...KAAAAAAAKMMK.",
         "...KZZZZZZZKMMK.",
@@ -1000,19 +996,19 @@
       rows: [
         "................",
         "................",
-        ".....WWWWWW.....",
-        "....WWWWWWWW....",
-        "...WWWWWWWWWW...",
-        "...WWKKWWKKWW...",
-        "...WWKKWWKKWW...",
-        "...WWWWWWWWWW...",
-        "...WWWFFFFWWWW..",
-        "...WWWWWWWWWWW..",
-        "...WWWWWWWWWWW..",
-        "...WWWWWWWWWWW..",
-        "...WWWWWWWWWWW..",
-        "...WW.WW.WW.WW..",
-        "....W..W..W..W..",
+        ".....UUUUUU.....",
+        "....UUUUUUUU....",
+        "...UUUUUUUUUU...",
+        "...UUKKUUKKUU...",
+        "...UUKKUUKKUU...",
+        "...UUUUUUUUUU...",
+        "...UUUFFFFUUUU..",
+        "...UUUUUUUUUUU..",
+        "...UUUUUUUUUUU..",
+        "...UUUUUUUUUUU..",
+        "...UUUUUUUUUUU..",
+        "...UU.UU.UU.UU..",
+        "....U..U..U..U..",
         "................"
       ],
       note: ""
@@ -1144,7 +1140,91 @@
       }
       rows.push(row);
     }
+    if (targetSize < sourceSize) {
+      return restoreTinyComponents(rows, sourceRows, sourceSize, targetSize, scale);
+    }
     return rows;
+  }
+  function restoreTinyComponents(rows, sourceRows, sourceSize, targetSize, scale) {
+    const grid = rows.map((row) => row.split(""));
+    const visited = Array(sourceSize * sourceSize).fill(false);
+    const detailLimit = Math.max(2, Math.round(scale * scale * 2));
+    const sourceCounts = {};
+    for (let y = 0; y < sourceSize; y += 1) {
+      const row = sourceRows[y] || "";
+      for (let x = 0; x < sourceSize; x += 1) {
+        const code = row[x];
+        if (!code || code === ".") continue;
+        sourceCounts[code] = (sourceCounts[code] || 0) + 1;
+      }
+    }
+    const sparseColorLimit = Math.max(8, Math.round(sourceSize * sourceSize * 0.02));
+    for (let sy = 0; sy < sourceSize; sy += 1) {
+      for (let sx = 0; sx < sourceSize; sx += 1) {
+        const start = sy * sourceSize + sx;
+        if (visited[start]) continue;
+        visited[start] = true;
+        const code = sourceRows[sy][sx];
+        if (!code || code === "." || code === "W" || code === "q") continue;
+        if ((sourceCounts[code] || 0) > sparseColorLimit) continue;
+        const queue = [start];
+        const cells = [{ x: sx, y: sy }];
+        let head = 0;
+        while (head < queue.length) {
+          const index = queue[head++];
+          const x = index % sourceSize;
+          const y = Math.floor(index / sourceSize);
+          const neighbors = [
+            [x + 1, y],
+            [x - 1, y],
+            [x, y + 1],
+            [x, y - 1]
+          ];
+          neighbors.forEach(([nx, ny]) => {
+            if (nx < 0 || ny < 0 || nx >= sourceSize || ny >= sourceSize) return;
+            const next = ny * sourceSize + nx;
+            if (visited[next]) return;
+            visited[next] = true;
+            if (sourceRows[ny][nx] !== code) return;
+            queue.push(next);
+            cells.push({ x: nx, y: ny });
+          });
+        }
+        if (!cells.length || cells.length > detailLimit) continue;
+        const targetVotes = /* @__PURE__ */ new Map();
+        let sumTx = 0;
+        let sumTy = 0;
+        cells.forEach(({ x, y }) => {
+          const tx = clamp(Math.floor((x + 0.5) / scale), 0, targetSize - 1);
+          const ty = clamp(Math.floor((y + 0.5) / scale), 0, targetSize - 1);
+          sumTx += tx;
+          sumTy += ty;
+          const key = `${tx},${ty}`;
+          const hit = targetVotes.get(key) || { tx, ty, count: 0 };
+          hit.count += 1;
+          targetVotes.set(key, hit);
+        });
+        const entries = [...targetVotes.values()];
+        if (!entries.length) continue;
+        const exists = entries.some(({ tx, ty }) => grid[ty]?.[tx] === code);
+        if (exists) continue;
+        const cx = sumTx / cells.length;
+        const cy = sumTy / cells.length;
+        entries.sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          const da = (a.tx - cx) ** 2 + (a.ty - cy) ** 2;
+          const db = (b.tx - cx) ** 2 + (b.ty - cy) ** 2;
+          return da - db;
+        });
+        const pick = entries.find(({ tx, ty }) => {
+          const current = grid[ty]?.[tx];
+          return current === "." || current === "W" || current === "q";
+        });
+        if (!pick) continue;
+        grid[pick.ty][pick.tx] = code;
+      }
+    }
+    return grid.map((row) => row.join(""));
   }
   function validatePatterns() {
     patterns.forEach((pattern) => {
@@ -1266,9 +1346,11 @@
 
   // src/state.js
   var state = {
+    appMode: "home",
     phase: "choose",
     patternSize: 24,
-    paletteSize: readPaletteSize(),
+    customDenoiseLevel: 25,
+    paletteSize: 221,
     selectedPattern: patterns[0],
     patternColorMaps: {},
     patternColorMap: {},
@@ -1444,6 +1526,9 @@
   }
 
   // src/pattern.js
+  var transparentWhiteCode = workshopCodeForMard("H1");
+  var opaqueWhiteCode = workshopCodeForMard("H2");
+  var builtInTransparentWhitePatternIds = /* @__PURE__ */ new Set(["ghost", "milk-tea", "sweet-heart"]);
   function targetAt(x, y) {
     const pattern = state.selectedPattern;
     const row = getEffectiveTargetRows(pattern)[y];
@@ -1463,6 +1548,12 @@
     const id = baseIdFor(pattern);
     delete state.patternEffectiveMapCache[id];
     delete state.patternAnalysisCache[id];
+  }
+  function invalidatePatternDataCaches(pattern = state.selectedPattern) {
+    if (!pattern) return;
+    delete pattern.__gridFingerprint;
+    delete pattern.__sourceAnalysis;
+    invalidateEffectiveMap(pattern);
   }
   function getPatternHiddenSourceList(pattern = state.selectedPattern) {
     const id = baseIdFor(pattern);
@@ -1687,12 +1778,10 @@
   function getTargetTotal(pattern = state.selectedPattern) {
     return getPatternAnalysis(pattern).total;
   }
-  var colorCodesCacheSize = null;
   var colorCodesCache = null;
   function allColorCodes() {
-    if (colorCodesCache && colorCodesCacheSize === state.paletteSize) return colorCodesCache;
-    const preset = palettePresetMardCodes[state.paletteSize] || palettePresetMardCodes[48];
-    colorCodesCacheSize = state.paletteSize;
+    if (colorCodesCache) return colorCodesCache;
+    const preset = palettePresetMardCodes[221];
     colorCodesCache = [...new Set(preset.map(workshopCodeForMard).filter((code) => palette[code]))].sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true }));
     return colorCodesCache;
   }
@@ -1705,8 +1794,17 @@
     const activeCodesArr = [...activeCodes];
     const previousMap = state.patternColorMaps[patternId] || {};
     const normalizedMap = {};
+    const lockOpaqueWhite = !patternId.startsWith("custom-") && !builtInTransparentWhitePatternIds.has(patternId);
     getSourcePatternColors(pattern).forEach((code) => {
       const mapped = previousMap[code];
+      if (lockOpaqueWhite && code === opaqueWhiteCode) {
+        normalizedMap[code] = opaqueWhiteCode;
+        return;
+      }
+      if (lockOpaqueWhite && code === transparentWhiteCode) {
+        normalizedMap[code] = opaqueWhiteCode;
+        return;
+      }
       if (mapped && activeCodes.has(mapped)) {
         normalizedMap[code] = mapped;
       } else if (activeCodes.has(code)) {
@@ -1821,7 +1919,7 @@
       };
     }
     const rows = resamplePatternRows(sourceRows, sourceSize, size);
-    return {
+    const resized = {
       ...pattern,
       id: `${baseIdFor(pattern)}-${size}`,
       sourceId: baseIdFor(pattern),
@@ -1831,6 +1929,9 @@
       rows,
       note: ""
     };
+    delete resized.__gridFingerprint;
+    delete resized.__sourceAnalysis;
+    return resized;
   }
   function findBasePattern(pattern = state.selectedPattern) {
     const id = baseIdFor(pattern);
@@ -1852,33 +1953,43 @@
   function convertImageToPattern(image, options = {}) {
     const targetSize = normalizePatternSize(options.size || state.patternSize);
     const removeWhite = options.removeWhite !== false;
+    const denoiseSliderLevel = clamp(Math.round(Number(options.denoiseLevel) || 0), 0, 100);
+    const denoiseLevel = clamp(denoiseSliderLevel + 25, 0, 100);
+    const denoiseEffect = denoiseLevel - 50;
     const excludedCodes = new Set((options.excludedCodes || []).filter((code) => palette[code]));
     const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
     const raw = sampleImageToRgba(image, targetSize, false);
     const rawMask = buildActiveMask(raw, removeWhite);
     const sourceProfile = estimateSourceProfile(raw, rawMask);
+    if (denoiseEffect > 0) sourceProfile.useDenoise = true;
+    if (denoiseEffect < 0) sourceProfile.useDenoise = false;
     const dominant = convertImageToDominantGrid(
       image,
       targetSize,
       removeWhite,
       sourceProfile,
       excludedCodes,
-      allowExpansion
+      allowExpansion,
+      denoiseEffect
     );
     if (!dominant.activeCells.length) {
-      return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile);
+      return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile, denoiseSliderLevel);
     }
     const grid = dominant.grid;
     const preCleanupColorCount = countGridColors(grid).colors.length;
-    let cleaned = removeSpeckles(grid, targetSize, 1, sourceProfile);
+    const speckRounds = denoiseEffect > 0 ? 1 + Math.floor(denoiseEffect / 20) : 0;
+    let cleaned = speckRounds > 0 ? removeSpeckles(grid, targetSize, speckRounds, sourceProfile) : grid.slice();
+    if (denoiseEffect >= 15) cleaned = cleanupSmallComponents(cleaned, targetSize, sourceProfile);
+    if (denoiseEffect >= 30) cleaned = cleanupSmallComponents(cleaned, targetSize, { ...sourceProfile, likelyPixelArt: false });
+    if (denoiseEffect >= 40) cleaned = consensusRebalanceGrid(cleaned, targetSize, sourceProfile);
     if (sourceProfile.logoLike || targetSize <= 16) {
       cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
     }
     cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
     const rows = gridToRows(cleaned, targetSize);
-    return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile);
+    return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile, denoiseSliderLevel);
   }
-  function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion) {
+  function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion, denoiseEffect = 0) {
     const analysisSize = clamp(
       Math.round(targetSize * (sourceProfile.logoLike ? 7.5 : sourceProfile.likelyPixelArt ? 6.5 : 6)),
       targetSize,
@@ -1886,7 +1997,12 @@
     );
     const analysis = sampleImageToRgba(image, analysisSize, true);
     const externalWhiteMask = removeWhite ? buildExternalWhiteMask(analysis) : null;
-    const availableCodes = allColorCodes().filter((code) => !excludedCodes.has(code));
+    const transparentWhiteCode2 = workshopCodeForMard("H1");
+    const opaqueWhiteCode2 = workshopCodeForMard("H2");
+    const avoidTransparentWhite = transparentWhiteCode2 && opaqueWhiteCode2 && !excludedCodes.has(opaqueWhiteCode2);
+    const effectiveExcluded = new Set(excludedCodes);
+    if (avoidTransparentWhite) effectiveExcluded.add(transparentWhiteCode2);
+    const availableCodes = allColorCodes().filter((code) => !effectiveExcluded.has(code));
     if (!availableCodes.length) {
       return { grid: Array(targetSize * targetSize).fill("."), activeCells: [], lockedPalette: [] };
     }
@@ -1922,20 +2038,38 @@
     }
     let maxColors = chooseSimplifiedColorCount(targetSize, activeCells.length, sourceProfile);
     if (allowExpansion) maxColors = clamp(maxColors + 2, 2, 16);
+    maxColors = applyDenoiseColorCompression(maxColors, denoiseEffect);
     const clusters = simplifyColors(activeCells, maxColors);
     const paletteHint = getPaletteLimitHint(sourceProfile);
     let finalPaletteCap = chooseFinalPaletteCap(targetSize, activeCells.length, sourceProfile, clusters.length);
     if (allowExpansion) finalPaletteCap = clamp(finalPaletteCap + 2, 2, 14);
+    finalPaletteCap = applyDenoiseColorCompression(finalPaletteCap, denoiseEffect);
     if (paletteHint <= 3) finalPaletteCap = Math.min(finalPaletteCap, paletteHint);
-    const lockedPalette = selectPaletteCodes(clusters, finalPaletteCap, excludedCodes);
+    const lockedPalette = selectPaletteCodes(clusters, finalPaletteCap, effectiveExcluded);
     if (!lockedPalette.length) {
       return { grid: Array(targetSize * targetSize).fill("."), activeCells, lockedPalette: [] };
     }
     const grid = Array(targetSize * targetSize).fill(".");
     activeCells.forEach((cell) => {
-      grid[cell.index] = nearestCodeFromSet2(cell.lab, lockedPalette, excludedCodes);
+      grid[cell.index] = nearestCodeFromSet2(cell.lab, lockedPalette, effectiveExcluded);
     });
     return { grid, activeCells, lockedPalette };
+  }
+  function applyDenoiseColorCompression(limit, denoiseEffect = 0) {
+    const effect = clamp(Math.round(Number(denoiseEffect) || 0), -50, 50);
+    if (effect === 0) return limit;
+    if (effect < 0) {
+      let expanded = Math.round(limit * (1 + Math.abs(effect) * 45e-4));
+      if (effect <= -20) expanded += 1;
+      if (effect <= -40) expanded += 1;
+      return clamp(expanded, 2, 14);
+    }
+    let compressed = Math.max(2, Math.round(limit * (1 - effect * 68e-4)));
+    if (effect >= 24) compressed = Math.min(compressed, limit - 1);
+    if (effect >= 34) compressed = Math.min(compressed, limit - 2);
+    if (effect >= 42) compressed = Math.min(compressed, limit - 3);
+    if (effect >= 48) compressed = Math.min(compressed, limit - 4);
+    return clamp(compressed, 2, 14);
   }
   function dominantColorInRegion(data, width, startX, startY, endX, endY, removeWhite, externalWhiteMask = null) {
     const buckets = /* @__PURE__ */ new Map();
@@ -2283,6 +2417,65 @@
     }
     return current;
   }
+  function cleanupSmallComponents(grid, size, sourceProfile = null) {
+    if (sourceProfile?.logoLike && size <= 20) {
+      return grid.slice();
+    }
+    const out = grid.slice();
+    const visited = Array(size * size).fill(false);
+    const paletteHint = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false });
+    let threshold = size <= 24 ? 1 : size <= 36 ? 2 : 3;
+    if (sourceProfile?.likelyPixelArt) threshold = Math.max(1, threshold - 1);
+    if (paletteHint <= 3) threshold = 1;
+    for (let index = 0; index < out.length; index += 1) {
+      if (visited[index] || out[index] === ".") continue;
+      const component = collectComponent(out, size, index, visited);
+      if (component.cells.length > threshold) continue;
+      if (shouldPreserveSmallDetail(out, size, component, sourceProfile)) continue;
+      const boundary = [];
+      component.cells.forEach((cellIndex) => {
+        const x = cellIndex % size;
+        const y = Math.floor(cellIndex / size);
+        boundary.push(...neighborCodes(out, size, x, y, false).filter((code) => code !== component.code));
+      });
+      const replacement = majorityCode(boundary) || ".";
+      component.cells.forEach((cellIndex) => {
+        out[cellIndex] = replacement;
+      });
+    }
+    return out;
+  }
+  function consensusRebalanceGrid(grid, size, sourceProfile = null) {
+    const out = grid.slice();
+    const passes = sourceProfile?.logoLike ? 1 : size <= 20 ? 2 : 3;
+    const softThreshold = sourceProfile?.logoLike ? 26e-4 : 19e-4;
+    for (let pass = 0; pass < passes; pass += 1) {
+      const next = out.slice();
+      for (let y = 1; y < size - 1; y += 1) {
+        for (let x = 1; x < size - 1; x += 1) {
+          const index = y * size + x;
+          const code = out[index];
+          if (code === ".") continue;
+          const neighbors = neighborCodes(out, size, x, y, true).filter((item) => item !== ".");
+          if (neighbors.length < 5) continue;
+          const counts = {};
+          neighbors.forEach((n) => {
+            counts[n] = (counts[n] || 0) + 1;
+          });
+          const candidate = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (!candidate || candidate === code) continue;
+          const support = counts[candidate] || 0;
+          if (support < (sourceProfile?.logoLike ? 7 : 6)) continue;
+          const dist = oklabDistance(beadOklab(candidate), beadOklab(code));
+          if (dist <= softThreshold || support >= 8) {
+            next[index] = candidate;
+          }
+        }
+      }
+      for (let i = 0; i < out.length; i += 1) out[i] = next[i];
+    }
+    return out;
+  }
   function bridgeLineGaps(grid, size, sourceProfile = null) {
     if (!sourceProfile?.logoLike && size > 16) return grid;
     const out = grid.slice();
@@ -2316,6 +2509,52 @@
       }
     }
     return out;
+  }
+  function collectComponent(grid, size, start, visited) {
+    const code = grid[start];
+    const cells = [];
+    const stack = [start];
+    visited[start] = true;
+    while (stack.length) {
+      const index = stack.pop();
+      cells.push(index);
+      const x = index % size;
+      const y = Math.floor(index / size);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
+        const nextIndex = ny * size + nx;
+        if (!visited[nextIndex] && grid[nextIndex] === code) {
+          visited[nextIndex] = true;
+          stack.push(nextIndex);
+        }
+      });
+    }
+    return { code, cells };
+  }
+  function shouldPreserveSmallDetail(grid, size, component, sourceProfile = null) {
+    const darkDetail = /* @__PURE__ */ new Set(["K", "k", "D", "d", "N", "n", "b"]);
+    const lowPalette = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false }) <= 3;
+    const xs = component.cells.map((index) => index % size);
+    const ys = component.cells.map((index) => Math.floor(index / size));
+    const lineLike = component.cells.length >= 2 && (new Set(xs).size > 1 || new Set(ys).size > 1);
+    let nonDotBoundary = 0;
+    let boundary = 0;
+    component.cells.forEach((cellIndex) => {
+      const x = cellIndex % size;
+      const y = Math.floor(cellIndex / size);
+      neighborCodes(grid, size, x, y, false).forEach((code) => {
+        if (code === component.code) return;
+        boundary += 1;
+        if (code !== ".") nonDotBoundary += 1;
+      });
+    });
+    const embedded = boundary > 0 && nonDotBoundary / boundary >= 0.6;
+    const singlePixel = component.cells.length === 1 && darkDetail.has(component.code) && embedded;
+    const highContrastDot = component.cells.length === 1 && hasStrongContrastBoundary(grid, size, component);
+    const lowPaletteDot = lowPalette && component.cells.length === 1 && embedded;
+    return lineLike || singlePixel || highContrastDot || lowPaletteDot || darkDetail.has(component.code) && embedded;
   }
   function shouldKeepIsolatedFeature(grid, size, x, y, code, neighbors8, same4, same8) {
     if (same4 >= 1 || same8 >= 2) return false;
@@ -2408,7 +2647,7 @@
       total: colors.reduce((sum, item) => sum + item.count, 0)
     };
   }
-  function makeConversionResult(rows, size, simplifiedColorCount, preCleanupColorCount, sourceProfile = null) {
+  function makeConversionResult(rows, size, simplifiedColorCount, preCleanupColorCount, sourceProfile = null, denoiseLevel = 0) {
     const stats = countGridColors(rows.join("").split(""));
     return {
       rows,
@@ -2420,7 +2659,8 @@
         preCleanupColorCount,
         sourceSignificantCount: sourceProfile?.significantCount || stats.colors.length,
         sourceCoarseCount: sourceProfile?.coarseCount || stats.colors.length,
-        denoised: Boolean(sourceProfile?.useDenoise)
+        denoised: Boolean(sourceProfile?.useDenoise),
+        denoiseLevel: clamp(Math.round(Number(denoiseLevel) || 0), 0, 100)
       }
     };
   }
@@ -2443,6 +2683,191 @@
     return nearestColorCodeByLab(lab, excludedCodes);
   }
 
+  // src/pattern-code.js
+  var PATTERN_CODE_PREFIX = "BEAM1";
+  var VALUE_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  var RUN_SEPARATOR = ".";
+  var PALETTE_SEPARATOR = "_";
+  var EMPTY_PALETTE = "-";
+  var EMPTY_CELL = ".";
+  function valueTokenWidth(maxValue) {
+    let width = 1;
+    let capacity = VALUE_ALPHABET.length;
+    while (capacity <= maxValue) {
+      width += 1;
+      capacity *= VALUE_ALPHABET.length;
+    }
+    return width;
+  }
+  function encodeFixedValue(value, width) {
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error("Pattern code value must be a non-negative integer.");
+    }
+    let remaining = value;
+    let token = "";
+    for (let i = 0; i < width; i += 1) {
+      token = VALUE_ALPHABET[remaining % VALUE_ALPHABET.length] + token;
+      remaining = Math.floor(remaining / VALUE_ALPHABET.length);
+    }
+    if (remaining > 0) throw new Error("Pattern code value exceeds token width.");
+    return token;
+  }
+  function decodeFixedValue(token) {
+    let value = 0;
+    for (const char of token) {
+      const digit = VALUE_ALPHABET.indexOf(char);
+      if (digit < 0) throw new Error("Pattern code contains an invalid value token.");
+      value = value * VALUE_ALPHABET.length + digit;
+    }
+    return value;
+  }
+  function normalizeDimension(value, fallback = 0) {
+    const normalized = Number.parseInt(value, 10);
+    return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
+  }
+  function rowToCells(row) {
+    return Array.isArray(row) ? row.slice() : Array.from(String(row || ""));
+  }
+  function patternDimensions(pattern) {
+    const rows = Array.isArray(pattern?.rows) ? pattern.rows : [];
+    const firstRowWidth = rows.length ? rowToCells(rows[0]).length : 0;
+    const width = normalizeDimension(pattern?.width, normalizeDimension(pattern?.size, firstRowWidth));
+    const height = normalizeDimension(pattern?.height, normalizeDimension(pattern?.size, rows.length));
+    if (!width || !height || !rows.length) throw new Error("Pattern code needs a non-empty pattern.");
+    if (width !== height) throw new Error("Pattern code currently supports square patterns only.");
+    if (rows.length !== height) throw new Error("Pattern row count does not match pattern height.");
+    rows.forEach((row) => {
+      if (rowToCells(row).length !== width) {
+        throw new Error("Pattern row width does not match pattern width.");
+      }
+    });
+    return { width, height, rows };
+  }
+  function cellToMardCode(cell) {
+    if (!cell || cell === EMPTY_CELL) return null;
+    if (palette[cell]) {
+      const beadId = beadIds[cell];
+      if (!beadId) throw new Error(`Pattern colour ${cell} has no MARD bead id.`);
+      return normalizeMardCode(beadId);
+    }
+    const normalized = normalizeMardCode(cell);
+    const workshopCode = workshopCodeForMard(normalized);
+    if (palette[workshopCode]) return normalized;
+    throw new Error(`Pattern colour ${cell} is not available in the palette.`);
+  }
+  function mardCodeToCell(code) {
+    const normalized = normalizeMardCode(code);
+    const workshopCode = workshopCodeForMard(normalized);
+    if (!palette[workshopCode]) throw new Error(`Pattern code colour ${normalized} is not available.`);
+    return workshopCode;
+  }
+  function encodeRuns(values, paletteSize) {
+    if (!values.length) return "";
+    const width = valueTokenWidth(paletteSize);
+    const runs = [];
+    let current = values[0];
+    let count = 1;
+    const pushRun = () => {
+      runs.push(`${count.toString(36).toUpperCase()}${encodeFixedValue(current, width)}`);
+    };
+    for (let i = 1; i < values.length; i += 1) {
+      if (values[i] === current) {
+        count += 1;
+      } else {
+        pushRun();
+        current = values[i];
+        count = 1;
+      }
+    }
+    pushRun();
+    return runs.join(RUN_SEPARATOR);
+  }
+  function decodeRuns(runText, paletteSize, expectedLength) {
+    if (!runText) throw new Error("Pattern code is missing cell data.");
+    const width = valueTokenWidth(paletteSize);
+    const values = [];
+    runText.split(RUN_SEPARATOR).forEach((token) => {
+      if (token.length <= width) throw new Error("Pattern code contains an invalid run.");
+      const count = Number.parseInt(token.slice(0, -width), 36);
+      const value = decodeFixedValue(token.slice(-width));
+      if (!Number.isFinite(count) || count <= 0) throw new Error("Pattern code contains an invalid run length.");
+      if (value > paletteSize) throw new Error("Pattern code references a missing colour.");
+      if (values.length + count > expectedLength) throw new Error("Pattern code has too many cells.");
+      for (let i = 0; i < count; i += 1) values.push(value);
+    });
+    if (values.length !== expectedLength) throw new Error("Pattern code cell count does not match its size.");
+    return values;
+  }
+  function extractPatternCode(text) {
+    const source = String(text || "").trim();
+    const match = source.match(/\bBEAM1:[^\s，。；;]+/);
+    return match ? match[0].replace(/[,.!?！？、，。]+$/, "") : "";
+  }
+  function encodePatternCode(pattern) {
+    const { width, height, rows } = patternDimensions(pattern);
+    const paletteCodes = [];
+    const paletteIndex = /* @__PURE__ */ new Map();
+    const values = [];
+    rows.forEach((row) => {
+      rowToCells(row).forEach((cell) => {
+        const mardCode = cellToMardCode(cell);
+        if (!mardCode) {
+          values.push(0);
+          return;
+        }
+        if (!paletteIndex.has(mardCode)) {
+          paletteCodes.push(mardCode);
+          paletteIndex.set(mardCode, paletteCodes.length);
+        }
+        values.push(paletteIndex.get(mardCode));
+      });
+    });
+    const paletteText = paletteCodes.length ? paletteCodes.join(PALETTE_SEPARATOR) : EMPTY_PALETTE;
+    return [
+      PATTERN_CODE_PREFIX,
+      `${width}x${height}`,
+      paletteText,
+      encodeRuns(values, paletteCodes.length)
+    ].join(":");
+  }
+  function decodePatternCode(input, options = {}) {
+    const code = extractPatternCode(input) || String(input || "").trim();
+    const parts = code.split(":");
+    if (parts.length !== 4 || parts[0] !== PATTERN_CODE_PREFIX) {
+      throw new Error("Pattern code must start with BEAM1.");
+    }
+    const sizeMatch = parts[1].match(/^(\d+)x(\d+)$/);
+    if (!sizeMatch) throw new Error("Pattern code has an invalid size.");
+    const width = Number.parseInt(sizeMatch[1], 10);
+    const height = Number.parseInt(sizeMatch[2], 10);
+    if (!width || !height || width !== height) {
+      throw new Error("Pattern code currently supports square patterns only.");
+    }
+    const paletteCodes = parts[2] === EMPTY_PALETTE ? [] : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);
+    const values = decodeRuns(parts[3], paletteCodes.length, width * height);
+    const rows = [];
+    for (let y = 0; y < height; y += 1) {
+      let row = "";
+      for (let x = 0; x < width; x += 1) {
+        const value = values[y * width + x];
+        row += value === 0 ? EMPTY_CELL : mardCodeToCell(paletteCodes[value - 1]);
+      }
+      rows.push(row);
+    }
+    return {
+      id: options.id || "shared-pattern",
+      name: options.name || "\u5206\u4EAB\u56FE\u7EB8",
+      size: width,
+      width,
+      height,
+      craft: options.craft || "\u94A5\u5319\u6263",
+      rows,
+      note: "",
+      sourceFormat: PATTERN_CODE_PREFIX,
+      mardPalette: paletteCodes
+    };
+  }
+
   // src/dom.js
   var $ = (selector) => document.querySelector(selector);
   var sceneCanvas = $("#sceneCanvas");
@@ -2452,15 +2877,40 @@
   var sideReferenceCanvas = $("#sideReferenceCanvas");
   var sideReferenceCtx = sideReferenceCanvas?.getContext("2d");
   var els = {
+    startScreen: $("#startScreen"),
+    startBeadButton: $("#startBeadButton"),
+    startDrawButton: $("#startDrawButton"),
+    drawingStudio: $("#drawingStudio"),
+    drawingBackButton: $("#drawingBackButton"),
+    drawSettingsButton: $("#drawSettingsButton"),
+    drawResetButton: $("#drawResetButton"),
+    drawCanvas: $("#drawCanvas"),
+    drawSizeSelect: $("#drawSizeSelect"),
+    drawResizeModal: $("#drawResizeModal"),
+    drawResizeModalTitle: $("#drawResizeModalTitle"),
+    drawResizeConfirmBtn: $("#drawResizeConfirmBtn"),
+    drawResizeCancelBtn: $("#drawResizeCancelBtn"),
+    drawResizeCloseBtn: $("#drawResizeCloseBtn"),
+    drawAnchorGrid: $("#drawAnchorGrid"),
+    drawCurrentColorSwatch: $("#drawCurrentColorSwatch"),
+    drawCurrentColorCode: $("#drawCurrentColorCode"),
+    drawClearButton: $("#drawClearButton"),
+    drawImportButton: $("#drawImportButton"),
+    drawExportButton: $("#drawExportButton"),
+    drawUsePatternButton: $("#drawUsePatternButton"),
+    drawCodeInput: $("#drawCodeInput"),
+    drawPaletteMeta: $("#drawPaletteMeta"),
+    drawPalette: $("#drawPalette"),
+    beadBackButton: $("#beadBackButton"),
     statusLine: $("#statusLine"),
     patternMeta: $("#patternMeta"),
     patternList: $("#patternList"),
     customImageInput: $("#customImageInput"),
     customWhiteToggle: $("#customWhiteToggle"),
+    customDenoiseSlider: $("#customDenoiseSlider"),
+    customDenoiseValue: $("#customDenoiseValue"),
     patternSizeSlider: $("#patternSizeSlider"),
     patternSizeValue: $("#patternSizeValue"),
-    paletteSizePicker: $("#paletteSizePicker"),
-    settingsPaletteSizePicker: $("#settingsPaletteSizePicker"),
     customSizeMeta: $("#customSizeMeta"),
     customStats: $("#customStats"),
     patternColorStats: $("#patternColorStats"),
@@ -2503,10 +2953,6 @@
     topToolStyleSelect: $("#topToolStyleSelect"),
     sandboxButton: $("#sandboxButton"),
     chooseStartButton: $("#chooseStartButton"),
-    boardZoomControls: $("#boardZoomControls"),
-    zoomOutButton: $("#zoomOutButton"),
-    zoomInButton: $("#zoomInButton"),
-    zoomResetButton: $("#zoomResetButton"),
     resetButton: $("#resetButton"),
     toast: $("#toast"),
     placeHint: $("#placeHint"),
@@ -2686,12 +3132,6 @@
     boardViewTransform();
     markCanvasDirty();
   }
-  function resetBoardView() {
-    state.boardView.scale = 1;
-    state.boardView.panX = 0;
-    state.boardView.panY = 0;
-    markCanvasDirty();
-  }
   function gesturePointerCount() {
     return Object.keys(state.gesture.pointers).length;
   }
@@ -2776,7 +3216,7 @@
     const boardX = 34;
     const boardY = 42;
     const trayGap = 34;
-    const trayRightMargin = 34;
+    const trayRightMargin = 12;
     const minTrayW = 180;
     const maxBoardForTray = w - boardX - trayGap - minTrayW - trayRightMargin;
     const rawBoard = Math.min(h - 78, w * 0.64, 590, maxBoardForTray);
@@ -3052,10 +3492,6 @@
     ctx.moveTo(cx - bodyR * 0.34, cy - rect.h * 0.06);
     ctx.quadraticCurveTo(cx, cy + bodyR * 0.18, cx + bodyR * 0.34, cy - rect.h * 0.06);
     ctx.stroke();
-    ctx.fillStyle = "rgba(38, 36, 43, 0.72)";
-    ctx.font = "700 10px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(state.lampOn ? "ON" : "OFF", cx, rect.y + rect.h + 12);
     ctx.textAlign = "left";
     ctx.restore();
   }
@@ -3313,9 +3749,11 @@
     ctx.translate(boardView.cx + boardView.panX, boardView.cy + boardView.panY);
     ctx.scale(boardView.scale, boardView.scale);
     ctx.translate(-boardView.cx, -boardView.cy);
-    ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
-    ctx.shadowBlur = 26;
-    ctx.shadowOffsetY = 14;
+    if (!useMobileDirectPlacement()) {
+      ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
+      ctx.shadowBlur = 26;
+      ctx.shadowOffsetY = 14;
+    }
     const baseGradient = ctx.createLinearGradient(boardX, boardY - 14, boardX, boardY + boardSize + 14);
     baseGradient.addColorStop(0, "#f6f8fa");
     baseGradient.addColorStop(1, "#d9e0e4");
@@ -5390,17 +5828,6 @@
     if (els.patternSizeValue) els.patternSizeValue.textContent = String(normalized);
     if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
   }
-  function renderPaletteSizeControls() {
-    [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
-      if (!picker) return;
-      picker.querySelectorAll("[data-palette-size]").forEach((button) => {
-        const size = Number.parseInt(button.dataset.paletteSize, 10);
-        const active = size === state.paletteSize;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-pressed", active ? "true" : "false");
-      });
-    });
-  }
   var patternColorStatsRenderKey = "";
   function renderPatternColorStats() {
     if (!els.patternColorStats) return;
@@ -5539,18 +5966,28 @@
     });
   }
   function drawPatternThumb(canvas, pattern) {
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    const cssSize = canvas.clientWidth || Number(canvas.getAttribute("width")) || 58;
+    const dim = Math.round(cssSize * dpr);
+    if (canvas.width !== dim || canvas.height !== dim) {
+      canvas.width = dim;
+      canvas.height = dim;
+    }
     const ctx = canvas.getContext("2d");
-    const cell = Math.floor(canvas.width / pattern.size);
-    const offset = Math.floor((canvas.width - cell * pattern.size) / 2);
+    const cell = dim / pattern.size;
     const rows = pattern.rows || [];
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, dim, dim);
     ctx.fillStyle = "#f4f6f8";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, dim, dim);
     rows.forEach((row, y) => {
       [...row].forEach((code, x) => {
         if (code === ".") return;
+        const px = Math.round(x * cell);
+        const py = Math.round(y * cell);
+        const pw = Math.round((x + 1) * cell) - px;
+        const ph = Math.round((y + 1) * cell) - py;
         ctx.fillStyle = palette[code];
-        ctx.fillRect(offset + x * cell, offset + y * cell, Math.max(1, cell - 1), Math.max(1, cell - 1));
+        ctx.fillRect(px, py, pw, ph);
       });
     });
   }
@@ -5891,10 +6328,12 @@
       }
       return;
     }
+    const isMobile = useMobileDirectPlacement();
     const counts = getTargetCounts();
     const placedCounts = getPlacedCounts();
-    const codes = allColorCodes();
-    const key = ["place", state.paletteSize, state.selectedColor, state.tweezerBead || "", state.placedVersion, getPatternAnalysis().key].join(":");
+    const allCodes = allColorCodes();
+    const codes = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes;
+    const key = ["place", isMobile ? "m" : "d", state.selectedColor, state.tweezerBead || "", state.placedVersion, getPatternAnalysis().key].join(":");
     if (key === paletteRenderKey) return;
     paletteRenderKey = key;
     els.colorPalette.innerHTML = "";
@@ -5905,8 +6344,8 @@
       const remaining = Math.max(0, needed - placed);
       const isSelected = state.selectedColor === code;
       const button = document.createElement("button");
-      const isHeld = state.tweezerBead === code;
-      button.className = `color-chip${isSelected ? " active" : ""}${inPattern ? " needed" : ""}${isHeld ? " held" : ""}`;
+      const isHeld = !isMobile && state.tweezerBead === code;
+      button.className = `color-chip${isSelected ? " active" : ""}${inPattern && !isMobile ? " needed" : ""}${isHeld ? " held" : ""}`;
       button.type = "button";
       button.title = `${beadLabel(code)}\uFF1A${placed}/${needed}`;
       const isTransparent = beadIds[code] === "H1";
@@ -5917,7 +6356,7 @@
       `;
       button.addEventListener("click", () => {
         state.selectedColor = code;
-        if (state.phase === "place" && !useMobileDirectPlacement()) uiActions.pourSelectedColor?.();
+        if (state.phase === "place" && !isMobile) uiActions.pourSelectedColor?.();
         markDirty();
       });
       els.colorPalette.appendChild(button);
@@ -6164,14 +6603,13 @@
     renderControls();
     renderToolRack();
     renderPalette();
-    renderPaletteSizeControls();
     renderCustomStats();
     renderPatternColorStats();
     renderSidebarReference();
     const collection2 = uiActions.getCollection?.() || [];
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
-    if (els.patternMeta) els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size} \xB7 ${state.paletteSize}\u8272\u677F`;
+    if (els.patternMeta) els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
     if (els.targetCount) els.targetCount.textContent = `${getTargetTotal()} \u9897 / ${colorCount} \u8272`;
     if (els.collectionCount) els.collectionCount.textContent = String(collection2.length);
     if (els.settingsDot) els.settingsDot.hidden = collection2.length === 0;
@@ -6199,7 +6637,6 @@
     if (els.statusLine) els.statusLine.textContent = statusText();
     const showPlacementUi = state.phase === "place";
     const showToolUi = showPlacementUi && !useMobileDirectPlacement();
-    const showBoardZoomUi = state.phase === "place" || state.phase === "inspect";
     if (!showPlacementUi) {
       state.lastPlaceHintKey = "";
       hidePlaceHint();
@@ -6209,7 +6646,6 @@
     if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
-    if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
     if (els.stepBadge) {
       const phaseIdx = phases.findIndex((p) => p.id === state.phase);
       const phaseName = phases[phaseIdx]?.name ?? "";
@@ -6222,6 +6658,437 @@
   var collection = readCollection();
   state.achievements = readAchievements();
   var lastFrame = performance.now();
+  var drawState = {
+    size: 24,
+    tool: "brush",
+    selectedColor: "K",
+    grid: [],
+    drawing: false,
+    lastCellKey: "",
+    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 }
+  };
+  var drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
+  var drawPointers = {};
+  var drawGesture = null;
+  var drawRenderKey = "";
+  function createDrawGrid(size, fill = ".") {
+    return Array(size * size).fill(fill);
+  }
+  function drawIndex(x, y, size = drawState.size) {
+    return y * size + x;
+  }
+  function ensureDrawPaletteColor() {
+    const codes = allColorCodes();
+    if (!codes.length) return;
+    if (!codes.includes(drawState.selectedColor)) {
+      drawState.selectedColor = codes[0];
+    }
+  }
+  function ensureDrawGrid() {
+    if (drawState.grid.length !== drawState.size * drawState.size) {
+      drawState.grid = createDrawGrid(drawState.size);
+    }
+  }
+  function getDrawGeometry() {
+    const canvas = els.drawCanvas;
+    if (!canvas) return null;
+    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
+    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
+    const size = drawState.size;
+    const cell = Math.floor(Math.min(cssW, cssH) / size);
+    const gridSize = cell * size;
+    const x0 = Math.floor((cssW - gridSize) / 2);
+    const y0 = Math.floor((cssH - gridSize) / 2);
+    const cx = x0 + gridSize / 2;
+    const cy = y0 + gridSize / 2;
+    return { cssW, cssH, size, cell, gridSize, x0, y0, cx, cy };
+  }
+  function clampDrawView() {
+    const v = drawState.view;
+    if (v.scale <= 1.001) {
+      v.scale = 1;
+      v.panX = 0;
+      v.panY = 0;
+      return;
+    }
+    const g = getDrawGeometry();
+    if (!g) return;
+    const maxPan = g.gridSize * (v.scale - 1) / 2 + 32;
+    v.panX = clamp(v.panX, -maxPan, maxPan);
+    v.panY = clamp(v.panY, -maxPan, maxPan);
+  }
+  function setDrawZoom(nextScale, nextPanX, nextPanY) {
+    const v = drawState.view;
+    v.scale = clamp(nextScale, 1, 8);
+    v.panX = nextPanX ?? v.panX;
+    v.panY = nextPanY ?? v.panY;
+    clampDrawView();
+    drawCanvasPaint();
+  }
+  function tickDrawKbdNav(dtSec) {
+    if (state.appMode !== "draw") return;
+    const nav = drawKbdNav;
+    const v = drawState.view;
+    const PAN_ACCEL = 2200;
+    const PAN_DECEL = 5e3;
+    const PAN_MAX = 560;
+    const ZOOM_ACCEL = 4.5;
+    const ZOOM_DECEL = 10;
+    const ZOOM_MAX = 2.2;
+    const wantLeft = nav.left && !nav.right;
+    const wantRight = nav.right && !nav.left;
+    if (wantLeft) v.velX = Math.min(PAN_MAX, v.velX + PAN_ACCEL * dtSec);
+    else if (wantRight) v.velX = Math.max(-PAN_MAX, v.velX - PAN_ACCEL * dtSec);
+    else if (v.velX > 0) v.velX = Math.max(0, v.velX - PAN_DECEL * dtSec);
+    else if (v.velX < 0) v.velX = Math.min(0, v.velX + PAN_DECEL * dtSec);
+    const wantUp = nav.up && !nav.down;
+    const wantDown = nav.down && !nav.up;
+    if (wantUp) v.velY = Math.min(PAN_MAX, v.velY + PAN_ACCEL * dtSec);
+    else if (wantDown) v.velY = Math.max(-PAN_MAX, v.velY - PAN_ACCEL * dtSec);
+    else if (v.velY > 0) v.velY = Math.max(0, v.velY - PAN_DECEL * dtSec);
+    else if (v.velY < 0) v.velY = Math.min(0, v.velY + PAN_DECEL * dtSec);
+    const wantIn = nav.zoomIn && !nav.zoomOut;
+    const wantOut = nav.zoomOut && !nav.zoomIn;
+    if (wantIn) v.velScale = Math.min(ZOOM_MAX, v.velScale + ZOOM_ACCEL * dtSec);
+    else if (wantOut) v.velScale = Math.max(-ZOOM_MAX, v.velScale - ZOOM_ACCEL * dtSec);
+    else if (v.velScale > 0) v.velScale = Math.max(0, v.velScale - ZOOM_DECEL * dtSec);
+    else if (v.velScale < 0) v.velScale = Math.min(0, v.velScale + ZOOM_DECEL * dtSec);
+    const movingPan = Math.abs(v.velX) > 0.5 || Math.abs(v.velY) > 0.5;
+    const movingZoom = Math.abs(v.velScale) > 1e-3;
+    if (movingPan || movingZoom) {
+      const prevX = v.panX;
+      const prevY = v.panY;
+      setDrawZoom(v.scale + v.velScale * dtSec, v.panX + v.velX * dtSec, v.panY + v.velY * dtSec);
+      if (v.panX === prevX) v.velX = 0;
+      if (v.panY === prevY) v.velY = 0;
+    }
+  }
+  function startDrawGesture() {
+    const ids = Object.keys(drawPointers);
+    if (ids.length < 2) return;
+    const p1 = drawPointers[ids[0]];
+    const p2 = drawPointers[ids[1]];
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    drawGesture = {
+      active: true,
+      startDist: Math.max(16, dist),
+      startScale: drawState.view.scale,
+      startPanX: drawState.view.panX,
+      startPanY: drawState.view.panY,
+      startMidX: mid.x,
+      startMidY: mid.y
+    };
+  }
+  function updateDrawGesture() {
+    if (!drawGesture?.active) return;
+    const ids = Object.keys(drawPointers);
+    if (ids.length < 2) return;
+    const p1 = drawPointers[ids[0]];
+    const p2 = drawPointers[ids[1]];
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const dist = Math.max(16, Math.hypot(p1.x - p2.x, p1.y - p2.y));
+    const nextScale = clamp(drawGesture.startScale * (dist / drawGesture.startDist), 1, 8);
+    const g = getDrawGeometry();
+    if (!g) return;
+    const { cx, cy } = g;
+    const startScale = Math.max(1e-4, drawGesture.startScale);
+    const anchorX = (drawGesture.startMidX - cx - drawGesture.startPanX) / startScale + cx;
+    const anchorY = (drawGesture.startMidY - cy - drawGesture.startPanY) / startScale + cy;
+    drawState.view.panX = mid.x - cx - (anchorX - cx) * nextScale;
+    drawState.view.panY = mid.y - cy - (anchorY - cy) * nextScale;
+    drawState.view.scale = nextScale;
+    clampDrawView();
+    drawCanvasPaint();
+  }
+  function resetDrawView() {
+    drawState.view.scale = 1;
+    drawState.view.panX = 0;
+    drawState.view.panY = 0;
+  }
+  function setDrawSize(nextSize) {
+    const normalized = normalizePatternSize(nextSize);
+    drawState.size = normalized;
+    drawState.grid = createDrawGrid(normalized);
+    resetDrawView();
+    if (els.drawSizeSelect) {
+      const has = [...els.drawSizeSelect.options].some((option) => Number(option.value) === normalized);
+      if (!has) {
+        const option = document.createElement("option");
+        option.value = String(normalized);
+        option.textContent = `${normalized}x${normalized}`;
+        els.drawSizeSelect.appendChild(option);
+      }
+      els.drawSizeSelect.value = String(normalized);
+    }
+    drawState.lastCellKey = "";
+    renderDrawStudio();
+  }
+  function resizeDrawGrid(oldGrid, oldSize, newSize, anchorRow, anchorCol) {
+    const offsetX = Math.round(anchorCol / 2 * (newSize - oldSize));
+    const offsetY = Math.round(anchorRow / 2 * (newSize - oldSize));
+    const newGrid = [];
+    for (let ny = 0; ny < newSize; ny += 1) {
+      for (let nx = 0; nx < newSize; nx += 1) {
+        const ox = nx - offsetX;
+        const oy = ny - offsetY;
+        newGrid.push(
+          ox >= 0 && ox < oldSize && oy >= 0 && oy < oldSize ? oldGrid[oy * oldSize + ox] : "."
+        );
+      }
+    }
+    return newGrid;
+  }
+  var drawResizePending = { size: 0, anchorRow: 1, anchorCol: 1 };
+  function openDrawResizeModal(newSize) {
+    drawResizePending.size = newSize;
+    drawResizePending.anchorRow = 1;
+    drawResizePending.anchorCol = 1;
+    if (els.drawAnchorGrid) {
+      els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
+        const r = Number(btn.dataset.row);
+        const c = Number(btn.dataset.col);
+        btn.setAttribute("aria-pressed", r === 1 && c === 1 ? "true" : "false");
+      });
+    }
+    if (els.drawResizeModal) {
+      els.drawResizeModal.classList.add("show");
+      els.drawResizeModal.setAttribute("aria-hidden", "false");
+    }
+  }
+  function closeDrawResizeModal(restoreSelectValue) {
+    if (els.drawResizeModal) {
+      els.drawResizeModal.classList.remove("show");
+      els.drawResizeModal.setAttribute("aria-hidden", "true");
+    }
+    if (restoreSelectValue && els.drawSizeSelect) {
+      els.drawSizeSelect.value = String(drawState.size);
+    }
+  }
+  function drawRowsFromGrid() {
+    const rows = [];
+    for (let y = 0; y < drawState.size; y += 1) {
+      rows.push(drawState.grid.slice(y * drawState.size, (y + 1) * drawState.size).join(""));
+    }
+    return rows;
+  }
+  function loadDrawRows(rows) {
+    const size = rows.length;
+    drawState.size = size;
+    drawState.grid = [];
+    for (let y = 0; y < size; y += 1) {
+      const row = rows[y] || "";
+      for (let x = 0; x < size; x += 1) {
+        const code = row[x] || ".";
+        drawState.grid.push(code === "." || palette[code] ? code : ".");
+      }
+    }
+    if (els.drawSizeSelect) {
+      const has = [...els.drawSizeSelect.options].some((option) => Number(option.value) === size);
+      if (!has) {
+        const option = document.createElement("option");
+        option.value = String(size);
+        option.textContent = `${size}x${size}`;
+        els.drawSizeSelect.appendChild(option);
+      }
+      els.drawSizeSelect.value = String(size);
+    }
+    drawState.lastCellKey = "";
+    resetDrawView();
+    ensureDrawPaletteColor();
+    renderDrawStudio();
+  }
+  function drawCellFromPointer(event) {
+    if (!els.drawCanvas) return null;
+    const rect = els.drawCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const g = getDrawGeometry();
+    if (!g) return null;
+    const { x0, y0, cell, size, cx, cy } = g;
+    const v = drawState.view;
+    const rawX = event.clientX - rect.left;
+    const rawY = event.clientY - rect.top;
+    const logX = (rawX - cx - v.panX) / v.scale + cx;
+    const logY = (rawY - cy - v.panY) / v.scale + cy;
+    const x = clamp(Math.floor((logX - x0) / cell), 0, size - 1);
+    const y = clamp(Math.floor((logY - y0) / cell), 0, size - 1);
+    return { x, y };
+  }
+  function paintDrawCell(x, y, code) {
+    const idx = drawIndex(x, y);
+    if (drawState.grid[idx] === code) return false;
+    drawState.grid[idx] = code;
+    return true;
+  }
+  function floodFillDraw(x, y, fillCode) {
+    const size = drawState.size;
+    const start = drawState.grid[drawIndex(x, y, size)];
+    if (start === fillCode) return false;
+    const queue = [[x, y]];
+    const seen = /* @__PURE__ */ new Set();
+    let changed = false;
+    while (queue.length) {
+      const [cx, cy] = queue.pop();
+      const key = `${cx},${cy}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const idx = drawIndex(cx, cy, size);
+      if (drawState.grid[idx] !== start) continue;
+      drawState.grid[idx] = fillCode;
+      changed = true;
+      if (cx > 0) queue.push([cx - 1, cy]);
+      if (cx < size - 1) queue.push([cx + 1, cy]);
+      if (cy > 0) queue.push([cx, cy - 1]);
+      if (cy < size - 1) queue.push([cx, cy + 1]);
+    }
+    return changed;
+  }
+  function applyDrawToolAt(x, y) {
+    const key = `${x},${y}`;
+    if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
+    drawState.lastCellKey = key;
+    if (drawState.tool === "eraser") return paintDrawCell(x, y, ".");
+    if (drawState.tool === "picker") {
+      const pick = drawState.grid[drawIndex(x, y)];
+      if (pick && pick !== "." && pick !== drawState.selectedColor) {
+        drawState.selectedColor = pick;
+        renderDrawStudio();
+      }
+      return false;
+    }
+    if (drawState.tool === "fill") return floodFillDraw(x, y, drawState.selectedColor);
+    return paintDrawCell(x, y, drawState.selectedColor);
+  }
+  function drawCanvasPaint() {
+    if (!els.drawCanvas) return;
+    ensureDrawGrid();
+    const canvas = els.drawCanvas;
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
+    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
+    const pxW = Math.round(cssW * dpr);
+    const pxH = Math.round(cssH * dpr);
+    if (canvas.width !== pxW || canvas.height !== pxH) {
+      canvas.width = pxW;
+      canvas.height = pxH;
+    }
+    const size = drawState.size;
+    const cell = Math.floor(Math.min(cssW, cssH) / size);
+    const gridSize = cell * size;
+    const x0 = Math.floor((cssW - gridSize) / 2);
+    const y0 = Math.floor((cssH - gridSize) / 2);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pxW, pxH);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#f5f8fb";
+    ctx.fillRect(0, 0, cssW, cssH);
+    const v = drawState.view;
+    const cx = x0 + gridSize / 2;
+    const cy = y0 + gridSize / 2;
+    ctx.save();
+    ctx.translate(cx + v.panX, cy + v.panY);
+    ctx.scale(v.scale, v.scale);
+    ctx.translate(-cx, -cy);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const code = drawState.grid[drawIndex(x, y, size)];
+        if (code && code !== ".") {
+          ctx.fillStyle = palette[code] || "#9aa4b3";
+          ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+        } else {
+          ctx.fillStyle = (x + y) % 2 ? "#f0f4f9" : "#ffffff";
+          ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+        }
+      }
+    }
+    ctx.strokeStyle = "rgba(116, 126, 147, 0.26)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= size; i += 1) {
+      const offset = i * cell;
+      ctx.beginPath();
+      ctx.moveTo(x0 + offset + 0.5, y0 + 0.5);
+      ctx.lineTo(x0 + offset + 0.5, y0 + gridSize + 0.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x0 + 0.5, y0 + offset + 0.5);
+      ctx.lineTo(x0 + gridSize + 0.5, y0 + offset + 0.5);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(69, 93, 122, 0.38)";
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, gridSize, gridSize);
+    ctx.restore();
+  }
+  function renderDrawPalette() {
+    if (!els.drawPalette) return;
+    ensureDrawPaletteColor();
+    const codes = allColorCodes();
+    const key = `${drawState.selectedColor}:${codes.join(",")}`;
+    if (key === drawRenderKey) return;
+    drawRenderKey = key;
+    if (els.drawPaletteMeta) {
+      els.drawPaletteMeta.textContent = `221\u8272\u677F`;
+    }
+    if (els.drawCurrentColorSwatch) {
+      if (drawState.selectedColor && palette[drawState.selectedColor]) {
+        els.drawCurrentColorSwatch.style.background = palette[drawState.selectedColor];
+      }
+    }
+    if (els.drawCurrentColorCode) {
+      els.drawCurrentColorCode.textContent = beadIds[drawState.selectedColor] || drawState.selectedColor;
+    }
+    els.drawPalette.innerHTML = codes.map((code) => {
+      const selected = drawState.selectedColor === code;
+      const label = beadIds[code] || code;
+      const isTransparent = beadIds[code] === "H1";
+      return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
+        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+        <span class="chip-label">${label}</span>
+      </button>`;
+    }).join("");
+  }
+  function renderDrawToolButtons() {
+    if (!els.drawingStudio) return;
+    els.drawingStudio.querySelectorAll("[data-draw-tool]").forEach((button) => {
+      const active = button.dataset.drawTool === drawState.tool;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+  function renderDrawStudio() {
+    if (state.appMode !== "draw") return;
+    ensureDrawGrid();
+    renderDrawPalette();
+    renderDrawToolButtons();
+    drawCanvasPaint();
+  }
+  function useDrawPattern() {
+    ensureDrawGrid();
+    const rows = drawRowsFromGrid();
+    const beadCount = rows.join("").replace(/\./g, "").length;
+    if (!beadCount) {
+      showToast2("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
+      return;
+    }
+    const pattern = {
+      id: "custom-draw",
+      name: "\u7ED8\u5236\u56FE\u7EB8",
+      size: drawState.size,
+      craft: "\u539F\u7248",
+      rows,
+      sourceRows: rows,
+      sourceSize: drawState.size,
+      note: "\u7ED8\u56FE\u53F0\u521B\u5EFA"
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(pattern);
+    loadPattern(pattern, false);
+    setAppMode("bead");
+    showToast2("\u7ED8\u56FE\u5DF2\u751F\u6210\u56FE\u7EB8\uFF0C\u5F00\u59CB\u62FC\u8C46\u3002");
+  }
   function applyBackgroundTheme(themeId = state.bgTheme) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
     const theme = currentBackgroundTheme();
@@ -6238,6 +7105,31 @@
     root.style.setProperty("--brand-tint-strong", theme.brandTintStrong || "rgba(87, 184, 167, 0.25)");
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     markDirty();
+  }
+  function setAppMode(mode) {
+    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : "home";
+    document.body.dataset.appMode = state.appMode;
+    if (state.appMode === "bead") {
+      state.uiDirty = true;
+      state.previewDirty = true;
+      state.renderDirty = true;
+      markDirty();
+      return;
+    }
+    if (state.appMode === "draw") {
+      ensureDrawPaletteColor();
+      renderDrawStudio();
+    }
+  }
+  function normalizedCustomDenoiseLevel(value) {
+    return clamp(Math.round(Number(value) || 0), 0, 100);
+  }
+  function setCustomDenoiseControls(level) {
+    const normalized = normalizedCustomDenoiseLevel(level);
+    state.customDenoiseLevel = normalized;
+    if (els.customDenoiseSlider) els.customDenoiseSlider.value = String(normalized);
+    if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
+    return normalized;
   }
   async function recomputeCustomHiddenRowsFromOriginal(pattern = state.selectedPattern) {
     if (!isCustomFromImagePattern(pattern)) return false;
@@ -6262,6 +7154,7 @@
       const result = convertImageToPattern(image, {
         removeWhite: pattern.sourceRemoveWhite !== false,
         size: pattern.size,
+        denoiseLevel: pattern.sourceDenoiseLevel ?? state.customDenoiseLevel,
         excludedCodes: hidden,
         allowPaletteExpansionOnExclude: true
       });
@@ -6296,49 +7189,6 @@
       }
     }
   }
-  async function setPaletteSize(size, silent = false) {
-    const next = Number.parseInt(size, 10);
-    if (!paletteSizeOptions.includes(next) || next === state.paletteSize) return;
-    state.paletteSize = next;
-    localStorage.setItem(paletteSizeKey, String(next));
-    const codes = allColorCodes();
-    if (!codes.includes(state.selectedColor)) {
-      state.selectedColor = codes[0] || "K";
-    }
-    state.trayColor = null;
-    state.trayBeans = 0;
-    state.trayCapacity = 0;
-    state.trayMatrix = [];
-    state.tweezerBead = null;
-    invalidateEffectiveMap();
-    state.previewDirty = true;
-    state.uiDirty = true;
-    if (isCustomFromImagePattern(state.selectedPattern)) {
-      try {
-        const image = await loadImageFromDataUrl(state.selectedPattern.sourceImageDataUrl);
-        const result = convertImageToPattern(image, {
-          removeWhite: state.selectedPattern.sourceRemoveWhite !== false,
-          size: state.selectedPattern.size
-        });
-        Object.assign(state.selectedPattern, {
-          rows: result.rows,
-          sourceRows: result.rows,
-          conversionStats: result.stats
-        });
-        state.lastConversionStats = result.stats;
-      } catch (error) {
-        showToast2("\u8272\u677F\u5DF2\u5207\u6362\uFF0C\u4F46\u81EA\u5B9A\u4E49\u56FE\u7EB8\u91CD\u7B97\u5931\u8D25\u3002");
-      }
-    }
-    normalizePatternColorMapForActivePalette();
-    invalidateEffectiveMap();
-    const patternColors = getPatternColors();
-    if (!patternColors.includes(state.selectedColor)) {
-      state.selectedColor = patternColors[0] || codes[0] || "K";
-    }
-    if (!silent) showToast2(`\u8272\u677F\u5DF2\u5207\u6362\u4E3A ${next} \u8272\u3002`);
-    markDirty();
-  }
   function setSizeControls2(size) {
     const normalized = normalizePatternSize(size);
     state.patternSize = normalized;
@@ -6369,6 +7219,9 @@
   }
   function loadPattern(pattern, keepPhase = false) {
     state.selectedPattern = pattern;
+    if (baseIdFor(pattern).startsWith("custom-")) {
+      setCustomDenoiseControls(pattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
+    }
     invalidateLayoutCache();
     if (baseIdFor(pattern).startsWith("custom-")) {
       closeRemapModal();
@@ -6608,7 +7461,8 @@
     try {
       const image = await loadImageFromDataUrl(basePattern.sourceImageDataUrl);
       const removeWhite = basePattern.sourceRemoveWhite !== false;
-      const result = convertImageToPattern(image, { removeWhite, size });
+      const denoiseLevel = normalizedCustomDenoiseLevel(basePattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
+      const result = convertImageToPattern(image, { removeWhite, size, denoiseLevel });
       const rows = result.rows;
       const beadCount = rows.join("").replace(/\./g, "").length;
       if (!beadCount) {
@@ -6621,9 +7475,11 @@
         rows,
         sourceRows: rows,
         sourceSize: size,
+        sourceDenoiseLevel: denoiseLevel,
         conversionStats: result.stats,
         note: `\u56FE\u7247\u81EA\u52A8\u8F6C\u8272\u53F7 \xB7 ${size}x${size}`
       };
+      invalidatePatternDataCaches(updated);
       const idx = patterns.findIndex((item) => baseIdFor(item) === baseIdFor(basePattern));
       if (idx >= 0) patterns[idx] = updated;
       state.lastConversionStats = result.stats;
@@ -6643,11 +7499,13 @@
         const image = await loadImageFromDataUrl(sourceImageDataUrl);
         const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
         const removeWhite = els.customWhiteToggle.checked;
+        const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
         setSizeControls(size);
         await new Promise((resolve) => setTimeout(resolve, 16));
         const result = convertImageToPattern(image, {
           removeWhite,
-          size
+          size,
+          denoiseLevel
         });
         const rows = result.rows;
         const beadCount = rows.join("").replace(/\./g, "").length;
@@ -6665,6 +7523,7 @@
           sourceSize: size,
           sourceImageDataUrl,
           sourceRemoveWhite: removeWhite,
+          sourceDenoiseLevel: denoiseLevel,
           conversionStats: result.stats,
           note: "\u56FE\u7247\u81EA\u52A8\u8F6C\u8272\u53F7"
         };
@@ -7659,6 +8518,7 @@
     const dt = Math.min(48, now - lastFrame);
     lastFrame = now;
     tickKbdNav(dt / 1e3);
+    tickDrawKbdNav(dt / 1e3);
     if (state.phase === "cool") {
       const heat = heatStats();
       const overPenalty = heat.overPercent > 18 ? 0.04 : 0;
@@ -7705,6 +8565,202 @@
     loadPattern(state.selectedPattern);
     showToast2("\u5DF2\u91CD\u7F6E\u5F53\u524D\u4F5C\u54C1\u3002");
   });
+  els.startBeadButton?.addEventListener("click", () => {
+    setAppMode("bead");
+  });
+  els.startDrawButton?.addEventListener("click", () => {
+    setAppMode("draw");
+  });
+  els.drawingBackButton?.addEventListener("click", () => {
+    setAppMode("home");
+  });
+  els.drawSettingsButton?.addEventListener("click", () => openSettingsModal());
+  els.drawResetButton?.addEventListener("click", () => {
+    ensureDrawGrid();
+    const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+    if (hasContent && !window.confirm("\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+    drawState.grid = createDrawGrid(drawState.size);
+    drawState.lastCellKey = "";
+    drawCanvasPaint();
+    showToast2("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
+  });
+  els.beadBackButton?.addEventListener("click", () => {
+    setAppMode("home");
+  });
+  els.drawSizeSelect?.addEventListener("change", () => {
+    const newSize = normalizePatternSize(els.drawSizeSelect.value);
+    const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+    if (hasContent && newSize !== drawState.size) {
+      openDrawResizeModal(newSize);
+    } else {
+      setDrawSize(newSize);
+    }
+  });
+  els.drawAnchorGrid?.addEventListener("click", (event) => {
+    const cell = event.target.closest(".anchor-cell");
+    if (!cell) return;
+    drawResizePending.anchorRow = Number(cell.dataset.row);
+    drawResizePending.anchorCol = Number(cell.dataset.col);
+    els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
+      btn.setAttribute("aria-pressed", btn === cell ? "true" : "false");
+    });
+  });
+  els.drawResizeConfirmBtn?.addEventListener("click", () => {
+    const newSize = normalizePatternSize(drawResizePending.size);
+    const { anchorRow, anchorCol } = drawResizePending;
+    const oldGrid = drawState.grid.slice();
+    const oldSize = drawState.size;
+    drawState.size = newSize;
+    drawState.grid = resizeDrawGrid(oldGrid, oldSize, newSize, anchorRow, anchorCol);
+    drawState.lastCellKey = "";
+    if (els.drawSizeSelect) {
+      const has = [...els.drawSizeSelect.options].some((o) => Number(o.value) === newSize);
+      if (!has) {
+        const opt = document.createElement("option");
+        opt.value = String(newSize);
+        opt.textContent = `${newSize}x${newSize}`;
+        els.drawSizeSelect.appendChild(opt);
+      }
+      els.drawSizeSelect.value = String(newSize);
+    }
+    closeDrawResizeModal(false);
+    renderDrawStudio();
+    showToast2(`\u753B\u5E03\u5DF2\u8C03\u6574\u4E3A ${newSize}x${newSize}\u3002`);
+  });
+  [els.drawResizeCancelBtn, els.drawResizeCloseBtn].forEach((btn) => {
+    btn?.addEventListener("click", () => closeDrawResizeModal(true));
+  });
+  els.drawingStudio?.addEventListener("click", (event) => {
+    const toolBtn = event.target.closest("[data-draw-tool]");
+    if (toolBtn) {
+      drawState.tool = toolBtn.dataset.drawTool || "brush";
+      drawState.lastCellKey = "";
+      renderDrawToolButtons();
+      return;
+    }
+    const colorBtn = event.target.closest("[data-draw-code]");
+    if (colorBtn) {
+      const code = colorBtn.dataset.drawCode;
+      if (code && palette[code]) {
+        drawState.selectedColor = code;
+        drawRenderKey = "";
+        renderDrawPalette();
+      }
+    }
+  });
+  els.drawClearButton?.addEventListener("click", () => {
+    ensureDrawGrid();
+    drawState.grid = createDrawGrid(drawState.size);
+    drawState.lastCellKey = "";
+    drawCanvasPaint();
+    showToast2("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
+  });
+  els.drawUsePatternButton?.addEventListener("click", () => {
+    useDrawPattern();
+  });
+  els.drawExportButton?.addEventListener("click", async () => {
+    ensureDrawGrid();
+    const pattern = {
+      id: "draw-export",
+      name: "\u7ED8\u5236\u56FE\u7EB8",
+      size: drawState.size,
+      rows: drawRowsFromGrid(),
+      craft: "\u539F\u7248"
+    };
+    const code = encodePatternCode(pattern);
+    if (els.drawCodeInput) els.drawCodeInput.value = code;
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast2("\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
+    } catch {
+      showToast2("\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\u3002");
+    }
+  });
+  els.drawImportButton?.addEventListener("click", () => {
+    const raw = els.drawCodeInput?.value || "";
+    const extracted = extractPatternCode(raw);
+    if (!extracted) {
+      showToast2("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u3002");
+      return;
+    }
+    try {
+      const decoded = decodePatternCode(extracted);
+      loadDrawRows(decoded.rows);
+      showToast2(`\u5DF2\u5012\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
+    } catch (error) {
+      showToast2("\u56FE\u7EB8\u7801\u65E0\u6548\uFF0C\u5012\u5165\u5931\u8D25\u3002");
+    }
+  });
+  var handleDrawPointer = (event) => {
+    const cell = drawCellFromPointer(event);
+    if (!cell) return;
+    const changed = applyDrawToolAt(cell.x, cell.y);
+    if (changed || drawState.tool === "fill") drawCanvasPaint();
+  };
+  if (els.drawCanvas) {
+    els.drawCanvas.addEventListener("pointerdown", (event) => {
+      els.drawCanvas.setPointerCapture(event.pointerId);
+      const rect = els.drawCanvas.getBoundingClientRect();
+      drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      if (Object.keys(drawPointers).length >= 2) {
+        drawState.drawing = false;
+        drawState.lastCellKey = "";
+        startDrawGesture();
+      } else {
+        drawState.drawing = true;
+        drawState.lastCellKey = "";
+        handleDrawPointer(event);
+      }
+    });
+    els.drawCanvas.addEventListener("pointermove", (event) => {
+      const rect = els.drawCanvas.getBoundingClientRect();
+      if (drawPointers[event.pointerId]) {
+        drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+      if (Object.keys(drawPointers).length >= 2 && drawGesture?.active) {
+        updateDrawGesture();
+        return;
+      }
+      if (!drawState.drawing) return;
+      if (drawState.tool === "fill" || drawState.tool === "picker") return;
+      handleDrawPointer(event);
+    });
+    const endDrawPointer = (event) => {
+      delete drawPointers[event.pointerId];
+      if (Object.keys(drawPointers).length < 2 && drawGesture) {
+        drawGesture.active = false;
+      }
+      if (Object.keys(drawPointers).length === 0) {
+        drawState.drawing = false;
+        drawState.lastCellKey = "";
+      }
+    };
+    els.drawCanvas.addEventListener("pointerup", endDrawPointer);
+    els.drawCanvas.addEventListener("pointerleave", (event) => {
+      endDrawPointer(event);
+    });
+    els.drawCanvas.addEventListener("pointercancel", endDrawPointer);
+    els.drawCanvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const rect = els.drawCanvas.getBoundingClientRect();
+      const mx = event.clientX - rect.left;
+      const my = event.clientY - rect.top;
+      const g = getDrawGeometry();
+      if (!g) return;
+      const { cx, cy } = g;
+      const v = drawState.view;
+      const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const nextScale = clamp(v.scale * factor, 1, 8);
+      const ratio = nextScale / v.scale;
+      const nextPanX = mx - cx - (mx - cx - v.panX) * ratio;
+      const nextPanY = my - cy - (my - cy - v.panY) * ratio;
+      setDrawZoom(nextScale, nextPanX, nextPanY);
+    }, { passive: false });
+    els.drawCanvas.addEventListener("dblclick", () => {
+      resetDrawView();
+      drawCanvasPaint();
+    });
+  }
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
   els.chooseStartButton?.addEventListener("click", () => {
     if (state.phase === "choose") setPhase("place");
@@ -7733,21 +8789,29 @@
     setSizeControls2(size);
     applyPatternSize(size);
   });
-  [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
-    picker?.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-palette-size]");
-      if (!button) return;
-      setPaletteSize(button.dataset.paletteSize);
-    });
+  var customDenoiseTimer = null;
+  els.customDenoiseSlider?.addEventListener("input", () => {
+    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
+    const current = state.selectedPattern;
+    if (!isCustomFromImagePattern(current)) return;
+    if (customDenoiseTimer) window.clearTimeout(customDenoiseTimer);
+    customDenoiseTimer = window.setTimeout(() => {
+      const base = findBasePattern(current);
+      base.sourceDenoiseLevel = level;
+      reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
+    }, 140);
   });
-  els.zoomInButton?.addEventListener("click", () => {
-    setBoardZoom(state.boardView.scale + 0.2, state.boardView.panX, state.boardView.panY);
-  });
-  els.zoomOutButton?.addEventListener("click", () => {
-    setBoardZoom(state.boardView.scale - 0.2, state.boardView.panX, state.boardView.panY);
-  });
-  els.zoomResetButton?.addEventListener("click", () => {
-    resetBoardView();
+  els.customDenoiseSlider?.addEventListener("change", () => {
+    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
+    const current = state.selectedPattern;
+    if (!isCustomFromImagePattern(current)) return;
+    if (customDenoiseTimer) {
+      window.clearTimeout(customDenoiseTimer);
+      customDenoiseTimer = null;
+    }
+    const base = findBasePattern(current);
+    base.sourceDenoiseLevel = level;
+    reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
   });
   els.customImageInput.addEventListener("change", handleCustomImage);
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
@@ -7773,43 +8837,86 @@
   els.shareModal?.addEventListener("click", (event) => {
     if (event.target === els.shareModal) closeShareModal();
   });
+  window.addEventListener("wheel", (e) => {
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+  }, { passive: false });
   window.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && (event.key === "+" || event.key === "-" || event.key === "=" || event.key === "_")) {
+      event.preventDefault();
+      return;
+    }
     if (!isTouchDevice()) {
-      const boardPhase = state.phase === "place" || state.phase === "inspect";
       const tag = document.activeElement?.tagName;
       const inputFocused = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-      if (boardPhase && !inputFocused && !getOpenModalEl()) {
+      if (!inputFocused && !getOpenModalEl()) {
         const k = event.key;
-        const nav = state.kbdNav;
-        if (k === "w" || k === "W" || k === "ArrowUp") {
-          event.preventDefault();
-          nav.up = true;
-          return;
+        const boardPhase = state.phase === "place" || state.phase === "inspect";
+        if (boardPhase) {
+          const nav = state.kbdNav;
+          if (k === "w" || k === "W" || k === "ArrowUp") {
+            event.preventDefault();
+            nav.up = true;
+            return;
+          }
+          if (k === "s" || k === "S" || k === "ArrowDown") {
+            event.preventDefault();
+            nav.down = true;
+            return;
+          }
+          if (k === "a" || k === "A" || k === "ArrowLeft") {
+            event.preventDefault();
+            nav.left = true;
+            return;
+          }
+          if (k === "d" || k === "D" || k === "ArrowRight") {
+            event.preventDefault();
+            nav.right = true;
+            return;
+          }
+          if (k === "z" || k === "Z") {
+            event.preventDefault();
+            nav.zoomIn = true;
+            return;
+          }
+          if (k === "x" || k === "X") {
+            event.preventDefault();
+            nav.zoomOut = true;
+            return;
+          }
         }
-        if (k === "s" || k === "S" || k === "ArrowDown") {
-          event.preventDefault();
-          nav.down = true;
-          return;
-        }
-        if (k === "a" || k === "A" || k === "ArrowLeft") {
-          event.preventDefault();
-          nav.left = true;
-          return;
-        }
-        if (k === "d" || k === "D" || k === "ArrowRight") {
-          event.preventDefault();
-          nav.right = true;
-          return;
-        }
-        if (k === "z" || k === "Z") {
-          event.preventDefault();
-          nav.zoomIn = true;
-          return;
-        }
-        if (k === "x" || k === "X") {
-          event.preventDefault();
-          nav.zoomOut = true;
-          return;
+        if (state.appMode === "draw") {
+          const k2 = event.key;
+          const nav = drawKbdNav;
+          if (k2 === "w" || k2 === "W" || k2 === "ArrowUp") {
+            event.preventDefault();
+            nav.up = true;
+            return;
+          }
+          if (k2 === "s" || k2 === "S" || k2 === "ArrowDown") {
+            event.preventDefault();
+            nav.down = true;
+            return;
+          }
+          if (k2 === "a" || k2 === "A" || k2 === "ArrowLeft") {
+            event.preventDefault();
+            nav.left = true;
+            return;
+          }
+          if (k2 === "d" || k2 === "D" || k2 === "ArrowRight") {
+            event.preventDefault();
+            nav.right = true;
+            return;
+          }
+          if (k2 === "z" || k2 === "Z") {
+            event.preventDefault();
+            nav.zoomIn = true;
+            return;
+          }
+          if (k2 === "x" || k2 === "X") {
+            event.preventDefault();
+            nav.zoomOut = true;
+            return;
+          }
         }
       }
     }
@@ -7838,20 +8945,42 @@
       enlarged.classList.remove("show");
       return;
     }
+    if (els.drawResizeModal?.classList.contains("show")) {
+      closeDrawResizeModal(true);
+      return;
+    }
     if (state.remapModalOpen) closeRemapModal();
     if (state.collectionModalOpen) closeCollectionModal();
     if (state.settingsModalOpen) closeSettingsModal();
     if (state.shareModalOpen) closeShareModal();
   });
   window.addEventListener("keyup", (event) => {
-    const nav = state.kbdNav;
     const k = event.key;
-    if (k === "w" || k === "W" || k === "ArrowUp") nav.up = false;
-    if (k === "s" || k === "S" || k === "ArrowDown") nav.down = false;
-    if (k === "a" || k === "A" || k === "ArrowLeft") nav.left = false;
-    if (k === "d" || k === "D" || k === "ArrowRight") nav.right = false;
-    if (k === "z" || k === "Z") nav.zoomIn = false;
-    if (k === "x" || k === "X") nav.zoomOut = false;
+    const nav = state.kbdNav;
+    if (k === "w" || k === "W" || k === "ArrowUp") {
+      nav.up = false;
+      drawKbdNav.up = false;
+    }
+    if (k === "s" || k === "S" || k === "ArrowDown") {
+      nav.down = false;
+      drawKbdNav.down = false;
+    }
+    if (k === "a" || k === "A" || k === "ArrowLeft") {
+      nav.left = false;
+      drawKbdNav.left = false;
+    }
+    if (k === "d" || k === "D" || k === "ArrowRight") {
+      nav.right = false;
+      drawKbdNav.right = false;
+    }
+    if (k === "z" || k === "Z") {
+      nav.zoomIn = false;
+      drawKbdNav.zoomIn = false;
+    }
+    if (k === "x" || k === "X") {
+      nav.zoomOut = false;
+      drawKbdNav.zoomOut = false;
+    }
   });
   window.addEventListener("resize", onResize);
   setAutoSaveHook(scheduleAutoSave);
@@ -7879,7 +9008,9 @@
     copyShareText
   });
   validatePatterns();
+  setAppMode("home");
   loadPattern(resizePattern(patterns[0], state.patternSize));
+  setCustomDenoiseControls(state.customDenoiseLevel);
   applyBackgroundTheme(state.bgTheme);
   if (!loadAutoSave()) {
     setPhase("choose");

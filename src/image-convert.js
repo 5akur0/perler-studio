@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { palette, beadIds } from './palette.js';
+import { palette, beadIds, workshopCodeForMard } from './palette.js';
 import { clamp, rgbToOklab, oklabDistance, hexToRgb, beadOklab } from './color-utils.js';
 import { allColorCodes, normalizePatternSize } from './pattern.js';
 
@@ -19,34 +19,44 @@ export function imageToPatternRows(image, removeWhite, size = state.patternSize)
 export function convertImageToPattern(image, options = {}) {
   const targetSize = normalizePatternSize(options.size || state.patternSize);
   const removeWhite = options.removeWhite !== false;
+  const denoiseSliderLevel = clamp(Math.round(Number(options.denoiseLevel) || 0), 0, 100);
+  const denoiseLevel = clamp(denoiseSliderLevel + 25, 0, 100);
+  const denoiseEffect = denoiseLevel - 50;
   const excludedCodes = new Set((options.excludedCodes || []).filter((code) => palette[code]));
   const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
   const raw = sampleImageToRgba(image, targetSize, false);
   const rawMask = buildActiveMask(raw, removeWhite);
   const sourceProfile = estimateSourceProfile(raw, rawMask);
+  if (denoiseEffect > 0) sourceProfile.useDenoise = true;
+  if (denoiseEffect < 0) sourceProfile.useDenoise = false;
   const dominant = convertImageToDominantGrid(
     image,
     targetSize,
     removeWhite,
     sourceProfile,
     excludedCodes,
-    allowExpansion
+    allowExpansion,
+    denoiseEffect
   );
   if (!dominant.activeCells.length) {
-    return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile);
+    return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile, denoiseSliderLevel);
   }
   const grid = dominant.grid;
   const preCleanupColorCount = countGridColors(grid).colors.length;
-  let cleaned = removeSpeckles(grid, targetSize, 1, sourceProfile);
+  const speckRounds = denoiseEffect > 0 ? 1 + Math.floor(denoiseEffect / 20) : 0;
+  let cleaned = speckRounds > 0 ? removeSpeckles(grid, targetSize, speckRounds, sourceProfile) : grid.slice();
+  if (denoiseEffect >= 15) cleaned = cleanupSmallComponents(cleaned, targetSize, sourceProfile);
+  if (denoiseEffect >= 30) cleaned = cleanupSmallComponents(cleaned, targetSize, { ...sourceProfile, likelyPixelArt: false });
+  if (denoiseEffect >= 40) cleaned = consensusRebalanceGrid(cleaned, targetSize, sourceProfile);
   if (sourceProfile.logoLike || targetSize <= 16) {
     cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
   }
   cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
   const rows = gridToRows(cleaned, targetSize);
-  return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile);
+  return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile, denoiseSliderLevel);
 }
 
-export function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion) {
+export function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion, denoiseEffect = 0) {
   const analysisSize = clamp(
     Math.round(targetSize * (sourceProfile.logoLike ? 7.5 : sourceProfile.likelyPixelArt ? 6.5 : 6)),
     targetSize,
@@ -54,7 +64,12 @@ export function convertImageToDominantGrid(image, targetSize, removeWhite, sourc
   );
   const analysis = sampleImageToRgba(image, analysisSize, true);
   const externalWhiteMask = removeWhite ? buildExternalWhiteMask(analysis) : null;
-  const availableCodes = allColorCodes().filter((code) => !excludedCodes.has(code));
+  const transparentWhiteCode = workshopCodeForMard("H1");
+  const opaqueWhiteCode = workshopCodeForMard("H2");
+  const avoidTransparentWhite = transparentWhiteCode && opaqueWhiteCode && !excludedCodes.has(opaqueWhiteCode);
+  const effectiveExcluded = new Set(excludedCodes);
+  if (avoidTransparentWhite) effectiveExcluded.add(transparentWhiteCode);
+  const availableCodes = allColorCodes().filter((code) => !effectiveExcluded.has(code));
   if (!availableCodes.length) {
     return { grid: Array(targetSize * targetSize).fill("."), activeCells: [], lockedPalette: [] };
   }
@@ -90,20 +105,39 @@ export function convertImageToDominantGrid(image, targetSize, removeWhite, sourc
   }
   let maxColors = chooseSimplifiedColorCount(targetSize, activeCells.length, sourceProfile);
   if (allowExpansion) maxColors = clamp(maxColors + 2, 2, 16);
+  maxColors = applyDenoiseColorCompression(maxColors, denoiseEffect);
   const clusters = simplifyColors(activeCells, maxColors);
   const paletteHint = getPaletteLimitHint(sourceProfile);
   let finalPaletteCap = chooseFinalPaletteCap(targetSize, activeCells.length, sourceProfile, clusters.length);
   if (allowExpansion) finalPaletteCap = clamp(finalPaletteCap + 2, 2, 14);
+  finalPaletteCap = applyDenoiseColorCompression(finalPaletteCap, denoiseEffect);
   if (paletteHint <= 3) finalPaletteCap = Math.min(finalPaletteCap, paletteHint);
-  const lockedPalette = selectPaletteCodes(clusters, finalPaletteCap, excludedCodes);
+  const lockedPalette = selectPaletteCodes(clusters, finalPaletteCap, effectiveExcluded);
   if (!lockedPalette.length) {
     return { grid: Array(targetSize * targetSize).fill("."), activeCells, lockedPalette: [] };
   }
   const grid = Array(targetSize * targetSize).fill(".");
   activeCells.forEach((cell) => {
-    grid[cell.index] = nearestCodeFromSet(cell.lab, lockedPalette, excludedCodes);
+    grid[cell.index] = nearestCodeFromSet(cell.lab, lockedPalette, effectiveExcluded);
   });
   return { grid, activeCells, lockedPalette };
+}
+
+export function applyDenoiseColorCompression(limit, denoiseEffect = 0) {
+  const effect = clamp(Math.round(Number(denoiseEffect) || 0), -50, 50);
+  if (effect === 0) return limit;
+  if (effect < 0) {
+    let expanded = Math.round(limit * (1 + Math.abs(effect) * 0.0045));
+    if (effect <= -20) expanded += 1;
+    if (effect <= -40) expanded += 1;
+    return clamp(expanded, 2, 14);
+  }
+  let compressed = Math.max(2, Math.round(limit * (1 - effect * 0.0068)));
+  if (effect >= 24) compressed = Math.min(compressed, limit - 1);
+  if (effect >= 34) compressed = Math.min(compressed, limit - 2);
+  if (effect >= 42) compressed = Math.min(compressed, limit - 3);
+  if (effect >= 48) compressed = Math.min(compressed, limit - 4);
+  return clamp(compressed, 2, 14);
 }
 
 function dominantColorInRegion(data, width, startX, startY, endX, endY, removeWhite, externalWhiteMask = null) {
@@ -847,7 +881,7 @@ export function countGridColors(grid) {
   };
 }
 
-export function makeConversionResult(rows, size, simplifiedColorCount, preCleanupColorCount, sourceProfile = null) {
+export function makeConversionResult(rows, size, simplifiedColorCount, preCleanupColorCount, sourceProfile = null, denoiseLevel = 0) {
   const stats = countGridColors(rows.join("").split(""));
   return {
     rows,
@@ -860,6 +894,7 @@ export function makeConversionResult(rows, size, simplifiedColorCount, preCleanu
       sourceSignificantCount: sourceProfile?.significantCount || stats.colors.length,
       sourceCoarseCount: sourceProfile?.coarseCount || stats.colors.length,
       denoised: Boolean(sourceProfile?.useDenoise),
+      denoiseLevel: clamp(Math.round(Number(denoiseLevel) || 0), 0, 100),
     },
   };
 }

@@ -17,6 +17,7 @@ export function mardCodeSort(a, b) {
 export const palette = {
   Q: "#FAF4C8",
   q: "#FFFFFF",
+  U: "#FDFBFF",
   W: "#FDFBFF",
   w: "#F2D9BA",
   A: "#FFDD99",
@@ -68,7 +69,8 @@ export const palette = {
 export const beadIds = {
   Q: "A1",
   q: "T1",
-  W: "H1",
+  U: "H1",
+  W: "H2",
   w: "G16",
   A: "A11",
   a: "A18",
@@ -133,13 +135,6 @@ Object.entries(mardColorData).forEach(([mardCode, hex]) => {
   beadIds[internalCode] = normalized;
 });
 
-export const paletteSizeOptions = [48, 96, 221];
-export const paletteSizeKey = "beadWorkshopPaletteSize.v1";
-
-export function readPaletteSize() {
-  const stored = Number.parseInt(localStorage.getItem(paletteSizeKey) || "", 10);
-  return paletteSizeOptions.includes(stored) ? stored : 48;
-}
 
 export function workshopCodeForMard(mardCode) {
   return mardCodeToWorkshopCode[normalizeMardCode(mardCode)] || normalizeMardCode(mardCode);
