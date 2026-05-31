@@ -31,6 +31,7 @@ export const els = {
   drawUsePatternButton: $("#drawUsePatternButton"),
   drawCodeInput: $("#drawCodeInput"),
   drawPaletteMeta: $("#drawPaletteMeta"),
+  drawRecentColors: $("#drawRecentColors"),
   drawPalette: $("#drawPalette"),
   beadBackButton: $("#beadBackButton"),
   statusLine: $("#statusLine"),
@@ -89,5 +90,4 @@ export const els = {
   toast: $("#toast"),
   placeHint: $("#placeHint"),
   achievementToast: $("#achievementToast"),
-  stepBadge: $("#stepBadge"),
 };

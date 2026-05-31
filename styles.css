@@ -148,7 +148,7 @@ body[data-app-mode="draw"] .bead-studio-grid {
 }
 
 .start-screen-inner {
-  width: min(980px, 100%);
+  width: min(520px, 100% - 48px);
   border: 1px solid rgba(139, 148, 166, 0.36);
   border-radius: var(--r-lg);
   background:
@@ -158,17 +158,16 @@ body[data-app-mode="draw"] .bead-studio-grid {
 }
 
 .start-screen-inner {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.9fr) minmax(320px, 1.35fr);
-  gap: 24px;
-  align-items: stretch;
-  padding: clamp(22px, 5vw, 46px);
-}
-
-.start-copy {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 28px;
+  padding: clamp(28px, 5vw, 48px);
+}
+
+.start-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .start-kicker {
@@ -182,84 +181,95 @@ body[data-app-mode="draw"] .bead-studio-grid {
   font-weight: 800;
 }
 
-.start-copy h1 {
-  margin: 14px 0 0;
+.start-brand h1 {
+  margin: 0;
   color: var(--brand-ink);
   font-family: "Varela Round", "Nunito", "PingFang SC", sans-serif;
+  font-size: 36px;
+  line-height: 1.05;
   letter-spacing: 0;
 }
 
-.start-copy h1 {
-  font-size: 42px;
-  line-height: 1.05;
-}
-
-.start-copy p {
-  max-width: 360px;
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: var(--fs-md);
-  line-height: 1.7;
-}
-
-.start-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.start-card {
-  min-height: 260px;
+.start-rows {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  align-items: flex-start;
   gap: 10px;
-  padding: 22px;
+}
+
+.start-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  min-height: 78px;
   border-radius: var(--r-md);
   text-align: left;
-  overflow: hidden;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  transition: transform 0.12s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
-.start-card-bead {
-  border-color: color-mix(in srgb, var(--brand) 38%, var(--line));
-  background:
-    linear-gradient(160deg, rgba(87, 184, 167, 0.2), rgba(255, 255, 255, 0) 46%),
-    #fff;
+.start-row:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-2);
 }
 
-.start-card-draw {
-  border-color: color-mix(in srgb, var(--coral) 34%, var(--line));
-  background:
-    linear-gradient(160deg, rgba(231, 100, 95, 0.16), rgba(255, 255, 255, 0) 48%),
-    #fff;
+.start-row-bead:hover {
+  border-color: color-mix(in srgb, var(--brand) 60%, var(--line));
 }
 
-.start-card-icon {
-  width: 54px;
-  height: 54px;
+.start-row-draw:hover {
+  border-color: color-mix(in srgb, var(--coral) 55%, var(--line));
+}
+
+.start-row-icon {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: var(--r-sm);
-  background: var(--surface-2);
+}
+
+.start-row-bead .start-row-icon {
+  background: color-mix(in srgb, var(--brand) 14%, white);
   color: var(--brand-ink);
-  font-size: 29px;
-  font-weight: 800;
 }
 
-.start-card-icon svg {
-  display: block;
+.start-row-draw .start-row-icon {
+  background: color-mix(in srgb, var(--coral) 12%, white);
+  color: #a03330;
 }
 
-.start-card strong {
-  font-size: var(--fs-xl);
+.start-row-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.start-row-body strong {
+  font-size: var(--fs-md);
+  font-weight: 700;
   line-height: 1;
+  color: var(--ink);
 }
 
-.start-card small {
-  color: var(--muted);
+.start-row-body small {
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.start-row-arrow {
+  flex-shrink: 0;
+  color: var(--line);
+  transition: color 0.14s ease, transform 0.14s ease;
+}
+
+.start-row:hover .start-row-arrow {
+  color: var(--muted);
+  transform: translateX(2px);
 }
 
 .drawing-studio {
@@ -407,6 +417,19 @@ body[data-app-mode="draw"] .bead-studio-grid {
   margin-bottom: 2px;
 }
 
+.draw-recent-colors {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
+.draw-recent-colors:empty {
+  display: none;
+}
+
 @media (max-width: 860px) {
   .start-screen,
   .drawing-studio {
@@ -414,29 +437,100 @@ body[data-app-mode="draw"] .bead-studio-grid {
   }
 
   .start-screen-inner {
-    grid-template-columns: 1fr;
-    padding: 22px;
+    padding: 24px;
   }
 
-  .start-copy h1 {
-    font-size: 32px;
+  .start-brand h1 {
+    font-size: 28px;
   }
 
-  .start-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .start-card {
-    min-height: 168px;
-  }
-
-  .drawing-topbar {
-    align-items: stretch;
-    flex-direction: column;
+  .drawing-studio {
+    min-height: 0;
   }
 
   .drawing-studio-grid {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .drawing-canvas-panel {
+    order: -1;
+    overflow-y: visible;
+  }
+
+  .drawing-canvas-surface .section-title {
+    display: none;
+  }
+
+  .drawing-canvas-wrap {
+    aspect-ratio: 1 / 1;
+    max-height: 56vh;
+    height: auto;
+  }
+
+  .drawing-tools-panel {
+    order: 2;
+  }
+
+  .drawing-tools-panel section {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .drawing-tools-panel .section-title {
+    display: none;
+  }
+
+  .drawing-tools-panel .drawing-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .drawing-tools-panel .drawing-group > label,
+  .drawing-tools-panel .drawing-group > span {
+    display: none;
+  }
+
+  .drawing-tools-panel .drawing-group select {
+    min-height: 36px;
+  }
+
+  .drawing-tools-panel .tool-toggle {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .drawing-actions {
+    flex: 0 0 100%;
+    margin-top: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  .drawing-actions .primary-button {
+    grid-column: 1 / -1;
+    min-height: 44px;
+  }
+
+  .drawing-palette-panel {
+    order: 1;
+  }
+
+  .draw-recent-colors {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  #drawCodeInput {
+    display: none;
+  }
+
+  #drawCodeInput[data-open] {
+    display: block;
   }
 
   .drawing-palette-grid {
@@ -624,11 +718,6 @@ body[data-app-mode="draw"] .bead-studio-grid {
 
 .brand-mark span:nth-child(4) {
   background: var(--blue);
-}
-
-/* P2-3: 步骤徽章 — 桌面默认隐藏，手机端样式在 @media(860px) 块内 */
-.step-badge {
-  display: none;
 }
 
 .top-stats {
@@ -1022,6 +1111,29 @@ body[data-app-mode="draw"] .bead-studio-grid {
   max-height: 360px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.pattern-import-row {
+  display: flex;
+  gap: 8px;
+}
+
+.pattern-import-half {
+  flex: 1;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pattern-import-half:hover {
+  background: var(--surface-2);
+  border-color: var(--brand-edge);
 }
 
 .custom-inline {
@@ -3123,20 +3235,6 @@ body[data-app-mode="draw"] .bead-studio-grid {
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
 
-  /* P2-3: 当前步骤徽章 — 仅手机端显示 */
-  .step-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: var(--r-pill);
-    background: color-mix(in srgb, var(--brand) 14%, white);
-    border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
-    color: var(--brand-ink);
-    font-size: 12px;
-    font-weight: 750;
-    white-space: nowrap;
-    line-height: 1.3;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════
