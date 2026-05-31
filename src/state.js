@@ -1,10 +1,11 @@
-import { readPaletteSize } from './palette.js';
 import { patterns } from './patterns-data.js';
 
 export const state = {
+  appMode: "home",
   phase: "choose",
   patternSize: 24,
-  paletteSize: readPaletteSize(),
+  customDenoiseLevel: 25,
+  paletteSize: 221,
   selectedPattern: patterns[0],
   patternColorMaps: {},
   patternColorMap: {},
@@ -113,4 +114,3 @@ export const state = {
   pendingPageReset: false,
   placedVersion: 0,
 };
-

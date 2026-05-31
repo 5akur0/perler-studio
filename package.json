@@ -9,6 +9,7 @@
     "watch": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js --watch"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "wrangler": "^4.95.0"
   }
 }

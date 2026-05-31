@@ -319,7 +319,7 @@ export function computeLayout(rect) {
   const boardX = 34;
   const boardY = 42;
   const trayGap = 34;       // gap between right edge of board and left edge of tray
-  const trayRightMargin = 34;
+  const trayRightMargin = 12;
   const minTrayW = 180;     // minimum tray width; board shrinks to guarantee this fits
   const maxBoardForTray = w - boardX - trayGap - minTrayW - trayRightMargin;
   const rawBoard = Math.min(h - 78, w * 0.64, 590, maxBoardForTray);
@@ -628,10 +628,6 @@ export function drawLampSwitch(layout) {
   ctx.quadraticCurveTo(cx, cy + bodyR * 0.18, cx + bodyR * 0.34, cy - rect.h * 0.06);
   ctx.stroke();
 
-  ctx.fillStyle = "rgba(38, 36, 43, 0.72)";
-  ctx.font = "700 10px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(state.lampOn ? "ON" : "OFF", cx, rect.y + rect.h + 12);
   ctx.textAlign = "left";
   ctx.restore();
 }
@@ -900,9 +896,11 @@ export function drawBoard(layout) {
   ctx.scale(boardView.scale, boardView.scale);
   ctx.translate(-boardView.cx, -boardView.cy);
 
-  ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
-  ctx.shadowBlur = 26;
-  ctx.shadowOffsetY = 14;
+  if (!useMobileDirectPlacement()) {
+    ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
+    ctx.shadowBlur = 26;
+    ctx.shadowOffsetY = 14;
+  }
   const baseGradient = ctx.createLinearGradient(boardX, boardY - 14, boardX, boardY + boardSize + 14);
   baseGradient.addColorStop(0, "#f6f8fa");
   baseGradient.addColorStop(1, "#d9e0e4");

@@ -55,17 +55,6 @@ export function setSizeControls(size) {
   if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
 }
 
-export function renderPaletteSizeControls() {
-  [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
-    if (!picker) return;
-    picker.querySelectorAll("[data-palette-size]").forEach((button) => {
-      const size = Number.parseInt(button.dataset.paletteSize, 10);
-      const active = size === state.paletteSize;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-    });
-  });
-}
 
 let patternColorStatsRenderKey = "";
 export function renderPatternColorStats() {
@@ -217,18 +206,28 @@ export function renderPatterns() {
 }
 
 export function drawPatternThumb(canvas, pattern) {
+  const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+  const cssSize = canvas.clientWidth || Number(canvas.getAttribute("width")) || 58;
+  const dim = Math.round(cssSize * dpr);
+  if (canvas.width !== dim || canvas.height !== dim) {
+    canvas.width = dim;
+    canvas.height = dim;
+  }
   const ctx = canvas.getContext("2d");
-  const cell = Math.floor(canvas.width / pattern.size);
-  const offset = Math.floor((canvas.width - cell * pattern.size) / 2);
+  const cell = dim / pattern.size;
   const rows = pattern.rows || [];
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, dim, dim);
   ctx.fillStyle = "#f4f6f8";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, dim, dim);
   rows.forEach((row, y) => {
     [...row].forEach((code, x) => {
       if (code === ".") return;
+      const px = Math.round(x * cell);
+      const py = Math.round(y * cell);
+      const pw = Math.round((x + 1) * cell) - px;
+      const ph = Math.round((y + 1) * cell) - py;
       ctx.fillStyle = palette[code];
-      ctx.fillRect(offset + x * cell, offset + y * cell, Math.max(1, cell - 1), Math.max(1, cell - 1));
+      ctx.fillRect(px, py, pw, ph);
     });
   });
 }
@@ -641,10 +640,12 @@ export function renderPalette() {
     }
     return;
   }
+  const isMobile = useMobileDirectPlacement();
   const counts = getTargetCounts();
   const placedCounts = getPlacedCounts();
-  const codes = allColorCodes();
-  const key = ["place", state.paletteSize, state.selectedColor, state.tweezerBead || "", state.placedVersion, getPatternAnalysis().key].join(":");
+  const allCodes = allColorCodes();
+  const codes = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes;
+  const key = ["place", isMobile ? "m" : "d", state.selectedColor, state.tweezerBead || "", state.placedVersion, getPatternAnalysis().key].join(":");
   if (key === paletteRenderKey) return;
   paletteRenderKey = key;
   els.colorPalette.innerHTML = "";
@@ -655,8 +656,8 @@ export function renderPalette() {
     const remaining = Math.max(0, needed - placed);
     const isSelected = state.selectedColor === code;
     const button = document.createElement("button");
-    const isHeld = state.tweezerBead === code;
-    button.className = `color-chip${isSelected ? " active" : ""}${inPattern ? " needed" : ""}${isHeld ? " held" : ""}`;
+    const isHeld = !isMobile && state.tweezerBead === code;
+    button.className = `color-chip${isSelected ? " active" : ""}${inPattern && !isMobile ? " needed" : ""}${isHeld ? " held" : ""}`;
     button.type = "button";
     button.title = `${beadLabel(code)}：${placed}/${needed}`;
     const isTransparent = beadIds[code] === "H1";
@@ -667,7 +668,7 @@ export function renderPalette() {
       `;
     button.addEventListener("click", () => {
       state.selectedColor = code;
-      if (state.phase === "place" && !useMobileDirectPlacement()) uiActions.pourSelectedColor?.();
+      if (state.phase === "place" && !isMobile) uiActions.pourSelectedColor?.();
       markDirty();
     });
     els.colorPalette.appendChild(button);
@@ -967,14 +968,14 @@ export function renderUI() {
   renderControls();
   renderToolRack();
   renderPalette();
-  renderPaletteSizeControls();
+
   renderCustomStats();
   renderPatternColorStats();
   renderSidebarReference();
   const collection = uiActions.getCollection?.() || [];
   const counts = getTargetCounts();
   const colorCount = Object.keys(counts).length;
-  if (els.patternMeta) els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size} · ${state.paletteSize}色板`;
+  if (els.patternMeta) els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
   if (els.targetCount) els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
   if (els.collectionCount) els.collectionCount.textContent = String(collection.length);
   if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
@@ -1005,7 +1006,6 @@ export function renderUI() {
   const showPlacementUi = state.phase === "place";
   // Mobile uses direct tap-to-place — no needle/tweezers tool selection.
   const showToolUi = showPlacementUi && !useMobileDirectPlacement();
-  const showBoardZoomUi = state.phase === "place" || state.phase === "inspect";
   if (!showPlacementUi) {
     state.lastPlaceHintKey = "";
     hidePlaceHint();
@@ -1015,7 +1015,6 @@ export function renderUI() {
   if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
   if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
   if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
-  if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
 
   // P2-3: 手机端步骤徽章（桌面端 CSS display:none，JS 控制内容）
   if (els.stepBadge) {

@@ -54,25 +54,25 @@ export const patternSeeds = [
   },
   {
     id: "lake-whale",
-    name: "湖边小鲸",
+    name: "热带小鱼",
     size: 16,
     craft: "杯垫",
     rows: [
       "................",
-      ".......W........",
-      "......W.W.......",
       "................",
+      "........Y.......",
+      ".......YYY......",
+      ".....OOOYY......",
+      "...OOOORYYY..Y..",
+      "..OOOOKRYYYY.YY.",
+      ".OOOOORRYYYYYYYY",
+      ".OOOOORRYYYYYYYY",
+      "..OOOORYYYYY.YY.",
+      "...OOOYYYYY..Y..",
+      ".....OOYYYY.....",
+      ".......YY.......",
+      "........Y.......",
       "................",
-      ".....BBBBBB.....",
-      "...BBBBBBBBBB...",
-      "..BBBBBBBBBBBB..",
-      ".BBBBWWBBBBBBBB.",
-      "BBBBWWBBBBBBBBBB",
-      "BBBBBBBBBBBBBBBB",
-      ".BBBBBBBBBBBBBB.",
-      "..BBBBBBBBBBBB..",
-      "...BBBB..BBBB...",
-      ".....BB..BB.....",
       "................",
     ],
     note: "",
@@ -88,11 +88,11 @@ export const patternSeeds = [
       "...RPRR..RRPR...",
       "..RPPPRRRRPPPR..",
       ".RPPPPPPPPPPPPR.",
-      ".RPPPPPWPPPPPPR.",
-      ".RPPPPWWWPPPPPR.",
-      "..RPPWWWWWPPPR..",
-      "...RPPWWWPPPR...",
-      "....RPPWPPPR....",
+      ".RPPPPPUPPPPPPR.",
+      ".RPPPPUUUPPPPPR.",
+      "..RPPUUUUUPPPR..",
+      "...RPPUUUPPPR...",
+      "....RPPUPPPR....",
       ".....RPPPPR.....",
       "......RPPR......",
       ".......RR.......",
@@ -110,8 +110,8 @@ export const patternSeeds = [
     rows: [
       "................",
       "....KKKKKKKK....",
-      "...KWWWWWWWK....",
-      "...KWWWWWWWK....",
+      "...KUUUUUUUK....",
+      "...KUUUUUUUK....",
       "...KAAAAAAAKKK..",
       "...KAAAAAAAKMMK.",
       "...KZZZZZZZKMMK.",
@@ -335,19 +335,19 @@ export const patternSeeds = [
     rows: [
       "................",
       "................",
-      ".....WWWWWW.....",
-      "....WWWWWWWW....",
-      "...WWWWWWWWWW...",
-      "...WWKKWWKKWW...",
-      "...WWKKWWKKWW...",
-      "...WWWWWWWWWW...",
-      "...WWWFFFFWWWW..",
-      "...WWWWWWWWWWW..",
-      "...WWWWWWWWWWW..",
-      "...WWWWWWWWWWW..",
-      "...WWWWWWWWWWW..",
-      "...WW.WW.WW.WW..",
-      "....W..W..W..W..",
+      ".....UUUUUU.....",
+      "....UUUUUUUU....",
+      "...UUUUUUUUUU...",
+      "...UUKKUUKKUU...",
+      "...UUKKUUKKUU...",
+      "...UUUUUUUUUU...",
+      "...UUUFFFFUUUU..",
+      "...UUUUUUUUUUU..",
+      "...UUUUUUUUUUU..",
+      "...UUUUUUUUUUU..",
+      "...UUUUUUUUUUU..",
+      "...UU.UU.UU.UU..",
+      "....U..U..U..U..",
       "................",
     ],
     note: "",
@@ -490,7 +490,100 @@ export function resamplePatternRows(sourceRows, sourceSize, targetSize) {
     }
     rows.push(row);
   }
+  if (targetSize < sourceSize) {
+    return restoreTinyComponents(rows, sourceRows, sourceSize, targetSize, scale);
+  }
   return rows;
+}
+
+function restoreTinyComponents(rows, sourceRows, sourceSize, targetSize, scale) {
+  const grid = rows.map((row) => row.split(""));
+  const visited = Array(sourceSize * sourceSize).fill(false);
+  const detailLimit = Math.max(2, Math.round(scale * scale * 2));
+  const sourceCounts = {};
+  for (let y = 0; y < sourceSize; y += 1) {
+    const row = sourceRows[y] || "";
+    for (let x = 0; x < sourceSize; x += 1) {
+      const code = row[x];
+      if (!code || code === ".") continue;
+      sourceCounts[code] = (sourceCounts[code] || 0) + 1;
+    }
+  }
+  const sparseColorLimit = Math.max(8, Math.round(sourceSize * sourceSize * 0.02));
+
+  for (let sy = 0; sy < sourceSize; sy += 1) {
+    for (let sx = 0; sx < sourceSize; sx += 1) {
+      const start = sy * sourceSize + sx;
+      if (visited[start]) continue;
+      visited[start] = true;
+      const code = sourceRows[sy][sx];
+      if (!code || code === "." || code === "W" || code === "q") continue;
+      if ((sourceCounts[code] || 0) > sparseColorLimit) continue;
+
+      const queue = [start];
+      const cells = [{ x: sx, y: sy }];
+      let head = 0;
+      while (head < queue.length) {
+        const index = queue[head++];
+        const x = index % sourceSize;
+        const y = Math.floor(index / sourceSize);
+        const neighbors = [
+          [x + 1, y],
+          [x - 1, y],
+          [x, y + 1],
+          [x, y - 1],
+        ];
+        neighbors.forEach(([nx, ny]) => {
+          if (nx < 0 || ny < 0 || nx >= sourceSize || ny >= sourceSize) return;
+          const next = ny * sourceSize + nx;
+          if (visited[next]) return;
+          visited[next] = true;
+          if (sourceRows[ny][nx] !== code) return;
+          queue.push(next);
+          cells.push({ x: nx, y: ny });
+        });
+      }
+
+      if (!cells.length || cells.length > detailLimit) continue;
+      const targetVotes = new Map();
+      let sumTx = 0;
+      let sumTy = 0;
+
+      cells.forEach(({ x, y }) => {
+        const tx = clamp(Math.floor((x + 0.5) / scale), 0, targetSize - 1);
+        const ty = clamp(Math.floor((y + 0.5) / scale), 0, targetSize - 1);
+        sumTx += tx;
+        sumTy += ty;
+        const key = `${tx},${ty}`;
+        const hit = targetVotes.get(key) || { tx, ty, count: 0 };
+        hit.count += 1;
+        targetVotes.set(key, hit);
+      });
+
+      const entries = [...targetVotes.values()];
+      if (!entries.length) continue;
+      const exists = entries.some(({ tx, ty }) => grid[ty]?.[tx] === code);
+      if (exists) continue;
+
+      const cx = sumTx / cells.length;
+      const cy = sumTy / cells.length;
+      entries.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        const da = (a.tx - cx) ** 2 + (a.ty - cy) ** 2;
+        const db = (b.tx - cx) ** 2 + (b.ty - cy) ** 2;
+        return da - db;
+      });
+
+      const pick = entries.find(({ tx, ty }) => {
+        const current = grid[ty]?.[tx];
+        return current === "." || current === "W" || current === "q";
+      });
+      if (!pick) continue;
+      grid[pick.ty][pick.tx] = code;
+    }
+  }
+
+  return grid.map((row) => row.join(""));
 }
 
 

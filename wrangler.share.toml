@@ -1,0 +1,9 @@
+name = "perler-share-api"
+main = "cloudflare/share-api-worker.mjs"
+compatibility_date = "2026-05-31"
+
+[[d1_databases]]
+binding = "SHARE_DB"
+database_name = "beam-share-db"
+database_id = "24de475d-8564-450d-80f7-2a0f24c2e30f"
+

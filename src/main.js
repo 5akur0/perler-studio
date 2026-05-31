@@ -1,6 +1,5 @@
 import {
-  palette, beadIds, palettePresetMardCodes,
-  paletteSizeOptions, paletteSizeKey, readPaletteSize, workshopCodeForMard,
+  palette, beadIds, palettePresetMardCodes, workshopCodeForMard,
 } from './palette.js';
 import { patterns, resamplePatternRows, validatePatterns } from './patterns-data.js';
 import {
@@ -19,7 +18,7 @@ import { readAchievements, writeAchievements, hasAchievement, unlockAchievement 
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import {
   targetAt, indexFor, sourceTargetAt, isBuiltInPattern, getPatternColorMap,
-  invalidateEffectiveMap, getPatternHiddenSourceList, getPatternHiddenSourceSet,
+  invalidateEffectiveMap, invalidatePatternDataCaches, getPatternHiddenSourceList, getPatternHiddenSourceSet,
   hiddenSignature, customRecalcSignature, isCustomFromImagePattern, findPatternByBaseId,
   getCustomRecalcRowsIfReady, getEffectiveTargetRows, getEffectivePatternResult,
   getTargetCounts, getTargetTotal, allColorCodes, beadLabel, activePaletteColorCount,
@@ -32,6 +31,7 @@ import {
   loadImageFromDataUrl, imageToPatternRows, convertImageToPattern,
   nearestColorCodeByLab, nearestColorCode,
 } from './image-convert.js';
+import { encodePatternCode, decodePatternCode, extractPatternCode } from './pattern-code.js';
 import { sceneCanvas, scene, previewCanvas, preview, sideReferenceCanvas, sideReferenceCtx, els } from './dom.js';
 import {
   useMobileTrayGrid, useMobileDirectPlacement, isTouchDevice, maxBoardScale,
@@ -65,6 +65,477 @@ import {
   state.achievements = readAchievements();
   let lastFrame = performance.now();
 
+  const drawState = {
+    size: 24,
+    tool: "brush",
+    selectedColor: "K",
+    grid: [],
+    drawing: false,
+    lastCellKey: "",
+    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
+  };
+  const drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
+  const drawPointers = {};
+  let drawGesture = null;
+  let drawRenderKey = "";
+
+  function createDrawGrid(size, fill = ".") {
+    return Array(size * size).fill(fill);
+  }
+
+  function drawIndex(x, y, size = drawState.size) {
+    return y * size + x;
+  }
+
+  function ensureDrawPaletteColor() {
+    const codes = allColorCodes();
+    if (!codes.length) return;
+    if (!codes.includes(drawState.selectedColor)) {
+      drawState.selectedColor = codes[0];
+    }
+  }
+
+  function ensureDrawGrid() {
+    if (drawState.grid.length !== drawState.size * drawState.size) {
+      drawState.grid = createDrawGrid(drawState.size);
+    }
+  }
+
+  function getDrawGeometry() {
+    const canvas = els.drawCanvas;
+    if (!canvas) return null;
+    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
+    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
+    const size = drawState.size;
+    const cell = Math.floor(Math.min(cssW, cssH) / size);
+    const gridSize = cell * size;
+    const x0 = Math.floor((cssW - gridSize) / 2);
+    const y0 = Math.floor((cssH - gridSize) / 2);
+    const cx = x0 + gridSize / 2;
+    const cy = y0 + gridSize / 2;
+    return { cssW, cssH, size, cell, gridSize, x0, y0, cx, cy };
+  }
+
+  function clampDrawView() {
+    const v = drawState.view;
+    if (v.scale <= 1.001) {
+      v.scale = 1;
+      v.panX = 0;
+      v.panY = 0;
+      return;
+    }
+    const g = getDrawGeometry();
+    if (!g) return;
+    const maxPan = g.gridSize * (v.scale - 1) / 2 + 32;
+    v.panX = clamp(v.panX, -maxPan, maxPan);
+    v.panY = clamp(v.panY, -maxPan, maxPan);
+  }
+
+  function setDrawZoom(nextScale, nextPanX, nextPanY) {
+    const v = drawState.view;
+    v.scale = clamp(nextScale, 1, 8);
+    v.panX = nextPanX ?? v.panX;
+    v.panY = nextPanY ?? v.panY;
+    clampDrawView();
+    drawCanvasPaint();
+  }
+
+  function tickDrawKbdNav(dtSec) {
+    if (state.appMode !== "draw") return;
+    const nav = drawKbdNav;
+    const v = drawState.view;
+
+    const PAN_ACCEL = 2200;
+    const PAN_DECEL = 5000;
+    const PAN_MAX   = 560;
+    const ZOOM_ACCEL = 4.5;
+    const ZOOM_DECEL = 10;
+    const ZOOM_MAX   = 2.2;
+
+    const wantLeft  = nav.left  && !nav.right;
+    const wantRight = nav.right && !nav.left;
+    if (wantLeft)         v.velX = Math.min( PAN_MAX,  v.velX + PAN_ACCEL * dtSec);
+    else if (wantRight)   v.velX = Math.max(-PAN_MAX,  v.velX - PAN_ACCEL * dtSec);
+    else if (v.velX > 0)  v.velX = Math.max(0, v.velX - PAN_DECEL * dtSec);
+    else if (v.velX < 0)  v.velX = Math.min(0, v.velX + PAN_DECEL * dtSec);
+
+    const wantUp   = nav.up   && !nav.down;
+    const wantDown = nav.down && !nav.up;
+    if (wantUp)           v.velY = Math.min( PAN_MAX,  v.velY + PAN_ACCEL * dtSec);
+    else if (wantDown)    v.velY = Math.max(-PAN_MAX,  v.velY - PAN_ACCEL * dtSec);
+    else if (v.velY > 0)  v.velY = Math.max(0, v.velY - PAN_DECEL * dtSec);
+    else if (v.velY < 0)  v.velY = Math.min(0, v.velY + PAN_DECEL * dtSec);
+
+    const wantIn  = nav.zoomIn  && !nav.zoomOut;
+    const wantOut = nav.zoomOut && !nav.zoomIn;
+    if (wantIn)               v.velScale = Math.min( ZOOM_MAX, v.velScale + ZOOM_ACCEL * dtSec);
+    else if (wantOut)         v.velScale = Math.max(-ZOOM_MAX, v.velScale - ZOOM_ACCEL * dtSec);
+    else if (v.velScale > 0)  v.velScale = Math.max(0, v.velScale - ZOOM_DECEL * dtSec);
+    else if (v.velScale < 0)  v.velScale = Math.min(0, v.velScale + ZOOM_DECEL * dtSec);
+
+    const movingPan  = Math.abs(v.velX) > 0.5 || Math.abs(v.velY) > 0.5;
+    const movingZoom = Math.abs(v.velScale) > 0.001;
+    if (movingPan || movingZoom) {
+      const prevX = v.panX;
+      const prevY = v.panY;
+      setDrawZoom(v.scale + v.velScale * dtSec, v.panX + v.velX * dtSec, v.panY + v.velY * dtSec);
+      if (v.panX === prevX) v.velX = 0;
+      if (v.panY === prevY) v.velY = 0;
+    }
+  }
+
+  function startDrawGesture() {
+    const ids = Object.keys(drawPointers);
+    if (ids.length < 2) return;
+    const p1 = drawPointers[ids[0]];
+    const p2 = drawPointers[ids[1]];
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    drawGesture = {
+      active: true,
+      startDist: Math.max(16, dist),
+      startScale: drawState.view.scale,
+      startPanX: drawState.view.panX,
+      startPanY: drawState.view.panY,
+      startMidX: mid.x,
+      startMidY: mid.y,
+    };
+  }
+
+  function updateDrawGesture() {
+    if (!drawGesture?.active) return;
+    const ids = Object.keys(drawPointers);
+    if (ids.length < 2) return;
+    const p1 = drawPointers[ids[0]];
+    const p2 = drawPointers[ids[1]];
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const dist = Math.max(16, Math.hypot(p1.x - p2.x, p1.y - p2.y));
+    const nextScale = clamp(drawGesture.startScale * (dist / drawGesture.startDist), 1, 8);
+    const g = getDrawGeometry();
+    if (!g) return;
+    const { cx, cy } = g;
+    const startScale = Math.max(0.0001, drawGesture.startScale);
+    // Keep the midpoint pinch-center locked to the same grid point
+    const anchorX = (drawGesture.startMidX - cx - drawGesture.startPanX) / startScale + cx;
+    const anchorY = (drawGesture.startMidY - cy - drawGesture.startPanY) / startScale + cy;
+    drawState.view.panX = mid.x - cx - (anchorX - cx) * nextScale;
+    drawState.view.panY = mid.y - cy - (anchorY - cy) * nextScale;
+    drawState.view.scale = nextScale;
+    clampDrawView();
+    drawCanvasPaint();
+  }
+
+  function resetDrawView() {
+    drawState.view.scale = 1;
+    drawState.view.panX = 0;
+    drawState.view.panY = 0;
+  }
+
+  function setDrawSize(nextSize) {
+    const normalized = normalizePatternSize(nextSize);
+    drawState.size = normalized;
+    drawState.grid = createDrawGrid(normalized);
+    resetDrawView();
+    if (els.drawSizeSelect) {
+      const has = [...els.drawSizeSelect.options].some((option) => Number(option.value) === normalized);
+      if (!has) {
+        const option = document.createElement("option");
+        option.value = String(normalized);
+        option.textContent = `${normalized}x${normalized}`;
+        els.drawSizeSelect.appendChild(option);
+      }
+      els.drawSizeSelect.value = String(normalized);
+    }
+    drawState.lastCellKey = "";
+    renderDrawStudio();
+  }
+
+  function resizeDrawGrid(oldGrid, oldSize, newSize, anchorRow, anchorCol) {
+    const offsetX = Math.round((anchorCol / 2) * (newSize - oldSize));
+    const offsetY = Math.round((anchorRow / 2) * (newSize - oldSize));
+    const newGrid = [];
+    for (let ny = 0; ny < newSize; ny += 1) {
+      for (let nx = 0; nx < newSize; nx += 1) {
+        const ox = nx - offsetX;
+        const oy = ny - offsetY;
+        newGrid.push(
+          ox >= 0 && ox < oldSize && oy >= 0 && oy < oldSize
+            ? oldGrid[oy * oldSize + ox]
+            : "."
+        );
+      }
+    }
+    return newGrid;
+  }
+
+  let drawResizePending = { size: 0, anchorRow: 1, anchorCol: 1 };
+
+  function openDrawResizeModal(newSize) {
+    drawResizePending.size = newSize;
+    drawResizePending.anchorRow = 1;
+    drawResizePending.anchorCol = 1;
+    if (els.drawAnchorGrid) {
+      els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
+        const r = Number(btn.dataset.row);
+        const c = Number(btn.dataset.col);
+        btn.setAttribute("aria-pressed", r === 1 && c === 1 ? "true" : "false");
+      });
+    }
+    if (els.drawResizeModal) {
+      els.drawResizeModal.classList.add("show");
+      els.drawResizeModal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function closeDrawResizeModal(restoreSelectValue) {
+    if (els.drawResizeModal) {
+      els.drawResizeModal.classList.remove("show");
+      els.drawResizeModal.setAttribute("aria-hidden", "true");
+    }
+    if (restoreSelectValue && els.drawSizeSelect) {
+      els.drawSizeSelect.value = String(drawState.size);
+    }
+  }
+
+  function drawRowsFromGrid() {
+    const rows = [];
+    for (let y = 0; y < drawState.size; y += 1) {
+      rows.push(drawState.grid.slice(y * drawState.size, (y + 1) * drawState.size).join(""));
+    }
+    return rows;
+  }
+
+  function loadDrawRows(rows) {
+    const size = rows.length;
+    drawState.size = size;
+    drawState.grid = [];
+    for (let y = 0; y < size; y += 1) {
+      const row = rows[y] || "";
+      for (let x = 0; x < size; x += 1) {
+        const code = row[x] || ".";
+        drawState.grid.push(code === "." || palette[code] ? code : ".");
+      }
+    }
+    if (els.drawSizeSelect) {
+      const has = [...els.drawSizeSelect.options].some((option) => Number(option.value) === size);
+      if (!has) {
+        const option = document.createElement("option");
+        option.value = String(size);
+        option.textContent = `${size}x${size}`;
+        els.drawSizeSelect.appendChild(option);
+      }
+      els.drawSizeSelect.value = String(size);
+    }
+    drawState.lastCellKey = "";
+    resetDrawView();
+    ensureDrawPaletteColor();
+    renderDrawStudio();
+  }
+
+  function drawCellFromPointer(event) {
+    if (!els.drawCanvas) return null;
+    const rect = els.drawCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const g = getDrawGeometry();
+    if (!g) return null;
+    const { x0, y0, cell, size, cx, cy } = g;
+    const v = drawState.view;
+    const rawX = event.clientX - rect.left;
+    const rawY = event.clientY - rect.top;
+    // Invert zoom/pan transform to get logical canvas coordinates
+    const logX = (rawX - cx - v.panX) / v.scale + cx;
+    const logY = (rawY - cy - v.panY) / v.scale + cy;
+    const x = clamp(Math.floor((logX - x0) / cell), 0, size - 1);
+    const y = clamp(Math.floor((logY - y0) / cell), 0, size - 1);
+    return { x, y };
+  }
+
+  function paintDrawCell(x, y, code) {
+    const idx = drawIndex(x, y);
+    if (drawState.grid[idx] === code) return false;
+    drawState.grid[idx] = code;
+    return true;
+  }
+
+  function floodFillDraw(x, y, fillCode) {
+    const size = drawState.size;
+    const start = drawState.grid[drawIndex(x, y, size)];
+    if (start === fillCode) return false;
+    const queue = [[x, y]];
+    const seen = new Set();
+    let changed = false;
+    while (queue.length) {
+      const [cx, cy] = queue.pop();
+      const key = `${cx},${cy}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const idx = drawIndex(cx, cy, size);
+      if (drawState.grid[idx] !== start) continue;
+      drawState.grid[idx] = fillCode;
+      changed = true;
+      if (cx > 0) queue.push([cx - 1, cy]);
+      if (cx < size - 1) queue.push([cx + 1, cy]);
+      if (cy > 0) queue.push([cx, cy - 1]);
+      if (cy < size - 1) queue.push([cx, cy + 1]);
+    }
+    return changed;
+  }
+
+  function applyDrawToolAt(x, y) {
+    const key = `${x},${y}`;
+    if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
+    drawState.lastCellKey = key;
+    if (drawState.tool === "eraser") return paintDrawCell(x, y, ".");
+    if (drawState.tool === "picker") {
+      const pick = drawState.grid[drawIndex(x, y)];
+      if (pick && pick !== "." && pick !== drawState.selectedColor) {
+        drawState.selectedColor = pick;
+        renderDrawStudio();
+      }
+      return false;
+    }
+    if (drawState.tool === "fill") return floodFillDraw(x, y, drawState.selectedColor);
+    return paintDrawCell(x, y, drawState.selectedColor);
+  }
+
+  function drawCanvasPaint() {
+    if (!els.drawCanvas) return;
+    ensureDrawGrid();
+    const canvas = els.drawCanvas;
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
+    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
+    const pxW = Math.round(cssW * dpr);
+    const pxH = Math.round(cssH * dpr);
+    if (canvas.width !== pxW || canvas.height !== pxH) {
+      canvas.width = pxW;
+      canvas.height = pxH;
+    }
+    const size = drawState.size;
+    const cell = Math.floor(Math.min(cssW, cssH) / size);
+    const gridSize = cell * size;
+    const x0 = Math.floor((cssW - gridSize) / 2);
+    const y0 = Math.floor((cssH - gridSize) / 2);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pxW, pxH);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#f5f8fb";
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    // Apply zoom/pan transform anchored to grid center
+    const v = drawState.view;
+    const cx = x0 + gridSize / 2;
+    const cy = y0 + gridSize / 2;
+    ctx.save();
+    ctx.translate(cx + v.panX, cy + v.panY);
+    ctx.scale(v.scale, v.scale);
+    ctx.translate(-cx, -cy);
+
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const code = drawState.grid[drawIndex(x, y, size)];
+        if (code && code !== ".") {
+          ctx.fillStyle = palette[code] || "#9aa4b3";
+          ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+        } else {
+          ctx.fillStyle = (x + y) % 2 ? "#f0f4f9" : "#ffffff";
+          ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+        }
+      }
+    }
+    ctx.strokeStyle = "rgba(116, 126, 147, 0.26)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= size; i += 1) {
+      const offset = i * cell;
+      ctx.beginPath();
+      ctx.moveTo(x0 + offset + 0.5, y0 + 0.5);
+      ctx.lineTo(x0 + offset + 0.5, y0 + gridSize + 0.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x0 + 0.5, y0 + offset + 0.5);
+      ctx.lineTo(x0 + gridSize + 0.5, y0 + offset + 0.5);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(69, 93, 122, 0.38)";
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, gridSize, gridSize);
+    ctx.restore();
+  }
+
+  function renderDrawPalette() {
+    if (!els.drawPalette) return;
+    ensureDrawPaletteColor();
+    const codes = allColorCodes();
+    const key = `${drawState.selectedColor}:${codes.join(",")}`;
+    if (key === drawRenderKey) return;
+    drawRenderKey = key;
+    if (els.drawPaletteMeta) {
+      els.drawPaletteMeta.textContent = `221色板`;
+    }
+    if (els.drawCurrentColorSwatch) {
+      if (drawState.selectedColor && palette[drawState.selectedColor]) {
+        els.drawCurrentColorSwatch.style.background = palette[drawState.selectedColor];
+      }
+    }
+    if (els.drawCurrentColorCode) {
+      els.drawCurrentColorCode.textContent = beadIds[drawState.selectedColor] || drawState.selectedColor;
+    }
+    els.drawPalette.innerHTML = codes.map((code) => {
+      const selected = drawState.selectedColor === code;
+      const label = beadIds[code] || code;
+      const isTransparent = beadIds[code] === "H1";
+      return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="选择 ${label}" title="${label}">
+        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+        <span class="chip-label">${label}</span>
+      </button>`;
+    }).join("");
+  }
+
+  function renderDrawToolButtons() {
+    if (!els.drawingStudio) return;
+    els.drawingStudio.querySelectorAll("[data-draw-tool]").forEach((button) => {
+      const active = button.dataset.drawTool === drawState.tool;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function renderDrawStudio() {
+    if (state.appMode !== "draw") return;
+    ensureDrawGrid();
+    renderDrawPalette();
+    renderDrawToolButtons();
+    drawCanvasPaint();
+  }
+
+  function useDrawPattern() {
+    ensureDrawGrid();
+    const rows = drawRowsFromGrid();
+    const beadCount = rows.join("").replace(/\./g, "").length;
+    if (!beadCount) {
+      showToast("请先在绘图台放一些颜色。");
+      return;
+    }
+    const pattern = {
+      id: "custom-draw",
+      name: "绘制图纸",
+      size: drawState.size,
+      craft: "原版",
+      rows,
+      sourceRows: rows,
+      sourceSize: drawState.size,
+      note: "绘图台创建",
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(pattern);
+    loadPattern(pattern, false);
+    setAppMode("bead");
+    showToast("绘图已生成图纸，开始拼豆。");
+  }
+
 
 
 
@@ -91,6 +562,34 @@ import {
     markDirty();
   }
 
+  function setAppMode(mode) {
+    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : "home";
+    document.body.dataset.appMode = state.appMode;
+    if (state.appMode === "bead") {
+      state.uiDirty = true;
+      state.previewDirty = true;
+      state.renderDirty = true;
+      markDirty();
+      return;
+    }
+    if (state.appMode === "draw") {
+      ensureDrawPaletteColor();
+      renderDrawStudio();
+    }
+  }
+
+  function normalizedCustomDenoiseLevel(value) {
+    return clamp(Math.round(Number(value) || 0), 0, 100);
+  }
+
+  function setCustomDenoiseControls(level) {
+    const normalized = normalizedCustomDenoiseLevel(level);
+    state.customDenoiseLevel = normalized;
+    if (els.customDenoiseSlider) els.customDenoiseSlider.value = String(normalized);
+    if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
+    return normalized;
+  }
+
 
   async function recomputeCustomHiddenRowsFromOriginal(pattern = state.selectedPattern) {
     if (!isCustomFromImagePattern(pattern)) return false;
@@ -115,6 +614,7 @@ import {
       const result = convertImageToPattern(image, {
         removeWhite: pattern.sourceRemoveWhite !== false,
         size: pattern.size,
+        denoiseLevel: pattern.sourceDenoiseLevel ?? state.customDenoiseLevel,
         excludedCodes: hidden,
         allowPaletteExpansionOnExclude: true,
       });
@@ -150,61 +650,7 @@ import {
     }
   }
 
-  function renderPaletteSizeControls() {
-    [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
-      if (!picker) return;
-      picker.querySelectorAll("[data-palette-size]").forEach((button) => {
-        const size = Number.parseInt(button.dataset.paletteSize, 10);
-        const active = size === state.paletteSize;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-pressed", active ? "true" : "false");
-      });
-    });
-  }
 
-  async function setPaletteSize(size, silent = false) {
-    const next = Number.parseInt(size, 10);
-    if (!paletteSizeOptions.includes(next) || next === state.paletteSize) return;
-    state.paletteSize = next;
-    localStorage.setItem(paletteSizeKey, String(next));
-    const codes = allColorCodes();
-    if (!codes.includes(state.selectedColor)) {
-      state.selectedColor = codes[0] || "K";
-    }
-    state.trayColor = null;
-    state.trayBeans = 0;
-    state.trayCapacity = 0;
-    state.trayMatrix = [];
-    state.tweezerBead = null;
-    invalidateEffectiveMap();
-    state.previewDirty = true;
-    state.uiDirty = true;
-    if (isCustomFromImagePattern(state.selectedPattern)) {
-      try {
-        const image = await loadImageFromDataUrl(state.selectedPattern.sourceImageDataUrl);
-        const result = convertImageToPattern(image, {
-          removeWhite: state.selectedPattern.sourceRemoveWhite !== false,
-          size: state.selectedPattern.size,
-        });
-        Object.assign(state.selectedPattern, {
-          rows: result.rows,
-          sourceRows: result.rows,
-          conversionStats: result.stats,
-        });
-        state.lastConversionStats = result.stats;
-      } catch (error) {
-        showToast("色板已切换，但自定义图纸重算失败。");
-      }
-    }
-    normalizePatternColorMapForActivePalette();
-    invalidateEffectiveMap();
-    const patternColors = getPatternColors();
-    if (!patternColors.includes(state.selectedColor)) {
-      state.selectedColor = patternColors[0] || codes[0] || "K";
-    }
-    if (!silent) showToast(`色板已切换为 ${next} 色。`);
-    markDirty();
-  }
 
   function setSizeControls(size) {
     const normalized = normalizePatternSize(size);
@@ -238,6 +684,9 @@ import {
 
   function loadPattern(pattern, keepPhase = false) {
     state.selectedPattern = pattern;
+    if (baseIdFor(pattern).startsWith("custom-")) {
+      setCustomDenoiseControls(pattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
+    }
     invalidateLayoutCache();
     if (baseIdFor(pattern).startsWith("custom-")) {
       closeRemapModal();
@@ -572,13 +1021,12 @@ import {
     renderControls();
     renderToolRack();
     renderPalette();
-    renderPaletteSizeControls();
     renderCustomStats();
     renderPatternColorStats();
     renderSidebarReference();
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
-    els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size} · ${state.paletteSize}色板`;
+    els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
     els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
     els.collectionCount.textContent = String(collection.length);
     if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
@@ -614,7 +1062,6 @@ import {
     els.statusLine.textContent = statusText();
     const showPlacementUi = state.phase === "place";
     const showToolUi = showPlacementUi && !useMobileDirectPlacement();
-    const showBoardZoomUi = state.phase === "place" || state.phase === "inspect";
     if (!showPlacementUi) {
       state.lastPlaceHintKey = "";
       hidePlaceHint();
@@ -624,7 +1071,6 @@ import {
     if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
-    if (els.boardZoomControls) els.boardZoomControls.hidden = !showBoardZoomUi;
     if (state.remapModalOpen) renderRemapModal();
   }
 
@@ -802,20 +1248,35 @@ import {
   }
 
   function drawPatternThumb(canvas, pattern) {
+    // Render at the real device resolution so the small bitmap is never blurrily
+    // upscaled (which would leave light halos / seams between cells on HiDPI screens).
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    const cssSize = canvas.clientWidth || Number(canvas.getAttribute("width")) || 58;
+    const dim = Math.round(cssSize * dpr);
+    if (canvas.width !== dim || canvas.height !== dim) {
+      canvas.width = dim;
+      canvas.height = dim;
+    }
     const ctx = canvas.getContext("2d");
-    const cell = Math.floor(canvas.width / pattern.size);
-    const offset = Math.floor((canvas.width - cell * pattern.size) / 2);
+    const size = pattern.size;
+    const cell = dim / size;
     const rows = getEffectiveTargetRows(pattern);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#f4f6f8";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    rows.forEach((row, y) => {
-      [...row].forEach((code, x) => {
-        if (code === ".") return;
-        ctx.fillStyle = palette[code];
-        ctx.fillRect(offset + x * cell, offset + y * cell, Math.max(1, cell - 1), Math.max(1, cell - 1));
-      });
-    });
+    ctx.clearRect(0, 0, dim, dim);
+    ctx.fillStyle = "#eef2f7";
+    ctx.fillRect(0, 0, dim, dim);
+    for (let y = 0; y < size; y++) {
+      const row = rows[y] || "";
+      for (let x = 0; x < size; x++) {
+        const code = row[x];
+        if (!code || code === ".") continue;
+        const px = Math.round(x * cell);
+        const py = Math.round(y * cell);
+        const pw = Math.round((x + 1) * cell) - px;
+        const ph = Math.round((y + 1) * cell) - py;
+        ctx.fillStyle = palette[code] || "#ccc";
+        ctx.fillRect(px, py, pw, ph);
+      }
+    }
   }
 
   function drawCustomPatternPlaceholder(canvas) {
@@ -841,7 +1302,8 @@ import {
     try {
       const image = await loadImageFromDataUrl(basePattern.sourceImageDataUrl);
       const removeWhite = basePattern.sourceRemoveWhite !== false;
-      const result = convertImageToPattern(image, { removeWhite, size });
+      const denoiseLevel = normalizedCustomDenoiseLevel(basePattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
+      const result = convertImageToPattern(image, { removeWhite, size, denoiseLevel });
       const rows = result.rows;
       const beadCount = rows.join("").replace(/\./g, "").length;
       if (!beadCount) {
@@ -854,9 +1316,11 @@ import {
         rows,
         sourceRows: rows,
         sourceSize: size,
+        sourceDenoiseLevel: denoiseLevel,
         conversionStats: result.stats,
         note: `图片自动转色号 · ${size}x${size}`,
       };
+      invalidatePatternDataCaches(updated);
       const idx = patterns.findIndex((item) => baseIdFor(item) === baseIdFor(basePattern));
       if (idx >= 0) patterns[idx] = updated;
       state.lastConversionStats = result.stats;
@@ -877,6 +1341,7 @@ import {
         const image = await loadImageFromDataUrl(sourceImageDataUrl);
         const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
         const removeWhite = els.customWhiteToggle.checked;
+        const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
         uiSetSizeControls(size);
         // Yield a frame so the "正在识别图片…" toast paints before the
         // synchronous conversion (which can briefly block on large images).
@@ -884,6 +1349,7 @@ import {
         const result = convertImageToPattern(image, {
           removeWhite,
           size,
+          denoiseLevel,
         });
         const rows = result.rows;
         const beadCount = rows.join("").replace(/\./g, "").length;
@@ -901,6 +1367,7 @@ import {
           sourceSize: size,
           sourceImageDataUrl,
           sourceRemoveWhite: removeWhite,
+          sourceDenoiseLevel: denoiseLevel,
           conversionStats: result.stats,
           note: "图片自动转色号",
         };
@@ -1506,7 +1973,6 @@ import {
     const codes = allColorCodes();
     const key = [
       "place",
-      state.paletteSize,
       state.selectedColor,
       state.tweezerBead || "",
       state.placedVersion,
@@ -2717,6 +3183,7 @@ import {
     const dt = Math.min(48, now - lastFrame);
     lastFrame = now;
     tickKbdNav(dt / 1000);
+    tickDrawKbdNav(dt / 1000);
     if (state.phase === "cool") {
       const heat = heatStats();
       const overPenalty = heat.overPercent > 18 ? 0.04 : 0;
@@ -2766,6 +3233,202 @@ import {
     loadPattern(state.selectedPattern);
     showToast("已重置当前作品。");
   });
+  els.startBeadButton?.addEventListener("click", () => {
+    setAppMode("bead");
+  });
+  els.startDrawButton?.addEventListener("click", () => {
+    setAppMode("draw");
+  });
+  els.drawingBackButton?.addEventListener("click", () => {
+    setAppMode("home");
+  });
+  els.drawSettingsButton?.addEventListener("click", () => openSettingsModal());
+  els.drawResetButton?.addEventListener("click", () => {
+    ensureDrawGrid();
+    const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+    if (hasContent && !window.confirm("清空会丢失当前绘图，确定吗？")) return;
+    drawState.grid = createDrawGrid(drawState.size);
+    drawState.lastCellKey = "";
+    drawCanvasPaint();
+    showToast("绘图已清空。");
+  });
+  els.beadBackButton?.addEventListener("click", () => {
+    setAppMode("home");
+  });
+  els.drawSizeSelect?.addEventListener("change", () => {
+    const newSize = normalizePatternSize(els.drawSizeSelect.value);
+    const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+    if (hasContent && newSize !== drawState.size) {
+      openDrawResizeModal(newSize);
+    } else {
+      setDrawSize(newSize);
+    }
+  });
+  els.drawAnchorGrid?.addEventListener("click", (event) => {
+    const cell = event.target.closest(".anchor-cell");
+    if (!cell) return;
+    drawResizePending.anchorRow = Number(cell.dataset.row);
+    drawResizePending.anchorCol = Number(cell.dataset.col);
+    els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
+      btn.setAttribute("aria-pressed", btn === cell ? "true" : "false");
+    });
+  });
+  els.drawResizeConfirmBtn?.addEventListener("click", () => {
+    const newSize = normalizePatternSize(drawResizePending.size);
+    const { anchorRow, anchorCol } = drawResizePending;
+    const oldGrid = drawState.grid.slice();
+    const oldSize = drawState.size;
+    drawState.size = newSize;
+    drawState.grid = resizeDrawGrid(oldGrid, oldSize, newSize, anchorRow, anchorCol);
+    drawState.lastCellKey = "";
+    if (els.drawSizeSelect) {
+      const has = [...els.drawSizeSelect.options].some((o) => Number(o.value) === newSize);
+      if (!has) {
+        const opt = document.createElement("option");
+        opt.value = String(newSize);
+        opt.textContent = `${newSize}x${newSize}`;
+        els.drawSizeSelect.appendChild(opt);
+      }
+      els.drawSizeSelect.value = String(newSize);
+    }
+    closeDrawResizeModal(false);
+    renderDrawStudio();
+    showToast(`画布已调整为 ${newSize}x${newSize}。`);
+  });
+  [els.drawResizeCancelBtn, els.drawResizeCloseBtn].forEach((btn) => {
+    btn?.addEventListener("click", () => closeDrawResizeModal(true));
+  });
+  els.drawingStudio?.addEventListener("click", (event) => {
+    const toolBtn = event.target.closest("[data-draw-tool]");
+    if (toolBtn) {
+      drawState.tool = toolBtn.dataset.drawTool || "brush";
+      drawState.lastCellKey = "";
+      renderDrawToolButtons();
+      return;
+    }
+    const colorBtn = event.target.closest("[data-draw-code]");
+    if (colorBtn) {
+      const code = colorBtn.dataset.drawCode;
+      if (code && palette[code]) {
+        drawState.selectedColor = code;
+        drawRenderKey = "";
+        renderDrawPalette();
+      }
+    }
+  });
+  els.drawClearButton?.addEventListener("click", () => {
+    ensureDrawGrid();
+    drawState.grid = createDrawGrid(drawState.size);
+    drawState.lastCellKey = "";
+    drawCanvasPaint();
+    showToast("绘图已清空。");
+  });
+  els.drawUsePatternButton?.addEventListener("click", () => {
+    useDrawPattern();
+  });
+  els.drawExportButton?.addEventListener("click", async () => {
+    ensureDrawGrid();
+    const pattern = {
+      id: "draw-export",
+      name: "绘制图纸",
+      size: drawState.size,
+      rows: drawRowsFromGrid(),
+      craft: "原版",
+    };
+    const code = encodePatternCode(pattern);
+    if (els.drawCodeInput) els.drawCodeInput.value = code;
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast("图纸码已复制。");
+    } catch {
+      showToast("图纸码已生成。");
+    }
+  });
+  els.drawImportButton?.addEventListener("click", () => {
+    const raw = els.drawCodeInput?.value || "";
+    const extracted = extractPatternCode(raw);
+    if (!extracted) {
+      showToast("请先粘贴图纸码。");
+      return;
+    }
+    try {
+      const decoded = decodePatternCode(extracted);
+      loadDrawRows(decoded.rows);
+      showToast(`已倒入图纸：${decoded.size}x${decoded.size}。`);
+    } catch (error) {
+      showToast("图纸码无效，倒入失败。");
+    }
+  });
+  const handleDrawPointer = (event) => {
+    const cell = drawCellFromPointer(event);
+    if (!cell) return;
+    const changed = applyDrawToolAt(cell.x, cell.y);
+    if (changed || drawState.tool === "fill") drawCanvasPaint();
+  };
+  if (els.drawCanvas) {
+    els.drawCanvas.addEventListener("pointerdown", (event) => {
+      els.drawCanvas.setPointerCapture(event.pointerId);
+      const rect = els.drawCanvas.getBoundingClientRect();
+      drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      if (Object.keys(drawPointers).length >= 2) {
+        drawState.drawing = false;
+        drawState.lastCellKey = "";
+        startDrawGesture();
+      } else {
+        drawState.drawing = true;
+        drawState.lastCellKey = "";
+        handleDrawPointer(event);
+      }
+    });
+    els.drawCanvas.addEventListener("pointermove", (event) => {
+      const rect = els.drawCanvas.getBoundingClientRect();
+      if (drawPointers[event.pointerId]) {
+        drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+      if (Object.keys(drawPointers).length >= 2 && drawGesture?.active) {
+        updateDrawGesture();
+        return;
+      }
+      if (!drawState.drawing) return;
+      if (drawState.tool === "fill" || drawState.tool === "picker") return;
+      handleDrawPointer(event);
+    });
+    const endDrawPointer = (event) => {
+      delete drawPointers[event.pointerId];
+      if (Object.keys(drawPointers).length < 2 && drawGesture) {
+        drawGesture.active = false;
+      }
+      if (Object.keys(drawPointers).length === 0) {
+        drawState.drawing = false;
+        drawState.lastCellKey = "";
+      }
+    };
+    els.drawCanvas.addEventListener("pointerup", endDrawPointer);
+    els.drawCanvas.addEventListener("pointerleave", (event) => {
+      endDrawPointer(event);
+    });
+    els.drawCanvas.addEventListener("pointercancel", endDrawPointer);
+    els.drawCanvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const rect = els.drawCanvas.getBoundingClientRect();
+      const mx = event.clientX - rect.left;
+      const my = event.clientY - rect.top;
+      const g = getDrawGeometry();
+      if (!g) return;
+      const { cx, cy } = g;
+      const v = drawState.view;
+      const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const nextScale = clamp(v.scale * factor, 1, 8);
+      const ratio = nextScale / v.scale;
+      const nextPanX = mx - cx - (mx - cx - v.panX) * ratio;
+      const nextPanY = my - cy - (my - cy - v.panY) * ratio;
+      setDrawZoom(nextScale, nextPanX, nextPanY);
+    }, { passive: false });
+    els.drawCanvas.addEventListener("dblclick", () => {
+      resetDrawView();
+      drawCanvasPaint();
+    });
+  }
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
   els.chooseStartButton?.addEventListener("click", () => {
     if (state.phase === "choose") setPhase("place");
@@ -2794,21 +3457,30 @@ import {
     setSizeControls(size);
     applyPatternSize(size);
   });
-  [els.paletteSizePicker, els.settingsPaletteSizePicker].forEach((picker) => {
-    picker?.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-palette-size]");
-      if (!button) return;
-      setPaletteSize(button.dataset.paletteSize);
-    });
+
+  let customDenoiseTimer = null;
+  els.customDenoiseSlider?.addEventListener("input", () => {
+    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
+    const current = state.selectedPattern;
+    if (!isCustomFromImagePattern(current)) return;
+    if (customDenoiseTimer) window.clearTimeout(customDenoiseTimer);
+    customDenoiseTimer = window.setTimeout(() => {
+      const base = findBasePattern(current);
+      base.sourceDenoiseLevel = level;
+      reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
+    }, 140);
   });
-  els.zoomInButton?.addEventListener("click", () => {
-    setBoardZoom(state.boardView.scale + 0.2, state.boardView.panX, state.boardView.panY);
-  });
-  els.zoomOutButton?.addEventListener("click", () => {
-    setBoardZoom(state.boardView.scale - 0.2, state.boardView.panX, state.boardView.panY);
-  });
-  els.zoomResetButton?.addEventListener("click", () => {
-    resetBoardView();
+  els.customDenoiseSlider?.addEventListener("change", () => {
+    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
+    const current = state.selectedPattern;
+    if (!isCustomFromImagePattern(current)) return;
+    if (customDenoiseTimer) {
+      window.clearTimeout(customDenoiseTimer);
+      customDenoiseTimer = null;
+    }
+    const base = findBasePattern(current);
+    base.sourceDenoiseLevel = level;
+    reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
   });
   els.customImageInput.addEventListener("change", handleCustomImage);
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
@@ -2834,22 +3506,45 @@ import {
   els.shareModal?.addEventListener("click", (event) => {
     if (event.target === els.shareModal) closeShareModal();
   });
+  // Block browser pinch-zoom (mobile) and Ctrl/Cmd +/- wheel zoom (desktop).
+  window.addEventListener("wheel", (e) => {
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+  }, { passive: false });
+
   window.addEventListener("keydown", (event) => {
+    // Block Ctrl/Cmd + or - browser zoom on desktop.
+    if ((event.ctrlKey || event.metaKey) && (event.key === "+" || event.key === "-" || event.key === "=" || event.key === "_")) {
+      event.preventDefault();
+      return;
+    }
+
     // WASD / Arrow keys: pan board.  Z / X: zoom in / out.
     // Desktop only (non-touch), place/inspect phase, no modal open, no input focused.
     if (!isTouchDevice()) {
-      const boardPhase = state.phase === "place" || state.phase === "inspect";
       const tag = document.activeElement?.tagName;
       const inputFocused = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-      if (boardPhase && !inputFocused && !getOpenModalEl()) {
+      if (!inputFocused && !getOpenModalEl()) {
         const k = event.key;
-        const nav = state.kbdNav;
-        if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; return; }
-        if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; return; }
-        if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; return; }
-        if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; return; }
-        if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; return; }
-        if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; return; }
+        const boardPhase = state.phase === "place" || state.phase === "inspect";
+        if (boardPhase) {
+          const nav = state.kbdNav;
+          if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; return; }
+          if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; return; }
+          if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; return; }
+          if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; return; }
+          if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; return; }
+          if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; return; }
+        }
+        if (state.appMode === "draw") {
+          const k = event.key;
+          const nav = drawKbdNav;
+          if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; return; }
+          if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; return; }
+          if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; return; }
+          if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; return; }
+          if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; return; }
+          if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; return; }
+        }
       }
     }
 
@@ -2877,6 +3572,7 @@ import {
     // If the enlarge viewer is open within the collection modal, close it first.
     const enlarged = els.collectionModal?.querySelector(".collection-enlarged.show");
     if (enlarged) { enlarged.classList.remove("show"); return; }
+    if (els.drawResizeModal?.classList.contains("show")) { closeDrawResizeModal(true); return; }
     if (state.remapModalOpen) closeRemapModal();
     if (state.collectionModalOpen) closeCollectionModal();
     if (state.settingsModalOpen) closeSettingsModal();
@@ -2884,14 +3580,14 @@ import {
   });
 
   window.addEventListener("keyup", (event) => {
-    const nav = state.kbdNav;
     const k = event.key;
-    if (k === "w" || k === "W" || k === "ArrowUp")    nav.up     = false;
-    if (k === "s" || k === "S" || k === "ArrowDown")  nav.down   = false;
-    if (k === "a" || k === "A" || k === "ArrowLeft")  nav.left   = false;
-    if (k === "d" || k === "D" || k === "ArrowRight") nav.right  = false;
-    if (k === "z" || k === "Z") nav.zoomIn  = false;
-    if (k === "x" || k === "X") nav.zoomOut = false;
+    const nav = state.kbdNav;
+    if (k === "w" || k === "W" || k === "ArrowUp")    { nav.up     = false; drawKbdNav.up     = false; }
+    if (k === "s" || k === "S" || k === "ArrowDown")  { nav.down   = false; drawKbdNav.down   = false; }
+    if (k === "a" || k === "A" || k === "ArrowLeft")  { nav.left   = false; drawKbdNav.left   = false; }
+    if (k === "d" || k === "D" || k === "ArrowRight") { nav.right  = false; drawKbdNav.right  = false; }
+    if (k === "z" || k === "Z") { nav.zoomIn  = false; drawKbdNav.zoomIn  = false; }
+    if (k === "x" || k === "X") { nav.zoomOut = false; drawKbdNav.zoomOut = false; }
   });
 
   window.addEventListener("resize", onResize);
@@ -2921,7 +3617,9 @@ import {
     copyShareText,
   });
   validatePatterns();
+  setAppMode("home");
   loadPattern(resizePattern(patterns[0], state.patternSize));
+  setCustomDenoiseControls(state.customDenoiseLevel);
   applyBackgroundTheme(state.bgTheme);
   if (!loadAutoSave()) {
     setPhase("choose");
