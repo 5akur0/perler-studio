@@ -2897,6 +2897,7 @@
     drawClearButton: $("#drawClearButton"),
     drawImportButton: $("#drawImportButton"),
     drawExportButton: $("#drawExportButton"),
+    drawShortCodeButton: $("#drawShortCodeButton"),
     drawUsePatternButton: $("#drawUsePatternButton"),
     drawCodeInput: $("#drawCodeInput"),
     drawPaletteMeta: $("#drawPaletteMeta"),
@@ -5811,7 +5812,9 @@
     exportShareImage: () => {
     },
     copyShareText: () => {
-    }
+    },
+    createCloudShare: async () => null,
+    importPatternCode: async () => false
   };
   function setUIActions(nextActions = {}) {
     uiActions = { ...uiActions, ...nextActions };
@@ -5938,33 +5941,10 @@
     codeButton.className = "pattern-import-half";
     codeButton.type = "button";
     codeButton.textContent = "\u5BFC\u5165\u77ED\u7801";
-    codeButton.addEventListener("click", () => {
+    codeButton.addEventListener("click", async () => {
       const raw = window.prompt("\u8BF7\u7C98\u8D34\u56FE\u7EB8\u77ED\u7801\uFF1A");
       if (!raw) return;
-      const extracted = extractPatternCode(raw.trim());
-      if (!extracted) {
-        showToast2("\u77ED\u7801\u65E0\u6548\u3002");
-        return;
-      }
-      try {
-        const decoded = decodePatternCode(extracted);
-        const imported = {
-          id: `custom-${Date.now()}`,
-          name: "\u5BFC\u5165\u56FE\u7EB8",
-          size: decoded.size,
-          rows: decoded.rows,
-          craft: decoded.craft || state.craft
-        };
-        for (let i = patterns.length - 1; i >= 0; i -= 1) {
-          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-        }
-        patterns.unshift(imported);
-        uiActions.loadPattern(imported, false);
-        renderPatterns();
-        showToast2(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
-      } catch {
-        showToast2("\u77ED\u7801\u65E0\u6548\uFF0C\u5BFC\u5165\u5931\u8D25\u3002");
-      }
+      await uiActions.importPatternCode(raw);
     });
     importRow.appendChild(imageButton);
     importRow.appendChild(codeButton);
@@ -6427,6 +6407,28 @@
       row.appendChild(button);
     });
     els.sharePanel.appendChild(row);
+    const cloudResult = document.createElement("div");
+    cloudResult.className = "share-code-result";
+    const cloudButton = document.createElement("button");
+    cloudButton.type = "button";
+    cloudButton.className = "primary-button";
+    cloudButton.textContent = "\u751F\u6210\u77ED\u7801";
+    cloudButton.addEventListener("click", async () => {
+      cloudButton.disabled = true;
+      cloudButton.textContent = "\u751F\u6210\u4E2D";
+      cloudResult.textContent = "";
+      try {
+        const share = await uiActions.createCloudShare();
+        if (share?.shortId) {
+          cloudResult.innerHTML = `<strong>${share.shortId}</strong><span>7\u5929\u5185\u6709\u6548</span>`;
+        }
+      } finally {
+        cloudButton.disabled = false;
+        cloudButton.textContent = "\u751F\u6210\u77ED\u7801";
+      }
+    });
+    els.sharePanel.appendChild(cloudButton);
+    els.sharePanel.appendChild(cloudResult);
     addShareButton("\u590D\u5236\u6587\u6848", () => uiActions.copyShareText());
   }
   function addShareButton(label, handler) {
@@ -6672,11 +6674,100 @@
   var drawPointers = {};
   var drawGesture = null;
   var drawRenderKey = "";
+  var shareApiBase = String(window.BEAM_SHARE_API_BASE || "").replace(/\/+$/, "");
+  var cloudShortIdPattern = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}$/;
   function createDrawGrid(size, fill = ".") {
     return Array(size * size).fill(fill);
   }
   function drawIndex(x, y, size = drawState.size) {
     return y * size + x;
+  }
+  function shareApiUrl(path) {
+    return `${shareApiBase}${path}`;
+  }
+  function extractCloudShortId(text) {
+    const source = String(text || "").trim();
+    if (cloudShortIdPattern.test(source)) return source;
+    const match = source.match(/[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}/);
+    return match && cloudShortIdPattern.test(match[0]) ? match[0] : "";
+  }
+  async function requestShareApi(path, payload) {
+    const response = await fetch(shareApiUrl(path), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json?.ok) {
+      throw new Error(json?.error?.message || "Share request failed.");
+    }
+    return json.data;
+  }
+  function applyImportedPattern(decoded, name = "\u5BFC\u5165\u56FE\u7EB8") {
+    const imported = {
+      id: `custom-${Date.now()}`,
+      name,
+      size: decoded.size,
+      rows: decoded.rows,
+      craft: decoded.craft || state.craft
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(imported);
+    loadPattern(imported, false);
+    state.patternsDirty = true;
+    renderUI();
+    showToast2(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
+    return imported;
+  }
+  async function createCloudShareForPattern(pattern) {
+    try {
+      const patternCode = encodePatternCode(pattern);
+      const share = await requestShareApi("/api/share/create", {
+        name: pattern.name,
+        patternCode
+      });
+      if (share?.shortId) {
+        await navigator.clipboard?.writeText?.(share.shortId).catch(() => {
+        });
+        showToast2(`\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}`);
+      }
+      return share;
+    } catch {
+      showToast2("\u77ED\u7801\u670D\u52A1\u6682\u65F6\u4E0D\u53EF\u7528\u3002");
+      return null;
+    }
+  }
+  async function createCloudShare() {
+    return createCloudShareForPattern(state.selectedPattern);
+  }
+  async function importPatternCode(raw) {
+    const localCode = extractPatternCode(raw);
+    if (localCode) {
+      try {
+        const decoded = decodePatternCode(localCode);
+        applyImportedPattern(decoded);
+        return true;
+      } catch {
+        showToast2("\u77ED\u7801\u65E0\u6548\uFF0C\u5BFC\u5165\u5931\u8D25\u3002");
+        return false;
+      }
+    }
+    const shortId = extractCloudShortId(raw);
+    if (!shortId) {
+      showToast2("\u77ED\u7801\u65E0\u6548\u3002");
+      return false;
+    }
+    try {
+      const share = await requestShareApi("/api/share/open", { shortId });
+      const decoded = decodePatternCode(share.patternCode, { name: share.name });
+      applyImportedPattern(decoded, share.name || "\u5BFC\u5165\u56FE\u7EB8");
+      return true;
+    } catch {
+      showToast2("\u77ED\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
+      return false;
+    }
   }
   function recordRecentColor(code) {
     if (!code || code === ".") return false;
@@ -6882,6 +6973,16 @@
       rows.push(drawState.grid.slice(y * drawState.size, (y + 1) * drawState.size).join(""));
     }
     return rows;
+  }
+  function makeDrawPattern(name = "\u7ED8\u5236\u56FE\u7EB8") {
+    ensureDrawGrid();
+    return {
+      id: "draw-export",
+      name,
+      size: drawState.size,
+      rows: drawRowsFromGrid(),
+      craft: "\u539F\u7248"
+    };
   }
   function loadDrawRows(rows) {
     const size = rows.length;
@@ -8694,14 +8795,7 @@
     useDrawPattern();
   });
   els.drawExportButton?.addEventListener("click", async () => {
-    ensureDrawGrid();
-    const pattern = {
-      id: "draw-export",
-      name: "\u7ED8\u5236\u56FE\u7EB8",
-      size: drawState.size,
-      rows: drawRowsFromGrid(),
-      craft: "\u539F\u7248"
-    };
+    const pattern = makeDrawPattern();
     const code = encodePatternCode(pattern);
     if (els.drawCodeInput) {
       els.drawCodeInput.dataset.open = "1";
@@ -8714,23 +8808,41 @@
       showToast2("\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\u3002");
     }
   });
-  els.drawImportButton?.addEventListener("click", () => {
+  els.drawShortCodeButton?.addEventListener("click", async () => {
+    const button = els.drawShortCodeButton;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "\u751F\u6210\u4E2D";
+    }
+    const share = await createCloudShareForPattern(makeDrawPattern());
+    if (els.drawCodeInput && share?.shortId) {
+      els.drawCodeInput.dataset.open = "1";
+      els.drawCodeInput.value = share.shortId;
+    }
+    if (button) {
+      button.disabled = false;
+      button.textContent = "\u751F\u6210\u77ED\u7801";
+    }
+  });
+  els.drawImportButton?.addEventListener("click", async () => {
     if (els.drawCodeInput) {
       els.drawCodeInput.dataset.open = "1";
       els.drawCodeInput.focus();
     }
     const raw = els.drawCodeInput?.value || "";
     const extracted = extractPatternCode(raw);
-    if (!extracted) {
-      showToast2("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u3002");
+    const shortId = extractCloudShortId(raw);
+    if (!extracted && !shortId) {
+      showToast2("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
       return;
     }
     try {
-      const decoded = decodePatternCode(extracted);
+      const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
+      const decoded = decodePatternCode(code);
       loadDrawRows(decoded.rows);
       showToast2(`\u5DF2\u5012\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
     } catch (error) {
-      showToast2("\u56FE\u7EB8\u7801\u65E0\u6548\uFF0C\u5012\u5165\u5931\u8D25\u3002");
+      showToast2("\u56FE\u7EB8\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
     }
   });
   var handleDrawPointer = (event) => {
@@ -9047,7 +9159,9 @@
     openShareModal,
     openCollectionEntry,
     exportShareImage,
-    copyShareText
+    copyShareText,
+    createCloudShare,
+    importPatternCode
   });
   validatePatterns();
   setAppMode("home");

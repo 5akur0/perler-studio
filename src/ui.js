@@ -9,7 +9,6 @@ import {
   baseIdFor,
 } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint } from './notify.js';
-import { decodePatternCode, extractPatternCode } from './pattern-code.js';
 import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
@@ -37,6 +36,8 @@ let uiActions = {
   openCollectionEntry: () => {},
   exportShareImage: () => {},
   copyShareText: () => {},
+  createCloudShare: async () => null,
+  importPatternCode: async () => false,
 };
 
 export function setUIActions(nextActions = {}) {
@@ -180,33 +181,10 @@ export function renderPatterns() {
   codeButton.className = "pattern-import-half";
   codeButton.type = "button";
   codeButton.textContent = "导入短码";
-  codeButton.addEventListener("click", () => {
+  codeButton.addEventListener("click", async () => {
     const raw = window.prompt("请粘贴图纸短码：");
     if (!raw) return;
-    const extracted = extractPatternCode(raw.trim());
-    if (!extracted) {
-      showToast("短码无效。");
-      return;
-    }
-    try {
-      const decoded = decodePatternCode(extracted);
-      const imported = {
-        id: `custom-${Date.now()}`,
-        name: "导入图纸",
-        size: decoded.size,
-        rows: decoded.rows,
-        craft: decoded.craft || state.craft,
-      };
-      for (let i = patterns.length - 1; i >= 0; i -= 1) {
-        if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-      }
-      patterns.unshift(imported);
-      uiActions.loadPattern(imported, false);
-      renderPatterns();
-      showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
-    } catch {
-      showToast("短码无效，导入失败。");
-    }
+    await uiActions.importPatternCode(raw);
   });
 
   importRow.appendChild(imageButton);
@@ -765,6 +743,28 @@ export function renderSharePanel() {
     row.appendChild(button);
   });
   els.sharePanel.appendChild(row);
+  const cloudResult = document.createElement("div");
+  cloudResult.className = "share-code-result";
+  const cloudButton = document.createElement("button");
+  cloudButton.type = "button";
+  cloudButton.className = "primary-button";
+  cloudButton.textContent = "生成短码";
+  cloudButton.addEventListener("click", async () => {
+    cloudButton.disabled = true;
+    cloudButton.textContent = "生成中";
+    cloudResult.textContent = "";
+    try {
+      const share = await uiActions.createCloudShare();
+      if (share?.shortId) {
+        cloudResult.innerHTML = `<strong>${share.shortId}</strong><span>7天内有效</span>`;
+      }
+    } finally {
+      cloudButton.disabled = false;
+      cloudButton.textContent = "生成短码";
+    }
+  });
+  els.sharePanel.appendChild(cloudButton);
+  els.sharePanel.appendChild(cloudResult);
   addShareButton("复制文案", () => uiActions.copyShareText());
 }
 

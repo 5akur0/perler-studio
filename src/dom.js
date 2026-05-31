@@ -28,6 +28,7 @@ export const els = {
   drawClearButton: $("#drawClearButton"),
   drawImportButton: $("#drawImportButton"),
   drawExportButton: $("#drawExportButton"),
+  drawShortCodeButton: $("#drawShortCodeButton"),
   drawUsePatternButton: $("#drawUsePatternButton"),
   drawCodeInput: $("#drawCodeInput"),
   drawPaletteMeta: $("#drawPaletteMeta"),
