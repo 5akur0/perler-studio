@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "build": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js",
-    "watch": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js --watch"
+    "build:js": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js",
+    "build:css": "esbuild src/styles/index.css --bundle --outfile=styles.css",
+    "build": "npm run build:js && npm run build:css",
+    "watch:js": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js --watch",
+    "watch:css": "esbuild src/styles/index.css --bundle --outfile=styles.css --watch"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",

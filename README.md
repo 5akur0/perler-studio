@@ -21,11 +21,21 @@
 - Cloudflare Pages 上线步骤见 [DEPLOY_CLOUDFLARE_PAGES.md](/Users/Sakuro/beam/DEPLOY_CLOUDFLARE_PAGES.md)。
 - Figma 协作规范见 [FIGMA_HANDOFF.md](/Users/Sakuro/beam/FIGMA_HANDOFF.md)。
 
+## 图纸画廊审核
+
+- 首页的“图纸画廊”只读取后端已发布内容，用户投稿会先进入待审核队列。
+- 投稿接口：`POST /api/gallery/submit`。
+- 公开列表接口：`POST /api/gallery/list`。
+- 审核接口：`POST /api/gallery/pending`、`POST /api/gallery/approve`、`POST /api/gallery/reject`。
+- 管理审核页是 `admin.html`，需要输入云端环境变量 `ADMIN_TOKEN` 才能读取、通过或拒绝投稿。
+- 不要把真实 `ADMIN_TOKEN` 提交到 GitHub；本仓库只提供 `.env.example` 里的变量名示例。
+- Cloudbase 数据集合使用 `gallery_submissions` 保存待审/拒绝/通过记录，`gallery_items` 保存公开发布图纸。
+
 ## 玩法要点
 
 - 先选择图纸，再进入拼豆工作台。
 - 豆盒里有 48 个色号。图纸和豆盒都显示类似 `H5` 的色号，玩家需要自己按图纸选择。
-- 图纸尺寸默认是 `24x24`，也可以改成 `16x16`、`32x32`、`40x40`、`48x48`，或输入 `12-48` 之间的自定义尺寸。
+- 图纸尺寸默认是 `24x24`，也可以改成 `16x16`、`32x32`、`40x40`、`48x48`、`100x100`，或输入 `12-100` 之间的自定义尺寸。
 - 豆筛只有一个。把豆盒里的某个色号倒入豆筛后，换色前必须先倒掉原来的豆子。
 - 豆筛在拼豆阶段常驻，只保留“抖动豆筛”动作，也可以直接拖动工作台里的豆筛来抖动。
 - 针工具只从豆筛取豆，适合拖动铺大面积同色区域。

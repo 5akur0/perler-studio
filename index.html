@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>拼豆工坊 · 手作拼豆模拟器</title>
     <meta
       name="description"
@@ -77,7 +77,132 @@
                 <path d="M9 18l6-6-6-6"/>
               </svg>
             </button>
+            <button class="start-row start-row-gallery" id="startGalleryButton" type="button">
+              <span class="start-row-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="16" rx="2"/>
+                  <path d="M7 8h.01"/>
+                  <path d="m3 16 4.5-4.5a2 2 0 0 1 2.8 0L14 15"/>
+                  <path d="m13 14 1.5-1.5a2 2 0 0 1 2.8 0L21 16"/>
+                </svg>
+              </span>
+              <span class="start-row-body">
+                <strong>图纸画廊</strong>
+                <small>浏览已审核图纸，也可以投稿给我审核。</small>
+              </span>
+              <svg class="start-row-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+            <button class="start-row start-row-collection" id="collectionButton" type="button">
+              <span class="start-row-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 5h16v14H4z"/>
+                  <path d="M8 5V3h8v2"/>
+                  <path d="M8 11h8"/>
+                  <path d="M8 15h5"/>
+                </svg>
+              </span>
+              <span class="start-row-body">
+                <strong>作品集</strong>
+                <small>查看已经保存的完成品。</small>
+              </span>
+              <strong class="start-row-count" id="collectionCount">0</strong>
+              <svg class="start-row-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
           </div>
+        </div>
+      </section>
+
+      <section class="gallery-screen" id="galleryScreen" aria-labelledby="galleryTitle">
+        <div class="gallery-studio-card">
+          <header class="topbar gallery-topbar">
+            <div class="topbar-lead">
+              <div class="brand">
+                <div class="brand-mark" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                <div class="brand-text">
+                  <h1 id="galleryTitle">拼豆工坊</h1>
+                  <span class="work-mode-chip">图纸画廊</span>
+                </div>
+              </div>
+            </div>
+            <div class="top-stats gallery-top-actions">
+              <button class="icon-only-button" id="galleryBackButton" type="button" title="返回入口" aria-label="返回入口">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M10 6L4 12L10 18"/>
+                  <path d="M20 12H5"/>
+                </svg>
+              </button>
+              <button class="icon-only-button" id="gallerySettingsButton" type="button" title="设置" aria-label="设置">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </button>
+              <button class="icon-only-button" id="galleryRefreshButton" type="button" title="刷新" aria-label="刷新">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/>
+                  <path d="M21 4v4h-4"/>
+                  <path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/>
+                  <path d="M3 20v-4h4"/>
+                </svg>
+              </button>
+            </div>
+          </header>
+          <main class="gallery-layout" aria-live="polite">
+            <div class="gallery-toolbar">
+              <button class="ghost-button" id="gallerySubmitButton" type="button">投稿图纸</button>
+            </div>
+            <div class="gallery-grid" id="galleryGrid"></div>
+            <div class="gallery-empty" id="galleryEmpty">画廊还没有发布图纸。</div>
+          </main>
+        </div>
+      </section>
+
+      <section class="collection-screen" id="collectionScreen" aria-labelledby="collectionTitle">
+        <div class="collection-studio-card">
+          <header class="topbar collection-topbar">
+            <div class="topbar-lead">
+              <div class="brand">
+                <div class="brand-mark" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                <div class="brand-text">
+                  <h1 id="collectionTitle">拼豆工坊</h1>
+                  <span class="work-mode-chip">作品集</span>
+                </div>
+              </div>
+            </div>
+            <div class="top-stats collection-top-actions">
+              <button class="icon-only-button" id="collectionBackButton" type="button" title="返回入口" aria-label="返回入口">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M10 6L4 12L10 18"/>
+                  <path d="M20 12H5"/>
+                </svg>
+              </button>
+              <button class="icon-only-button" id="collectionSettingsButton" type="button" title="设置" aria-label="设置">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 0 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </button>
+              <button class="icon-only-button" id="collectionRefreshButton" type="button" title="刷新" aria-label="刷新">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/>
+                  <path d="M21 4v4h-4"/>
+                  <path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/>
+                  <path d="M3 20v-4h4"/>
+                </svg>
+              </button>
+            </div>
+          </header>
+          <main class="collection-layout" aria-live="polite">
+            <div id="collectionPanel" class="collection-panel"></div>
+          </main>
         </div>
       </section>
 
@@ -95,7 +220,6 @@
                 </div>
               </div>
             </div>
-            <nav class="workflow-progress drawing-workflow-progress" aria-hidden="true"></nav>
             <div class="top-stats">
               <button class="icon-only-button" id="drawingBackButton" type="button" title="返回入口" aria-label="返回入口">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -120,61 +244,89 @@
           <div class="studio-grid drawing-studio-grid">
             <aside class="side-panel left-panel drawing-tools-panel" aria-label="绘图工具">
               <section>
+                <div class="drawing-size-card" aria-label="画布尺寸">
+                  <div class="drawing-size-card-head">
+                    <span>画布尺寸</span>
+                    <strong id="drawSizeValue">24×24</strong>
+                  </div>
+                  <div class="drawing-size-fields">
+                    <label>
+                      <span>宽</span>
+                      <input id="drawWidthInput" type="number" min="3" max="100" step="1" inputmode="numeric" value="24" aria-label="画布宽度" />
+                    </label>
+                    <label>
+                      <span>高</span>
+                      <input id="drawHeightInput" type="number" min="3" max="100" step="1" inputmode="numeric" value="24" aria-label="画布高度" />
+                    </label>
+                  </div>
+                  <button id="drawSizeApplyButton" class="ghost-button" type="button">调整画布</button>
+                </div>
                 <div class="section-title">
                   <span>工具台</span>
                   <small>尺寸与操作</small>
                 </div>
-                <div class="drawing-group">
-                  <label for="drawSizeSelect">尺寸</label>
-                  <select id="drawSizeSelect" aria-label="绘图尺寸">
-                    <option value="16">16x16</option>
-                    <option value="24" selected>24x24</option>
-                    <option value="30">30x30</option>
-                    <option value="48">48x48</option>
-                  </select>
-                </div>
-                <div class="drawing-group">
+                <div class="drawing-group drawing-tool-group">
                   <span>工具</span>
-                  <div class="tool-toggle" role="tablist" aria-label="绘图工具">
+                  <div class="tool-toggle tool-group-large" role="tablist" aria-label="绘图工具">
                     <button type="button" data-draw-tool="brush" class="active" aria-label="画笔">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 21C6 21 7 19 7 17C7 16 6 15 6 14C6 11 8 9 12 9L19 2L22 5L15 12C15 16 13 18 10 18C9 18 8 17 7 17"/>
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m14.622 17.897l-10.68-2.913"/>
+                        <path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/>
+                        <path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/>
                       </svg>
                     </button>
                     <button type="button" data-draw-tool="eraser" aria-label="橡皮">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 20H11L4 13L12 5L20 13L16 17"/>
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/>
+                        <path d="m5.082 11.09l8.828 8.828"/>
                       </svg>
                     </button>
-                    <button type="button" data-draw-tool="picker" aria-label="吸管">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 22L8 16"/>
-                        <path d="M14.5 8.5L18 5A2.12 2.12 0 1 0 15 2L11.5 5.5"/>
-                        <path d="M8 16L2 10L10.5 1.5L16.5 7.5L8 16Z"/>
-                      </svg>
-                    </button>
+                  </div>
+                  <div class="tool-toggle tool-group-small" role="group" aria-label="辅助工具">
                     <button type="button" data-draw-tool="fill" aria-label="填充">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 11L13 5L7 11"/>
-                        <path d="M13 5V17"/>
-                        <path d="M4 19H20"/>
+                        <path d="M11 7L6 2"/>
+                        <path d="M18.992 12H2.041"/>
+                        <path d="M21.145 18.38A3.34 3.34 0 0 1 20 16.5a3.3 3.3 0 0 1-1.145 1.88c-.575.46-.855 1.02-.855 1.595A2 2 0 0 0 20 22a2 2 0 0 0 2-2.025c0-.58-.285-1.13-.855-1.595"/>
+                        <path d="M8.5 4.5l2.148-2.148a1.205 1.205 0 0 1 1.704 0l7.296 7.296a1.205 1.205 0 0 1 0 1.704l-7.592 7.592a3.615 3.615 0 0 1-5.112 0l-3.888-3.888a3.615 3.615 0 0 1 0-5.112L5.67 7.33"/>
+                      </svg>
+                    </button>
+                    <button type="button" id="drawShapeButton" data-draw-tool="shape" aria-label="矩形">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      </svg>
+                    </button>
+                    <button type="button" data-draw-tool="picker" aria-label="取色">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m12 9l-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/>
+                        <path d="m18 9l.4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4l3.4-3.4a1 1 0 1 1 3 3z"/>
+                        <path d="m2 22l.414-.414"/>
+                      </svg>
+                    </button>
+                    <button type="button" id="drawUndoButton" data-draw-action="undo" aria-label="撤销" disabled>
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 14L4 9l5-5"/>
+                        <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
                       </svg>
                     </button>
                   </div>
                 </div>
-                <div class="drawing-group">
-                  <span>当前颜色</span>
-                  <div class="drawing-current-color">
-                    <i id="drawCurrentColorSwatch" aria-hidden="true"></i>
-                    <strong id="drawCurrentColorCode">H7</strong>
+                <div class="drawing-footer-actions">
+                  <div class="drawing-actions drawing-footer-row">
+                    <button type="button" class="ghost-button" id="drawImportButton">导入图纸</button>
+                    <button type="button" class="ghost-button" id="drawShortCodeButton">导出图纸</button>
                   </div>
-                </div>
-                <div class="drawing-actions">
-                  <button type="button" class="ghost-button" id="drawClearButton">清空</button>
-                  <button type="button" class="ghost-button" id="drawImportButton">倒入图纸码</button>
-                  <button type="button" class="ghost-button" id="drawExportButton">导出图纸码</button>
-                  <button type="button" class="ghost-button" id="drawShortCodeButton">生成短码</button>
                   <button type="button" class="primary-button" id="drawUsePatternButton">开始拼豆</button>
+                  <div class="drawing-secondary-actions">
+                    <button type="button" class="icon-text-button" id="drawClearButton" title="清空画布">
+                      <span class="btn-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/></svg></span>
+                      <span class="btn-label">清空</span>
+                    </button>
+                    <button type="button" class="icon-text-button" id="drawSubmitGalleryButton" title="投稿图纸">
+                      <span class="btn-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+                      <span class="btn-label">投稿</span>
+                    </button>
+                  </div>
                 </div>
               </section>
             </aside>
@@ -187,7 +339,6 @@
                 <div class="drawing-canvas-wrap">
                   <canvas id="drawCanvas" width="720" height="720" aria-label="绘图网格"></canvas>
                 </div>
-                <textarea id="drawCodeInput" class="drawing-code-input" placeholder="这里会显示图纸码，也可以粘贴图纸码后点“倒入图纸码”"></textarea>
               </section>
             </section>
             <aside class="side-panel right-panel drawing-palette-panel" aria-label="颜色面板">
@@ -304,7 +455,7 @@
                 </div>
                 <div class="size-rail" aria-label="图纸尺寸控制">
                   <span class="size-rail-label">大小</span>
-                  <input id="patternSizeSlider" class="size-slider" type="range" min="12" max="48" step="1" value="24" aria-label="图纸大小竖向滑动条" />
+                  <input id="patternSizeSlider" class="size-slider" type="range" min="12" max="100" step="1" value="24" aria-label="图纸大小竖向滑动条" />
                   <strong id="patternSizeValue" class="size-rail-value">24</strong>
                 </div>
               </div>
@@ -354,11 +505,6 @@
           <button id="settingsModalClose" type="button" aria-label="关闭设置窗口">×</button>
         </div>
         <div class="remap-modal-body settings-modal-body">
-          <button class="icon-button settings-collection-row" id="collectionButton" data-icon="collection" type="button" title="作品集">
-            <span class="icon-button-glyph" aria-hidden="true"></span>
-            <span class="icon-button-label">作品集</span>
-            <strong class="icon-button-count" id="collectionCount">0</strong>
-          </button>
           <label class="bg-picker settings-field">
             <span>背景</span>
             <select id="bgThemeSelect" aria-label="背景颜色">
@@ -385,18 +531,6 @@
       </div>
     </div>
 
-    <div id="collectionModal" class="remap-modal" aria-hidden="true">
-      <div class="remap-modal-card collection-modal-card" role="dialog" aria-modal="true" aria-labelledby="collectionModalTitle">
-        <div class="remap-modal-head">
-          <strong id="collectionModalTitle">作品集</strong>
-          <button id="collectionModalClose" type="button" aria-label="关闭作品集窗口">×</button>
-        </div>
-        <div class="remap-modal-body">
-          <div id="collectionPanel" class="collection-panel"></div>
-        </div>
-      </div>
-    </div>
-
     <div id="shareModal" class="remap-modal" aria-hidden="true">
       <div class="remap-modal-card share-modal-card" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
         <div class="remap-modal-head">
@@ -405,6 +539,34 @@
         </div>
         <div class="remap-modal-body">
           <div id="sharePanel" class="share-panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="gallerySubmitModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card gallery-submit-modal-card" role="dialog" aria-modal="true" aria-labelledby="gallerySubmitModalTitle">
+        <div class="remap-modal-head">
+          <strong id="gallerySubmitModalTitle">投稿到图纸画廊</strong>
+          <button id="gallerySubmitCloseBtn" type="button" aria-label="关闭投稿窗口">×</button>
+        </div>
+        <div class="remap-modal-body gallery-submit-body">
+          <label class="gallery-submit-field">
+            <span>图纸名称</span>
+            <input id="gallerySubmitName" type="text" maxlength="40" placeholder="给这张图纸起个名字" />
+          </label>
+          <label class="gallery-submit-field">
+            <span>作者昵称</span>
+            <input id="gallerySubmitAuthor" type="text" maxlength="24" placeholder="可留空" />
+          </label>
+          <label class="gallery-submit-field">
+            <span>图纸码或短码</span>
+            <textarea id="gallerySubmitCode" class="drawing-code-input" placeholder="粘贴 BEAM1 图纸码或 8 位短码"></textarea>
+          </label>
+          <p class="gallery-submit-note">投稿会先进入待审核队列，通过后才会出现在公开画廊。</p>
+        </div>
+        <div class="remap-modal-foot">
+          <button id="gallerySubmitCancelBtn" type="button">取消</button>
+          <button id="gallerySubmitConfirmBtn" class="primary-button" type="button">提交审核</button>
         </div>
       </div>
     </div>
@@ -432,6 +594,24 @@
         <div class="remap-modal-foot">
           <button id="drawResizeCancelBtn" type="button">取消</button>
           <button id="drawResizeConfirmBtn" class="primary-button" type="button">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="drawCodeModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card draw-code-modal-card" role="dialog" aria-modal="true" aria-labelledby="drawCodeModalTitle">
+        <div class="remap-modal-head">
+          <strong id="drawCodeModalTitle">导入图纸</strong>
+          <button id="drawCodeCloseBtn" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="remap-modal-body draw-code-modal-body">
+          <p id="drawCodeHint" class="draw-code-hint">粘贴图纸码或短码，然后导入到绘图台。</p>
+          <textarea id="drawCodeInput" class="drawing-code-input" placeholder="粘贴图纸码或短码"></textarea>
+        </div>
+        <div class="remap-modal-foot">
+          <button id="drawCodeCancelBtn" type="button">取消</button>
+          <button id="drawCodeCopyBtn" type="button" class="ghost-button">复制</button>
+          <button id="drawCodeImportConfirmBtn" class="primary-button" type="button">导入图纸</button>
         </div>
       </div>
     </div>

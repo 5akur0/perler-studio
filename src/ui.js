@@ -38,6 +38,7 @@ let uiActions = {
   copyShareText: () => {},
   createCloudShare: async () => null,
   importPatternCode: async () => false,
+  submitCurrentToGallery: () => {},
 };
 
 function escapeHtml(value) {
@@ -58,7 +59,7 @@ export function setSizeControls(size) {
   if (els.patternSizeSlider) {
     els.patternSizeSlider.value = String(normalized);
     const min = Number(els.patternSizeSlider.min) || 12;
-    const max = Number(els.patternSizeSlider.max) || 48;
+    const max = Number(els.patternSizeSlider.max) || 100;
     const progress = Math.max(0, Math.min(1, (normalized - min) / Math.max(1, max - min)));
     els.patternSizeSlider.style.setProperty("--size-progress", `${Math.round(progress * 100)}%`);
   }
@@ -204,12 +205,13 @@ export function renderPatterns() {
     const isCustom = pattern.id.startsWith("custom-");
     const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
     const safePatternName = escapeHtml(pattern.name);
+    const safePatternMeta = escapeHtml(displayPattern.note || `${displayPattern.size}x${displayPattern.size}`);
     const button = document.createElement("button");
     button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
     button.type = "button";
     button.innerHTML = `
         <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-        <span><strong>${safePatternName}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
+        <span><strong>${safePatternName}</strong><span>${safePatternMeta}</span></span>
       `;
     button.addEventListener("click", () => {
       uiActions.loadPattern(displayPattern, state.phase !== "choose");
@@ -391,10 +393,8 @@ export function renderControls() {
         ? `mobile:${state.selectedColor}`
         : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`);
     showPlaceHint(placeHintText, placeHintKey);
-    addControlRow([
-      ["检查作品", "primary-button", () => uiActions.setPhase("inspect")],
-      ["清空板面", "danger-button", () => uiActions.clearBoard?.()],
-    ]);
+    addButton("检查作品", "primary-button", () => uiActions.setPhase("inspect"));
+    addButton("清空板面", "danger-text-button", () => uiActions.clearBoard?.());
     return;
   }
 
@@ -408,18 +408,18 @@ export function renderControls() {
     }
     const hintsOn = state.showHints;
     addControlRow([
-      ["", `icon-pill ${hintsOn ? "active" : ""}`, () => {
+      [hintsOn ? "隐藏提示" : "显示提示", `inspect-action-btn ${hintsOn ? "active" : ""}`, () => {
         state.showHints = !state.showHints;
         markDirty();
       }, false, {
         icon: hintsOn
-          ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
-          : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+          ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
+          : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
         ariaLabel: hintsOn ? "隐藏提示" : "显示提示",
         title: hintsOn ? "隐藏提示" : "显示提示",
       }],
-      ["", "icon-pill", () => uiActions.setPhase("place"), false, {
-        icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
+      ["返回修正", "inspect-action-btn", () => uiActions.setPhase("place"), false, {
+        icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
         ariaLabel: "返回修正",
         title: "返回修正",
       }],
@@ -776,6 +776,7 @@ export function renderSharePanel() {
   });
   els.sharePanel.appendChild(cloudButton);
   els.sharePanel.appendChild(cloudResult);
+  addShareButton("投稿画廊", () => uiActions.submitCurrentToGallery());
   addShareButton("复制文案", () => uiActions.copyShareText());
 }
 
@@ -966,8 +967,8 @@ export function drawCollectionThumb(canvas, item) {
 }
 
 function enlargeCollectionEntry(entry) {
-  if (!els.collectionModal) return;
-  let viewer = els.collectionModal.querySelector(".collection-enlarged");
+  if (!els.collectionScreen) return;
+  let viewer = els.collectionScreen.querySelector(".collection-enlarged");
   if (!viewer) {
     viewer = document.createElement("div");
     viewer.className = "collection-enlarged";
@@ -979,7 +980,7 @@ function enlargeCollectionEntry(entry) {
           <button type="button" class="primary-button collection-enlarged-open">打开这张图纸</button>
         </div>
       `;
-    els.collectionModal.appendChild(viewer);
+    els.collectionScreen.appendChild(viewer);
     viewer.querySelector(".collection-enlarged-close").addEventListener("click", () => {
       viewer.classList.remove("show");
     });
@@ -1041,8 +1042,13 @@ export function renderUI() {
     els.topToolStyleSelect.value = state.toolStyle;
   }
   const toolStyleField = els.topToolStyleSelect?.closest(".tool-style-picker");
-  if (toolStyleField) toolStyleField.style.display = useMobileDirectPlacement() ? "none" : "";
-  if (els.statusLine) els.statusLine.textContent = statusText();
+  if (toolStyleField) {
+    toolStyleField.style.display = (state.appMode === "gallery" || useMobileDirectPlacement()) ? "none" : "";
+  }
+  if (els.statusLine) {
+    const phaseObj = phases.find(p => p.id === state.phase);
+    els.statusLine.textContent = phaseObj?.name ?? statusText();
+  }
   const showPlacementUi = state.phase === "place";
   // Mobile uses direct tap-to-place — no needle/tweezers tool selection.
   const showToolUi = showPlacementUi && !useMobileDirectPlacement();
