@@ -1,0 +1,81 @@
+:root {
+  /* —— Brand & ink —— */
+  --ink: #26242b;
+  --muted: #686572;
+  --line: #d6dae2;
+  --panel: #ffffff;
+  --page-base: #eef2f4;
+  --page-glow-a: rgba(87, 184, 167, 0.14);
+  --page-glow-b: rgba(231, 100, 95, 0.11);
+  --table: #dfe7e8;
+  --table-deep: #c4d4d7;
+  --mint: #57b8a7;
+  --coral: #e7645f;
+  --amber: #d99b3d;
+  --blue: #4d77b8;
+  --violet: #7b6fb1;
+  --brand: var(--mint);
+  --brand-ink: #1f6153;
+  --brand-edge: #3f988b;
+
+  /* —— Surfaces (converged neutrals) —— */
+  --surface: #ffffff;
+  --surface-2: #f6f8fc;
+  --surface-3: #edf2f5;
+  --paper: var(--surface-2);
+
+  /* —— Radius scale —— */
+  /* concentric rule: inner = outer − gap; valid triples (outer,gap,inner): (12,4,8) (16,4,12) (20,4,16) (16,8,8) (20,8,12) (20,12,8) */
+  --r-2xs: 4px;
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+
+  /* —— Spacing scale —— */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* —— Elevation scale (soft, clay-like) —— */
+  --sh-1: 0 2px 8px rgba(49, 54, 68, 0.06);
+  --sh-2: 0 10px 24px rgba(49, 54, 68, 0.09);
+  --sh-3: 0 18px 46px rgba(49, 54, 68, 0.14);
+  --sh-pop: 0 22px 56px rgba(38, 36, 43, 0.22);
+  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --shadow: var(--sh-3);
+
+  /* —— Type scale —— */
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+
+  /* —— Brand tint (overridden at runtime by JS theme) —— */
+  --brand-tint: rgba(87, 184, 167, 0.16);
+  --brand-tint-strong: rgba(87, 184, 167, 0.25);
+
+  /* —— Z-index scale —— */
+  --z-base: 1;
+  --z-dropdown: 20;
+  --z-sticky: 26;
+  --z-modal: 28;
+  --z-modal-high: 32;
+  --z-overlay: 9000;
+
+  /* —— Responsive breakpoints (doc only — CSS vars can't be used in @media) —— */
+  /* --bp-sm: 420px | --bp-phone: 620px | --bp-mobile: 860px | --bp-tablet: 1180px */
+
+  font-family: "Nunito", "Varela Round", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}

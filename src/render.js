@@ -26,9 +26,13 @@ export function isTouchDevice() {
   return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 }
 
-export function maxBoardScale() {
-  // Touch devices (phone + tablet) benefit from a higher ceiling for close-up work.
-  return isTouchDevice() ? 6 : 2.8;
+export function maxBoardScale(layout = null) {
+  const cell = Number(layout?.cell || 0);
+  if (!Number.isFinite(cell) || cell <= 0) {
+    return isTouchDevice() ? 6 : 2.8;
+  }
+  const targetCellPx = isTouchDevice() ? 56 : 48;
+  return clamp(targetCellPx / cell, 1, isTouchDevice() ? 10 : 8);
 }
 
 export function shouldShowTray(layout = currentLayout()) {
@@ -194,7 +198,7 @@ export function currentLayout(canvasRect = null) {
 }
 
 export function boardViewTransform(layout = currentLayout()) {
-  const scale = clamp(state.boardView.scale || 1, 1, maxBoardScale());
+  const scale = clamp(state.boardView.scale || 1, 1, maxBoardScale(layout));
   const extra = (layout.boardSize * scale - layout.boardSize) * 0.5;
   const basePan = isTouchDevice() ? layout.boardSize * 0.36 : 28;
   const maxPan = extra + basePan;
@@ -209,10 +213,11 @@ export function boardViewTransform(layout = currentLayout()) {
 }
 
 export function setBoardZoom(nextScale, nextPanX = state.boardView.panX, nextPanY = state.boardView.panY) {
-  state.boardView.scale = clamp(nextScale, 1, maxBoardScale());
+  const layout = currentLayout();
+  state.boardView.scale = clamp(nextScale, 1, maxBoardScale(layout));
   state.boardView.panX = nextPanX;
   state.boardView.panY = nextPanY;
-  boardViewTransform();
+  boardViewTransform(layout);
   markCanvasDirty();
 }
 
@@ -261,16 +266,16 @@ export function startBoardGesture(p1, p2, touchActive = false) {
 export function updateBoardGesture(p1, p2) {
   const mid = pointerMid(p1, p2);
   const distance = Math.max(16, pointerDistance(p1, p2));
+  const layout = currentLayout();
   const nextScale = clamp(
     state.gesture.startScale * (distance / Math.max(16, state.gesture.startDistance)),
     1,
-    maxBoardScale()
+    maxBoardScale(layout)
   );
   // Anchor the zoom on the fingers: keep the board point that was under the
   // initial two-finger midpoint locked under the current midpoint. This makes
   // pinch feel natural (zoom toward the pinch center) and folds pure two-finger
   // panning into the same formula (when distance is unchanged).
-  const layout = currentLayout();
   const cx = layout.boardX + layout.boardSize * 0.5;
   const cy = layout.boardY + layout.boardSize * 0.5;
   const startScale = Math.max(0.0001, state.gesture.startScale);

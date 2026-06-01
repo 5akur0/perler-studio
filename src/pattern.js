@@ -420,7 +420,7 @@ export function placedCount() {
 export function normalizePatternSize(value) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return 48;
-  return clamp(parsed, 12, 200);
+  return clamp(parsed, 12, 100);
 }
 
 export function baseIdFor(pattern) {
@@ -471,7 +471,7 @@ export function resizePattern(pattern, targetSize) {
     sourceRows,
     size,
     rows,
-    note: "",
+    note: pattern.note || "",
   };
   delete resized.__gridFingerprint;
   delete resized.__sourceAnalysis;

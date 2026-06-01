@@ -25,7 +25,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "猫猫蹭到果汁啦",
   },
   {
     id: "rocket",
@@ -50,7 +50,7 @@ export const patternSeeds = [
       "......OO........",
       "................",
     ],
-    note: "",
+    note: "贴在冰箱也会飞",
   },
   {
     id: "lake-whale",
@@ -75,7 +75,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "不用喂的小鱼",
   },
   {
     id: "sweet-heart",
@@ -100,7 +100,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "心跳有点快",
   },
   {
     id: "milk-tea",
@@ -125,7 +125,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "两杯刚刚好",
   },
   {
     id: "ribbon-clip",
@@ -150,7 +150,7 @@ export const patternSeeds = [
       ".....SSSSSS.....",
       "................",
     ],
-    note: "",
+    note: "戴上就好看",
   },
   {
     id: "game-date",
@@ -175,7 +175,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "找个人一起玩",
   },
   {
     id: "mini-bouquet",
@@ -200,7 +200,7 @@ export const patternSeeds = [
       "......MMMM......",
       "................",
     ],
-    note: "",
+    note: "送谁都合适",
   },
   {
     id: "instant-photo",
@@ -225,7 +225,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "像刚冲出来",
   },
   {
     id: "panda",
@@ -250,7 +250,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "吃饱就发呆",
   },
   {
     id: "mushroom",
@@ -275,7 +275,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "下雨正好躲",
   },
   {
     id: "strawberry",
@@ -300,7 +300,7 @@ export const patternSeeds = [
       ".....RRRRRR.....",
       "......RRRR......",
     ],
-    note: "",
+    note: "尝了，不酸",
   },
   {
     id: "boba",
@@ -325,7 +325,7 @@ export const patternSeeds = [
       "................",
       "................",
     ],
-    note: "",
+    note: "珍珠多加点",
   },
   {
     id: "ghost",
@@ -350,7 +350,7 @@ export const patternSeeds = [
       "....U..U..U..U..",
       "................",
     ],
-    note: "",
+    note: "不吓人，还乖",
   },
   {
     id: "moon",
@@ -375,7 +375,7 @@ export const patternSeeds = [
       ".........y......",
       "................",
     ],
-    note: "",
+    note: "今晚月亮不错",
   },
 ];
 
@@ -419,7 +419,7 @@ export const patterns = patternSeeds.map((seed) => ({
   ...seed,
   size: 24,
   rows: detailedRowsFromSeed(seed, 24),
-  note: "",
+  note: seed.note || "",
 }));
 
 export function resamplePatternRows(sourceRows, sourceSize, targetSize) {

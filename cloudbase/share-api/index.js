@@ -5,11 +5,14 @@ const db = app.database();
 const _ = db.command;
 
 const SHARES = "shares";
+const GALLERY_SUBMISSIONS = "gallery_submissions";
+const GALLERY_ITEMS = "gallery_items";
 const SHORT_ID_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const SHORT_ID_LENGTH = 8;
 const MAX_SHORT_ID_ATTEMPTS = 8;
 const DEFAULT_NAME = "Untitled Pattern";
 const MAX_NAME_LENGTH = 40;
+const MAX_AUTHOR_LENGTH = 24;
 const MAX_PATTERN_CODE_LENGTH = 200 * 1024;
 const SHARE_TTL_DAYS = 7;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -23,6 +26,7 @@ let lastCleanupAt = 0;
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com",
   "https://beam-prod-d7g2xz88ee6532631-1438742199.tcloudbaseapp.com",
+  "https://perler-studio.pages.dev",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ];
@@ -49,7 +53,7 @@ function responseHeaders(event) {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     "access-control-allow-methods": "POST,OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type,x-admin-token",
     vary: "origin",
   };
   if (origin) headers["access-control-allow-origin"] = origin;
@@ -84,6 +88,29 @@ function normalizePatternCode(value) {
   if (!patternCode) throw new Error("patternCode is required.");
   if (patternCode.length > MAX_PATTERN_CODE_LENGTH) throw new Error("patternCode is too large.");
   return patternCode;
+}
+
+function normalizeAuthor(value) {
+  const cleaned = String(value || "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, MAX_AUTHOR_LENGTH);
+  if (/[<>"'`\\]/.test(cleaned)) {
+    throw new Error("author contains unsafe characters.");
+  }
+  return cleaned;
+}
+
+function parsePatternCodeMeta(patternCode) {
+  const code = normalizePatternCode(patternCode);
+  const match = code.match(/^BEAM1:(\d+)x(\d+):[^:]{1,4096}:[0-9A-Za-z.]+$/);
+  if (!match) throw new Error("Invalid pattern code.");
+  const width = Number.parseInt(match[1], 10);
+  const height = Number.parseInt(match[2], 10);
+  if (!width || !height || width !== height || width < 12 || width > 100) {
+    throw new Error("Invalid pattern size.");
+  }
+  return { patternCode: code, size: width };
 }
 
 function normalizeShortId(value) {
@@ -124,6 +151,26 @@ function isCreatePath(path) {
 
 function isOpenPath(path) {
   return path.endsWith("/api/share/open") || path.endsWith("/share/open") || path.endsWith("/open");
+}
+
+function isGallerySubmitPath(path) {
+  return path.endsWith("/api/gallery/submit") || path.endsWith("/gallery/submit");
+}
+
+function isGalleryListPath(path) {
+  return path.endsWith("/api/gallery/list") || path.endsWith("/gallery/list");
+}
+
+function isGalleryPendingPath(path) {
+  return path.endsWith("/api/gallery/pending") || path.endsWith("/gallery/pending");
+}
+
+function isGalleryApprovePath(path) {
+  return path.endsWith("/api/gallery/approve") || path.endsWith("/gallery/approve");
+}
+
+function isGalleryRejectPath(path) {
+  return path.endsWith("/api/gallery/reject") || path.endsWith("/gallery/reject");
 }
 
 function nowIso() {
@@ -233,6 +280,118 @@ async function openShare(payload) {
   };
 }
 
+function requireAdmin(event, payload) {
+  const configured = String(process.env.ADMIN_TOKEN || "").trim();
+  if (!configured) throw new Error("Admin token is not configured.");
+  const headers = event?.headers || {};
+  const provided = String(payload.adminToken || headers["x-admin-token"] || headers["X-Admin-Token"] || "").trim();
+  if (!provided || provided !== configured) throw new Error("Unauthorized.");
+}
+
+function publicGalleryItem(row) {
+  return {
+    id: row.publicId || row._id || "",
+    name: row.name,
+    author: row.author || "",
+    patternCode: row.patternCode,
+    size: row.size,
+    publishedAt: row.publishedAt,
+  };
+}
+
+async function submitGallery(payload, event, context) {
+  const name = normalizeName(payload.name || "投稿图纸");
+  const author = normalizeAuthor(payload.author);
+  const { patternCode, size } = parsePatternCodeMeta(payload.patternCode);
+  const createdAt = nowIso();
+  const result = await db.collection(GALLERY_SUBMISSIONS).add({
+    name,
+    author,
+    patternCode,
+    size,
+    status: "pending",
+    createdAt,
+    updatedAt: createdAt,
+    clientIp: clientIp(event, context),
+  });
+  return { id: result?.id || result?._id || "", status: "pending", createdAt };
+}
+
+async function listGallery(payload) {
+  const limit = Math.max(1, Math.min(96, Number.parseInt(payload.limit, 10) || 48));
+  const result = await db.collection(GALLERY_ITEMS)
+    .where({ status: "published" })
+    .limit(limit)
+    .get();
+  const rows = (result.data || [])
+    .sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")));
+  return { items: rows.map(publicGalleryItem) };
+}
+
+async function listPendingGallery(payload, event) {
+  requireAdmin(event, payload);
+  const limit = Math.max(1, Math.min(96, Number.parseInt(payload.limit, 10) || 48));
+  const result = await db.collection(GALLERY_SUBMISSIONS)
+    .where({ status: "pending" })
+    .limit(limit)
+    .get();
+  return {
+    items: (result.data || [])
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+      .map((row) => ({
+        id: row._id,
+        name: row.name,
+        author: row.author || "",
+        patternCode: row.patternCode,
+        size: row.size,
+        status: row.status,
+        createdAt: row.createdAt,
+      })),
+  };
+}
+
+async function approveGallery(payload, event) {
+  requireAdmin(event, payload);
+  const id = String(payload.id || "").trim();
+  if (!id) throw new Error("id is required.");
+  const result = await db.collection(GALLERY_SUBMISSIONS).doc(id).get();
+  const submission = result.data && (Array.isArray(result.data) ? result.data[0] : result.data);
+  if (!submission || submission.status !== "pending") throw new Error("Submission not found.");
+  const now = nowIso();
+  const publicId = `gal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  await db.collection(GALLERY_ITEMS).add({
+    publicId,
+    submissionId: id,
+    name: submission.name,
+    author: submission.author || "",
+    patternCode: submission.patternCode,
+    size: submission.size,
+    status: "published",
+    createdAt: submission.createdAt,
+    publishedAt: now,
+    updatedAt: now,
+  });
+  await db.collection(GALLERY_SUBMISSIONS).doc(id).update({
+    status: "approved",
+    reviewedAt: now,
+    updatedAt: now,
+  });
+  return { id, publicId, status: "approved" };
+}
+
+async function rejectGallery(payload, event) {
+  requireAdmin(event, payload);
+  const id = String(payload.id || "").trim();
+  if (!id) throw new Error("id is required.");
+  const now = nowIso();
+  await db.collection(GALLERY_SUBMISSIONS).doc(id).update({
+    status: "rejected",
+    reviewedAt: now,
+    updatedAt: now,
+  });
+  return { id, status: "rejected" };
+}
+
 exports.main = async (event, context) => {
   const method = String(event?.httpMethod || context?.httpContext?.httpMethod || "").toUpperCase();
   const path = getPath(event, context);
@@ -255,6 +414,35 @@ exports.main = async (event, context) => {
 
     if (isOpenPath(path)) {
       const data = await openShare(payload);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGalleryListPath(path)) {
+      const data = await listGallery(payload);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGallerySubmitPath(path)) {
+      const ip = clientIp(event, context);
+      if (hitCreateRateLimit(ip)) {
+        return error(event, 429, "rate_limited", "Too many requests.");
+      }
+      const data = await submitGallery(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGalleryPendingPath(path)) {
+      const data = await listPendingGallery(payload, event);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGalleryApprovePath(path)) {
+      const data = await approveGallery(payload, event);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGalleryRejectPath(path)) {
+      const data = await rejectGallery(payload, event);
       return json(event, { ok: true, data });
     }
 
