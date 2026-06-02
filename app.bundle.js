@@ -2099,748 +2099,6 @@
     return patterns.find((item) => item.id.startsWith("custom-")) || null;
   }
 
-  // src/image-convert.js
-  function loadImageFromDataUrl(dataUrl) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = dataUrl;
-    });
-  }
-  function convertImageToPattern(image, options = {}) {
-    const targetSize = normalizePatternSize(options.size || state.patternSize);
-    const removeWhite = options.removeWhite !== false;
-    const denoiseSliderLevel = clamp(Math.round(Number(options.denoiseLevel) || 0), 0, 100);
-    const denoiseLevel = clamp(denoiseSliderLevel + 25, 0, 100);
-    const denoiseEffect = denoiseLevel - 50;
-    const excludedCodes = new Set((options.excludedCodes || []).filter((code) => palette[code]));
-    const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
-    const raw = sampleImageToRgba(image, targetSize, false);
-    const rawMask = buildActiveMask(raw, removeWhite);
-    const sourceProfile = estimateSourceProfile(raw, rawMask);
-    if (denoiseEffect > 0) sourceProfile.useDenoise = true;
-    if (denoiseEffect < 0) sourceProfile.useDenoise = false;
-    const dominant = convertImageToDominantGrid(
-      image,
-      targetSize,
-      removeWhite,
-      sourceProfile,
-      excludedCodes,
-      allowExpansion,
-      denoiseEffect
-    );
-    if (!dominant.activeCells.length) {
-      return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile, denoiseSliderLevel);
-    }
-    const grid = dominant.grid;
-    const preCleanupColorCount = countGridColors(grid).colors.length;
-    const speckRounds = denoiseEffect > 0 ? 1 + Math.floor(denoiseEffect / 20) : 0;
-    let cleaned = speckRounds > 0 ? removeSpeckles(grid, targetSize, speckRounds, sourceProfile) : grid.slice();
-    if (denoiseEffect >= 15) cleaned = cleanupSmallComponents(cleaned, targetSize, sourceProfile);
-    if (denoiseEffect >= 30) cleaned = cleanupSmallComponents(cleaned, targetSize, { ...sourceProfile, likelyPixelArt: false });
-    if (denoiseEffect >= 40) cleaned = consensusRebalanceGrid(cleaned, targetSize, sourceProfile);
-    if (sourceProfile.logoLike || targetSize <= 16) {
-      cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
-    }
-    cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
-    const rows = gridToRows(cleaned, targetSize);
-    return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile, denoiseSliderLevel);
-  }
-  function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion, denoiseEffect = 0) {
-    const analysisSize = clamp(
-      Math.round(targetSize * (sourceProfile.logoLike ? 7.5 : sourceProfile.likelyPixelArt ? 6.5 : 6)),
-      targetSize,
-      960
-    );
-    const analysis = sampleImageToRgba(image, analysisSize, true);
-    const externalWhiteMask = removeWhite ? buildExternalWhiteMask(analysis) : null;
-    const transparentWhiteCode2 = workshopCodeForMard("H1");
-    const opaqueWhiteCode2 = workshopCodeForMard("H2");
-    const avoidTransparentWhite = transparentWhiteCode2 && opaqueWhiteCode2 && !excludedCodes.has(opaqueWhiteCode2);
-    const effectiveExcluded = new Set(excludedCodes);
-    if (avoidTransparentWhite) effectiveExcluded.add(transparentWhiteCode2);
-    const availableCodes = allColorCodes().filter((code) => !effectiveExcluded.has(code));
-    if (!availableCodes.length) {
-      return { grid: Array(targetSize * targetSize).fill("."), activeCells: [], lockedPalette: [] };
-    }
-    const activeCells = [];
-    for (let y = 0; y < targetSize; y += 1) {
-      const y0 = Math.floor(y * analysisSize / targetSize);
-      const y1 = Math.max(y0 + 1, Math.floor((y + 1) * analysisSize / targetSize));
-      for (let x = 0; x < targetSize; x += 1) {
-        const x0 = Math.floor(x * analysisSize / targetSize);
-        const x1 = Math.max(x0 + 1, Math.floor((x + 1) * analysisSize / targetSize));
-        const dominant = dominantColorInRegion(
-          analysis,
-          analysisSize,
-          x0,
-          y0,
-          x1,
-          y1,
-          removeWhite,
-          externalWhiteMask
-        );
-        if (!dominant) continue;
-        activeCells.push({
-          index: y * targetSize + x,
-          r: dominant.r,
-          g: dominant.g,
-          b: dominant.b,
-          lab: rgbToOklab(dominant.r, dominant.g, dominant.b)
-        });
-      }
-    }
-    if (!activeCells.length) {
-      return { grid: Array(targetSize * targetSize).fill("."), activeCells: [], lockedPalette: [] };
-    }
-    let maxColors = chooseSimplifiedColorCount(targetSize, activeCells.length, sourceProfile);
-    if (allowExpansion) maxColors = clamp(maxColors + 2, 2, 16);
-    maxColors = applyDenoiseColorCompression(maxColors, denoiseEffect);
-    const clusters = simplifyColors(activeCells, maxColors);
-    const paletteHint = getPaletteLimitHint(sourceProfile);
-    let finalPaletteCap = chooseFinalPaletteCap(targetSize, activeCells.length, sourceProfile, clusters.length);
-    if (allowExpansion) finalPaletteCap = clamp(finalPaletteCap + 2, 2, 14);
-    finalPaletteCap = applyDenoiseColorCompression(finalPaletteCap, denoiseEffect);
-    if (paletteHint <= 3) finalPaletteCap = Math.min(finalPaletteCap, paletteHint);
-    const lockedPalette = selectPaletteCodes(clusters, finalPaletteCap, effectiveExcluded);
-    if (!lockedPalette.length) {
-      return { grid: Array(targetSize * targetSize).fill("."), activeCells, lockedPalette: [] };
-    }
-    const grid = Array(targetSize * targetSize).fill(".");
-    activeCells.forEach((cell) => {
-      grid[cell.index] = nearestCodeFromSet2(cell.lab, lockedPalette, effectiveExcluded);
-    });
-    return { grid, activeCells, lockedPalette };
-  }
-  function applyDenoiseColorCompression(limit, denoiseEffect = 0) {
-    const effect = clamp(Math.round(Number(denoiseEffect) || 0), -50, 50);
-    if (effect === 0) return limit;
-    if (effect < 0) {
-      let expanded = Math.round(limit * (1 + Math.abs(effect) * 45e-4));
-      if (effect <= -20) expanded += 1;
-      if (effect <= -40) expanded += 1;
-      return clamp(expanded, 2, 14);
-    }
-    let compressed = Math.max(2, Math.round(limit * (1 - effect * 68e-4)));
-    if (effect >= 24) compressed = Math.min(compressed, limit - 1);
-    if (effect >= 34) compressed = Math.min(compressed, limit - 2);
-    if (effect >= 42) compressed = Math.min(compressed, limit - 3);
-    if (effect >= 48) compressed = Math.min(compressed, limit - 4);
-    return clamp(compressed, 2, 14);
-  }
-  function dominantColorInRegion(data, width, startX, startY, endX, endY, removeWhite, externalWhiteMask = null) {
-    const buckets = /* @__PURE__ */ new Map();
-    let nonExternalCount = 0;
-    const area = Math.max(1, (endX - startX) * (endY - startY));
-    for (let y = startY; y < endY; y += 1) {
-      for (let x = startX; x < endX; x += 1) {
-        const offset = (y * width + x) * 4;
-        const index = y * width + x;
-        const r2 = data[offset];
-        const g2 = data[offset + 1];
-        const b2 = data[offset + 2];
-        const a = data[offset + 3];
-        if (a < 64) continue;
-        if (removeWhite && externalWhiteMask?.[index]) continue;
-        nonExternalCount += 1;
-        const key = `${r2 >> 3}:${g2 >> 3}:${b2 >> 3}`;
-        const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
-        bucket.count += 1;
-        bucket.r += r2;
-        bucket.g += g2;
-        bucket.b += b2;
-        buckets.set(key, bucket);
-      }
-    }
-    if (!buckets.size) return null;
-    if (removeWhite && nonExternalCount / area < 0.16) return null;
-    let best = null;
-    buckets.forEach((bucket) => {
-      if (!best || bucket.count > best.count) best = bucket;
-    });
-    if (!best) return null;
-    const r = Math.round(best.r / best.count);
-    const g = Math.round(best.g / best.count);
-    const b = Math.round(best.b / best.count);
-    return { r, g, b };
-  }
-  function sampleImageToRgba(image, targetSize, smooth = true) {
-    const canvas = document.createElement("canvas");
-    canvas.width = targetSize;
-    canvas.height = targetSize;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.imageSmoothingEnabled = smooth;
-    ctx.imageSmoothingQuality = smooth ? "high" : "low";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, targetSize, targetSize);
-    const crop = Math.min(image.width, image.height);
-    const sx = (image.width - crop) / 2;
-    const sy = (image.height - crop) / 2;
-    ctx.drawImage(image, sx, sy, crop, crop, 0, 0, targetSize, targetSize);
-    return Array.from(ctx.getImageData(0, 0, targetSize, targetSize).data);
-  }
-  function isBackgroundLike(r, g, b, a) {
-    if (a < 96) return true;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const chroma = max - min;
-    const luma = r * 0.299 + g * 0.587 + b * 0.114;
-    if (luma >= 246 && chroma <= 36) return true;
-    if (luma >= 232 && chroma <= 24) return true;
-    if (luma >= 218 && chroma <= 14) return true;
-    return false;
-  }
-  function inferSquareSizeFromRgba(data) {
-    const pixels = Math.floor(data.length / 4);
-    const side = Math.round(Math.sqrt(pixels));
-    return side > 0 ? side : 1;
-  }
-  function buildExternalWhiteMask(data, size = null) {
-    const side = size || inferSquareSizeFromRgba(data);
-    const total = side * side;
-    const external = Array(total).fill(false);
-    const visited = Array(total).fill(false);
-    const stack = [];
-    function pushIfEdgeWhite(x, y) {
-      if (x < 0 || y < 0 || x >= side || y >= side) return;
-      const index = y * side + x;
-      if (visited[index]) return;
-      const offset = index * 4;
-      const r = data[offset];
-      const g = data[offset + 1];
-      const b = data[offset + 2];
-      const a = data[offset + 3];
-      if (!isBackgroundLike(r, g, b, a)) return;
-      visited[index] = true;
-      stack.push(index);
-    }
-    for (let x = 0; x < side; x += 1) {
-      pushIfEdgeWhite(x, 0);
-      pushIfEdgeWhite(x, side - 1);
-    }
-    for (let y = 1; y < side - 1; y += 1) {
-      pushIfEdgeWhite(0, y);
-      pushIfEdgeWhite(side - 1, y);
-    }
-    while (stack.length) {
-      const index = stack.pop();
-      external[index] = true;
-      const x = index % side;
-      const y = Math.floor(index / side);
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= side || ny >= side) return;
-        const next = ny * side + nx;
-        if (visited[next]) return;
-        const offset = next * 4;
-        const r = data[offset];
-        const g = data[offset + 1];
-        const b = data[offset + 2];
-        const a = data[offset + 3];
-        if (!isBackgroundLike(r, g, b, a)) return;
-        visited[next] = true;
-        stack.push(next);
-      });
-    }
-    return external;
-  }
-  function buildActiveMask(data, removeWhite) {
-    const externalWhite = removeWhite ? buildExternalWhiteMask(data) : null;
-    const mask = [];
-    for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const a = data[i + 3];
-      const externalWhiteCell = Boolean(removeWhite && externalWhite?.[p]);
-      mask.push(!(a < 48 || externalWhiteCell));
-    }
-    return mask;
-  }
-  function estimateSourceProfile(data, mask) {
-    const activeCount = mask.reduce((sum, active) => sum + (active ? 1 : 0), 0);
-    if (!activeCount) {
-      return {
-        activeCount: 0,
-        coarseCount: 0,
-        significantCount: 0,
-        topTwoRatio: 0,
-        likelyPixelArt: true,
-        useDenoise: false
-      };
-    }
-    const bins = countCoarseColorBins(data, mask, 4);
-    const sorted = [...bins.values()].sort((a, b) => b - a);
-    const threshold = Math.max(2, Math.round(activeCount * 7e-3));
-    const significantCount = sorted.filter((count) => count >= threshold).length || 1;
-    const topTwoRatio = ((sorted[0] || 0) + (sorted[1] || 0)) / activeCount;
-    const coarseCount = bins.size;
-    const likelyPixelArt = coarseCount <= 18 || coarseCount <= 26 && topTwoRatio >= 0.78;
-    const logoLike = significantCount <= 4 && topTwoRatio >= 0.72 && coarseCount <= 28;
-    const useDenoise = !likelyPixelArt && coarseCount >= 12;
-    return {
-      activeCount,
-      coarseCount,
-      significantCount,
-      topTwoRatio,
-      likelyPixelArt,
-      logoLike,
-      useDenoise
-    };
-  }
-  function countCoarseColorBins(data, mask, shift) {
-    const bins = /* @__PURE__ */ new Map();
-    let maskIndex = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      if (!mask[maskIndex]) {
-        maskIndex += 1;
-        continue;
-      }
-      const key = `${data[i] >> shift}:${data[i + 1] >> shift}:${data[i + 2] >> shift}`;
-      bins.set(key, (bins.get(key) || 0) + 1);
-      maskIndex += 1;
-    }
-    return bins;
-  }
-  function chooseSimplifiedColorCount(size, activeCount, sourceProfile) {
-    if (sourceProfile.logoLike) {
-      if (sourceProfile.topTwoRatio >= 0.86) return 2;
-      return 3;
-    }
-    const density = activeCount / (size * size);
-    const hint = sourceProfile.significantCount;
-    if (sourceProfile.topTwoRatio >= 0.9) return 2;
-    if (hint <= 3 && sourceProfile.topTwoRatio >= 0.7) return 3;
-    if (hint <= 4 && sourceProfile.topTwoRatio >= 0.62) return 4;
-    if (hint <= 2) return 2;
-    if (hint <= 4) return clamp(hint + 1, 2, 6);
-    let maxColors = size <= 16 ? 8 : size <= 24 ? 10 : size <= 32 ? 11 : 12;
-    if (density > 0.82) maxColors += 1;
-    if (density < 0.22) maxColors -= 1;
-    if (sourceProfile.coarseCount > 80) maxColors += 1;
-    if (sourceProfile.coarseCount < 18) maxColors -= 1;
-    if (sourceProfile.likelyPixelArt && hint <= 8) maxColors = Math.min(maxColors, hint + 2);
-    maxColors = Math.min(maxColors, hint + 3);
-    if (density < 0.3) maxColors -= 1;
-    return clamp(maxColors, 2, 14);
-  }
-  function chooseFinalPaletteCap(size, activeCount, sourceProfile, clusterCount) {
-    if (sourceProfile.logoLike) {
-      return clamp(sourceProfile.topTwoRatio >= 0.86 ? 2 : 3, 2, 3);
-    }
-    const hint = sourceProfile.significantCount;
-    if (sourceProfile.topTwoRatio >= 0.9) return 2;
-    if (hint <= 3 && sourceProfile.topTwoRatio >= 0.7) return 3;
-    if (hint <= 4 && sourceProfile.topTwoRatio >= 0.62) return 4;
-    if (hint <= 2) return 2;
-    if (hint <= 4) return clamp(hint + 1, 2, 6);
-    let cap = size <= 16 ? 8 : size <= 24 ? 10 : size <= 32 ? 10 : 12;
-    if (activeCount < 128) cap = Math.min(cap, 7);
-    if (sourceProfile.coarseCount < 18) cap -= 1;
-    if (sourceProfile.likelyPixelArt && hint <= 8) cap = Math.min(cap, hint + 2);
-    cap = Math.min(cap, clusterCount, hint + 3);
-    return clamp(cap, 2, 12);
-  }
-  function getPaletteLimitHint(sourceProfile) {
-    if (sourceProfile.significantCount <= 2) return 2;
-    if (sourceProfile.topTwoRatio >= 0.9) return 2;
-    if (sourceProfile.topTwoRatio >= 0.82 && sourceProfile.significantCount <= 6) return 3;
-    if (sourceProfile.significantCount <= 4 && sourceProfile.topTwoRatio >= 0.62) return 4;
-    if (sourceProfile.likelyPixelArt && sourceProfile.significantCount <= 8) return 6;
-    return 12;
-  }
-  function selectPaletteCodes(clusters, paletteCap, excludedCodes = null) {
-    const weighted = /* @__PURE__ */ new Map();
-    clusters.forEach((cluster) => {
-      const code = nearestColorCode(cluster.r, cluster.g, cluster.b, excludedCodes);
-      if (!code) return;
-      weighted.set(code, (weighted.get(code) || 0) + (cluster.count || 1));
-    });
-    const sorted = [...weighted.entries()].sort((a, b) => b[1] - a[1] || (beadIds[a[0]] || a[0]).localeCompare(beadIds[b[0]] || b[0], "zh-Hans-CN", { numeric: true })).map(([code]) => code);
-    const selected = sorted.slice(0, Math.max(1, paletteCap));
-    if (selected.length) return selected;
-    const fallback = clusters.slice().sort((a, b) => (b.count || 0) - (a.count || 0)).map((cluster) => nearestColorCode(cluster.r, cluster.g, cluster.b, excludedCodes)).find((code) => Boolean(code));
-    return fallback ? [fallback] : [];
-  }
-  function nearestCodeFromSet2(lab, codes, excludedCodes = null) {
-    let best = codes[0] || "K";
-    let bestDistance = Infinity;
-    codes.forEach((code) => {
-      if (excludedCodes?.has(code)) return;
-      const distance = oklabDistance(lab, beadOklab(code));
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = code;
-      }
-    });
-    if (bestDistance === Infinity) return nearestColorCodeByLab(lab, excludedCodes);
-    return best;
-  }
-  function simplifyColors(pixels, maxColors) {
-    const seeds = seedClusters(pixels, maxColors);
-    let clusters = seeds.map((seed) => ({ ...seed }));
-    for (let iteration = 0; iteration < 6; iteration += 1) {
-      const sums = clusters.map(() => ({ l: 0, a: 0, b: 0, r: 0, g: 0, blue: 0, count: 0 }));
-      pixels.forEach((pixel) => {
-        let best = 0;
-        let bestDistance = Infinity;
-        clusters.forEach((cluster, index) => {
-          const distance = oklabDistance(pixel.lab, cluster.lab);
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            best = index;
-          }
-        });
-        const sum = sums[best];
-        sum.l += pixel.lab.l;
-        sum.a += pixel.lab.a;
-        sum.b += pixel.lab.b;
-        sum.r += pixel.r;
-        sum.g += pixel.g;
-        sum.blue += pixel.b;
-        sum.count += 1;
-      });
-      clusters = clusters.map((cluster, index) => {
-        const sum = sums[index];
-        if (!sum.count) return cluster;
-        const lab = { l: sum.l / sum.count, a: sum.a / sum.count, b: sum.b / sum.count };
-        return { lab, r: Math.round(sum.r / sum.count), g: Math.round(sum.g / sum.count), b: Math.round(sum.blue / sum.count), count: sum.count };
-      });
-    }
-    return clusters.filter((cluster) => cluster.count !== 0);
-  }
-  function seedClusters(pixels, maxColors) {
-    const buckets = /* @__PURE__ */ new Map();
-    pixels.forEach((pixel) => {
-      const key = `${pixel.r >> 4}:${pixel.g >> 4}:${pixel.b >> 4}`;
-      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, l: 0, aa: 0, bb: 0, count: 0 };
-      bucket.r += pixel.r;
-      bucket.g += pixel.g;
-      bucket.b += pixel.b;
-      bucket.l += pixel.lab.l;
-      bucket.aa += pixel.lab.a;
-      bucket.bb += pixel.lab.b;
-      bucket.count += 1;
-      buckets.set(key, bucket);
-    });
-    const candidates = [...buckets.values()].map((bucket) => ({
-      r: Math.round(bucket.r / bucket.count),
-      g: Math.round(bucket.g / bucket.count),
-      b: Math.round(bucket.b / bucket.count),
-      lab: { l: bucket.l / bucket.count, a: bucket.aa / bucket.count, b: bucket.bb / bucket.count },
-      count: bucket.count
-    })).sort((a, b) => b.count - a.count);
-    const seeds = [];
-    candidates.forEach((candidate) => {
-      if (seeds.length >= maxColors) return;
-      const farEnough = seeds.every((seed) => oklabDistance(seed.lab, candidate.lab) > 9e-4);
-      if (farEnough || seeds.length < Math.min(4, maxColors)) seeds.push(candidate);
-    });
-    for (const candidate of candidates) {
-      if (seeds.length >= maxColors) break;
-      if (!seeds.includes(candidate)) seeds.push(candidate);
-    }
-    return seeds.length ? seeds : [pixels[0]];
-  }
-  function removeSpeckles(grid, size, rounds, sourceProfile = null) {
-    let current = grid.slice();
-    const strict = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false }) <= 3;
-    const effectiveRounds = sourceProfile?.logoLike || sourceProfile?.likelyPixelArt && size <= 16 ? Math.min(1, rounds) : rounds;
-    for (let round = 0; round < effectiveRounds; round += 1) {
-      const next = current.slice();
-      for (let y = 0; y < size; y += 1) {
-        for (let x = 0; x < size; x += 1) {
-          const index = y * size + x;
-          const code = current[index];
-          const neighbors = neighborCodes(current, size, x, y, true);
-          const majority = majorityCode(neighbors);
-          if (!majority) continue;
-          const same8 = neighbors.filter((item) => item === code).length;
-          const same4 = neighborCodes(current, size, x, y, false).filter((item) => item === code).length;
-          const majorityCount = neighbors.filter((item) => item === majority).length;
-          if (code !== "." && shouldKeepIsolatedFeature(current, size, x, y, code, neighbors, same4, same8)) continue;
-          if (sourceProfile?.logoLike && code !== ".") {
-            continue;
-          }
-          if (code === "." && majority !== "." && majorityCount >= 7) {
-            next[index] = majority;
-          } else if (code !== "." && same8 <= 1 && same4 === 0 && majorityCount >= (strict ? 6 : 5)) {
-            next[index] = majority;
-          }
-        }
-      }
-      current = next;
-    }
-    return current;
-  }
-  function cleanupSmallComponents(grid, size, sourceProfile = null) {
-    if (sourceProfile?.logoLike && size <= 20) {
-      return grid.slice();
-    }
-    const out = grid.slice();
-    const visited = Array(size * size).fill(false);
-    const paletteHint = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false });
-    let threshold = size <= 24 ? 1 : size <= 36 ? 2 : 3;
-    if (sourceProfile?.likelyPixelArt) threshold = Math.max(1, threshold - 1);
-    if (paletteHint <= 3) threshold = 1;
-    for (let index = 0; index < out.length; index += 1) {
-      if (visited[index] || out[index] === ".") continue;
-      const component = collectComponent(out, size, index, visited);
-      if (component.cells.length > threshold) continue;
-      if (shouldPreserveSmallDetail(out, size, component, sourceProfile)) continue;
-      const boundary = [];
-      component.cells.forEach((cellIndex) => {
-        const x = cellIndex % size;
-        const y = Math.floor(cellIndex / size);
-        boundary.push(...neighborCodes(out, size, x, y, false).filter((code) => code !== component.code));
-      });
-      const replacement = majorityCode(boundary) || ".";
-      component.cells.forEach((cellIndex) => {
-        out[cellIndex] = replacement;
-      });
-    }
-    return out;
-  }
-  function consensusRebalanceGrid(grid, size, sourceProfile = null) {
-    const out = grid.slice();
-    const passes = sourceProfile?.logoLike ? 1 : size <= 20 ? 2 : 3;
-    const softThreshold = sourceProfile?.logoLike ? 26e-4 : 19e-4;
-    for (let pass = 0; pass < passes; pass += 1) {
-      const next = out.slice();
-      for (let y = 1; y < size - 1; y += 1) {
-        for (let x = 1; x < size - 1; x += 1) {
-          const index = y * size + x;
-          const code = out[index];
-          if (code === ".") continue;
-          const neighbors = neighborCodes(out, size, x, y, true).filter((item) => item !== ".");
-          if (neighbors.length < 5) continue;
-          const counts = {};
-          neighbors.forEach((n) => {
-            counts[n] = (counts[n] || 0) + 1;
-          });
-          const candidate = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
-          if (!candidate || candidate === code) continue;
-          const support = counts[candidate] || 0;
-          if (support < (sourceProfile?.logoLike ? 7 : 6)) continue;
-          const dist = oklabDistance(beadOklab(candidate), beadOklab(code));
-          if (dist <= softThreshold || support >= 8) {
-            next[index] = candidate;
-          }
-        }
-      }
-      for (let i = 0; i < out.length; i += 1) out[i] = next[i];
-    }
-    return out;
-  }
-  function bridgeLineGaps(grid, size, sourceProfile = null) {
-    if (!sourceProfile?.logoLike && size > 16) return grid;
-    const out = grid.slice();
-    for (let y = 1; y < size - 1; y += 1) {
-      for (let x = 1; x < size - 1; x += 1) {
-        const index = y * size + x;
-        if (out[index] !== ".") continue;
-        const left = out[y * size + (x - 1)];
-        const right = out[y * size + (x + 1)];
-        const up = out[(y - 1) * size + x];
-        const down = out[(y + 1) * size + x];
-        const ul = out[(y - 1) * size + (x - 1)];
-        const ur = out[(y - 1) * size + (x + 1)];
-        const dl = out[(y + 1) * size + (x - 1)];
-        const dr = out[(y + 1) * size + (x + 1)];
-        if (left !== "." && left === right) {
-          out[index] = left;
-          continue;
-        }
-        if (up !== "." && up === down) {
-          out[index] = up;
-          continue;
-        }
-        if (ul !== "." && ul === dr) {
-          out[index] = ul;
-          continue;
-        }
-        if (ur !== "." && ur === dl) {
-          out[index] = ur;
-        }
-      }
-    }
-    return out;
-  }
-  function collectComponent(grid, size, start, visited) {
-    const code = grid[start];
-    const cells = [];
-    const stack = [start];
-    visited[start] = true;
-    while (stack.length) {
-      const index = stack.pop();
-      cells.push(index);
-      const x = index % size;
-      const y = Math.floor(index / size);
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
-        const nextIndex = ny * size + nx;
-        if (!visited[nextIndex] && grid[nextIndex] === code) {
-          visited[nextIndex] = true;
-          stack.push(nextIndex);
-        }
-      });
-    }
-    return { code, cells };
-  }
-  function shouldPreserveSmallDetail(grid, size, component, sourceProfile = null) {
-    const darkDetail = /* @__PURE__ */ new Set(["K", "k", "D", "d", "N", "n", "b"]);
-    const lowPalette = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false }) <= 3;
-    const xs = component.cells.map((index) => index % size);
-    const ys = component.cells.map((index) => Math.floor(index / size));
-    const lineLike = component.cells.length >= 2 && (new Set(xs).size > 1 || new Set(ys).size > 1);
-    let nonDotBoundary = 0;
-    let boundary = 0;
-    component.cells.forEach((cellIndex) => {
-      const x = cellIndex % size;
-      const y = Math.floor(cellIndex / size);
-      neighborCodes(grid, size, x, y, false).forEach((code) => {
-        if (code === component.code) return;
-        boundary += 1;
-        if (code !== ".") nonDotBoundary += 1;
-      });
-    });
-    const embedded = boundary > 0 && nonDotBoundary / boundary >= 0.6;
-    const singlePixel = component.cells.length === 1 && darkDetail.has(component.code) && embedded;
-    const highContrastDot = component.cells.length === 1 && hasStrongContrastBoundary(grid, size, component);
-    const lowPaletteDot = lowPalette && component.cells.length === 1 && embedded;
-    return lineLike || singlePixel || highContrastDot || lowPaletteDot || darkDetail.has(component.code) && embedded;
-  }
-  function shouldKeepIsolatedFeature(grid, size, x, y, code, neighbors8, same4, same8) {
-    if (same4 >= 1 || same8 >= 2) return false;
-    const darkDetail = /* @__PURE__ */ new Set(["K", "k", "D", "d", "N", "n", "b"]);
-    if (!darkDetail.has(code)) return false;
-    const nonDot = neighbors8.filter((item) => item !== ".").length;
-    if (nonDot < 5) return false;
-    const distinct = new Set(neighbors8.filter((item) => item !== "." && item !== code));
-    if (distinct.size > 2) return false;
-    return hasStrongContrastBoundary(grid, size, { code, cells: [y * size + x] });
-  }
-  function hasStrongContrastBoundary(grid, size, component) {
-    let contrasted = 0;
-    let sampled = 0;
-    const selfLab = beadOklab(component.code);
-    component.cells.forEach((cellIndex) => {
-      const x = cellIndex % size;
-      const y = Math.floor(cellIndex / size);
-      neighborCodes(grid, size, x, y, true).forEach((code) => {
-        if (code === "." || code === component.code) return;
-        sampled += 1;
-        if (oklabDistance(selfLab, beadOklab(code)) > 38e-4) contrasted += 1;
-      });
-    });
-    return sampled >= 3 && contrasted / sampled >= 0.6;
-  }
-  function collapseToPalette(grid, size, paletteCodes) {
-    const allowed = new Set(paletteCodes);
-    const out = grid.slice();
-    for (let i = 0; i < out.length; i += 1) {
-      const code = out[i];
-      if (code === "." || allowed.has(code)) continue;
-      const x = i % size;
-      const y = Math.floor(i / size);
-      const neighborMajority = majorityCode(
-        neighborCodes(out, size, x, y, true).filter((item) => allowed.has(item))
-      );
-      if (neighborMajority) {
-        out[i] = neighborMajority;
-        continue;
-      }
-      const selfLab = beadOklab(code);
-      let best = paletteCodes[0] || "K";
-      let bestDistance = Infinity;
-      paletteCodes.forEach((candidate) => {
-        const distance = oklabDistance(selfLab, beadOklab(candidate));
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = candidate;
-        }
-      });
-      out[i] = best;
-    }
-    return out;
-  }
-  function neighborCodes(grid, size, x, y, includeDiagonal) {
-    const dirs = includeDiagonal ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] : [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    const codes = [];
-    dirs.forEach(([dx, dy]) => {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
-      codes.push(grid[ny * size + nx]);
-    });
-    return codes;
-  }
-  function majorityCode(codes) {
-    if (!codes.length) return null;
-    const counts = {};
-    codes.forEach((code) => {
-      counts[code] = (counts[code] || 0) + 1;
-    });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-  }
-  function gridToRows(grid, size) {
-    const rows = [];
-    for (let y = 0; y < size; y += 1) {
-      rows.push(grid.slice(y * size, y * size + size).join(""));
-    }
-    return rows;
-  }
-  function countGridColors(grid) {
-    const counts = {};
-    grid.forEach((code) => {
-      if (code !== ".") counts[code] = (counts[code] || 0) + 1;
-    });
-    const colors = Object.entries(counts).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count || (beadIds[a.code] || a.code).localeCompare(beadIds[b.code] || b.code, "zh-Hans-CN", { numeric: true }));
-    return {
-      colors,
-      total: colors.reduce((sum, item) => sum + item.count, 0)
-    };
-  }
-  function makeConversionResult(rows, size, simplifiedColorCount, preCleanupColorCount, sourceProfile = null, denoiseLevel = 0) {
-    const stats = countGridColors(rows.join("").split(""));
-    return {
-      rows,
-      stats: {
-        size,
-        total: stats.total,
-        colors: stats.colors,
-        simplifiedColorCount,
-        preCleanupColorCount,
-        sourceSignificantCount: sourceProfile?.significantCount || stats.colors.length,
-        sourceCoarseCount: sourceProfile?.coarseCount || stats.colors.length,
-        denoised: Boolean(sourceProfile?.useDenoise),
-        denoiseLevel: clamp(Math.round(Number(denoiseLevel) || 0), 0, 100)
-      }
-    };
-  }
-  function nearestColorCodeByLab(lab, excludedCodes = null) {
-    let best = "K";
-    let bestDistance = Infinity;
-    allColorCodes().forEach((code) => {
-      if (excludedCodes?.has(code)) return;
-      const distance = oklabDistance(lab, beadOklab(code));
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = code;
-      }
-    });
-    if (bestDistance === Infinity) return null;
-    return best;
-  }
-  function nearestColorCode(r, g, b, excludedCodes = null) {
-    const lab = rgbToOklab(r, g, b);
-    return nearestColorCodeByLab(lab, excludedCodes);
-  }
-
   // src/render.js
   function useMobileTrayGrid() {
     return window.matchMedia("(max-width: 860px)").matches;
@@ -8071,66 +7329,755 @@
     }
   }
 
-  // src/main.js
-  var collection = readCollection();
-  state.achievements = readAchievements();
-  var lastFrame = performance.now();
-  var IRON_DEFAULT_TEMPERATURE = 62;
-  var IRON_DEFAULT_PRESSURE = 56;
-  function applyBackgroundTheme(themeId = state.bgTheme) {
-    state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
-    const theme = currentBackgroundTheme();
-    const root = document.documentElement;
-    root.style.setProperty("--page-base", theme.pageBase);
-    root.style.setProperty("--page-glow-a", theme.pageGlowA);
-    root.style.setProperty("--page-glow-b", theme.pageGlowB);
-    root.style.setProperty("--table", theme.table[1]);
-    root.style.setProperty("--table-deep", theme.table[2]);
-    root.style.setProperty("--brand", theme.brand || "#57b8a7");
-    root.style.setProperty("--brand-ink", theme.brandInk || "#1f6153");
-    root.style.setProperty("--brand-edge", theme.brandEdge || "#3f988b");
-    root.style.setProperty("--brand-tint", theme.brandTint || "rgba(87, 184, 167, 0.16)");
-    root.style.setProperty("--brand-tint-strong", theme.brandTintStrong || "rgba(87, 184, 167, 0.25)");
-    if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
-    markDirty();
-  }
-  function applyScreenAria() {
-    const mode = state.appMode;
-    const beadActive = mode === "bead";
-    [
-      [els.startScreen, mode === "home"],
-      [els.galleryScreen, mode === "gallery"],
-      [els.collectionScreen, mode === "collection"],
-      [els.drawingStudio, mode === "draw"],
-      [document.querySelector(".bead-topbar"), beadActive],
-      [els.studioGrid, beadActive]
-    ].forEach(([el, active]) => {
-      if (el) el.setAttribute("aria-hidden", active ? "false" : "true");
+  // src/image-convert.js
+  function loadImageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = dataUrl;
     });
   }
-  function setAppMode(mode) {
-    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
-    state.collectionPageOpen = state.appMode === "collection";
-    document.body.dataset.appMode = state.appMode;
-    applyScreenAria();
-    if (state.appMode === "bead") {
-      state.uiDirty = true;
-      state.previewDirty = true;
-      state.renderDirty = true;
-      markDirty();
-      return;
+  function convertImageToPattern(image, options = {}) {
+    const targetSize = normalizePatternSize(options.size || state.patternSize);
+    const removeWhite = options.removeWhite !== false;
+    const denoiseSliderLevel = clamp(Math.round(Number(options.denoiseLevel) || 0), 0, 100);
+    const denoiseLevel = clamp(denoiseSliderLevel + 25, 0, 100);
+    const denoiseEffect = denoiseLevel - 50;
+    const excludedCodes = new Set((options.excludedCodes || []).filter((code) => palette[code]));
+    const allowExpansion = Boolean(options.allowPaletteExpansionOnExclude) && excludedCodes.size > 0;
+    const raw = sampleImageToRgba(image, targetSize, false);
+    const rawMask = buildActiveMask(raw, removeWhite);
+    const sourceProfile = estimateSourceProfile(raw, rawMask);
+    if (denoiseEffect > 0) sourceProfile.useDenoise = true;
+    if (denoiseEffect < 0) sourceProfile.useDenoise = false;
+    const dominant = convertImageToDominantGrid(
+      image,
+      targetSize,
+      removeWhite,
+      sourceProfile,
+      excludedCodes,
+      allowExpansion,
+      denoiseEffect
+    );
+    if (!dominant.activeCells.length) {
+      return makeConversionResult(Array(targetSize).fill(".".repeat(targetSize)), targetSize, 0, 0, sourceProfile, denoiseSliderLevel);
     }
-    if (state.appMode === "draw") {
-      enterDrawMode();
+    const grid = dominant.grid;
+    const preCleanupColorCount = countGridColors(grid).colors.length;
+    const speckRounds = denoiseEffect > 0 ? 1 + Math.floor(denoiseEffect / 20) : 0;
+    let cleaned = speckRounds > 0 ? removeSpeckles(grid, targetSize, speckRounds, sourceProfile) : grid.slice();
+    if (denoiseEffect >= 15) cleaned = cleanupSmallComponents(cleaned, targetSize, sourceProfile);
+    if (denoiseEffect >= 30) cleaned = cleanupSmallComponents(cleaned, targetSize, { ...sourceProfile, likelyPixelArt: false });
+    if (denoiseEffect >= 40) cleaned = consensusRebalanceGrid(cleaned, targetSize, sourceProfile);
+    if (sourceProfile.logoLike || targetSize <= 16) {
+      cleaned = bridgeLineGaps(cleaned, targetSize, sourceProfile);
     }
-    if (state.appMode === "gallery") {
-      enterGalleryMode();
-      return;
+    cleaned = collapseToPalette(cleaned, targetSize, dominant.lockedPalette);
+    const rows = gridToRows(cleaned, targetSize);
+    return makeConversionResult(rows, targetSize, dominant.lockedPalette.length, preCleanupColorCount, sourceProfile, denoiseSliderLevel);
+  }
+  function convertImageToDominantGrid(image, targetSize, removeWhite, sourceProfile, excludedCodes, allowExpansion, denoiseEffect = 0) {
+    const analysisSize = clamp(
+      Math.round(targetSize * (sourceProfile.logoLike ? 7.5 : sourceProfile.likelyPixelArt ? 6.5 : 6)),
+      targetSize,
+      960
+    );
+    const analysis = sampleImageToRgba(image, analysisSize, true);
+    const externalWhiteMask = removeWhite ? buildExternalWhiteMask(analysis) : null;
+    const transparentWhiteCode2 = workshopCodeForMard("H1");
+    const opaqueWhiteCode2 = workshopCodeForMard("H2");
+    const avoidTransparentWhite = transparentWhiteCode2 && opaqueWhiteCode2 && !excludedCodes.has(opaqueWhiteCode2);
+    const effectiveExcluded = new Set(excludedCodes);
+    if (avoidTransparentWhite) effectiveExcluded.add(transparentWhiteCode2);
+    const availableCodes = allColorCodes().filter((code) => !effectiveExcluded.has(code));
+    if (!availableCodes.length) {
+      return { grid: Array(targetSize * targetSize).fill("."), activeCells: [], lockedPalette: [] };
     }
-    if (state.appMode === "collection") {
-      state.collectionPageOpen = true;
-      renderCollection();
+    const activeCells = [];
+    for (let y = 0; y < targetSize; y += 1) {
+      const y0 = Math.floor(y * analysisSize / targetSize);
+      const y1 = Math.max(y0 + 1, Math.floor((y + 1) * analysisSize / targetSize));
+      for (let x = 0; x < targetSize; x += 1) {
+        const x0 = Math.floor(x * analysisSize / targetSize);
+        const x1 = Math.max(x0 + 1, Math.floor((x + 1) * analysisSize / targetSize));
+        const dominant = dominantColorInRegion(
+          analysis,
+          analysisSize,
+          x0,
+          y0,
+          x1,
+          y1,
+          removeWhite,
+          externalWhiteMask
+        );
+        if (!dominant) continue;
+        activeCells.push({
+          index: y * targetSize + x,
+          r: dominant.r,
+          g: dominant.g,
+          b: dominant.b,
+          lab: rgbToOklab(dominant.r, dominant.g, dominant.b)
+        });
+      }
     }
+    if (!activeCells.length) {
+      return { grid: Array(targetSize * targetSize).fill("."), activeCells: [], lockedPalette: [] };
+    }
+    let maxColors = chooseSimplifiedColorCount(targetSize, activeCells.length, sourceProfile);
+    if (allowExpansion) maxColors = clamp(maxColors + 2, 2, 16);
+    maxColors = applyDenoiseColorCompression(maxColors, denoiseEffect);
+    const clusters = simplifyColors(activeCells, maxColors);
+    const paletteHint = getPaletteLimitHint(sourceProfile);
+    let finalPaletteCap = chooseFinalPaletteCap(targetSize, activeCells.length, sourceProfile, clusters.length);
+    if (allowExpansion) finalPaletteCap = clamp(finalPaletteCap + 2, 2, 14);
+    finalPaletteCap = applyDenoiseColorCompression(finalPaletteCap, denoiseEffect);
+    if (paletteHint <= 3) finalPaletteCap = Math.min(finalPaletteCap, paletteHint);
+    const lockedPalette = selectPaletteCodes(clusters, finalPaletteCap, effectiveExcluded);
+    if (!lockedPalette.length) {
+      return { grid: Array(targetSize * targetSize).fill("."), activeCells, lockedPalette: [] };
+    }
+    const grid = Array(targetSize * targetSize).fill(".");
+    activeCells.forEach((cell) => {
+      grid[cell.index] = nearestCodeFromSet2(cell.lab, lockedPalette, effectiveExcluded);
+    });
+    return { grid, activeCells, lockedPalette };
+  }
+  function applyDenoiseColorCompression(limit, denoiseEffect = 0) {
+    const effect = clamp(Math.round(Number(denoiseEffect) || 0), -50, 50);
+    if (effect === 0) return limit;
+    if (effect < 0) {
+      let expanded = Math.round(limit * (1 + Math.abs(effect) * 45e-4));
+      if (effect <= -20) expanded += 1;
+      if (effect <= -40) expanded += 1;
+      return clamp(expanded, 2, 14);
+    }
+    let compressed = Math.max(2, Math.round(limit * (1 - effect * 68e-4)));
+    if (effect >= 24) compressed = Math.min(compressed, limit - 1);
+    if (effect >= 34) compressed = Math.min(compressed, limit - 2);
+    if (effect >= 42) compressed = Math.min(compressed, limit - 3);
+    if (effect >= 48) compressed = Math.min(compressed, limit - 4);
+    return clamp(compressed, 2, 14);
+  }
+  function dominantColorInRegion(data, width, startX, startY, endX, endY, removeWhite, externalWhiteMask = null) {
+    const buckets = /* @__PURE__ */ new Map();
+    let nonExternalCount = 0;
+    const area = Math.max(1, (endX - startX) * (endY - startY));
+    for (let y = startY; y < endY; y += 1) {
+      for (let x = startX; x < endX; x += 1) {
+        const offset = (y * width + x) * 4;
+        const index = y * width + x;
+        const r2 = data[offset];
+        const g2 = data[offset + 1];
+        const b2 = data[offset + 2];
+        const a = data[offset + 3];
+        if (a < 64) continue;
+        if (removeWhite && externalWhiteMask?.[index]) continue;
+        nonExternalCount += 1;
+        const key = `${r2 >> 3}:${g2 >> 3}:${b2 >> 3}`;
+        const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+        bucket.count += 1;
+        bucket.r += r2;
+        bucket.g += g2;
+        bucket.b += b2;
+        buckets.set(key, bucket);
+      }
+    }
+    if (!buckets.size) return null;
+    if (removeWhite && nonExternalCount / area < 0.16) return null;
+    let best = null;
+    buckets.forEach((bucket) => {
+      if (!best || bucket.count > best.count) best = bucket;
+    });
+    if (!best) return null;
+    const r = Math.round(best.r / best.count);
+    const g = Math.round(best.g / best.count);
+    const b = Math.round(best.b / best.count);
+    return { r, g, b };
+  }
+  function sampleImageToRgba(image, targetSize, smooth = true) {
+    const canvas = document.createElement("canvas");
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = smooth;
+    ctx.imageSmoothingQuality = smooth ? "high" : "low";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, targetSize, targetSize);
+    const crop = Math.min(image.width, image.height);
+    const sx = (image.width - crop) / 2;
+    const sy = (image.height - crop) / 2;
+    ctx.drawImage(image, sx, sy, crop, crop, 0, 0, targetSize, targetSize);
+    return Array.from(ctx.getImageData(0, 0, targetSize, targetSize).data);
+  }
+  function isBackgroundLike(r, g, b, a) {
+    if (a < 96) return true;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const chroma = max - min;
+    const luma = r * 0.299 + g * 0.587 + b * 0.114;
+    if (luma >= 246 && chroma <= 36) return true;
+    if (luma >= 232 && chroma <= 24) return true;
+    if (luma >= 218 && chroma <= 14) return true;
+    return false;
+  }
+  function inferSquareSizeFromRgba(data) {
+    const pixels = Math.floor(data.length / 4);
+    const side = Math.round(Math.sqrt(pixels));
+    return side > 0 ? side : 1;
+  }
+  function buildExternalWhiteMask(data, size = null) {
+    const side = size || inferSquareSizeFromRgba(data);
+    const total = side * side;
+    const external = Array(total).fill(false);
+    const visited = Array(total).fill(false);
+    const stack = [];
+    function pushIfEdgeWhite(x, y) {
+      if (x < 0 || y < 0 || x >= side || y >= side) return;
+      const index = y * side + x;
+      if (visited[index]) return;
+      const offset = index * 4;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const a = data[offset + 3];
+      if (!isBackgroundLike(r, g, b, a)) return;
+      visited[index] = true;
+      stack.push(index);
+    }
+    for (let x = 0; x < side; x += 1) {
+      pushIfEdgeWhite(x, 0);
+      pushIfEdgeWhite(x, side - 1);
+    }
+    for (let y = 1; y < side - 1; y += 1) {
+      pushIfEdgeWhite(0, y);
+      pushIfEdgeWhite(side - 1, y);
+    }
+    while (stack.length) {
+      const index = stack.pop();
+      external[index] = true;
+      const x = index % side;
+      const y = Math.floor(index / side);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= side || ny >= side) return;
+        const next = ny * side + nx;
+        if (visited[next]) return;
+        const offset = next * 4;
+        const r = data[offset];
+        const g = data[offset + 1];
+        const b = data[offset + 2];
+        const a = data[offset + 3];
+        if (!isBackgroundLike(r, g, b, a)) return;
+        visited[next] = true;
+        stack.push(next);
+      });
+    }
+    return external;
+  }
+  function buildActiveMask(data, removeWhite) {
+    const externalWhite = removeWhite ? buildExternalWhiteMask(data) : null;
+    const mask = [];
+    for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+      const externalWhiteCell = Boolean(removeWhite && externalWhite?.[p]);
+      mask.push(!(a < 48 || externalWhiteCell));
+    }
+    return mask;
+  }
+  function estimateSourceProfile(data, mask) {
+    const activeCount = mask.reduce((sum, active) => sum + (active ? 1 : 0), 0);
+    if (!activeCount) {
+      return {
+        activeCount: 0,
+        coarseCount: 0,
+        significantCount: 0,
+        topTwoRatio: 0,
+        likelyPixelArt: true,
+        useDenoise: false
+      };
+    }
+    const bins = countCoarseColorBins(data, mask, 4);
+    const sorted = [...bins.values()].sort((a, b) => b - a);
+    const threshold = Math.max(2, Math.round(activeCount * 7e-3));
+    const significantCount = sorted.filter((count) => count >= threshold).length || 1;
+    const topTwoRatio = ((sorted[0] || 0) + (sorted[1] || 0)) / activeCount;
+    const coarseCount = bins.size;
+    const likelyPixelArt = coarseCount <= 18 || coarseCount <= 26 && topTwoRatio >= 0.78;
+    const logoLike = significantCount <= 4 && topTwoRatio >= 0.72 && coarseCount <= 28;
+    const useDenoise = !likelyPixelArt && coarseCount >= 12;
+    return {
+      activeCount,
+      coarseCount,
+      significantCount,
+      topTwoRatio,
+      likelyPixelArt,
+      logoLike,
+      useDenoise
+    };
+  }
+  function countCoarseColorBins(data, mask, shift) {
+    const bins = /* @__PURE__ */ new Map();
+    let maskIndex = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (!mask[maskIndex]) {
+        maskIndex += 1;
+        continue;
+      }
+      const key = `${data[i] >> shift}:${data[i + 1] >> shift}:${data[i + 2] >> shift}`;
+      bins.set(key, (bins.get(key) || 0) + 1);
+      maskIndex += 1;
+    }
+    return bins;
+  }
+  function chooseSimplifiedColorCount(size, activeCount, sourceProfile) {
+    if (sourceProfile.logoLike) {
+      if (sourceProfile.topTwoRatio >= 0.86) return 2;
+      return 3;
+    }
+    const density = activeCount / (size * size);
+    const hint = sourceProfile.significantCount;
+    if (sourceProfile.topTwoRatio >= 0.9) return 2;
+    if (hint <= 3 && sourceProfile.topTwoRatio >= 0.7) return 3;
+    if (hint <= 4 && sourceProfile.topTwoRatio >= 0.62) return 4;
+    if (hint <= 2) return 2;
+    if (hint <= 4) return clamp(hint + 1, 2, 6);
+    let maxColors = size <= 16 ? 8 : size <= 24 ? 10 : size <= 32 ? 11 : 12;
+    if (density > 0.82) maxColors += 1;
+    if (density < 0.22) maxColors -= 1;
+    if (sourceProfile.coarseCount > 80) maxColors += 1;
+    if (sourceProfile.coarseCount < 18) maxColors -= 1;
+    if (sourceProfile.likelyPixelArt && hint <= 8) maxColors = Math.min(maxColors, hint + 2);
+    maxColors = Math.min(maxColors, hint + 3);
+    if (density < 0.3) maxColors -= 1;
+    return clamp(maxColors, 2, 14);
+  }
+  function chooseFinalPaletteCap(size, activeCount, sourceProfile, clusterCount) {
+    if (sourceProfile.logoLike) {
+      return clamp(sourceProfile.topTwoRatio >= 0.86 ? 2 : 3, 2, 3);
+    }
+    const hint = sourceProfile.significantCount;
+    if (sourceProfile.topTwoRatio >= 0.9) return 2;
+    if (hint <= 3 && sourceProfile.topTwoRatio >= 0.7) return 3;
+    if (hint <= 4 && sourceProfile.topTwoRatio >= 0.62) return 4;
+    if (hint <= 2) return 2;
+    if (hint <= 4) return clamp(hint + 1, 2, 6);
+    let cap = size <= 16 ? 8 : size <= 24 ? 10 : size <= 32 ? 10 : 12;
+    if (activeCount < 128) cap = Math.min(cap, 7);
+    if (sourceProfile.coarseCount < 18) cap -= 1;
+    if (sourceProfile.likelyPixelArt && hint <= 8) cap = Math.min(cap, hint + 2);
+    cap = Math.min(cap, clusterCount, hint + 3);
+    return clamp(cap, 2, 12);
+  }
+  function getPaletteLimitHint(sourceProfile) {
+    if (sourceProfile.significantCount <= 2) return 2;
+    if (sourceProfile.topTwoRatio >= 0.9) return 2;
+    if (sourceProfile.topTwoRatio >= 0.82 && sourceProfile.significantCount <= 6) return 3;
+    if (sourceProfile.significantCount <= 4 && sourceProfile.topTwoRatio >= 0.62) return 4;
+    if (sourceProfile.likelyPixelArt && sourceProfile.significantCount <= 8) return 6;
+    return 12;
+  }
+  function selectPaletteCodes(clusters, paletteCap, excludedCodes = null) {
+    const weighted = /* @__PURE__ */ new Map();
+    clusters.forEach((cluster) => {
+      const code = nearestColorCode(cluster.r, cluster.g, cluster.b, excludedCodes);
+      if (!code) return;
+      weighted.set(code, (weighted.get(code) || 0) + (cluster.count || 1));
+    });
+    const sorted = [...weighted.entries()].sort((a, b) => b[1] - a[1] || (beadIds[a[0]] || a[0]).localeCompare(beadIds[b[0]] || b[0], "zh-Hans-CN", { numeric: true })).map(([code]) => code);
+    const selected = sorted.slice(0, Math.max(1, paletteCap));
+    if (selected.length) return selected;
+    const fallback = clusters.slice().sort((a, b) => (b.count || 0) - (a.count || 0)).map((cluster) => nearestColorCode(cluster.r, cluster.g, cluster.b, excludedCodes)).find((code) => Boolean(code));
+    return fallback ? [fallback] : [];
+  }
+  function nearestCodeFromSet2(lab, codes, excludedCodes = null) {
+    let best = codes[0] || "K";
+    let bestDistance = Infinity;
+    codes.forEach((code) => {
+      if (excludedCodes?.has(code)) return;
+      const distance = oklabDistance(lab, beadOklab(code));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = code;
+      }
+    });
+    if (bestDistance === Infinity) return nearestColorCodeByLab(lab, excludedCodes);
+    return best;
+  }
+  function simplifyColors(pixels, maxColors) {
+    const seeds = seedClusters(pixels, maxColors);
+    let clusters = seeds.map((seed) => ({ ...seed }));
+    for (let iteration = 0; iteration < 6; iteration += 1) {
+      const sums = clusters.map(() => ({ l: 0, a: 0, b: 0, r: 0, g: 0, blue: 0, count: 0 }));
+      pixels.forEach((pixel) => {
+        let best = 0;
+        let bestDistance = Infinity;
+        clusters.forEach((cluster, index) => {
+          const distance = oklabDistance(pixel.lab, cluster.lab);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            best = index;
+          }
+        });
+        const sum = sums[best];
+        sum.l += pixel.lab.l;
+        sum.a += pixel.lab.a;
+        sum.b += pixel.lab.b;
+        sum.r += pixel.r;
+        sum.g += pixel.g;
+        sum.blue += pixel.b;
+        sum.count += 1;
+      });
+      clusters = clusters.map((cluster, index) => {
+        const sum = sums[index];
+        if (!sum.count) return cluster;
+        const lab = { l: sum.l / sum.count, a: sum.a / sum.count, b: sum.b / sum.count };
+        return { lab, r: Math.round(sum.r / sum.count), g: Math.round(sum.g / sum.count), b: Math.round(sum.blue / sum.count), count: sum.count };
+      });
+    }
+    return clusters.filter((cluster) => cluster.count !== 0);
+  }
+  function seedClusters(pixels, maxColors) {
+    const buckets = /* @__PURE__ */ new Map();
+    pixels.forEach((pixel) => {
+      const key = `${pixel.r >> 4}:${pixel.g >> 4}:${pixel.b >> 4}`;
+      const bucket = buckets.get(key) || { r: 0, g: 0, b: 0, l: 0, aa: 0, bb: 0, count: 0 };
+      bucket.r += pixel.r;
+      bucket.g += pixel.g;
+      bucket.b += pixel.b;
+      bucket.l += pixel.lab.l;
+      bucket.aa += pixel.lab.a;
+      bucket.bb += pixel.lab.b;
+      bucket.count += 1;
+      buckets.set(key, bucket);
+    });
+    const candidates = [...buckets.values()].map((bucket) => ({
+      r: Math.round(bucket.r / bucket.count),
+      g: Math.round(bucket.g / bucket.count),
+      b: Math.round(bucket.b / bucket.count),
+      lab: { l: bucket.l / bucket.count, a: bucket.aa / bucket.count, b: bucket.bb / bucket.count },
+      count: bucket.count
+    })).sort((a, b) => b.count - a.count);
+    const seeds = [];
+    candidates.forEach((candidate) => {
+      if (seeds.length >= maxColors) return;
+      const farEnough = seeds.every((seed) => oklabDistance(seed.lab, candidate.lab) > 9e-4);
+      if (farEnough || seeds.length < Math.min(4, maxColors)) seeds.push(candidate);
+    });
+    for (const candidate of candidates) {
+      if (seeds.length >= maxColors) break;
+      if (!seeds.includes(candidate)) seeds.push(candidate);
+    }
+    return seeds.length ? seeds : [pixels[0]];
+  }
+  function removeSpeckles(grid, size, rounds, sourceProfile = null) {
+    let current = grid.slice();
+    const strict = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false }) <= 3;
+    const effectiveRounds = sourceProfile?.logoLike || sourceProfile?.likelyPixelArt && size <= 16 ? Math.min(1, rounds) : rounds;
+    for (let round = 0; round < effectiveRounds; round += 1) {
+      const next = current.slice();
+      for (let y = 0; y < size; y += 1) {
+        for (let x = 0; x < size; x += 1) {
+          const index = y * size + x;
+          const code = current[index];
+          const neighbors = neighborCodes(current, size, x, y, true);
+          const majority = majorityCode(neighbors);
+          if (!majority) continue;
+          const same8 = neighbors.filter((item) => item === code).length;
+          const same4 = neighborCodes(current, size, x, y, false).filter((item) => item === code).length;
+          const majorityCount = neighbors.filter((item) => item === majority).length;
+          if (code !== "." && shouldKeepIsolatedFeature(current, size, x, y, code, neighbors, same4, same8)) continue;
+          if (sourceProfile?.logoLike && code !== ".") {
+            continue;
+          }
+          if (code === "." && majority !== "." && majorityCount >= 7) {
+            next[index] = majority;
+          } else if (code !== "." && same8 <= 1 && same4 === 0 && majorityCount >= (strict ? 6 : 5)) {
+            next[index] = majority;
+          }
+        }
+      }
+      current = next;
+    }
+    return current;
+  }
+  function cleanupSmallComponents(grid, size, sourceProfile = null) {
+    if (sourceProfile?.logoLike && size <= 20) {
+      return grid.slice();
+    }
+    const out = grid.slice();
+    const visited = Array(size * size).fill(false);
+    const paletteHint = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false });
+    let threshold = size <= 24 ? 1 : size <= 36 ? 2 : 3;
+    if (sourceProfile?.likelyPixelArt) threshold = Math.max(1, threshold - 1);
+    if (paletteHint <= 3) threshold = 1;
+    for (let index = 0; index < out.length; index += 1) {
+      if (visited[index] || out[index] === ".") continue;
+      const component = collectComponent(out, size, index, visited);
+      if (component.cells.length > threshold) continue;
+      if (shouldPreserveSmallDetail(out, size, component, sourceProfile)) continue;
+      const boundary = [];
+      component.cells.forEach((cellIndex) => {
+        const x = cellIndex % size;
+        const y = Math.floor(cellIndex / size);
+        boundary.push(...neighborCodes(out, size, x, y, false).filter((code) => code !== component.code));
+      });
+      const replacement = majorityCode(boundary) || ".";
+      component.cells.forEach((cellIndex) => {
+        out[cellIndex] = replacement;
+      });
+    }
+    return out;
+  }
+  function consensusRebalanceGrid(grid, size, sourceProfile = null) {
+    const out = grid.slice();
+    const passes = sourceProfile?.logoLike ? 1 : size <= 20 ? 2 : 3;
+    const softThreshold = sourceProfile?.logoLike ? 26e-4 : 19e-4;
+    for (let pass = 0; pass < passes; pass += 1) {
+      const next = out.slice();
+      for (let y = 1; y < size - 1; y += 1) {
+        for (let x = 1; x < size - 1; x += 1) {
+          const index = y * size + x;
+          const code = out[index];
+          if (code === ".") continue;
+          const neighbors = neighborCodes(out, size, x, y, true).filter((item) => item !== ".");
+          if (neighbors.length < 5) continue;
+          const counts = {};
+          neighbors.forEach((n) => {
+            counts[n] = (counts[n] || 0) + 1;
+          });
+          const candidate = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (!candidate || candidate === code) continue;
+          const support = counts[candidate] || 0;
+          if (support < (sourceProfile?.logoLike ? 7 : 6)) continue;
+          const dist = oklabDistance(beadOklab(candidate), beadOklab(code));
+          if (dist <= softThreshold || support >= 8) {
+            next[index] = candidate;
+          }
+        }
+      }
+      for (let i = 0; i < out.length; i += 1) out[i] = next[i];
+    }
+    return out;
+  }
+  function bridgeLineGaps(grid, size, sourceProfile = null) {
+    if (!sourceProfile?.logoLike && size > 16) return grid;
+    const out = grid.slice();
+    for (let y = 1; y < size - 1; y += 1) {
+      for (let x = 1; x < size - 1; x += 1) {
+        const index = y * size + x;
+        if (out[index] !== ".") continue;
+        const left = out[y * size + (x - 1)];
+        const right = out[y * size + (x + 1)];
+        const up = out[(y - 1) * size + x];
+        const down = out[(y + 1) * size + x];
+        const ul = out[(y - 1) * size + (x - 1)];
+        const ur = out[(y - 1) * size + (x + 1)];
+        const dl = out[(y + 1) * size + (x - 1)];
+        const dr = out[(y + 1) * size + (x + 1)];
+        if (left !== "." && left === right) {
+          out[index] = left;
+          continue;
+        }
+        if (up !== "." && up === down) {
+          out[index] = up;
+          continue;
+        }
+        if (ul !== "." && ul === dr) {
+          out[index] = ul;
+          continue;
+        }
+        if (ur !== "." && ur === dl) {
+          out[index] = ur;
+        }
+      }
+    }
+    return out;
+  }
+  function collectComponent(grid, size, start, visited) {
+    const code = grid[start];
+    const cells = [];
+    const stack = [start];
+    visited[start] = true;
+    while (stack.length) {
+      const index = stack.pop();
+      cells.push(index);
+      const x = index % size;
+      const y = Math.floor(index / size);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
+        const nextIndex = ny * size + nx;
+        if (!visited[nextIndex] && grid[nextIndex] === code) {
+          visited[nextIndex] = true;
+          stack.push(nextIndex);
+        }
+      });
+    }
+    return { code, cells };
+  }
+  function shouldPreserveSmallDetail(grid, size, component, sourceProfile = null) {
+    const darkDetail = /* @__PURE__ */ new Set(["K", "k", "D", "d", "N", "n", "b"]);
+    const lowPalette = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false }) <= 3;
+    const xs = component.cells.map((index) => index % size);
+    const ys = component.cells.map((index) => Math.floor(index / size));
+    const lineLike = component.cells.length >= 2 && (new Set(xs).size > 1 || new Set(ys).size > 1);
+    let nonDotBoundary = 0;
+    let boundary = 0;
+    component.cells.forEach((cellIndex) => {
+      const x = cellIndex % size;
+      const y = Math.floor(cellIndex / size);
+      neighborCodes(grid, size, x, y, false).forEach((code) => {
+        if (code === component.code) return;
+        boundary += 1;
+        if (code !== ".") nonDotBoundary += 1;
+      });
+    });
+    const embedded = boundary > 0 && nonDotBoundary / boundary >= 0.6;
+    const singlePixel = component.cells.length === 1 && darkDetail.has(component.code) && embedded;
+    const highContrastDot = component.cells.length === 1 && hasStrongContrastBoundary(grid, size, component);
+    const lowPaletteDot = lowPalette && component.cells.length === 1 && embedded;
+    return lineLike || singlePixel || highContrastDot || lowPaletteDot || darkDetail.has(component.code) && embedded;
+  }
+  function shouldKeepIsolatedFeature(grid, size, x, y, code, neighbors8, same4, same8) {
+    if (same4 >= 1 || same8 >= 2) return false;
+    const darkDetail = /* @__PURE__ */ new Set(["K", "k", "D", "d", "N", "n", "b"]);
+    if (!darkDetail.has(code)) return false;
+    const nonDot = neighbors8.filter((item) => item !== ".").length;
+    if (nonDot < 5) return false;
+    const distinct = new Set(neighbors8.filter((item) => item !== "." && item !== code));
+    if (distinct.size > 2) return false;
+    return hasStrongContrastBoundary(grid, size, { code, cells: [y * size + x] });
+  }
+  function hasStrongContrastBoundary(grid, size, component) {
+    let contrasted = 0;
+    let sampled = 0;
+    const selfLab = beadOklab(component.code);
+    component.cells.forEach((cellIndex) => {
+      const x = cellIndex % size;
+      const y = Math.floor(cellIndex / size);
+      neighborCodes(grid, size, x, y, true).forEach((code) => {
+        if (code === "." || code === component.code) return;
+        sampled += 1;
+        if (oklabDistance(selfLab, beadOklab(code)) > 38e-4) contrasted += 1;
+      });
+    });
+    return sampled >= 3 && contrasted / sampled >= 0.6;
+  }
+  function collapseToPalette(grid, size, paletteCodes) {
+    const allowed = new Set(paletteCodes);
+    const out = grid.slice();
+    for (let i = 0; i < out.length; i += 1) {
+      const code = out[i];
+      if (code === "." || allowed.has(code)) continue;
+      const x = i % size;
+      const y = Math.floor(i / size);
+      const neighborMajority = majorityCode(
+        neighborCodes(out, size, x, y, true).filter((item) => allowed.has(item))
+      );
+      if (neighborMajority) {
+        out[i] = neighborMajority;
+        continue;
+      }
+      const selfLab = beadOklab(code);
+      let best = paletteCodes[0] || "K";
+      let bestDistance = Infinity;
+      paletteCodes.forEach((candidate) => {
+        const distance = oklabDistance(selfLab, beadOklab(candidate));
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = candidate;
+        }
+      });
+      out[i] = best;
+    }
+    return out;
+  }
+  function neighborCodes(grid, size, x, y, includeDiagonal) {
+    const dirs = includeDiagonal ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] : [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const codes = [];
+    dirs.forEach(([dx, dy]) => {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
+      codes.push(grid[ny * size + nx]);
+    });
+    return codes;
+  }
+  function majorityCode(codes) {
+    if (!codes.length) return null;
+    const counts = {};
+    codes.forEach((code) => {
+      counts[code] = (counts[code] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  }
+  function gridToRows(grid, size) {
+    const rows = [];
+    for (let y = 0; y < size; y += 1) {
+      rows.push(grid.slice(y * size, y * size + size).join(""));
+    }
+    return rows;
+  }
+  function countGridColors(grid) {
+    const counts = {};
+    grid.forEach((code) => {
+      if (code !== ".") counts[code] = (counts[code] || 0) + 1;
+    });
+    const colors = Object.entries(counts).map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count || (beadIds[a.code] || a.code).localeCompare(beadIds[b.code] || b.code, "zh-Hans-CN", { numeric: true }));
+    return {
+      colors,
+      total: colors.reduce((sum, item) => sum + item.count, 0)
+    };
+  }
+  function makeConversionResult(rows, size, simplifiedColorCount, preCleanupColorCount, sourceProfile = null, denoiseLevel = 0) {
+    const stats = countGridColors(rows.join("").split(""));
+    return {
+      rows,
+      stats: {
+        size,
+        total: stats.total,
+        colors: stats.colors,
+        simplifiedColorCount,
+        preCleanupColorCount,
+        sourceSignificantCount: sourceProfile?.significantCount || stats.colors.length,
+        sourceCoarseCount: sourceProfile?.coarseCount || stats.colors.length,
+        denoised: Boolean(sourceProfile?.useDenoise),
+        denoiseLevel: clamp(Math.round(Number(denoiseLevel) || 0), 0, 100)
+      }
+    };
+  }
+  function nearestColorCodeByLab(lab, excludedCodes = null) {
+    let best = "K";
+    let bestDistance = Infinity;
+    allColorCodes().forEach((code) => {
+      if (excludedCodes?.has(code)) return;
+      const distance = oklabDistance(lab, beadOklab(code));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = code;
+      }
+    });
+    if (bestDistance === Infinity) return null;
+    return best;
+  }
+  function nearestColorCode(r, g, b, excludedCodes = null) {
+    const lab = rgbToOklab(r, g, b);
+    return nearestColorCodeByLab(lab, excludedCodes);
+  }
+
+  // src/custom-pattern.js
+  var customPatternActions = {
+    loadPattern: () => {
+    }
+  };
+  function setCustomPatternActions(actions = {}) {
+    Object.assign(customPatternActions, actions);
   }
   function normalizedCustomDenoiseLevel(value) {
     return clamp(Math.round(Number(value) || 0), 0, 100);
@@ -8200,18 +8147,10 @@
       }
     }
   }
-  function setSizeControls2(size) {
+  function setPatternSizePreview(size) {
     const normalized = normalizePatternSize(size);
     state.patternSize = normalized;
-    if (els.patternSizeSlider) {
-      els.patternSizeSlider.value = String(normalized);
-      const min = Number(els.patternSizeSlider.min) || 12;
-      const max = Number(els.patternSizeSlider.max) || 100;
-      const progress = clamp((normalized - min) / Math.max(1, max - min), 0, 1);
-      els.patternSizeSlider.style.setProperty("--size-progress", `${Math.round(progress * 100)}%`);
-    }
-    if (els.patternSizeValue) els.patternSizeValue.textContent = String(normalized);
-    if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
+    setSizeControls(normalized);
   }
   function applyPatternSize(size) {
     const normalized = normalizePatternSize(size);
@@ -8225,8 +8164,203 @@
       reconvertCustomPatternAtSize(base, normalized, state.phase !== "choose");
       return;
     }
-    loadPattern(resizePattern(base, normalized), state.phase !== "choose");
+    customPatternActions.loadPattern(resizePattern(base, normalized), state.phase !== "choose");
     showToast(`\u56FE\u7EB8\u5DF2\u8C03\u6574\u4E3A ${normalized}x${normalized}\u3002`);
+  }
+  async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
+    try {
+      const image = await loadImageFromDataUrl(basePattern.sourceImageDataUrl);
+      const removeWhite = basePattern.sourceRemoveWhite !== false;
+      const denoiseLevel = normalizedCustomDenoiseLevel(basePattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
+      const result = convertImageToPattern(image, { removeWhite, size, denoiseLevel });
+      const rows = result.rows;
+      const beadCount = rows.join("").replace(/\./g, "").length;
+      if (!beadCount) {
+        showToast("\u8FD9\u4E2A\u5C3A\u5BF8\u4E0B\u8BC6\u522B\u4E0D\u5230\u53EF\u7528\u8C46\u5B50\u3002");
+        return;
+      }
+      const updated = {
+        ...basePattern,
+        size,
+        rows,
+        sourceRows: rows,
+        sourceSize: size,
+        sourceDenoiseLevel: denoiseLevel,
+        conversionStats: result.stats,
+        note: pickCustomPatternNote(
+          "image",
+          size,
+          basePattern.sourceImageDataUrl || `${size}|${rows.join("")}`
+        )
+      };
+      invalidatePatternDataCaches(updated);
+      const idx = patterns.findIndex((item) => baseIdFor(item) === baseIdFor(basePattern));
+      if (idx >= 0) patterns[idx] = updated;
+      state.lastConversionStats = result.stats;
+      customPatternActions.loadPattern(updated, keepPhase);
+      showToast(`\u5DF2\u6309 ${size}x${size} \u91CD\u65B0\u8BC6\u522B\u56FE\u7247\u56FE\u7EB8\u3002`);
+    } catch (error) {
+      showToast("\u56FE\u7247\u91CD\u65B0\u8BC6\u522B\u5931\u8D25\u3002");
+    }
+  }
+  function handleCustomImage(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const sourceImageDataUrl = String(reader.result || "");
+        const image = await loadImageFromDataUrl(sourceImageDataUrl);
+        const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
+        const removeWhite = els.customWhiteToggle.checked;
+        const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
+        setSizeControls(size);
+        await new Promise((resolve) => setTimeout(resolve, 16));
+        const result = convertImageToPattern(image, {
+          removeWhite,
+          size,
+          denoiseLevel
+        });
+        const rows = result.rows;
+        const beadCount = rows.join("").replace(/\./g, "").length;
+        if (!beadCount) {
+          showToast("\u8FD9\u5F20\u56FE\u8F6C\u6362\u540E\u6CA1\u6709\u53EF\u7528\u8C46\u5B50\u3002");
+          return;
+        }
+        const pattern = {
+          id: "custom-user",
+          name: "\u81EA\u5B9A\u4E49\u56FE\u7EB8",
+          size,
+          craft: "\u539F\u7248",
+          rows,
+          sourceRows: rows,
+          sourceSize: size,
+          sourceImageDataUrl,
+          sourceRemoveWhite: removeWhite,
+          sourceDenoiseLevel: denoiseLevel,
+          conversionStats: result.stats,
+          note: pickCustomPatternNote("image", size, sourceImageDataUrl)
+        };
+        state.lastConversionStats = result.stats;
+        for (let i = patterns.length - 1; i >= 0; i -= 1) {
+          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+        }
+        patterns.unshift(pattern);
+        customPatternActions.loadPattern(pattern);
+        showToast(`\u81EA\u5B9A\u4E49\u56FE\u7EB8\u5DF2\u751F\u6210\uFF1A${result.stats.total}\u9897 / ${result.stats.colors.length}\u8272\u3002`);
+      } catch (error) {
+        showToast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\u3002");
+      } finally {
+        event.target.value = "";
+      }
+    };
+    reader.onerror = () => {
+      showToast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\u3002");
+      event.target.value = "";
+    };
+    showToast("\u6B63\u5728\u8BC6\u522B\u56FE\u7247\u2026");
+    reader.readAsDataURL(file);
+  }
+  function initCustomPatternEvents() {
+    let sizeSliderTimer = null;
+    els.patternSizeSlider?.addEventListener("input", () => {
+      const size = normalizePatternSize(els.patternSizeSlider.value);
+      setPatternSizePreview(size);
+      if (sizeSliderTimer) window.clearTimeout(sizeSliderTimer);
+      sizeSliderTimer = window.setTimeout(() => applyPatternSize(size), 110);
+    });
+    els.patternSizeSlider?.addEventListener("change", () => {
+      const size = normalizePatternSize(els.patternSizeSlider.value);
+      setPatternSizePreview(size);
+      applyPatternSize(size);
+    });
+    let customDenoiseTimer = null;
+    els.customDenoiseSlider?.addEventListener("input", () => {
+      const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
+      const current = state.selectedPattern;
+      if (!isCustomFromImagePattern(current)) return;
+      if (customDenoiseTimer) window.clearTimeout(customDenoiseTimer);
+      customDenoiseTimer = window.setTimeout(() => {
+        const base = findBasePattern(current);
+        base.sourceDenoiseLevel = level;
+        reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
+      }, 140);
+    });
+    els.customDenoiseSlider?.addEventListener("change", () => {
+      const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
+      const current = state.selectedPattern;
+      if (!isCustomFromImagePattern(current)) return;
+      if (customDenoiseTimer) {
+        window.clearTimeout(customDenoiseTimer);
+        customDenoiseTimer = null;
+      }
+      const base = findBasePattern(current);
+      base.sourceDenoiseLevel = level;
+      reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
+    });
+    els.customImageInput?.addEventListener("change", handleCustomImage);
+  }
+
+  // src/main.js
+  var collection = readCollection();
+  state.achievements = readAchievements();
+  var lastFrame = performance.now();
+  var IRON_DEFAULT_TEMPERATURE = 62;
+  var IRON_DEFAULT_PRESSURE = 56;
+  function applyBackgroundTheme(themeId = state.bgTheme) {
+    state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
+    const theme = currentBackgroundTheme();
+    const root = document.documentElement;
+    root.style.setProperty("--page-base", theme.pageBase);
+    root.style.setProperty("--page-glow-a", theme.pageGlowA);
+    root.style.setProperty("--page-glow-b", theme.pageGlowB);
+    root.style.setProperty("--table", theme.table[1]);
+    root.style.setProperty("--table-deep", theme.table[2]);
+    root.style.setProperty("--brand", theme.brand || "#57b8a7");
+    root.style.setProperty("--brand-ink", theme.brandInk || "#1f6153");
+    root.style.setProperty("--brand-edge", theme.brandEdge || "#3f988b");
+    root.style.setProperty("--brand-tint", theme.brandTint || "rgba(87, 184, 167, 0.16)");
+    root.style.setProperty("--brand-tint-strong", theme.brandTintStrong || "rgba(87, 184, 167, 0.25)");
+    if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
+    markDirty();
+  }
+  function applyScreenAria() {
+    const mode = state.appMode;
+    const beadActive = mode === "bead";
+    [
+      [els.startScreen, mode === "home"],
+      [els.galleryScreen, mode === "gallery"],
+      [els.collectionScreen, mode === "collection"],
+      [els.drawingStudio, mode === "draw"],
+      [document.querySelector(".bead-topbar"), beadActive],
+      [els.studioGrid, beadActive]
+    ].forEach(([el, active]) => {
+      if (el) el.setAttribute("aria-hidden", active ? "false" : "true");
+    });
+  }
+  function setAppMode(mode) {
+    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
+    state.collectionPageOpen = state.appMode === "collection";
+    document.body.dataset.appMode = state.appMode;
+    applyScreenAria();
+    if (state.appMode === "bead") {
+      state.uiDirty = true;
+      state.previewDirty = true;
+      state.renderDirty = true;
+      markDirty();
+      return;
+    }
+    if (state.appMode === "draw") {
+      enterDrawMode();
+    }
+    if (state.appMode === "gallery") {
+      enterGalleryMode();
+      return;
+    }
+    if (state.appMode === "collection") {
+      state.collectionPageOpen = true;
+      renderCollection();
+    }
   }
   function loadPattern(pattern, keepPhase = false) {
     state.selectedPattern = pattern;
@@ -8465,100 +8599,6 @@
     const sourceCode = state.selectedPattern.rows[cell.y]?.[cell.x] || ".";
     if (sourceCode === ".") return;
     openRemapModal(sourceCode);
-  }
-  async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
-    try {
-      const image = await loadImageFromDataUrl(basePattern.sourceImageDataUrl);
-      const removeWhite = basePattern.sourceRemoveWhite !== false;
-      const denoiseLevel = normalizedCustomDenoiseLevel(basePattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
-      const result = convertImageToPattern(image, { removeWhite, size, denoiseLevel });
-      const rows = result.rows;
-      const beadCount = rows.join("").replace(/\./g, "").length;
-      if (!beadCount) {
-        showToast("\u8FD9\u4E2A\u5C3A\u5BF8\u4E0B\u8BC6\u522B\u4E0D\u5230\u53EF\u7528\u8C46\u5B50\u3002");
-        return;
-      }
-      const updated = {
-        ...basePattern,
-        size,
-        rows,
-        sourceRows: rows,
-        sourceSize: size,
-        sourceDenoiseLevel: denoiseLevel,
-        conversionStats: result.stats,
-        note: pickCustomPatternNote(
-          "image",
-          size,
-          basePattern.sourceImageDataUrl || `${size}|${rows.join("")}`
-        )
-      };
-      invalidatePatternDataCaches(updated);
-      const idx = patterns.findIndex((item) => baseIdFor(item) === baseIdFor(basePattern));
-      if (idx >= 0) patterns[idx] = updated;
-      state.lastConversionStats = result.stats;
-      loadPattern(updated, keepPhase);
-      showToast(`\u5DF2\u6309 ${size}x${size} \u91CD\u65B0\u8BC6\u522B\u56FE\u7247\u56FE\u7EB8\u3002`);
-    } catch (error) {
-      showToast("\u56FE\u7247\u91CD\u65B0\u8BC6\u522B\u5931\u8D25\u3002");
-    }
-  }
-  function handleCustomImage(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const sourceImageDataUrl = String(reader.result || "");
-        const image = await loadImageFromDataUrl(sourceImageDataUrl);
-        const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
-        const removeWhite = els.customWhiteToggle.checked;
-        const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
-        setSizeControls(size);
-        await new Promise((resolve) => setTimeout(resolve, 16));
-        const result = convertImageToPattern(image, {
-          removeWhite,
-          size,
-          denoiseLevel
-        });
-        const rows = result.rows;
-        const beadCount = rows.join("").replace(/\./g, "").length;
-        if (!beadCount) {
-          showToast("\u8FD9\u5F20\u56FE\u8F6C\u6362\u540E\u6CA1\u6709\u53EF\u7528\u8C46\u5B50\u3002");
-          return;
-        }
-        const pattern = {
-          id: "custom-user",
-          name: "\u81EA\u5B9A\u4E49\u56FE\u7EB8",
-          size,
-          craft: "\u539F\u7248",
-          rows,
-          sourceRows: rows,
-          sourceSize: size,
-          sourceImageDataUrl,
-          sourceRemoveWhite: removeWhite,
-          sourceDenoiseLevel: denoiseLevel,
-          conversionStats: result.stats,
-          note: pickCustomPatternNote("image", size, sourceImageDataUrl)
-        };
-        state.lastConversionStats = result.stats;
-        for (let i = patterns.length - 1; i >= 0; i -= 1) {
-          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-        }
-        patterns.unshift(pattern);
-        loadPattern(pattern);
-        showToast(`\u81EA\u5B9A\u4E49\u56FE\u7EB8\u5DF2\u751F\u6210\uFF1A${result.stats.total}\u9897 / ${result.stats.colors.length}\u8272\u3002`);
-      } catch (error) {
-        showToast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\u3002");
-      } finally {
-        event.target.value = "";
-      }
-    };
-    reader.onerror = () => {
-      showToast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\u3002");
-      event.target.value = "";
-    };
-    showToast("\u6B63\u5728\u8BC6\u522B\u56FE\u7247\u2026");
-    reader.readAsDataURL(file);
   }
   function getOpenModalEl() {
     if (state.remapModalOpen) return els.remapModal;
@@ -9622,43 +9662,6 @@
     showToast(`\u5DE5\u5177\u6362\u6210${currentToolStyle().name}\u6B3E\u3002`);
     markDirty();
   });
-  var sizeSliderTimer = null;
-  els.patternSizeSlider?.addEventListener("input", () => {
-    const size = normalizePatternSize(els.patternSizeSlider.value);
-    setSizeControls2(size);
-    if (sizeSliderTimer) window.clearTimeout(sizeSliderTimer);
-    sizeSliderTimer = window.setTimeout(() => applyPatternSize(size), 110);
-  });
-  els.patternSizeSlider?.addEventListener("change", () => {
-    const size = normalizePatternSize(els.patternSizeSlider.value);
-    setSizeControls2(size);
-    applyPatternSize(size);
-  });
-  var customDenoiseTimer = null;
-  els.customDenoiseSlider?.addEventListener("input", () => {
-    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
-    const current = state.selectedPattern;
-    if (!isCustomFromImagePattern(current)) return;
-    if (customDenoiseTimer) window.clearTimeout(customDenoiseTimer);
-    customDenoiseTimer = window.setTimeout(() => {
-      const base = findBasePattern(current);
-      base.sourceDenoiseLevel = level;
-      reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
-    }, 140);
-  });
-  els.customDenoiseSlider?.addEventListener("change", () => {
-    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
-    const current = state.selectedPattern;
-    if (!isCustomFromImagePattern(current)) return;
-    if (customDenoiseTimer) {
-      window.clearTimeout(customDenoiseTimer);
-      customDenoiseTimer = null;
-    }
-    const base = findBasePattern(current);
-    base.sourceDenoiseLevel = level;
-    reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
-  });
-  els.customImageInput.addEventListener("change", handleCustomImage);
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
   els.remapResetButton?.addEventListener("click", () => resetPatternColorMapping());
@@ -9852,6 +9855,8 @@
     requestCloudShareForPattern
   });
   initDrawingStudioEvents();
+  setCustomPatternActions({ loadPattern });
+  initCustomPatternEvents();
   setUIActions({
     getCollection: () => collection,
     updateCollection: (nextCollection) => {
