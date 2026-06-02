@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const cloud = require("@cloudbase/node-sdk");
 
 const app = cloud.init({ env: cloud.SYMBOL_CURRENT_ENV });
@@ -17,11 +18,16 @@ const MAX_PATTERN_CODE_LENGTH = 200 * 1024;
 const SHARE_TTL_DAYS = 7;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_PER_IP = 12;
+const ADMIN_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const ADMIN_RATE_LIMIT_MAX_PER_IP = 30;
+const ADMIN_AUTH_WINDOW_MS = 10 * 60 * 1000;
+const ADMIN_AUTH_MAX_FAILURES = 5;
+const ADMIN_LOCK_MS = 15 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const CLEANUP_BATCH_SIZE = 200;
-
-const createRateMap = new Map();
 let lastCleanupAt = 0;
+const RATE_LIMITS = "rate_limits";
+const ADMIN_GUARDS = "admin_guards";
 
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com",
@@ -60,16 +66,152 @@ function responseHeaders(event) {
   return headers;
 }
 
-function json(event, data, statusCode = 200) {
+function json(event, data, statusCode = 200, extraHeaders = {}) {
   return {
     statusCode,
-    headers: responseHeaders(event),
+    headers: { ...responseHeaders(event), ...extraHeaders },
     body: JSON.stringify(data),
   };
 }
 
-function error(event, status, code, message) {
-  return json(event, { ok: false, error: { code, message } }, status);
+function error(event, status, code, message, extra = {}, extraHeaders = {}) {
+  return json(event, { ok: false, error: { code, message, ...extra } }, status, extraHeaders);
+}
+
+function createHttpError(statusCode, code, message, extra = {}, extraHeaders = {}) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  err.errorCode = code;
+  err.errorExtra = extra;
+  err.errorHeaders = extraHeaders;
+  return err;
+}
+
+function hashText(value) {
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
+}
+
+function rateLimitDocId(scope, ip) {
+  return `${scope}_${hashText(ip).slice(0, 32)}`;
+}
+
+function firstDoc(result) {
+  const data = result?.data;
+  if (Array.isArray(data)) return data[0] || null;
+  return data || null;
+}
+
+function timingSafeTokenEquals(a, b) {
+  const aDigest = crypto.createHash("sha256").update(String(a || "")).digest();
+  const bDigest = crypto.createHash("sha256").update(String(b || "")).digest();
+  return crypto.timingSafeEqual(aDigest, bDigest);
+}
+
+function rateLimitRetryAfterSeconds(windowMs, windowStartMs) {
+  return Math.max(1, Math.ceil((windowStartMs + windowMs - Date.now()) / 1000));
+}
+
+async function consumeRateLimit(scope, ip, windowMs, maxPerWindow) {
+  const docId = rateLimitDocId(scope, ip);
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  return db.runTransaction(async (transaction) => {
+    const doc = transaction.collection(RATE_LIMITS).doc(docId);
+    const snap = await doc.get();
+    const current = firstDoc(snap) || {};
+    let windowStartMs = Number(current.windowStartMs) || now;
+    let count = Number(current.count) || 0;
+    if (!Number.isFinite(windowStartMs) || now - windowStartMs >= windowMs) {
+      windowStartMs = now;
+      count = 0;
+    }
+    count += 1;
+    const next = {
+      scope,
+      ipHash: hashText(ip),
+      windowStartMs,
+      count,
+      windowMs,
+      maxPerWindow,
+      updatedAt: nowIso,
+      lastSeenAt: nowIso,
+    };
+    await doc.set(next);
+    if (count > maxPerWindow) {
+      throw createHttpError(
+        429,
+        "rate_limited",
+        "Too many requests.",
+        { retryAfterSeconds: rateLimitRetryAfterSeconds(windowMs, windowStartMs) },
+        { "retry-after": String(rateLimitRetryAfterSeconds(windowMs, windowStartMs)) },
+      );
+    }
+    return next;
+  });
+}
+
+async function readAdminGuard(ip) {
+  const docId = rateLimitDocId("admin", ip);
+  const result = await db.collection(ADMIN_GUARDS).doc(docId).get();
+  return firstDoc(result) || { docId };
+}
+
+async function recordAdminFailure(ip) {
+  const docId = rateLimitDocId("admin", ip);
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  return db.runTransaction(async (transaction) => {
+    const doc = transaction.collection(ADMIN_GUARDS).doc(docId);
+    const snap = await doc.get();
+    const raw = firstDoc(snap) || {};
+    // Strip _id so doc.set() doesn't try to overwrite the immutable primary key.
+    const { _id: _ignored, ...current } = raw;
+    let failWindowStartMs = Number(current.failWindowStartMs) || now;
+    let failCount = Number(current.failCount) || 0;
+    if (!Number.isFinite(failWindowStartMs) || now - failWindowStartMs >= ADMIN_AUTH_WINDOW_MS) {
+      failWindowStartMs = now;
+      failCount = 0;
+    }
+    failCount += 1;
+    const next = {
+      ...current,
+      scope: "admin",
+      ipHash: hashText(ip),
+      failWindowStartMs,
+      failCount,
+      updatedAt: nowIso,
+      lastFailureAt: nowIso,
+      lastSeenAt: nowIso,
+    };
+    if (failCount >= ADMIN_AUTH_MAX_FAILURES) {
+      next.lockedUntilMs = now + ADMIN_LOCK_MS;
+      next.lockReason = "auth_failure";
+      next.failWindowStartMs = now;
+      next.failCount = 0;
+    }
+    await doc.set(next);
+    return next;
+  });
+}
+
+async function clearAdminFailures(ip) {
+  const docId = rateLimitDocId("admin", ip);
+  const nowIso = new Date().toISOString();
+  await db.collection(ADMIN_GUARDS).doc(docId).set({
+    scope: "admin",
+    ipHash: hashText(ip),
+    failWindowStartMs: Date.now(),
+    failCount: 0,
+    lockedUntilMs: 0,
+    lockReason: "",
+    updatedAt: nowIso,
+    lastSuccessAt: nowIso,
+    lastSeenAt: nowIso,
+  });
+}
+
+async function consumeAdminRequestBudget(ip) {
+  await consumeRateLimit("admin_request", ip, ADMIN_RATE_LIMIT_WINDOW_MS, ADMIN_RATE_LIMIT_MAX_PER_IP);
 }
 
 function normalizeName(value) {
@@ -190,22 +332,6 @@ function clientIp(event, context) {
   return String(context?.requestContext?.sourceIp || context?.httpContext?.sourceIp || "unknown");
 }
 
-function hitCreateRateLimit(ip) {
-  const now = Date.now();
-  for (const [key, value] of createRateMap.entries()) {
-    if (now - value.windowStart >= RATE_LIMIT_WINDOW_MS) createRateMap.delete(key);
-  }
-  const key = ip || "unknown";
-  const record = createRateMap.get(key);
-  if (!record || now - record.windowStart >= RATE_LIMIT_WINDOW_MS) {
-    createRateMap.set(key, { windowStart: now, count: 1 });
-    return false;
-  }
-  record.count += 1;
-  createRateMap.set(key, record);
-  return record.count > RATE_LIMIT_MAX_PER_IP;
-}
-
 async function cleanupCollectionWhere(filter) {
   const result = await db.collection(SHARES).where(filter).limit(CLEANUP_BATCH_SIZE).get();
   const rows = result.data || [];
@@ -280,12 +406,41 @@ async function openShare(payload) {
   };
 }
 
-function requireAdmin(event, payload) {
+async function requireAdmin(event, payload, context) {
   const configured = String(process.env.ADMIN_TOKEN || "").trim();
   if (!configured) throw new Error("Admin token is not configured.");
   const headers = event?.headers || {};
   const provided = String(payload.adminToken || headers["x-admin-token"] || headers["X-Admin-Token"] || "").trim();
-  if (!provided || provided !== configured) throw new Error("Unauthorized.");
+  const ip = clientIp(event, context);
+  await consumeAdminRequestBudget(ip);
+  const guard = await readAdminGuard(ip);
+  const lockedUntilMs = Number(guard?.lockedUntilMs) || 0;
+  if (lockedUntilMs > Date.now()) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((lockedUntilMs - Date.now()) / 1000));
+    throw createHttpError(
+      429,
+      "admin_locked",
+      "Too many failed admin attempts. Please wait and try again.",
+      { retryAfterSeconds },
+      { "retry-after": String(retryAfterSeconds) },
+    );
+  }
+  if (!provided || !timingSafeTokenEquals(provided, configured)) {
+    const next = await recordAdminFailure(ip);
+    const nextLockedUntilMs = Number(next?.lockedUntilMs) || 0;
+    if (nextLockedUntilMs > Date.now()) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((nextLockedUntilMs - Date.now()) / 1000));
+      throw createHttpError(
+        429,
+        "admin_locked",
+        "Too many failed admin attempts. Please wait and try again.",
+        { retryAfterSeconds },
+        { "retry-after": String(retryAfterSeconds) },
+      );
+    }
+    throw createHttpError(401, "unauthorized", "Unauthorized.");
+  }
+  await clearAdminFailures(ip);
 }
 
 function publicGalleryItem(row) {
@@ -328,8 +483,8 @@ async function listGallery(payload) {
   return { items: rows.map(publicGalleryItem) };
 }
 
-async function listPendingGallery(payload, event) {
-  requireAdmin(event, payload);
+async function listPendingGallery(payload, event, context) {
+  await requireAdmin(event, payload, context);
   const limit = Math.max(1, Math.min(96, Number.parseInt(payload.limit, 10) || 48));
   const result = await db.collection(GALLERY_SUBMISSIONS)
     .where({ status: "pending" })
@@ -350,8 +505,8 @@ async function listPendingGallery(payload, event) {
   };
 }
 
-async function approveGallery(payload, event) {
-  requireAdmin(event, payload);
+async function approveGallery(payload, event, context) {
+  await requireAdmin(event, payload, context);
   const id = String(payload.id || "").trim();
   if (!id) throw new Error("id is required.");
   const result = await db.collection(GALLERY_SUBMISSIONS).doc(id).get();
@@ -379,8 +534,8 @@ async function approveGallery(payload, event) {
   return { id, publicId, status: "approved" };
 }
 
-async function rejectGallery(payload, event) {
-  requireAdmin(event, payload);
+async function rejectGallery(payload, event, context) {
+  await requireAdmin(event, payload, context);
   const id = String(payload.id || "").trim();
   if (!id) throw new Error("id is required.");
   const now = nowIso();
@@ -405,9 +560,7 @@ exports.main = async (event, context) => {
 
     if (isCreatePath(path)) {
       const ip = clientIp(event, context);
-      if (hitCreateRateLimit(ip)) {
-        return error(event, 429, "rate_limited", "Too many requests.");
-      }
+      await consumeRateLimit("share_create", ip, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_PER_IP);
       const data = await createShare(payload);
       return json(event, { ok: true, data });
     }
@@ -424,30 +577,32 @@ exports.main = async (event, context) => {
 
     if (isGallerySubmitPath(path)) {
       const ip = clientIp(event, context);
-      if (hitCreateRateLimit(ip)) {
-        return error(event, 429, "rate_limited", "Too many requests.");
-      }
+      await consumeRateLimit("gallery_submit", ip, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_PER_IP);
       const data = await submitGallery(payload, event, context);
       return json(event, { ok: true, data });
     }
 
     if (isGalleryPendingPath(path)) {
-      const data = await listPendingGallery(payload, event);
+      const data = await listPendingGallery(payload, event, context);
       return json(event, { ok: true, data });
     }
 
     if (isGalleryApprovePath(path)) {
-      const data = await approveGallery(payload, event);
+      const data = await approveGallery(payload, event, context);
       return json(event, { ok: true, data });
     }
 
     if (isGalleryRejectPath(path)) {
-      const data = await rejectGallery(payload, event);
+      const data = await rejectGallery(payload, event, context);
       return json(event, { ok: true, data });
     }
 
     return error(event, 404, "not_found", "API route not found.");
   } catch (e) {
-    return error(event, 400, "bad_request", e?.message || "Request failed.");
+    const status = Number(e?.statusCode) || 400;
+    const code = String(e?.errorCode || "bad_request");
+    const extra = e?.errorExtra || {};
+    const extraHeaders = e?.errorHeaders || {};
+    return error(event, status, code, e?.message || "Request failed.", extra, extraHeaders);
   }
 };

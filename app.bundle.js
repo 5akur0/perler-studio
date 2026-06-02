@@ -3348,7 +3348,7 @@
         if (state.trayColor) syncTrayMatrixShape();
         drawTray(layout, true);
       }
-      if (state.phase === "inspect") updateInspectAssistCanvases2();
+      if (state.phase === "inspect") updateInspectAssistCanvases();
       if (state.phase === "iron") drawIronLayer(layout);
       if (state.phase === "cool") drawCoolingLayer(layout);
     }
@@ -3571,8 +3571,8 @@
     if (state.phase !== "place") return;
     const ctx = scene;
     const follow = state.phase === "place" && state.toolPose.visible;
-    const defaultX = w - 168;
-    const defaultY = h - 172;
+    const defaultX = clamp(w - 168, 24, Math.max(24, w - 96));
+    const defaultY = clamp(h - 172, 24, Math.max(24, h - 152));
     const needleTipX = follow ? clamp(state.toolPose.x, 28, w - 28) : defaultX + 72;
     const needleTipY = follow ? clamp(state.toolPose.y, 148, h - 12) : defaultY + 146;
     const tweezerHeadX = follow ? clamp(state.toolPose.x, 20, w - 20) : defaultX + 46;
@@ -5301,7 +5301,7 @@
       y: clamp(Math.floor((y - layout.y0) / layout.cell), 0, layout.size - 1)
     };
   }
-  function updateInspectAssistCanvases2() {
+  function updateInspectAssistCanvases() {
     if (!els.colorPalette || state.phase !== "inspect") return;
     const zoomCanvas = els.colorPalette.querySelector(".inspect-zoom");
     const fuseCanvas = els.colorPalette.querySelector(".inspect-fuse");
@@ -5805,9 +5805,17 @@
       if (state.spill) return "\u8FD8\u6709\u5012\u4E0B\u7684\u8C46\u5B50\u672A\u5904\u7406\u3002\u7EE7\u7EED\u71A8\u70EB\u4F1A\u7CCA\u574F\u8BE5\u4F4D\u7F6E\u3002";
       return state.errors.length ? "\u68C0\u67E5\u5230\u9700\u8981\u4FEE\u6B63\u7684\u4F4D\u7F6E\u3002" : "\u677F\u9762\u68C0\u67E5\u901A\u8FC7\uFF0C\u53EF\u4EE5\u76D6\u7EB8\u71A8\u70EB\u3002";
     }
-    if (phase === "iron") return "\u63A7\u5236\u901F\u5EA6\u3001\u538B\u529B\u548C\u6E29\u5EA6\uFF0C\u8BA9\u8C46\u5B50\u521A\u597D\u7C98\u8FDE\u3002";
-    if (phase === "cool") return "\u7B49\u5F85\u51B7\u5374\uFF0C\u538B\u5E73\u8FB9\u7F18\uFF0C\u51C6\u5907\u53D6\u4E0B\u4F5C\u54C1\u3002";
+    if (phase === "iron") return "\u6162\u6162\u79FB\u52A8\u71A8\u6597\uFF0C\u8BA9\u8C46\u5B50\u521A\u597D\u7C98\u8FDE\u3002";
+    if (phase === "cool") return "\u7B49\u5F85\u51B7\u5374\uFF0C\u538B\u5E73\u8FB9\u7F18\uFF0C\u518D\u51C6\u5907\u53D6\u4E0B\u4F5C\u54C1\u3002";
     return `${state.selectedPattern.name}\u5B8C\u6210\uFF0C\u5DF2\u8FDB\u5165\u6536\u85CF\u9636\u6BB5\u3002`;
+  }
+
+  // src/utils.js
+  function escapeHtml(value) {
+    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  }
+  function prefersReducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
   }
 
   // src/ui.js
@@ -5849,12 +5857,11 @@
     },
     createCloudShare: async () => null,
     importPatternCode: async () => false,
+    openImportCodeModal: () => {
+    },
     submitCurrentToGallery: () => {
     }
   };
-  function escapeHtml(value) {
-    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-  }
   function setUIActions(nextActions = {}) {
     uiActions = { ...uiActions, ...nextActions };
   }
@@ -5980,10 +5987,8 @@
     codeButton.className = "pattern-import-half";
     codeButton.type = "button";
     codeButton.textContent = "\u5BFC\u5165\u77ED\u7801";
-    codeButton.addEventListener("click", async () => {
-      const raw = window.prompt("\u8BF7\u7C98\u8D34\u56FE\u7EB8\u77ED\u7801\uFF1A");
-      if (!raw) return;
-      await uiActions.importPatternCode(raw);
+    codeButton.addEventListener("click", () => {
+      uiActions.openImportCodeModal();
     });
     importRow.appendChild(imageButton);
     importRow.appendChild(codeButton);
@@ -6034,9 +6039,6 @@
         ctx.fillRect(px, py, pw, ph);
       });
     });
-  }
-  function prefersReducedMotion() {
-    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
   }
   function resetPhaseViewport() {
     const reset = () => {
@@ -6170,13 +6172,7 @@
       return;
     }
     if (state.phase === "iron") {
-      addHint("\u6309\u4F4F\u5E76\u79FB\u52A8\u71A8\u6597\u3002\u6162\u3001\u70ED\u3001\u91CD\u4F1A\u589E\u52A0\u7C98\u8FDE\uFF0C\u4E5F\u66F4\u5BB9\u6613\u7CCA\u5B54\u548C\u53D8\u5F62\u3002");
-      addSlider("\u6E29\u5EA6", "temperature", 35, 90, state.temperature, (value) => {
-        state.temperature = Number(value);
-      });
-      addSlider("\u538B\u529B", "pressure", 25, 90, state.pressure, (value) => {
-        state.pressure = Number(value);
-      });
+      addHint("\u6309\u4F4F\u5E76\u79FB\u52A8\u71A8\u6597\uFF0C\u6162\u4E00\u70B9\u3001\u7A33\u4E00\u70B9\uFF0C\u8BA9\u8C46\u5B50\u521A\u597D\u7C98\u8FDE\u3002");
       addControlRow([
         ["\u67E5\u770B\u68C0\u67E5", "", () => uiActions.setPhase("inspect")],
         ["\u8FDB\u5165\u51B7\u5374", "primary-button", () => uiActions.setPhase("cool")]
@@ -6184,7 +6180,7 @@
       return;
     }
     if (state.phase === "cool") {
-      addHint("\u51B7\u5374\u8FC7\u7A0B\u4E2D\u538B\u5E73\u53EF\u4EE5\u51CF\u5C11\u7FD8\u66F2\u3002\u6E29\u5EA6\u7A33\u5B9A\u540E\u5C31\u80FD\u53D6\u4E0B\u4F5C\u54C1\u3002");
+      addHint("\u51B7\u5374\u8FC7\u7A0B\u4E2D\u538B\u5E73\u53EF\u4EE5\u51CF\u5C11\u7FD8\u66F2\u3002\u7B49\u5B83\u6162\u6162\u7A33\u4E0B\u6765\u518D\u53D6\u4E0B\u4F5C\u54C1\u3002");
       addControlRow([
         ["\u538B\u5E73", "", () => uiActions.pressFlat()],
         ["\u7FFB\u9762\u518D\u71A8", "", () => uiActions.flipAndIron(), state.flipCount >= 1]
@@ -6260,22 +6256,6 @@
     box.className = "hint-box";
     box.textContent = text;
     els.stageControls.appendChild(box);
-  }
-  function addSlider(label, key, min, max, value, onChange) {
-    const field = document.createElement("div");
-    field.className = "slider-field";
-    field.innerHTML = `<label><span>${label}</span><strong>${value}</strong></label>`;
-    const input = document.createElement("input");
-    input.type = "range";
-    input.min = min;
-    input.max = max;
-    input.value = value;
-    input.addEventListener("input", () => {
-      onChange(input.value);
-      field.querySelector("strong").textContent = input.value;
-    });
-    field.appendChild(input);
-    els.stageControls.appendChild(field);
   }
   function addCraftToggle() {
     const wrap = document.createElement("div");
@@ -6422,7 +6402,7 @@
         </div>
       `;
     }
-    updateInspectAssistCanvases2();
+    updateInspectAssistCanvases();
   }
   function renderSharePanel() {
     els.sharePanel.innerHTML = "";
@@ -6496,6 +6476,188 @@
       <span>${list}${stats.colors.length > 8 ? " \xB7 ..." : ""}</span>
     `;
   }
+  function renderCollection() {
+    if (!els.collectionPanel) return;
+    els.collectionPanel.innerHTML = "";
+    const collection2 = uiActions.getCollection?.() || [];
+    if (!collection2.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "\u8FD8\u6CA1\u6709\u5B8C\u6210\u54C1";
+      els.collectionPanel.appendChild(empty);
+      return;
+    }
+    const toolbar = document.createElement("div");
+    toolbar.className = "collection-toolbar";
+    toolbar.innerHTML = `
+      <span class="collection-toolbar-count">\u5171 ${collection2.length} \u4EF6</span>
+      <button type="button" class="danger-button collection-clear-all">\u6E05\u7A7A\u4F5C\u54C1\u96C6</button>
+    `;
+    toolbar.querySelector(".collection-clear-all").addEventListener("click", () => {
+      if (!collection2.length) return;
+      if (!window.confirm("\u786E\u5B9A\u6E05\u7A7A\u6240\u6709\u4F5C\u54C1\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002")) return;
+      uiActions.updateCollection([]);
+      renderCollection();
+      showToast("\u4F5C\u54C1\u96C6\u5DF2\u6E05\u7A7A\u3002");
+    });
+    els.collectionPanel.appendChild(toolbar);
+    const grid = document.createElement("div");
+    grid.className = "collection-grid";
+    els.collectionPanel.appendChild(grid);
+    collection2.forEach((item) => {
+      const safeItemName = escapeHtml(item.name);
+      const tile = document.createElement("div");
+      tile.className = "collection-tile";
+      const thumbSize = 168;
+      tile.innerHTML = `
+        <button type="button" class="collection-tile-body" aria-label="\u653E\u5927 ${safeItemName}">
+          <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
+          <div class="collection-tile-meta">
+            <strong>${safeItemName}</strong>
+            <span>${normalizeCraft(item.craft)} \xB7 \u8BC4\u7EA7 ${item.grade} \xB7 ${item.date}</span>
+          </div>
+        </button>
+        <button type="button" class="collection-tile-delete" aria-label="\u5220\u9664\u8FD9\u4EF6\u4F5C\u54C1" title="\u5220\u9664">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      `;
+      tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
+      tile.querySelector(".collection-tile-delete").addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!window.confirm(`\u5220\u9664 ${item.name}\uFF1F`)) return;
+        uiActions.updateCollection(collection2.filter((entry) => entry.id !== item.id));
+        renderCollection();
+        showToast("\u5DF2\u5220\u9664\u3002");
+      });
+      grid.appendChild(tile);
+      const canvas = tile.querySelector("canvas");
+      drawCollectionThumb(canvas, item);
+    });
+  }
+  function drawCollectionThumb(canvas, item) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    setupHiDpiCanvas(canvas, ctx);
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#f3f5f8";
+    ctx.fillRect(0, 0, w, h);
+    const size = item.size || state.selectedPattern.size || 16;
+    const placed = item.placed || [];
+    const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
+    const pad = 10;
+    const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
+    const gridSize = cell * size;
+    const x0 = Math.floor((w - gridSize) / 2);
+    const y0 = Math.floor((h - gridSize) / 2);
+    const cellCode = (x, y) => {
+      if (x < 0 || y < 0 || x >= size || y >= size) return null;
+      if (placed.length) {
+        const c = placed[y * size + x];
+        return c && c !== "." ? c : null;
+      }
+      if (fallback) {
+        const c = (fallback.rows[y] || "")[x];
+        return c && c !== "." ? c : null;
+      }
+      return null;
+    };
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const code = cellCode(x, y);
+        if (!code) continue;
+        const px = x0 + x * cell;
+        const py = y0 + y * cell;
+        const cx = px + cell / 2;
+        const cy = py + cell / 2;
+        const edges = {
+          left: !cellCode(x - 1, y),
+          right: !cellCode(x + 1, y),
+          up: !cellCode(x, y - 1),
+          down: !cellCode(x, y + 1)
+        };
+        const halfConnected = cell * 0.5;
+        const halfExposed = cell * 0.6;
+        const halfL = edges.left ? halfExposed : halfConnected;
+        const halfR = edges.right ? halfExposed : halfConnected;
+        const halfU = edges.up ? halfExposed : halfConnected;
+        const halfD = edges.down ? halfExposed : halfConnected;
+        const cornerFor = (a, b, hA, hB) => {
+          const cap = Math.min(hA, hB);
+          if (a && b) return cap;
+          if (a || b) return cap * 0.55;
+          return cap * 0.08;
+        };
+        const rTL = cornerFor(edges.up, edges.left, halfU, halfL);
+        const rTR = cornerFor(edges.up, edges.right, halfU, halfR);
+        const rBR = cornerFor(edges.down, edges.right, halfD, halfR);
+        const rBL = cornerFor(edges.down, edges.left, halfD, halfL);
+        const left = cx - halfL;
+        const right = cx + halfR;
+        const top = cy - halfU;
+        const bottom = cy + halfD;
+        ctx.beginPath();
+        ctx.moveTo(left + rTL, top);
+        ctx.lineTo(right - rTR, top);
+        ctx.arcTo(right, top, right, top + rTR, rTR);
+        ctx.lineTo(right, bottom - rBR);
+        ctx.arcTo(right, bottom, right - rBR, bottom, rBR);
+        ctx.lineTo(left + rBL, bottom);
+        ctx.arcTo(left, bottom, left, bottom - rBL, rBL);
+        ctx.lineTo(left, top + rTL);
+        ctx.arcTo(left, top, left + rTL, top, rTL);
+        ctx.closePath();
+        ctx.fillStyle = palette[code] || "#bbb";
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.beginPath();
+        ctx.arc(cx - cell * 0.18, cy - cell * 0.18, cell * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        const exposedCount = (edges.left ? 1 : 0) + (edges.right ? 1 : 0) + (edges.up ? 1 : 0) + (edges.down ? 1 : 0);
+        if (exposedCount >= 3 && cell >= 8) {
+          ctx.fillStyle = "rgba(0,0,0,0.18)";
+          ctx.beginPath();
+          ctx.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+  function enlargeCollectionEntry(entry) {
+    if (!els.collectionScreen) return;
+    let viewer = els.collectionScreen.querySelector(".collection-enlarged");
+    if (!viewer) {
+      viewer = document.createElement("div");
+      viewer.className = "collection-enlarged";
+      viewer.innerHTML = `
+        <button type="button" class="collection-enlarged-close" aria-label="\u5173\u95ED\u653E\u5927">\xD7</button>
+        <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
+        <div class="collection-enlarged-meta"></div>
+        <div class="collection-enlarged-actions">
+          <button type="button" class="primary-button collection-enlarged-open">\u6253\u5F00\u8FD9\u5F20\u56FE\u7EB8</button>
+        </div>
+      `;
+      els.collectionScreen.appendChild(viewer);
+      viewer.querySelector(".collection-enlarged-close").addEventListener("click", () => {
+        viewer.classList.remove("show");
+      });
+    }
+    viewer.classList.add("show");
+    const canvas = viewer.querySelector("canvas");
+    canvas.style.width = "min(640px, 78vh)";
+    canvas.style.height = "min(640px, 78vh)";
+    requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
+    viewer.querySelector(".collection-enlarged-meta").textContent = `${entry.name} \xB7 ${normalizeCraft(entry.craft)} \xB7 \u8BC4\u7EA7 ${entry.grade} \xB7 ${entry.date}`;
+    const openBtn = viewer.querySelector(".collection-enlarged-open");
+    const newBtn = openBtn.cloneNode(true);
+    openBtn.replaceWith(newBtn);
+    newBtn.addEventListener("click", () => {
+      viewer.classList.remove("show");
+      uiActions.openCollectionEntry(entry);
+    });
+  }
   function renderUI() {
     if (els.studioGrid) els.studioGrid.dataset.phase = state.phase;
     renderPatterns();
@@ -6519,9 +6681,11 @@
     if (els.sandboxButton) {
       const beakerIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L5 19a1.6 1.6 0 0 0 1.4 2.4h11.2A1.6 1.6 0 0 0 19 19l-5-9.5V3"/><path d="M7.5 14h9"/></svg>';
       const loupeIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>';
-      els.sandboxButton.innerHTML = state.sandboxMode ? beakerIcon : loupeIcon;
-      els.sandboxButton.title = state.sandboxMode ? "\u6C99\u76D2\uFF1A\u5F00\uFF08\u81EA\u7531\u62FC\u6446\u4E0D\u6821\u9A8C\uFF09" : "\u6C99\u76D2\uFF1A\u81EA\u7531\u62FC\u6446\u4E0D\u6821\u9A8C";
-      els.sandboxButton.setAttribute("aria-label", state.sandboxMode ? "\u6C99\u76D2\u6A21\u5F0F\uFF1A\u5F00" : "\u6C99\u76D2\u6A21\u5F0F\uFF1A\u5173");
+      const stateLabel = state.sandboxMode ? "\u5F00" : "\u5173";
+      els.sandboxButton.innerHTML = `${state.sandboxMode ? beakerIcon : loupeIcon}<span class="sandbox-state">${stateLabel}</span>`;
+      els.sandboxButton.title = state.sandboxMode ? "\u6C99\u76D2\uFF1A\u5F00\uFF08\u81EA\u7531\u62FC\u6446\u4E0D\u6821\u9A8C\uFF09" : "\u6C99\u76D2\uFF1A\u5173\uFF08\u6309\u56FE\u7EB8\u6821\u9A8C\uFF09";
+      els.sandboxButton.setAttribute("aria-label", `\u6C99\u76D2\u6A21\u5F0F\uFF1A${stateLabel}`);
+      els.sandboxButton.setAttribute("aria-pressed", state.sandboxMode ? "true" : "false");
       els.sandboxButton.classList.toggle("active", state.sandboxMode);
     }
     if (els.chooseStartButton) els.chooseStartButton.hidden = state.phase !== "choose";
@@ -6558,6 +6722,7 @@
   var collection = readCollection();
   var galleryItems = [];
   var galleryLoaded = false;
+  var galleryError = false;
   state.achievements = readAchievements();
   var lastFrame = performance.now();
   var drawState = {
@@ -6572,8 +6737,8 @@
     lastCellKey: "",
     view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
     recentColors: [],
-    undoGrid: null,
-    undoActive: false,
+    undoStack: [],
+    undoStrokeSnapshotTaken: false,
     shapeDrag: null,
     shapeDragEnd: null
   };
@@ -6581,7 +6746,13 @@
   var drawPointers = {};
   var drawGesture = null;
   var drawRenderKey = "";
-  var shareApiBase = String(window.BEAM_SHARE_API_BASE || "").replace(/\/+$/, "");
+  var IRON_DEFAULT_TEMPERATURE = 62;
+  var IRON_DEFAULT_PRESSURE = 56;
+  function readShareApiBase() {
+    const metaBase = document.querySelector('meta[name="beam-share-api-base"]')?.content || window.BEAM_SHARE_API_BASE || "";
+    return String(metaBase).replace(/\/+$/, "");
+  }
+  var shareApiBase = readShareApiBase();
   var cloudShortIdPattern = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}$/;
   var sharedCustomPatternNotes = [
     { text: "\u8FD9\u5F20\u56FE\u53EF\u4EE5\u76F4\u63A5\u5F00\u62FC", weight: 30 },
@@ -6626,9 +6797,6 @@
       width: normalizeDrawDimension(widthValue, fallbackWidth),
       height: normalizeDrawDimension(heightValue, fallbackHeight)
     };
-  }
-  function escapeHtml2(value) {
-    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
   }
   function stableHash(text) {
     const source = String(text || "");
@@ -6719,7 +6887,20 @@
     els.galleryGrid.innerHTML = "";
     const items = Array.isArray(galleryItems) ? galleryItems : [];
     els.galleryEmpty.hidden = items.length > 0;
-    els.galleryEmpty.textContent = galleryLoaded ? "\u753B\u5ECA\u8FD8\u6CA1\u6709\u53D1\u5E03\u56FE\u7EB8\u3002" : "\u6B63\u5728\u8BFB\u53D6\u753B\u5ECA...";
+    if (items.length === 0) {
+      const galleryIcon = '<svg class="gallery-empty-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h.01"/><path d="m3 16 4.5-4.5a2 2 0 0 1 2.8 0L14 15"/><path d="m13 14 1.5-1.5a2 2 0 0 1 2.8 0L21 16"/></svg>';
+      if (!galleryLoaded) {
+        els.galleryEmpty.innerHTML = `<p class="gallery-empty-text">\u6B63\u5728\u8BFB\u53D6\u753B\u5ECA\u2026</p>`;
+      } else if (galleryError) {
+        els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">\u753B\u5ECA\u8BFB\u53D6\u5931\u8D25</p><button type="button" class="ghost-button" data-gallery-retry>\u70B9\u6B64\u91CD\u8BD5</button>`;
+        els.galleryEmpty.querySelector("[data-gallery-retry]")?.addEventListener("click", () => {
+          void loadGallery();
+        });
+      } else {
+        els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">\u753B\u5ECA\u8FD8\u6CA1\u6709\u516C\u5F00\u56FE\u7EB8</p><p class="gallery-empty-sub">\u6765\u5F53\u7B2C\u4E00\u4E2A\u6295\u7A3F\u7684\u4EBA\u5427</p><button type="button" class="primary-button" data-gallery-submit>\u6295\u7A3F\u56FE\u7EB8</button>`;
+        els.galleryEmpty.querySelector("[data-gallery-submit]")?.addEventListener("click", () => openGallerySubmitModal());
+      }
+    }
     items.forEach((item) => {
       let pattern = null;
       try {
@@ -6729,9 +6910,9 @@
       }
       const card = document.createElement("article");
       card.className = "gallery-card";
-      const safeName = escapeHtml2(item.name || pattern.name || "\u753B\u5ECA\u56FE\u7EB8");
-      const safeAuthor = escapeHtml2(item.author || "\u533F\u540D\u6295\u7A3F");
-      const safeSize = escapeHtml2(`${pattern.size}x${pattern.size}`);
+      const safeName = escapeHtml(item.name || pattern.name || "\u753B\u5ECA\u56FE\u7EB8");
+      const safeAuthor = escapeHtml(item.author || "\u533F\u540D\u6295\u7A3F");
+      const safeSize = escapeHtml(`${pattern.size}x${pattern.size}`);
       card.innerHTML = `
         <button type="button" class="gallery-card-body" aria-label="\u6253\u5F00 ${safeName}">
           <canvas class="gallery-thumb" width="180" height="180" aria-hidden="true"></canvas>
@@ -6765,10 +6946,12 @@
     try {
       const data = await requestGalleryApi("/api/gallery/list", { limit: 48 });
       galleryItems = Array.isArray(data?.items) ? data.items : [];
+      galleryError = false;
       galleryLoaded = true;
       renderGallery();
     } catch {
       galleryLoaded = true;
+      galleryError = true;
       galleryItems = [];
       renderGallery();
       if (!silent) showToast("\u753B\u5ECA\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
@@ -7157,12 +7340,15 @@
     }
     if (restoreSelectValue) setDrawSizeControlValue(drawWidth(), drawHeight());
   }
+  var drawCodeMode = "import";
   function openDrawCodeModal(mode, value = "") {
     if (!els.drawCodeModal) return;
+    drawCodeMode = mode;
     const isExport = mode === "export";
+    const isBead = mode === "import-bead";
     if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "\u5BFC\u51FA\u56FE\u7EB8" : "\u5BFC\u5165\u56FE\u7EB8";
     if (els.drawCodeHint) {
-      els.drawCodeHint.textContent = isExport ? "\u5DF2\u751F\u6210\u56FE\u7EB8\u77ED\u7801\u6216\u56FE\u7EB8\u7801\uFF0C\u53EF\u76F4\u63A5\u590D\u5236\u5206\u4EAB\u3002" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u7136\u540E\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0\u3002";
+      els.drawCodeHint.textContent = isExport ? "\u5DF2\u751F\u6210\u56FE\u7EB8\u77ED\u7801\u6216\u56FE\u7EB8\u7801\uFF0C\u53EF\u76F4\u63A5\u590D\u5236\u5206\u4EAB\u3002" : isBead ? "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u5BFC\u5165\u5230\u62FC\u8C46\u53F0\u3002" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u7136\u540E\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0\u3002";
     }
     if (els.drawCodeInput) {
       els.drawCodeInput.value = value;
@@ -7245,8 +7431,9 @@
     }
     setDrawSizeControlValue(drawState.width, drawState.height);
     drawState.lastCellKey = "";
-    drawState.undoGrid = null;
-    drawState.undoActive = false;
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     resetDrawView();
     ensureDrawPaletteColor();
     renderDrawStudio();
@@ -7297,21 +7484,22 @@
     }
     return changed;
   }
+  var DRAW_UNDO_LIMIT = 40;
+  function updateUndoButton() {
+    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
+  }
   function saveUndoSnapshot() {
-    drawState.undoGrid = [...drawState.grid];
-    drawState.undoActive = false;
-    if (els.drawUndoButton) els.drawUndoButton.disabled = false;
-    if (els.drawUndoButton) els.drawUndoButton.classList.remove("active");
+    drawState.undoStack.push([...drawState.grid]);
+    if (drawState.undoStack.length > DRAW_UNDO_LIMIT) drawState.undoStack.shift();
+    updateUndoButton();
   }
   function doUndo() {
-    if (!drawState.undoGrid) return;
-    const tmp = [...drawState.grid];
-    drawState.grid = drawState.undoGrid;
-    drawState.undoGrid = tmp;
-    drawState.undoActive = !drawState.undoActive;
+    if (!drawState.undoStack.length) return;
+    drawState.grid = drawState.undoStack.pop();
     drawState.lastCellKey = "";
+    drawState.undoStrokeSnapshotTaken = false;
     drawCanvasPaint();
-    if (els.drawUndoButton) els.drawUndoButton.classList.toggle("active", drawState.undoActive);
+    updateUndoButton();
   }
   function getShapeCells(sx, sy, ex, ey) {
     const width = drawWidth();
@@ -7343,7 +7531,14 @@
     const key = `${x},${y}`;
     if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
     drawState.lastCellKey = key;
-    if (drawState.tool === "eraser") return paintDrawCell(x, y, ".");
+    if (drawState.tool === "eraser") {
+      if (drawState.grid[drawIndex(x, y)] === ".") return false;
+      if (!drawState.undoStrokeSnapshotTaken) {
+        saveUndoSnapshot();
+        drawState.undoStrokeSnapshotTaken = true;
+      }
+      return paintDrawCell(x, y, ".");
+    }
     if (drawState.tool === "picker") {
       const pick = drawState.grid[drawIndex(x, y)];
       if (pick && pick !== "." && pick !== drawState.selectedColor) {
@@ -7354,13 +7549,21 @@
       return false;
     }
     if (drawState.tool === "fill") {
+      const start = drawState.grid[drawIndex(x, y)];
+      if (start === drawState.selectedColor) return false;
       saveUndoSnapshot();
+      drawState.undoStrokeSnapshotTaken = true;
       const result2 = floodFillDraw(x, y, drawState.selectedColor);
       if (result2 && recordRecentColor(drawState.selectedColor)) {
         drawRenderKey = "";
         renderDrawPalette();
       }
       return result2;
+    }
+    if (drawState.grid[drawIndex(x, y)] === drawState.selectedColor) return false;
+    if (!drawState.undoStrokeSnapshotTaken) {
+      saveUndoSnapshot();
+      drawState.undoStrokeSnapshotTaken = true;
     }
     const result = paintDrawCell(x, y, drawState.selectedColor);
     if (result && recordRecentColor(drawState.selectedColor)) {
@@ -7494,7 +7697,7 @@
       shapeBtn.setAttribute("aria-label", isCircle ? "\u5706\u5F62" : "\u77E9\u5F62");
       shapeBtn.innerHTML = isCircle ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>` : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`;
     }
-    if (els.drawUndoButton) els.drawUndoButton.disabled = !drawState.undoGrid;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
   }
   function renderDrawStudio() {
     if (state.appMode !== "draw") return;
@@ -7553,10 +7756,25 @@
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     markDirty();
   }
+  function applyScreenAria() {
+    const mode = state.appMode;
+    const beadActive = mode === "bead";
+    [
+      [els.startScreen, mode === "home"],
+      [els.galleryScreen, mode === "gallery"],
+      [els.collectionScreen, mode === "collection"],
+      [els.drawingStudio, mode === "draw"],
+      [document.querySelector(".bead-topbar"), beadActive],
+      [els.studioGrid, beadActive]
+    ].forEach(([el, active]) => {
+      if (el) el.setAttribute("aria-hidden", active ? "false" : "true");
+    });
+  }
   function setAppMode(mode) {
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
+    applyScreenAria();
     if (state.appMode === "bead") {
       state.uiDirty = true;
       state.previewDirty = true;
@@ -7575,7 +7793,7 @@
     }
     if (state.appMode === "collection") {
       state.collectionPageOpen = true;
-      renderCollection2();
+      renderCollection();
     }
   }
   function normalizedCustomDenoiseLevel(value) {
@@ -7762,6 +7980,8 @@
     if (phase !== "choose" && state.remapModalOpen) closeRemapModal();
     if (phase === "inspect") runInspection();
     if (phase === "iron") {
+      state.temperature = IRON_DEFAULT_TEMPERATURE;
+      state.pressure = IRON_DEFAULT_PRESSURE;
       state.showHints = false;
     }
     if (phase === "cool" && state.cooling < 12) {
@@ -7814,8 +8034,6 @@
       tweezerBead: state.tweezerBead,
       needleLoaded: state.needleLoaded,
       errors: state.errors,
-      temperature: state.temperature,
-      pressure: state.pressure,
       warp: state.warp,
       cooling: state.cooling,
       spill: state.spill
@@ -7852,8 +8070,6 @@
       state.tweezerBead = session.tweezerBead || null;
       state.needleLoaded = ~~session.needleLoaded;
       state.errors = session.errors || [];
-      state.temperature = session.temperature || 62;
-      state.pressure = session.pressure || 56;
       state.warp = session.warp || 18;
       state.cooling = session.cooling || 0;
       state.spill = session.spill || null;
@@ -8069,7 +8285,7 @@
     if (!els.collectionScreen) return;
     state.collectionPageOpen = true;
     setAppMode("collection");
-    renderCollection2();
+    renderCollection();
   }
   function closeCollectionPage() {
     if (!els.collectionScreen) return;
@@ -8129,6 +8345,8 @@
       state.warp = clamp(state.warp + 8, 0, 80);
       showToast("\u4F60\u9009\u62E9\u76F4\u63A5\u71A8\u70EB\uFF0C\u5012\u4E0B\u7684\u8C46\u5B50\u5DF2\u7ECF\u7CCA\u5728\u4E00\u8D77\u3002");
     }
+    state.temperature = IRON_DEFAULT_TEMPERATURE;
+    state.pressure = IRON_DEFAULT_PRESSURE;
     setPhase("iron");
   }
   function openRemapModal(focusSource = null) {
@@ -8222,192 +8440,6 @@
       });
       card.appendChild(swatchGrid);
       els.remapModalBody.appendChild(card);
-    });
-  }
-  function renderCollection2() {
-    if (!els.collectionPanel) return;
-    els.collectionPanel.innerHTML = "";
-    if (!collection.length) {
-      const empty = document.createElement("div");
-      empty.className = "empty-state";
-      empty.textContent = "\u8FD8\u6CA1\u6709\u5B8C\u6210\u54C1";
-      els.collectionPanel.appendChild(empty);
-      return;
-    }
-    const toolbar = document.createElement("div");
-    toolbar.className = "collection-toolbar";
-    toolbar.innerHTML = `
-      <span class="collection-toolbar-count">\u5171 ${collection.length} \u4EF6</span>
-      <button type="button" class="danger-button collection-clear-all">\u6E05\u7A7A\u4F5C\u54C1\u96C6</button>
-    `;
-    toolbar.querySelector(".collection-clear-all").addEventListener("click", () => {
-      if (!collection.length) return;
-      if (!window.confirm("\u786E\u5B9A\u6E05\u7A7A\u6240\u6709\u4F5C\u54C1\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002")) return;
-      collection = [];
-      writeCollection(collection);
-      renderCollection2();
-      showToast("\u4F5C\u54C1\u96C6\u5DF2\u6E05\u7A7A\u3002");
-    });
-    els.collectionPanel.appendChild(toolbar);
-    const grid = document.createElement("div");
-    grid.className = "collection-grid";
-    els.collectionPanel.appendChild(grid);
-    collection.forEach((item) => {
-      const safeItemName = escapeHtml2(item.name);
-      const tile = document.createElement("div");
-      tile.className = "collection-tile";
-      const thumbSize = 168;
-      tile.innerHTML = `
-        <button type="button" class="collection-tile-body" aria-label="\u653E\u5927 ${safeItemName}">
-          <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
-          <div class="collection-tile-meta">
-            <strong>${safeItemName}</strong>
-            <span>${normalizeCraft(item.craft)} \xB7 \u8BC4\u7EA7 ${item.grade} \xB7 ${item.date}</span>
-          </div>
-        </button>
-        <button type="button" class="collection-tile-delete" aria-label="\u5220\u9664\u8FD9\u4EF6\u4F5C\u54C1" title="\u5220\u9664">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      `;
-      tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
-      tile.querySelector(".collection-tile-delete").addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (!window.confirm(`\u5220\u9664 ${item.name}\uFF1F`)) return;
-        collection = collection.filter((entry) => entry.id !== item.id);
-        writeCollection(collection);
-        renderCollection2();
-        showToast("\u5DF2\u5220\u9664\u3002");
-      });
-      grid.appendChild(tile);
-      const canvas = tile.querySelector("canvas");
-      drawCollectionThumb(canvas, item);
-    });
-  }
-  function drawCollectionThumb(canvas, item) {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    setupHiDpiCanvas(canvas, ctx);
-    const rect = canvas.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#f3f5f8";
-    ctx.fillRect(0, 0, w, h);
-    const size = item.size || state.selectedPattern.size || 16;
-    const placed = item.placed || [];
-    const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
-    const pad = 10;
-    const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
-    const gridSize = cell * size;
-    const x0 = Math.floor((w - gridSize) / 2);
-    const y0 = Math.floor((h - gridSize) / 2);
-    const cellCode = (x, y) => {
-      if (x < 0 || y < 0 || x >= size || y >= size) return null;
-      if (placed.length) {
-        const c = placed[y * size + x];
-        return c && c !== "." ? c : null;
-      }
-      if (fallback) {
-        const c = (fallback.rows[y] || "")[x];
-        return c && c !== "." ? c : null;
-      }
-      return null;
-    };
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const code = cellCode(x, y);
-        if (!code) continue;
-        const px = x0 + x * cell;
-        const py = y0 + y * cell;
-        const cx = px + cell / 2;
-        const cy = py + cell / 2;
-        const edges = {
-          left: !cellCode(x - 1, y),
-          right: !cellCode(x + 1, y),
-          up: !cellCode(x, y - 1),
-          down: !cellCode(x, y + 1)
-        };
-        const halfConnected = cell * 0.5;
-        const halfExposed = cell * 0.6;
-        const halfL = edges.left ? halfExposed : halfConnected;
-        const halfR = edges.right ? halfExposed : halfConnected;
-        const halfU = edges.up ? halfExposed : halfConnected;
-        const halfD = edges.down ? halfExposed : halfConnected;
-        const cornerFor = (a, b, hA, hB) => {
-          const cap = Math.min(hA, hB);
-          if (a && b) return cap;
-          if (a || b) return cap * 0.55;
-          return cap * 0.08;
-        };
-        const rTL = cornerFor(edges.up, edges.left, halfU, halfL);
-        const rTR = cornerFor(edges.up, edges.right, halfU, halfR);
-        const rBR = cornerFor(edges.down, edges.right, halfD, halfR);
-        const rBL = cornerFor(edges.down, edges.left, halfD, halfL);
-        const left = cx - halfL;
-        const right = cx + halfR;
-        const top = cy - halfU;
-        const bottom = cy + halfD;
-        const path = () => {
-          ctx.beginPath();
-          ctx.moveTo(left + rTL, top);
-          ctx.lineTo(right - rTR, top);
-          ctx.arcTo(right, top, right, top + rTR, rTR);
-          ctx.lineTo(right, bottom - rBR);
-          ctx.arcTo(right, bottom, right - rBR, bottom, rBR);
-          ctx.lineTo(left + rBL, bottom);
-          ctx.arcTo(left, bottom, left, bottom - rBL, rBL);
-          ctx.lineTo(left, top + rTL);
-          ctx.arcTo(left, top, left + rTL, top, rTL);
-          ctx.closePath();
-        };
-        ctx.fillStyle = palette[code] || "#bbb";
-        path();
-        ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.16)";
-        ctx.beginPath();
-        ctx.arc(cx - cell * 0.18, cy - cell * 0.18, cell * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-        const exposedCount = (edges.left ? 1 : 0) + (edges.right ? 1 : 0) + (edges.up ? 1 : 0) + (edges.down ? 1 : 0);
-        if (exposedCount >= 3 && cell >= 8) {
-          ctx.fillStyle = "rgba(0,0,0,0.18)";
-          ctx.beginPath();
-          ctx.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-  }
-  function enlargeCollectionEntry(entry) {
-    if (!els.collectionScreen) return;
-    let viewer = els.collectionScreen.querySelector(".collection-enlarged");
-    if (!viewer) {
-      viewer = document.createElement("div");
-      viewer.className = "collection-enlarged";
-      viewer.innerHTML = `
-        <button type="button" class="collection-enlarged-close" aria-label="\u5173\u95ED\u653E\u5927">\xD7</button>
-        <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
-        <div class="collection-enlarged-meta"></div>
-        <div class="collection-enlarged-actions">
-          <button type="button" class="primary-button collection-enlarged-open">\u6253\u5F00\u8FD9\u5F20\u56FE\u7EB8</button>
-        </div>
-      `;
-      els.collectionScreen.appendChild(viewer);
-      viewer.querySelector(".collection-enlarged-close").addEventListener("click", () => {
-        viewer.classList.remove("show");
-      });
-    }
-    viewer.classList.add("show");
-    const canvas = viewer.querySelector("canvas");
-    canvas.style.width = "min(640px, 78vh)";
-    canvas.style.height = "min(640px, 78vh)";
-    requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
-    viewer.querySelector(".collection-enlarged-meta").textContent = `${entry.name} \xB7 ${normalizeCraft(entry.craft)} \xB7 \u8BC4\u7EA7 ${entry.grade} \xB7 ${entry.date}`;
-    const openBtn = viewer.querySelector(".collection-enlarged-open");
-    const newBtn = openBtn.cloneNode(true);
-    openBtn.replaceWith(newBtn);
-    newBtn.addEventListener("click", () => {
-      viewer.classList.remove("show");
-      openCollectionEntry(entry);
     });
   }
   function openCollectionEntry(entry) {
@@ -9318,8 +9350,9 @@
     drawState.size = Math.max(newWidth, newHeight);
     drawState.grid = resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol);
     drawState.lastCellKey = "";
-    drawState.undoGrid = null;
-    drawState.undoActive = false;
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     setDrawSizeControlValue(newWidth, newHeight);
     closeDrawResizeModal(false);
     renderDrawStudio();
@@ -9360,6 +9393,9 @@
     ensureDrawGrid();
     drawState.grid = createDrawGrid(drawWidth(), drawHeight());
     drawState.lastCellKey = "";
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     drawCanvasPaint();
     showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
   });
@@ -9418,6 +9454,11 @@
   });
   els.drawCodeImportConfirmBtn?.addEventListener("click", async () => {
     const raw = els.drawCodeInput?.value || "";
+    if (drawCodeMode === "import-bead") {
+      const ok = await importPatternCode(raw);
+      if (ok) closeDrawCodeModal();
+      return;
+    }
     const extracted = extractPatternCode(raw);
     const shortId = extractCloudShortId(raw);
     if (!extracted && !shortId) {
@@ -9468,13 +9509,13 @@
       } else if (drawState.tool === "shape") {
         const cell = drawCellFromPointer(event);
         if (cell) {
-          saveUndoSnapshot();
+          drawState.undoStrokeSnapshotTaken = false;
           drawState.shapeDrag = { x: cell.x, y: cell.y };
           drawState.shapeDragEnd = { x: cell.x, y: cell.y };
           drawState.drawing = true;
         }
       } else {
-        if (drawState.tool === "brush" || drawState.tool === "eraser") saveUndoSnapshot();
+        drawState.undoStrokeSnapshotTaken = false;
         drawState.drawing = true;
         drawState.lastCellKey = "";
         handleDrawPointer(event);
@@ -9515,9 +9556,11 @@
             drawState.shapeDragEnd.y
           );
           const code = drawState.selectedColor;
-          let changed = false;
-          for (const [cx, cy] of cells) changed = paintDrawCell(cx, cy, code) || changed;
-          if (changed) {
+          const shouldSaveUndo = cells.some(([cx, cy]) => drawState.grid[drawIndex(cx, cy)] !== code);
+          if (shouldSaveUndo) saveUndoSnapshot();
+          let painted = false;
+          for (const [cx, cy] of cells) painted = paintDrawCell(cx, cy, code) || painted;
+          if (painted) {
             recordRecentColor(code);
             drawRenderKey = "";
             renderDrawPalette();
@@ -9528,6 +9571,7 @@
         }
         drawState.drawing = false;
         drawState.lastCellKey = "";
+        drawState.undoStrokeSnapshotTaken = false;
       }
     };
     els.drawCanvas.addEventListener("pointerup", endDrawPointer);
@@ -9626,7 +9670,7 @@
   els.collectionBackButton?.addEventListener("click", () => closeCollectionPage());
   els.collectionSettingsButton?.addEventListener("click", () => openSettingsModal());
   els.collectionRefreshButton?.addEventListener("click", () => {
-    renderCollection2();
+    renderCollection();
   });
   els.shareModalClose?.addEventListener("click", () => closeShareModal());
   els.shareModal?.addEventListener("click", (event) => {
@@ -9814,6 +9858,7 @@
     copyShareText,
     createCloudShare,
     importPatternCode,
+    openImportCodeModal: () => openDrawCodeModal("import-bead"),
     submitCurrentToGallery
   });
   validatePatterns();

@@ -16,6 +16,7 @@ import {
   useMobileDirectPlacement,
 } from './render.js';
 import { els, sideReferenceCanvas, sideReferenceCtx, previewCanvas } from './dom.js';
+import { escapeHtml, prefersReducedMotion } from './utils.js';
 
 let uiActions = {
   getCollection: () => [],
@@ -38,17 +39,9 @@ let uiActions = {
   copyShareText: () => {},
   createCloudShare: async () => null,
   importPatternCode: async () => false,
+  openImportCodeModal: () => {},
   submitCurrentToGallery: () => {},
 };
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 export function setUIActions(nextActions = {}) {
   uiActions = { ...uiActions, ...nextActions };
@@ -191,10 +184,8 @@ export function renderPatterns() {
   codeButton.className = "pattern-import-half";
   codeButton.type = "button";
   codeButton.textContent = "导入短码";
-  codeButton.addEventListener("click", async () => {
-    const raw = window.prompt("请粘贴图纸短码：");
-    if (!raw) return;
-    await uiActions.importPatternCode(raw);
+  codeButton.addEventListener("click", () => {
+    uiActions.openImportCodeModal();
   });
 
   importRow.appendChild(imageButton);
@@ -266,10 +257,6 @@ export function drawCustomPatternPlaceholder(canvas) {
   ctx.moveTo(18, canvas.height / 2);
   ctx.lineTo(canvas.width - 18, canvas.height / 2);
   ctx.stroke();
-}
-
-function prefersReducedMotion() {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
 function schedulePhaseViewportReset() {
@@ -439,13 +426,7 @@ export function renderControls() {
   }
 
   if (state.phase === "iron") {
-    addHint("按住并移动熨斗。慢、热、重会增加粘连，也更容易糊孔和变形。");
-    addSlider("温度", "temperature", 35, 90, state.temperature, (value) => {
-      state.temperature = Number(value);
-    });
-    addSlider("压力", "pressure", 25, 90, state.pressure, (value) => {
-      state.pressure = Number(value);
-    });
+    addHint("按住并移动熨斗，慢一点、稳一点，让豆子刚好粘连。");
     addControlRow([
       ["查看检查", "", () => uiActions.setPhase("inspect")],
       ["进入冷却", "primary-button", () => uiActions.setPhase("cool")],
@@ -454,7 +435,7 @@ export function renderControls() {
   }
 
   if (state.phase === "cool") {
-    addHint("冷却过程中压平可以减少翘曲。温度稳定后就能取下作品。");
+    addHint("冷却过程中压平可以减少翘曲。等它慢慢稳下来再取下作品。");
     addControlRow([
       ["压平", "", () => uiActions.pressFlat()],
       ["翻面再熨", "", () => uiActions.flipAndIron(), state.flipCount >= 1],
@@ -853,7 +834,7 @@ export function renderCollection() {
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
       `;
-    tile.querySelector(".collection-tile-body").addEventListener("click", () => uiActions.openCollectionEntry(item));
+    tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
     tile.querySelector(".collection-tile-delete").addEventListener("click", (event) => {
       event.stopPropagation();
       if (!window.confirm(`删除 ${item.name}？`)) return;
@@ -880,7 +861,7 @@ export function drawCollectionThumb(canvas, item) {
 
   const size = item.size || state.selectedPattern.size || 16;
   const placed = item.placed || [];
-  const fallback = !placed.length ? [] : null;
+  const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
   const pad = 10;
   const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
   const gridSize = cell * size;
@@ -1025,9 +1006,11 @@ export function renderUI() {
   if (els.sandboxButton) {
     const beakerIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L5 19a1.6 1.6 0 0 0 1.4 2.4h11.2A1.6 1.6 0 0 0 19 19l-5-9.5V3"/><path d="M7.5 14h9"/></svg>';
     const loupeIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>';
-    els.sandboxButton.innerHTML = state.sandboxMode ? beakerIcon : loupeIcon;
-    els.sandboxButton.title = state.sandboxMode ? "沙盒：开（自由拼摆不校验）" : "沙盒：自由拼摆不校验";
-    els.sandboxButton.setAttribute("aria-label", state.sandboxMode ? "沙盒模式：开" : "沙盒模式：关");
+    const stateLabel = state.sandboxMode ? "开" : "关";
+    els.sandboxButton.innerHTML = `${state.sandboxMode ? beakerIcon : loupeIcon}<span class="sandbox-state">${stateLabel}</span>`;
+    els.sandboxButton.title = state.sandboxMode ? "沙盒：开（自由拼摆不校验）" : "沙盒：关（按图纸校验）";
+    els.sandboxButton.setAttribute("aria-label", `沙盒模式：${stateLabel}`);
+    els.sandboxButton.setAttribute("aria-pressed", state.sandboxMode ? "true" : "false");
     els.sandboxButton.classList.toggle("active", state.sandboxMode);
   }
   if (els.chooseStartButton) els.chooseStartButton.hidden = state.phase !== "choose";

@@ -641,8 +641,10 @@ export function drawToolEntities(w, h) {
   if (state.phase !== "place") return;
   const ctx = scene;
   const follow = state.phase === "place" && state.toolPose.visible;
-  const defaultX = w - 168;
-  const defaultY = h - 172;
+  // Clamp the resting anchor so the tool entity stays fully on a narrow/short
+  // canvas (on small widths/heights w-168 / h-172 could push it off-screen).
+  const defaultX = clamp(w - 168, 24, Math.max(24, w - 96));
+  const defaultY = clamp(h - 172, 24, Math.max(24, h - 152));
   const needleTipX = follow ? clamp(state.toolPose.x, 28, w - 28) : defaultX + 72;
   const needleTipY = follow ? clamp(state.toolPose.y, 148, h - 12) : defaultY + 146;
   const tweezerHeadX = follow ? clamp(state.toolPose.x, 20, w - 20) : defaultX + 46;
@@ -3157,7 +3159,7 @@ export function statusText() {
     if (state.spill) return "还有倒下的豆子未处理。继续熨烫会糊坏该位置。";
     return state.errors.length ? "检查到需要修正的位置。" : "板面检查通过，可以盖纸熨烫。";
   }
-  if (phase === "iron") return "控制速度、压力和温度，让豆子刚好粘连。";
-  if (phase === "cool") return "等待冷却，压平边缘，准备取下作品。";
+  if (phase === "iron") return "慢慢移动熨斗，让豆子刚好粘连。";
+  if (phase === "cool") return "等待冷却，压平边缘，再准备取下作品。";
   return `${state.selectedPattern.name}完成，已进入收藏阶段。`;
 }
