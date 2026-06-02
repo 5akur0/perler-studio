@@ -2841,191 +2841,6 @@
     return nearestColorCodeByLab(lab, excludedCodes);
   }
 
-  // src/pattern-code.js
-  var PATTERN_CODE_PREFIX = "BEAM1";
-  var VALUE_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  var RUN_SEPARATOR = ".";
-  var PALETTE_SEPARATOR = "_";
-  var EMPTY_PALETTE = "-";
-  var EMPTY_CELL = ".";
-  function valueTokenWidth(maxValue) {
-    let width = 1;
-    let capacity = VALUE_ALPHABET.length;
-    while (capacity <= maxValue) {
-      width += 1;
-      capacity *= VALUE_ALPHABET.length;
-    }
-    return width;
-  }
-  function encodeFixedValue(value, width) {
-    if (!Number.isInteger(value) || value < 0) {
-      throw new Error("Pattern code value must be a non-negative integer.");
-    }
-    let remaining = value;
-    let token = "";
-    for (let i = 0; i < width; i += 1) {
-      token = VALUE_ALPHABET[remaining % VALUE_ALPHABET.length] + token;
-      remaining = Math.floor(remaining / VALUE_ALPHABET.length);
-    }
-    if (remaining > 0) throw new Error("Pattern code value exceeds token width.");
-    return token;
-  }
-  function decodeFixedValue(token) {
-    let value = 0;
-    for (const char of token) {
-      const digit = VALUE_ALPHABET.indexOf(char);
-      if (digit < 0) throw new Error("Pattern code contains an invalid value token.");
-      value = value * VALUE_ALPHABET.length + digit;
-    }
-    return value;
-  }
-  function normalizeDimension(value, fallback = 0) {
-    const normalized = Number.parseInt(value, 10);
-    return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
-  }
-  function rowToCells(row) {
-    return Array.isArray(row) ? row.slice() : Array.from(String(row || ""));
-  }
-  function patternDimensions(pattern) {
-    const rows = Array.isArray(pattern?.rows) ? pattern.rows : [];
-    const firstRowWidth = rows.length ? rowToCells(rows[0]).length : 0;
-    const width = normalizeDimension(pattern?.width, normalizeDimension(pattern?.size, firstRowWidth));
-    const height = normalizeDimension(pattern?.height, normalizeDimension(pattern?.size, rows.length));
-    if (!width || !height || !rows.length) throw new Error("Pattern code needs a non-empty pattern.");
-    if (width !== height) throw new Error("Pattern code currently supports square patterns only.");
-    if (rows.length !== height) throw new Error("Pattern row count does not match pattern height.");
-    rows.forEach((row) => {
-      if (rowToCells(row).length !== width) {
-        throw new Error("Pattern row width does not match pattern width.");
-      }
-    });
-    return { width, height, rows };
-  }
-  function cellToMardCode(cell) {
-    if (!cell || cell === EMPTY_CELL) return null;
-    if (palette[cell]) {
-      const beadId = beadIds[cell];
-      if (!beadId) throw new Error(`Pattern colour ${cell} has no MARD bead id.`);
-      return normalizeMardCode(beadId);
-    }
-    const normalized = normalizeMardCode(cell);
-    const workshopCode = workshopCodeForMard(normalized);
-    if (palette[workshopCode]) return normalized;
-    throw new Error(`Pattern colour ${cell} is not available in the palette.`);
-  }
-  function mardCodeToCell(code) {
-    const normalized = normalizeMardCode(code);
-    const workshopCode = workshopCodeForMard(normalized);
-    if (!palette[workshopCode]) throw new Error(`Pattern code colour ${normalized} is not available.`);
-    return workshopCode;
-  }
-  function encodeRuns(values, paletteSize) {
-    if (!values.length) return "";
-    const width = valueTokenWidth(paletteSize);
-    const runs = [];
-    let current = values[0];
-    let count = 1;
-    const pushRun = () => {
-      runs.push(`${count.toString(36).toUpperCase()}${encodeFixedValue(current, width)}`);
-    };
-    for (let i = 1; i < values.length; i += 1) {
-      if (values[i] === current) {
-        count += 1;
-      } else {
-        pushRun();
-        current = values[i];
-        count = 1;
-      }
-    }
-    pushRun();
-    return runs.join(RUN_SEPARATOR);
-  }
-  function decodeRuns(runText, paletteSize, expectedLength) {
-    if (!runText) throw new Error("Pattern code is missing cell data.");
-    const width = valueTokenWidth(paletteSize);
-    const values = [];
-    runText.split(RUN_SEPARATOR).forEach((token) => {
-      if (token.length <= width) throw new Error("Pattern code contains an invalid run.");
-      const count = Number.parseInt(token.slice(0, -width), 36);
-      const value = decodeFixedValue(token.slice(-width));
-      if (!Number.isFinite(count) || count <= 0) throw new Error("Pattern code contains an invalid run length.");
-      if (value > paletteSize) throw new Error("Pattern code references a missing colour.");
-      if (values.length + count > expectedLength) throw new Error("Pattern code has too many cells.");
-      for (let i = 0; i < count; i += 1) values.push(value);
-    });
-    if (values.length !== expectedLength) throw new Error("Pattern code cell count does not match its size.");
-    return values;
-  }
-  function extractPatternCode(text) {
-    const source = String(text || "").trim();
-    const match = source.match(/\bBEAM1:[^\s，。；;]+/);
-    return match ? match[0].replace(/[,.!?！？、，。]+$/, "") : "";
-  }
-  function encodePatternCode(pattern) {
-    const { width, height, rows } = patternDimensions(pattern);
-    const paletteCodes = [];
-    const paletteIndex = /* @__PURE__ */ new Map();
-    const values = [];
-    rows.forEach((row) => {
-      rowToCells(row).forEach((cell) => {
-        const mardCode = cellToMardCode(cell);
-        if (!mardCode) {
-          values.push(0);
-          return;
-        }
-        if (!paletteIndex.has(mardCode)) {
-          paletteCodes.push(mardCode);
-          paletteIndex.set(mardCode, paletteCodes.length);
-        }
-        values.push(paletteIndex.get(mardCode));
-      });
-    });
-    const paletteText = paletteCodes.length ? paletteCodes.join(PALETTE_SEPARATOR) : EMPTY_PALETTE;
-    return [
-      PATTERN_CODE_PREFIX,
-      `${width}x${height}`,
-      paletteText,
-      encodeRuns(values, paletteCodes.length)
-    ].join(":");
-  }
-  function decodePatternCode(input, options = {}) {
-    const code = extractPatternCode(input) || String(input || "").trim();
-    const parts = code.split(":");
-    if (parts.length !== 4 || parts[0] !== PATTERN_CODE_PREFIX) {
-      throw new Error("Pattern code must start with BEAM1.");
-    }
-    const sizeMatch = parts[1].match(/^(\d+)x(\d+)$/);
-    if (!sizeMatch) throw new Error("Pattern code has an invalid size.");
-    const width = Number.parseInt(sizeMatch[1], 10);
-    const height = Number.parseInt(sizeMatch[2], 10);
-    if (!width || !height || width !== height) {
-      throw new Error("Pattern code currently supports square patterns only.");
-    }
-    const paletteCodes = parts[2] === EMPTY_PALETTE ? [] : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);
-    const values = decodeRuns(parts[3], paletteCodes.length, width * height);
-    const rows = [];
-    for (let y = 0; y < height; y += 1) {
-      let row = "";
-      for (let x = 0; x < width; x += 1) {
-        const value = values[y * width + x];
-        row += value === 0 ? EMPTY_CELL : mardCodeToCell(paletteCodes[value - 1]);
-      }
-      rows.push(row);
-    }
-    return {
-      id: options.id || "shared-pattern",
-      name: options.name || "\u5206\u4EAB\u56FE\u7EB8",
-      size: width,
-      width,
-      height,
-      craft: options.craft || "\u94A5\u5319\u6263",
-      rows,
-      note: "",
-      sourceFormat: PATTERN_CODE_PREFIX,
-      mardPalette: paletteCodes
-    };
-  }
-
   // src/render.js
   function useMobileTrayGrid() {
     return window.matchMedia("(max-width: 860px)").matches;
@@ -6774,6 +6589,191 @@
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
   }
 
+  // src/pattern-code.js
+  var PATTERN_CODE_PREFIX = "BEAM1";
+  var VALUE_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  var RUN_SEPARATOR = ".";
+  var PALETTE_SEPARATOR = "_";
+  var EMPTY_PALETTE = "-";
+  var EMPTY_CELL = ".";
+  function valueTokenWidth(maxValue) {
+    let width = 1;
+    let capacity = VALUE_ALPHABET.length;
+    while (capacity <= maxValue) {
+      width += 1;
+      capacity *= VALUE_ALPHABET.length;
+    }
+    return width;
+  }
+  function encodeFixedValue(value, width) {
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error("Pattern code value must be a non-negative integer.");
+    }
+    let remaining = value;
+    let token = "";
+    for (let i = 0; i < width; i += 1) {
+      token = VALUE_ALPHABET[remaining % VALUE_ALPHABET.length] + token;
+      remaining = Math.floor(remaining / VALUE_ALPHABET.length);
+    }
+    if (remaining > 0) throw new Error("Pattern code value exceeds token width.");
+    return token;
+  }
+  function decodeFixedValue(token) {
+    let value = 0;
+    for (const char of token) {
+      const digit = VALUE_ALPHABET.indexOf(char);
+      if (digit < 0) throw new Error("Pattern code contains an invalid value token.");
+      value = value * VALUE_ALPHABET.length + digit;
+    }
+    return value;
+  }
+  function normalizeDimension(value, fallback = 0) {
+    const normalized = Number.parseInt(value, 10);
+    return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
+  }
+  function rowToCells(row) {
+    return Array.isArray(row) ? row.slice() : Array.from(String(row || ""));
+  }
+  function patternDimensions(pattern) {
+    const rows = Array.isArray(pattern?.rows) ? pattern.rows : [];
+    const firstRowWidth = rows.length ? rowToCells(rows[0]).length : 0;
+    const width = normalizeDimension(pattern?.width, normalizeDimension(pattern?.size, firstRowWidth));
+    const height = normalizeDimension(pattern?.height, normalizeDimension(pattern?.size, rows.length));
+    if (!width || !height || !rows.length) throw new Error("Pattern code needs a non-empty pattern.");
+    if (width !== height) throw new Error("Pattern code currently supports square patterns only.");
+    if (rows.length !== height) throw new Error("Pattern row count does not match pattern height.");
+    rows.forEach((row) => {
+      if (rowToCells(row).length !== width) {
+        throw new Error("Pattern row width does not match pattern width.");
+      }
+    });
+    return { width, height, rows };
+  }
+  function cellToMardCode(cell) {
+    if (!cell || cell === EMPTY_CELL) return null;
+    if (palette[cell]) {
+      const beadId = beadIds[cell];
+      if (!beadId) throw new Error(`Pattern colour ${cell} has no MARD bead id.`);
+      return normalizeMardCode(beadId);
+    }
+    const normalized = normalizeMardCode(cell);
+    const workshopCode = workshopCodeForMard(normalized);
+    if (palette[workshopCode]) return normalized;
+    throw new Error(`Pattern colour ${cell} is not available in the palette.`);
+  }
+  function mardCodeToCell(code) {
+    const normalized = normalizeMardCode(code);
+    const workshopCode = workshopCodeForMard(normalized);
+    if (!palette[workshopCode]) throw new Error(`Pattern code colour ${normalized} is not available.`);
+    return workshopCode;
+  }
+  function encodeRuns(values, paletteSize) {
+    if (!values.length) return "";
+    const width = valueTokenWidth(paletteSize);
+    const runs = [];
+    let current = values[0];
+    let count = 1;
+    const pushRun = () => {
+      runs.push(`${count.toString(36).toUpperCase()}${encodeFixedValue(current, width)}`);
+    };
+    for (let i = 1; i < values.length; i += 1) {
+      if (values[i] === current) {
+        count += 1;
+      } else {
+        pushRun();
+        current = values[i];
+        count = 1;
+      }
+    }
+    pushRun();
+    return runs.join(RUN_SEPARATOR);
+  }
+  function decodeRuns(runText, paletteSize, expectedLength) {
+    if (!runText) throw new Error("Pattern code is missing cell data.");
+    const width = valueTokenWidth(paletteSize);
+    const values = [];
+    runText.split(RUN_SEPARATOR).forEach((token) => {
+      if (token.length <= width) throw new Error("Pattern code contains an invalid run.");
+      const count = Number.parseInt(token.slice(0, -width), 36);
+      const value = decodeFixedValue(token.slice(-width));
+      if (!Number.isFinite(count) || count <= 0) throw new Error("Pattern code contains an invalid run length.");
+      if (value > paletteSize) throw new Error("Pattern code references a missing colour.");
+      if (values.length + count > expectedLength) throw new Error("Pattern code has too many cells.");
+      for (let i = 0; i < count; i += 1) values.push(value);
+    });
+    if (values.length !== expectedLength) throw new Error("Pattern code cell count does not match its size.");
+    return values;
+  }
+  function extractPatternCode(text) {
+    const source = String(text || "").trim();
+    const match = source.match(/\bBEAM1:[^\s，。；;]+/);
+    return match ? match[0].replace(/[,.!?！？、，。]+$/, "") : "";
+  }
+  function encodePatternCode(pattern) {
+    const { width, height, rows } = patternDimensions(pattern);
+    const paletteCodes = [];
+    const paletteIndex = /* @__PURE__ */ new Map();
+    const values = [];
+    rows.forEach((row) => {
+      rowToCells(row).forEach((cell) => {
+        const mardCode = cellToMardCode(cell);
+        if (!mardCode) {
+          values.push(0);
+          return;
+        }
+        if (!paletteIndex.has(mardCode)) {
+          paletteCodes.push(mardCode);
+          paletteIndex.set(mardCode, paletteCodes.length);
+        }
+        values.push(paletteIndex.get(mardCode));
+      });
+    });
+    const paletteText = paletteCodes.length ? paletteCodes.join(PALETTE_SEPARATOR) : EMPTY_PALETTE;
+    return [
+      PATTERN_CODE_PREFIX,
+      `${width}x${height}`,
+      paletteText,
+      encodeRuns(values, paletteCodes.length)
+    ].join(":");
+  }
+  function decodePatternCode(input, options = {}) {
+    const code = extractPatternCode(input) || String(input || "").trim();
+    const parts = code.split(":");
+    if (parts.length !== 4 || parts[0] !== PATTERN_CODE_PREFIX) {
+      throw new Error("Pattern code must start with BEAM1.");
+    }
+    const sizeMatch = parts[1].match(/^(\d+)x(\d+)$/);
+    if (!sizeMatch) throw new Error("Pattern code has an invalid size.");
+    const width = Number.parseInt(sizeMatch[1], 10);
+    const height = Number.parseInt(sizeMatch[2], 10);
+    if (!width || !height || width !== height) {
+      throw new Error("Pattern code currently supports square patterns only.");
+    }
+    const paletteCodes = parts[2] === EMPTY_PALETTE ? [] : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);
+    const values = decodeRuns(parts[3], paletteCodes.length, width * height);
+    const rows = [];
+    for (let y = 0; y < height; y += 1) {
+      let row = "";
+      for (let x = 0; x < width; x += 1) {
+        const value = values[y * width + x];
+        row += value === 0 ? EMPTY_CELL : mardCodeToCell(paletteCodes[value - 1]);
+      }
+      rows.push(row);
+    }
+    return {
+      id: options.id || "shared-pattern",
+      name: options.name || "\u5206\u4EAB\u56FE\u7EB8",
+      size: width,
+      width,
+      height,
+      craft: options.craft || "\u94A5\u5319\u6263",
+      rows,
+      note: "",
+      sourceFormat: PATTERN_CODE_PREFIX,
+      mardPalette: paletteCodes
+    };
+  }
+
   // src/gallery.js
   var galleryActions = {
     loadPattern: () => {
@@ -7038,13 +7038,13 @@
     showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
     return imported;
   }
-  async function requestCloudShareForPattern2(pattern, options = {}) {
+  async function requestCloudShareForPattern(pattern, options = {}) {
     const patternCode = encodePatternCode(pattern);
     return requestShareApi("/api/share/create", { name: pattern.name, patternCode }, options);
   }
   async function createCloudShareForPattern(pattern) {
     try {
-      const share = await requestCloudShareForPattern2(pattern);
+      const share = await requestCloudShareForPattern(pattern);
       if (share?.shortId) {
         await autoCopyText(
           share.shortId,
@@ -7099,10 +7099,26 @@
     }
   }
 
-  // src/main.js
-  var collection = readCollection();
-  state.achievements = readAchievements();
-  var lastFrame = performance.now();
+  // src/draw.js
+  var drawActions = {
+    loadPattern: () => {
+    },
+    setAppMode: () => {
+    },
+    openSettingsModal: () => {
+    },
+    openGallerySubmitModal: () => {
+    },
+    importPatternCode: async () => false,
+    autoCopyText: async () => false,
+    requestCloudShareForPattern: async () => null
+  };
+  function setDrawActions(actions) {
+    Object.assign(drawActions, actions);
+  }
+  function getDrawKeyboardNav() {
+    return drawKbdNav;
+  }
   var drawState = {
     size: 24,
     width: 24,
@@ -7124,8 +7140,6 @@
   var drawPointers = {};
   var drawGesture = null;
   var drawRenderKey = "";
-  var IRON_DEFAULT_TEMPERATURE = 62;
-  var IRON_DEFAULT_PRESSURE = 56;
   var minDrawDimension = 3;
   var maxDrawDimension = 100;
   function normalizeDrawDimension(value, fallback = 24) {
@@ -7221,7 +7235,7 @@
     v.panX = nextPanX ?? v.panX;
     v.panY = nextPanY ?? v.panY;
     clampDrawView();
-    drawCanvasPaint();
+    paintDrawCanvas();
   }
   function tickDrawKbdNav(dtSec) {
     if (state.appMode !== "draw") return;
@@ -7297,7 +7311,7 @@
     drawState.view.panY = mid.y - cy - (anchorY - cy) * nextScale;
     drawState.view.scale = nextScale;
     clampDrawView();
-    drawCanvasPaint();
+    paintDrawCanvas();
   }
   function resetDrawView() {
     drawState.view.scale = 1;
@@ -7422,7 +7436,7 @@
   async function exportDrawPatternCode(pattern, successMessage = "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002") {
     const code = encodePatternCode(pattern);
     showDrawCodeOutput(code);
-    await autoCopyText(code, successMessage, "\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09\u3002");
+    await drawActions.autoCopyText(code, successMessage, "\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09\u3002");
   }
   function loadDrawRows(rows) {
     const height = rows.length;
@@ -7508,7 +7522,7 @@
     drawState.grid = drawState.undoStack.pop();
     drawState.lastCellKey = "";
     drawState.undoStrokeSnapshotTaken = false;
-    drawCanvasPaint();
+    paintDrawCanvas();
     updateUndoButton();
   }
   function getShapeCells(sx, sy, ex, ey) {
@@ -7582,7 +7596,7 @@
     }
     return result;
   }
-  function drawCanvasPaint() {
+  function paintDrawCanvas() {
     if (!els.drawCanvas) return;
     ensureDrawGrid();
     const canvas = els.drawCanvas;
@@ -7679,9 +7693,9 @@
         const label = beadIds[code] || code;
         const isTransparent = beadIds[code] === "H1";
         return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
-          <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
-          <span class="chip-label">${label}</span>
-        </button>`;
+        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+        <span class="chip-label">${label}</span>
+      </button>`;
       }).join("");
     }
     els.drawPalette.innerHTML = codes.map((code) => {
@@ -7689,9 +7703,9 @@
       const label = beadIds[code] || code;
       const isTransparent = beadIds[code] === "H1";
       return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
-        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
-        <span class="chip-label">${label}</span>
-      </button>`;
+      <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+      <span class="chip-label">${label}</span>
+    </button>`;
     }).join("");
   }
   function renderDrawToolButtons() {
@@ -7714,7 +7728,11 @@
     ensureDrawGrid();
     renderDrawPalette();
     renderDrawToolButtons();
-    drawCanvasPaint();
+    paintDrawCanvas();
+  }
+  function enterDrawMode() {
+    ensureDrawPaletteColor();
+    renderDrawStudio();
   }
   function useDrawPattern() {
     ensureDrawGrid();
@@ -7745,10 +7763,320 @@
       if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
     }
     patterns.unshift(pattern);
-    loadPattern(pattern, false);
-    setAppMode("bead");
+    drawActions.loadPattern(pattern, false);
+    drawActions.setAppMode("bead");
     showToast("\u7ED8\u56FE\u5DF2\u751F\u6210\u56FE\u7EB8\uFF0C\u5F00\u59CB\u62FC\u8C46\u3002");
   }
+  function initDrawingStudioEvents() {
+    els.drawingBackButton?.addEventListener("click", () => {
+      drawActions.setAppMode("home");
+    });
+    els.drawSettingsButton?.addEventListener("click", () => drawActions.openSettingsModal());
+    els.drawResetButton?.addEventListener("click", () => {
+      ensureDrawGrid();
+      const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+      if (hasContent && !window.confirm("\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+      drawState.grid = createDrawGrid(drawWidth(), drawHeight());
+      drawState.lastCellKey = "";
+      paintDrawCanvas();
+      showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
+    });
+    function commitDrawSizeControlValue(widthValue = els.drawWidthInput?.value, heightValue = els.drawHeightInput?.value) {
+      const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(widthValue, heightValue);
+      if (newWidth === drawWidth() && newHeight === drawHeight()) {
+        setDrawSizeControlValue(drawWidth(), drawHeight());
+        return;
+      }
+      setDrawSizeControlValue(newWidth, newHeight);
+      openDrawResizeModal(newWidth, newHeight);
+    }
+    [els.drawWidthInput, els.drawHeightInput].forEach((input) => {
+      input?.addEventListener("input", () => {
+        const { width, height } = normalizeDrawSizeValues(
+          els.drawWidthInput?.value,
+          els.drawHeightInput?.value
+        );
+        if (els.drawSizeValue) els.drawSizeValue.textContent = `${width}\xD7${height}`;
+      });
+      input?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") commitDrawSizeControlValue();
+      });
+    });
+    els.drawSizeApplyButton?.addEventListener("click", () => {
+      commitDrawSizeControlValue();
+    });
+    els.drawAnchorGrid?.addEventListener("click", (event) => {
+      const cell = event.target.closest(".anchor-cell");
+      if (!cell) return;
+      drawResizePending.anchorRow = Number(cell.dataset.row);
+      drawResizePending.anchorCol = Number(cell.dataset.col);
+      els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
+        btn.setAttribute("aria-pressed", btn === cell ? "true" : "false");
+      });
+    });
+    els.drawResizeConfirmBtn?.addEventListener("click", () => {
+      const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(
+        drawResizePending.width,
+        drawResizePending.height
+      );
+      const { anchorRow, anchorCol } = drawResizePending;
+      const oldGrid = drawState.grid.slice();
+      const oldWidth = drawWidth();
+      const oldHeight = drawHeight();
+      drawState.width = newWidth;
+      drawState.height = newHeight;
+      drawState.size = Math.max(newWidth, newHeight);
+      drawState.grid = resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol);
+      drawState.lastCellKey = "";
+      drawState.undoStack = [];
+      drawState.undoStrokeSnapshotTaken = false;
+      if (els.drawUndoButton) els.drawUndoButton.disabled = true;
+      setDrawSizeControlValue(newWidth, newHeight);
+      closeDrawResizeModal(false);
+      renderDrawStudio();
+      showToast(`\u753B\u5E03\u5DF2\u8C03\u6574\u4E3A ${newWidth}x${newHeight}\u3002`);
+    });
+    [els.drawResizeCancelBtn, els.drawResizeCloseBtn].forEach((btn) => {
+      btn?.addEventListener("click", () => closeDrawResizeModal(true));
+    });
+    els.drawingStudio?.addEventListener("click", (event) => {
+      const actionBtn = event.target.closest("[data-draw-action]");
+      if (actionBtn?.dataset.drawAction === "undo") {
+        doUndo();
+        return;
+      }
+      const toolBtn = event.target.closest("[data-draw-tool]");
+      if (toolBtn) {
+        const tool = toolBtn.dataset.drawTool || "brush";
+        if (tool === "shape" && drawState.tool === "shape") {
+          drawState.shapeMode = drawState.shapeMode === "rect" ? "circle" : "rect";
+        } else {
+          drawState.tool = tool;
+          drawState.lastCellKey = "";
+        }
+        renderDrawToolButtons();
+        return;
+      }
+      const colorBtn = event.target.closest("[data-draw-code]");
+      if (colorBtn) {
+        const code = colorBtn.dataset.drawCode;
+        if (code && palette[code]) {
+          drawState.selectedColor = code;
+          drawRenderKey = "";
+          renderDrawPalette();
+        }
+      }
+    });
+    els.drawClearButton?.addEventListener("click", () => {
+      ensureDrawGrid();
+      drawState.grid = createDrawGrid(drawWidth(), drawHeight());
+      drawState.lastCellKey = "";
+      drawState.undoStack = [];
+      drawState.undoStrokeSnapshotTaken = false;
+      if (els.drawUndoButton) els.drawUndoButton.disabled = true;
+      paintDrawCanvas();
+      showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
+    });
+    els.drawUsePatternButton?.addEventListener("click", () => {
+      useDrawPattern();
+    });
+    els.drawShortCodeButton?.addEventListener("click", async () => {
+      const button = els.drawShortCodeButton;
+      const pattern = makeDrawPattern();
+      if (button) {
+        button.disabled = true;
+        button.textContent = "\u5BFC\u51FA\u4E2D";
+      }
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 5e3);
+      try {
+        const share = await drawActions.requestCloudShareForPattern(pattern, { signal: controller.signal });
+        window.clearTimeout(timeout);
+        if (share?.shortId) {
+          showDrawCodeOutput(share.shortId);
+          await drawActions.autoCopyText(
+            share.shortId,
+            `\u77ED\u7801\u5DF2\u590D\u5236\uFF1A${share.shortId}`,
+            `\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
+          );
+        } else {
+          await exportDrawPatternCode(pattern, "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
+        }
+      } catch {
+        window.clearTimeout(timeout);
+        await exportDrawPatternCode(pattern, "\u77ED\u7801\u8FDE\u63A5\u5931\u8D25\uFF0C\u5DF2\u6539\u4E3A\u590D\u5236\u56FE\u7EB8\u7801\u3002");
+      }
+      if (button) {
+        button.disabled = false;
+        button.textContent = "\u5BFC\u51FA\u56FE\u7EB8";
+      }
+    });
+    els.drawSubmitGalleryButton?.addEventListener("click", () => {
+      const pattern = makeDrawPattern("\u7ED8\u5236\u56FE\u7EB8");
+      const beadCount = pattern.rows.join("").replace(/\./g, "").length;
+      if (!beadCount) {
+        showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
+        return;
+      }
+      try {
+        drawActions.openGallerySubmitModal({
+          name: pattern.name,
+          patternCode: encodePatternCode(pattern)
+        });
+      } catch {
+        showToast("\u5F53\u524D\u56FE\u7EB8\u65E0\u6CD5\u6295\u7A3F\u3002");
+      }
+    });
+    els.drawImportButton?.addEventListener("click", async () => {
+      openDrawCodeModal("import");
+    });
+    els.drawCodeImportConfirmBtn?.addEventListener("click", async () => {
+      const raw = els.drawCodeInput?.value || "";
+      if (drawCodeMode === "import-bead") {
+        const ok = await drawActions.importPatternCode(raw);
+        if (ok) closeDrawCodeModal();
+        return;
+      }
+      const extracted = extractPatternCode(raw);
+      const shortId = extractCloudShortId(raw);
+      if (!extracted && !shortId) {
+        showToast("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
+        return;
+      }
+      try {
+        const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
+        const decoded = decodePatternCode(code);
+        loadDrawRows(decoded.rows);
+        closeDrawCodeModal();
+        showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
+      } catch (error) {
+        showToast("\u56FE\u7EB8\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
+      }
+    });
+    els.drawCodeCopyBtn?.addEventListener("click", async () => {
+      await drawActions.autoCopyText(els.drawCodeInput?.value || "", "\u5DF2\u590D\u5236\u3002", "\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u3002");
+    });
+    [els.drawCodeCancelBtn, els.drawCodeCloseBtn].forEach((btn) => {
+      btn?.addEventListener("click", closeDrawCodeModal);
+    });
+    const handleDrawPointer = (event) => {
+      const cell = drawCellFromPointer(event);
+      if (!cell) return;
+      const changed = applyDrawToolAt(cell.x, cell.y);
+      if (changed || drawState.tool === "fill") paintDrawCanvas();
+    };
+    if (els.drawCanvas) {
+      els.drawCanvas.addEventListener("pointerdown", (event) => {
+        els.drawCanvas.setPointerCapture(event.pointerId);
+        const rect = els.drawCanvas.getBoundingClientRect();
+        drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        if (Object.keys(drawPointers).length >= 2) {
+          drawState.drawing = false;
+          drawState.lastCellKey = "";
+          drawState.shapeDrag = null;
+          startDrawGesture();
+        } else if (drawState.tool === "shape") {
+          const cell = drawCellFromPointer(event);
+          if (cell) {
+            drawState.undoStrokeSnapshotTaken = false;
+            drawState.shapeDrag = { x: cell.x, y: cell.y };
+            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
+            drawState.drawing = true;
+          }
+        } else {
+          drawState.undoStrokeSnapshotTaken = false;
+          drawState.drawing = true;
+          drawState.lastCellKey = "";
+          handleDrawPointer(event);
+        }
+      });
+      els.drawCanvas.addEventListener("pointermove", (event) => {
+        const rect = els.drawCanvas.getBoundingClientRect();
+        if (drawPointers[event.pointerId]) {
+          drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        }
+        if (Object.keys(drawPointers).length >= 2 && drawGesture?.active) {
+          updateDrawGesture();
+          return;
+        }
+        if (!drawState.drawing) return;
+        if (drawState.tool === "shape") {
+          const cell = drawCellFromPointer(event);
+          if (cell && drawState.shapeDrag) {
+            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
+            paintDrawCanvas();
+          }
+          return;
+        }
+        if (drawState.tool === "fill" || drawState.tool === "picker") return;
+        handleDrawPointer(event);
+      });
+      const endDrawPointer = (event) => {
+        delete drawPointers[event.pointerId];
+        if (Object.keys(drawPointers).length < 2 && drawGesture) {
+          drawGesture.active = false;
+        }
+        if (Object.keys(drawPointers).length === 0) {
+          if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
+            const cells = getShapeCells(
+              drawState.shapeDrag.x,
+              drawState.shapeDrag.y,
+              drawState.shapeDragEnd.x,
+              drawState.shapeDragEnd.y
+            );
+            const code = drawState.selectedColor;
+            const shouldSaveUndo = cells.some(([cx, cy]) => drawState.grid[drawIndex(cx, cy)] !== code);
+            if (shouldSaveUndo) saveUndoSnapshot();
+            let painted = false;
+            for (const [cx, cy] of cells) painted = paintDrawCell(cx, cy, code) || painted;
+            if (painted) {
+              recordRecentColor(code);
+              drawRenderKey = "";
+              renderDrawPalette();
+            }
+            drawState.shapeDrag = null;
+            drawState.shapeDragEnd = null;
+            paintDrawCanvas();
+          }
+          drawState.drawing = false;
+          drawState.lastCellKey = "";
+          drawState.undoStrokeSnapshotTaken = false;
+        }
+      };
+      els.drawCanvas.addEventListener("pointerup", endDrawPointer);
+      els.drawCanvas.addEventListener("pointerleave", (event) => {
+        endDrawPointer(event);
+      });
+      els.drawCanvas.addEventListener("pointercancel", endDrawPointer);
+      els.drawCanvas.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const rect = els.drawCanvas.getBoundingClientRect();
+        const mx = event.clientX - rect.left;
+        const my = event.clientY - rect.top;
+        const g = getDrawGeometry();
+        if (!g) return;
+        const { cx, cy } = g;
+        const v = drawState.view;
+        const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+        const nextScale = clamp(v.scale * factor, 1, maxBoardScale(g));
+        const ratio = nextScale / v.scale;
+        const nextPanX = mx - cx - (mx - cx - v.panX) * ratio;
+        const nextPanY = my - cy - (my - cy - v.panY) * ratio;
+        setDrawZoom(nextScale, nextPanX, nextPanY);
+      }, { passive: false });
+      els.drawCanvas.addEventListener("dblclick", () => {
+        resetDrawView();
+        paintDrawCanvas();
+      });
+    }
+  }
+
+  // src/main.js
+  var collection = readCollection();
+  state.achievements = readAchievements();
+  var lastFrame = performance.now();
+  var IRON_DEFAULT_TEMPERATURE = 62;
+  var IRON_DEFAULT_PRESSURE = 56;
   function applyBackgroundTheme(themeId = state.bgTheme) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
     const theme = currentBackgroundTheme();
@@ -7793,8 +8121,7 @@
       return;
     }
     if (state.appMode === "draw") {
-      ensureDrawPaletteColor();
-      renderDrawStudio();
+      enterDrawMode();
     }
     if (state.appMode === "gallery") {
       enterGalleryMode();
@@ -9214,7 +9541,7 @@
     invalidateLayoutCache();
     if (state.trayColor) syncTrayMatrixShape();
     markDirty();
-    if (document.body.dataset.appMode === "draw") drawCanvasPaint();
+    if (document.body.dataset.appMode === "draw") paintDrawCanvas();
   }
   sceneCanvas.addEventListener("pointerdown", onPointerDown);
   sceneCanvas.addEventListener("pointermove", onPointerMove);
@@ -9265,202 +9592,6 @@
   els.gallerySubmitButton?.addEventListener("click", () => {
     openGallerySubmitModal();
   });
-  els.drawingBackButton?.addEventListener("click", () => {
-    setAppMode("home");
-  });
-  els.drawSettingsButton?.addEventListener("click", () => openSettingsModal());
-  els.drawResetButton?.addEventListener("click", () => {
-    ensureDrawGrid();
-    const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
-    if (hasContent && !window.confirm("\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
-    drawState.grid = createDrawGrid(drawWidth(), drawHeight());
-    drawState.lastCellKey = "";
-    drawCanvasPaint();
-    showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
-  });
-  els.beadBackButton?.addEventListener("click", () => {
-    const hasProgress = state.phase !== "choose" || placedCount() > 0;
-    if (hasProgress && !window.confirm("\u8FD4\u56DE\u9996\u9875\u5C06\u9000\u51FA\u5F53\u524D\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
-    setAppMode("home");
-  });
-  function commitDrawSizeControlValue(widthValue = els.drawWidthInput?.value, heightValue = els.drawHeightInput?.value) {
-    const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(widthValue, heightValue);
-    if (newWidth === drawWidth() && newHeight === drawHeight()) {
-      setDrawSizeControlValue(drawWidth(), drawHeight());
-      return;
-    }
-    setDrawSizeControlValue(newWidth, newHeight);
-    openDrawResizeModal(newWidth, newHeight);
-  }
-  [els.drawWidthInput, els.drawHeightInput].forEach((input) => {
-    input?.addEventListener("input", () => {
-      const { width, height } = normalizeDrawSizeValues(
-        els.drawWidthInput?.value,
-        els.drawHeightInput?.value
-      );
-      if (els.drawSizeValue) els.drawSizeValue.textContent = `${width}\xD7${height}`;
-    });
-    input?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") commitDrawSizeControlValue();
-    });
-  });
-  els.drawSizeApplyButton?.addEventListener("click", () => {
-    commitDrawSizeControlValue();
-  });
-  els.drawAnchorGrid?.addEventListener("click", (event) => {
-    const cell = event.target.closest(".anchor-cell");
-    if (!cell) return;
-    drawResizePending.anchorRow = Number(cell.dataset.row);
-    drawResizePending.anchorCol = Number(cell.dataset.col);
-    els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
-      btn.setAttribute("aria-pressed", btn === cell ? "true" : "false");
-    });
-  });
-  els.drawResizeConfirmBtn?.addEventListener("click", () => {
-    const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(
-      drawResizePending.width,
-      drawResizePending.height
-    );
-    const { anchorRow, anchorCol } = drawResizePending;
-    const oldGrid = drawState.grid.slice();
-    const oldWidth = drawWidth();
-    const oldHeight = drawHeight();
-    drawState.width = newWidth;
-    drawState.height = newHeight;
-    drawState.size = Math.max(newWidth, newHeight);
-    drawState.grid = resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol);
-    drawState.lastCellKey = "";
-    drawState.undoStack = [];
-    drawState.undoStrokeSnapshotTaken = false;
-    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-    setDrawSizeControlValue(newWidth, newHeight);
-    closeDrawResizeModal(false);
-    renderDrawStudio();
-    showToast(`\u753B\u5E03\u5DF2\u8C03\u6574\u4E3A ${newWidth}x${newHeight}\u3002`);
-  });
-  [els.drawResizeCancelBtn, els.drawResizeCloseBtn].forEach((btn) => {
-    btn?.addEventListener("click", () => closeDrawResizeModal(true));
-  });
-  els.drawingStudio?.addEventListener("click", (event) => {
-    const actionBtn = event.target.closest("[data-draw-action]");
-    if (actionBtn?.dataset.drawAction === "undo") {
-      doUndo();
-      return;
-    }
-    const toolBtn = event.target.closest("[data-draw-tool]");
-    if (toolBtn) {
-      const tool = toolBtn.dataset.drawTool || "brush";
-      if (tool === "shape" && drawState.tool === "shape") {
-        drawState.shapeMode = drawState.shapeMode === "rect" ? "circle" : "rect";
-      } else {
-        drawState.tool = tool;
-        drawState.lastCellKey = "";
-      }
-      renderDrawToolButtons();
-      return;
-    }
-    const colorBtn = event.target.closest("[data-draw-code]");
-    if (colorBtn) {
-      const code = colorBtn.dataset.drawCode;
-      if (code && palette[code]) {
-        drawState.selectedColor = code;
-        drawRenderKey = "";
-        renderDrawPalette();
-      }
-    }
-  });
-  els.drawClearButton?.addEventListener("click", () => {
-    ensureDrawGrid();
-    drawState.grid = createDrawGrid(drawWidth(), drawHeight());
-    drawState.lastCellKey = "";
-    drawState.undoStack = [];
-    drawState.undoStrokeSnapshotTaken = false;
-    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-    drawCanvasPaint();
-    showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
-  });
-  els.drawUsePatternButton?.addEventListener("click", () => {
-    useDrawPattern();
-  });
-  els.drawShortCodeButton?.addEventListener("click", async () => {
-    const button = els.drawShortCodeButton;
-    const pattern = makeDrawPattern();
-    if (button) {
-      button.disabled = true;
-      button.textContent = "\u5BFC\u51FA\u4E2D";
-    }
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 5e3);
-    try {
-      const share = await requestCloudShareForPattern(pattern, { signal: controller.signal });
-      window.clearTimeout(timeout);
-      if (share?.shortId) {
-        showDrawCodeOutput(share.shortId);
-        await autoCopyText(
-          share.shortId,
-          `\u77ED\u7801\u5DF2\u590D\u5236\uFF1A${share.shortId}`,
-          `\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
-        );
-      } else {
-        await exportDrawPatternCode(pattern, "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
-      }
-    } catch {
-      window.clearTimeout(timeout);
-      await exportDrawPatternCode(pattern, "\u77ED\u7801\u8FDE\u63A5\u5931\u8D25\uFF0C\u5DF2\u6539\u4E3A\u590D\u5236\u56FE\u7EB8\u7801\u3002");
-    }
-    if (button) {
-      button.disabled = false;
-      button.textContent = "\u5BFC\u51FA\u56FE\u7EB8";
-    }
-  });
-  els.drawSubmitGalleryButton?.addEventListener("click", () => {
-    const pattern = makeDrawPattern("\u7ED8\u5236\u56FE\u7EB8");
-    const beadCount = pattern.rows.join("").replace(/\./g, "").length;
-    if (!beadCount) {
-      showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
-      return;
-    }
-    try {
-      openGallerySubmitModal({
-        name: pattern.name,
-        patternCode: encodePatternCode(pattern)
-      });
-    } catch {
-      showToast("\u5F53\u524D\u56FE\u7EB8\u65E0\u6CD5\u6295\u7A3F\u3002");
-    }
-  });
-  els.drawImportButton?.addEventListener("click", async () => {
-    openDrawCodeModal("import");
-  });
-  els.drawCodeImportConfirmBtn?.addEventListener("click", async () => {
-    const raw = els.drawCodeInput?.value || "";
-    if (drawCodeMode === "import-bead") {
-      const ok = await importPatternCode(raw);
-      if (ok) closeDrawCodeModal();
-      return;
-    }
-    const extracted = extractPatternCode(raw);
-    const shortId = extractCloudShortId(raw);
-    if (!extracted && !shortId) {
-      showToast("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
-      return;
-    }
-    try {
-      const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
-      const decoded = decodePatternCode(code);
-      loadDrawRows(decoded.rows);
-      closeDrawCodeModal();
-      showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
-    } catch (error) {
-      showToast("\u56FE\u7EB8\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
-    }
-  });
-  els.drawCodeCopyBtn?.addEventListener("click", async () => {
-    await autoCopyText(els.drawCodeInput?.value || "", "\u5DF2\u590D\u5236\u3002", "\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u3002");
-  });
-  [els.drawCodeCancelBtn, els.drawCodeCloseBtn].forEach((btn) => {
-    btn?.addEventListener("click", closeDrawCodeModal);
-  });
   [els.gallerySubmitCancelBtn, els.gallerySubmitCloseBtn].forEach((btn) => {
     btn?.addEventListener("click", closeGallerySubmitModal);
   });
@@ -9470,116 +9601,11 @@
   els.gallerySubmitModal?.addEventListener("click", (event) => {
     if (event.target === els.gallerySubmitModal) closeGallerySubmitModal();
   });
-  var handleDrawPointer = (event) => {
-    const cell = drawCellFromPointer(event);
-    if (!cell) return;
-    const changed = applyDrawToolAt(cell.x, cell.y);
-    if (changed || drawState.tool === "fill") drawCanvasPaint();
-  };
-  if (els.drawCanvas) {
-    els.drawCanvas.addEventListener("pointerdown", (event) => {
-      els.drawCanvas.setPointerCapture(event.pointerId);
-      const rect = els.drawCanvas.getBoundingClientRect();
-      drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      if (Object.keys(drawPointers).length >= 2) {
-        drawState.drawing = false;
-        drawState.lastCellKey = "";
-        drawState.shapeDrag = null;
-        startDrawGesture();
-      } else if (drawState.tool === "shape") {
-        const cell = drawCellFromPointer(event);
-        if (cell) {
-          drawState.undoStrokeSnapshotTaken = false;
-          drawState.shapeDrag = { x: cell.x, y: cell.y };
-          drawState.shapeDragEnd = { x: cell.x, y: cell.y };
-          drawState.drawing = true;
-        }
-      } else {
-        drawState.undoStrokeSnapshotTaken = false;
-        drawState.drawing = true;
-        drawState.lastCellKey = "";
-        handleDrawPointer(event);
-      }
-    });
-    els.drawCanvas.addEventListener("pointermove", (event) => {
-      const rect = els.drawCanvas.getBoundingClientRect();
-      if (drawPointers[event.pointerId]) {
-        drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      }
-      if (Object.keys(drawPointers).length >= 2 && drawGesture?.active) {
-        updateDrawGesture();
-        return;
-      }
-      if (!drawState.drawing) return;
-      if (drawState.tool === "shape") {
-        const cell = drawCellFromPointer(event);
-        if (cell && drawState.shapeDrag) {
-          drawState.shapeDragEnd = { x: cell.x, y: cell.y };
-          drawCanvasPaint();
-        }
-        return;
-      }
-      if (drawState.tool === "fill" || drawState.tool === "picker") return;
-      handleDrawPointer(event);
-    });
-    const endDrawPointer = (event) => {
-      delete drawPointers[event.pointerId];
-      if (Object.keys(drawPointers).length < 2 && drawGesture) {
-        drawGesture.active = false;
-      }
-      if (Object.keys(drawPointers).length === 0) {
-        if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
-          const cells = getShapeCells(
-            drawState.shapeDrag.x,
-            drawState.shapeDrag.y,
-            drawState.shapeDragEnd.x,
-            drawState.shapeDragEnd.y
-          );
-          const code = drawState.selectedColor;
-          const shouldSaveUndo = cells.some(([cx, cy]) => drawState.grid[drawIndex(cx, cy)] !== code);
-          if (shouldSaveUndo) saveUndoSnapshot();
-          let painted = false;
-          for (const [cx, cy] of cells) painted = paintDrawCell(cx, cy, code) || painted;
-          if (painted) {
-            recordRecentColor(code);
-            drawRenderKey = "";
-            renderDrawPalette();
-          }
-          drawState.shapeDrag = null;
-          drawState.shapeDragEnd = null;
-          drawCanvasPaint();
-        }
-        drawState.drawing = false;
-        drawState.lastCellKey = "";
-        drawState.undoStrokeSnapshotTaken = false;
-      }
-    };
-    els.drawCanvas.addEventListener("pointerup", endDrawPointer);
-    els.drawCanvas.addEventListener("pointerleave", (event) => {
-      endDrawPointer(event);
-    });
-    els.drawCanvas.addEventListener("pointercancel", endDrawPointer);
-    els.drawCanvas.addEventListener("wheel", (event) => {
-      event.preventDefault();
-      const rect = els.drawCanvas.getBoundingClientRect();
-      const mx = event.clientX - rect.left;
-      const my = event.clientY - rect.top;
-      const g = getDrawGeometry();
-      if (!g) return;
-      const { cx, cy } = g;
-      const v = drawState.view;
-      const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
-      const nextScale = clamp(v.scale * factor, 1, maxBoardScale(g));
-      const ratio = nextScale / v.scale;
-      const nextPanX = mx - cx - (mx - cx - v.panX) * ratio;
-      const nextPanY = my - cy - (my - cy - v.panY) * ratio;
-      setDrawZoom(nextScale, nextPanX, nextPanY);
-    }, { passive: false });
-    els.drawCanvas.addEventListener("dblclick", () => {
-      resetDrawView();
-      drawCanvasPaint();
-    });
-  }
+  els.beadBackButton?.addEventListener("click", () => {
+    const hasProgress = state.phase !== "choose" || placedCount() > 0;
+    if (hasProgress && !window.confirm("\u8FD4\u56DE\u9996\u9875\u5C06\u9000\u51FA\u5F53\u524D\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+    setAppMode("home");
+  });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
   els.chooseStartButton?.addEventListener("click", () => {
     if (state.phase === "choose") setPhase("place");
@@ -9705,7 +9731,7 @@
         }
         if (state.appMode === "draw") {
           const k2 = event.key;
-          const nav = drawKbdNav;
+          const nav = getDrawKeyboardNav();
           if (k2 === "w" || k2 === "W" || k2 === "ArrowUp") {
             event.preventDefault();
             nav.up = true;
@@ -9787,34 +9813,45 @@
   window.addEventListener("keyup", (event) => {
     const k = event.key;
     const nav = state.kbdNav;
+    const drawNav = getDrawKeyboardNav();
     if (k === "w" || k === "W" || k === "ArrowUp") {
       nav.up = false;
-      drawKbdNav.up = false;
+      drawNav.up = false;
     }
     if (k === "s" || k === "S" || k === "ArrowDown") {
       nav.down = false;
-      drawKbdNav.down = false;
+      drawNav.down = false;
     }
     if (k === "a" || k === "A" || k === "ArrowLeft") {
       nav.left = false;
-      drawKbdNav.left = false;
+      drawNav.left = false;
     }
     if (k === "d" || k === "D" || k === "ArrowRight") {
       nav.right = false;
-      drawKbdNav.right = false;
+      drawNav.right = false;
     }
     if (k === "z" || k === "Z") {
       nav.zoomIn = false;
-      drawKbdNav.zoomIn = false;
+      drawNav.zoomIn = false;
     }
     if (k === "x" || k === "X") {
       nav.zoomOut = false;
-      drawKbdNav.zoomOut = false;
+      drawNav.zoomOut = false;
     }
   });
   window.addEventListener("resize", onResize);
   setAutoSaveHook(scheduleAutoSave);
   setGalleryActions({ loadPattern, setAppMode, onModalOpened, restoreModalFocus, uiRenderUI: renderUI });
+  setDrawActions({
+    loadPattern,
+    setAppMode,
+    openSettingsModal,
+    openGallerySubmitModal,
+    importPatternCode,
+    autoCopyText,
+    requestCloudShareForPattern
+  });
+  initDrawingStudioEvents();
   setUIActions({
     getCollection: () => collection,
     updateCollection: (nextCollection) => {
