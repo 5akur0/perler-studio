@@ -18,19 +18,15 @@ import { readAchievements, writeAchievements, hasAchievement, unlockAchievement 
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import {
   targetAt, indexFor, sourceTargetAt, isBuiltInPattern, getPatternColorMap,
-  invalidateEffectiveMap, invalidatePatternDataCaches, getPatternHiddenSourceList, getPatternHiddenSourceSet,
-  hiddenSignature, customRecalcSignature, isCustomFromImagePattern, findPatternByBaseId,
+  invalidateEffectiveMap, getPatternHiddenSourceList, getPatternHiddenSourceSet,
+  hiddenSignature, isCustomFromImagePattern,
   getCustomRecalcRowsIfReady, getEffectiveTargetRows, getEffectivePatternResult,
   getTargetCounts, getTargetTotal, allColorCodes, beadLabel, activePaletteColorCount,
   normalizePatternColorMapForActivePalette, getPatternColors, getPatternAnalysis,
   getSourceCounts, getSourcePatternColors, getSourcePatternAnalysis,
-  invalidatePlacedCounts, getPlacedCounts, normalizePatternSize, baseIdFor,
-  patternFingerprint, normalizeCraft, resizePattern, findBasePattern, findCustomPattern,
+  invalidatePlacedCounts, getPlacedCounts, baseIdFor,
+  patternFingerprint, normalizeCraft, resizePattern,
 } from './pattern.js';
-import {
-  loadImageFromDataUrl, imageToPatternRows, convertImageToPattern,
-  nearestColorCodeByLab, nearestColorCode,
-} from './image-convert.js';
 import { sceneCanvas, scene, previewCanvas, preview, sideReferenceCanvas, sideReferenceCtx, els } from './dom.js';
 import {
   useMobileTrayGrid, useMobileDirectPlacement, isTouchDevice, maxBoardScale,
@@ -56,7 +52,6 @@ import {
   setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
   renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
 } from './ui.js';
-import { escapeHtml, pickCustomPatternNote } from './utils.js';
 import {
   setGalleryActions, enterGalleryMode, renderGallery, loadGallery,
   openGallerySubmitModal, closeGallerySubmitModal, submitGalleryPattern,
@@ -69,6 +64,10 @@ import {
   paintDrawCanvas, openDrawCodeModal, closeDrawCodeModal, closeDrawResizeModal,
   getDrawKeyboardNav,
 } from './draw.js';
+import {
+  setCustomPatternActions, initCustomPatternEvents, setCustomDenoiseControls,
+  recomputeCustomHiddenRowsFromOriginal,
+} from './custom-pattern.js';
 
 
 
@@ -78,15 +77,6 @@ import {
   let lastFrame = performance.now();
   const IRON_DEFAULT_TEMPERATURE = 62;
   const IRON_DEFAULT_PRESSURE = 56;
-
-
-
-
-
-
-
-
-
 
   function applyBackgroundTheme(themeId = state.bgTheme) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
@@ -146,110 +136,6 @@ import {
       state.collectionPageOpen = true;
       uiRenderCollection();
     }
-  }
-
-  function normalizedCustomDenoiseLevel(value) {
-    return clamp(Math.round(Number(value) || 0), 0, 100);
-  }
-
-  function setCustomDenoiseControls(level) {
-    const normalized = normalizedCustomDenoiseLevel(level);
-    state.customDenoiseLevel = normalized;
-    if (els.customDenoiseSlider) els.customDenoiseSlider.value = String(normalized);
-    if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
-    return normalized;
-  }
-
-
-  async function recomputeCustomHiddenRowsFromOriginal(pattern = state.selectedPattern) {
-    if (!isCustomFromImagePattern(pattern)) return false;
-    const hidden = getPatternHiddenSourceList(pattern);
-    const id = baseIdFor(pattern);
-    if (!hidden.length) {
-      delete state.customHiddenRecalcCache[id];
-      invalidateEffectiveMap(pattern);
-      return true;
-    }
-    const signature = customRecalcSignature(pattern, hidden);
-    if (state.customHiddenRecalcCache[id]?.signature === signature) return true;
-    if (state.customHiddenRecalcPending[id]) {
-      if (state.customHiddenRecalcPending[id] !== signature) {
-        state.customHiddenRecalcQueued[id] = signature;
-      }
-      return false;
-    }
-    state.customHiddenRecalcPending[id] = signature;
-    try {
-      const image = await loadImageFromDataUrl(pattern.sourceImageDataUrl);
-      const result = convertImageToPattern(image, {
-        removeWhite: pattern.sourceRemoveWhite !== false,
-        size: pattern.size,
-        denoiseLevel: pattern.sourceDenoiseLevel ?? state.customDenoiseLevel,
-        excludedCodes: hidden,
-        allowPaletteExpansionOnExclude: true,
-      });
-      state.customHiddenRecalcCache[id] = {
-        signature,
-        rows: result.rows,
-        stats: result.stats,
-      };
-      if (baseIdFor(state.selectedPattern) === id && customRecalcSignature(state.selectedPattern) === signature) {
-        invalidateEffectiveMap(state.selectedPattern);
-        state.previewDirty = true;
-        const available = getPatternColors();
-        if (!available.includes(state.selectedColor)) state.selectedColor = available[0] || state.selectedColor;
-        showToast("已按原图完成重算。");
-        markDirty();
-      }
-      return true;
-    } catch (error) {
-      showToast("按原图重算失败。");
-      return false;
-    } finally {
-      if (state.customHiddenRecalcPending[id] === signature) {
-        delete state.customHiddenRecalcPending[id];
-      }
-      const queued = state.customHiddenRecalcQueued[id];
-      if (queued && queued !== signature) {
-        delete state.customHiddenRecalcQueued[id];
-        const nextPattern = findPatternByBaseId(id);
-        if (nextPattern) {
-          void recomputeCustomHiddenRowsFromOriginal(nextPattern);
-        }
-      }
-    }
-  }
-
-
-
-  function setSizeControls(size) {
-    const normalized = normalizePatternSize(size);
-    state.patternSize = normalized;
-    if (els.patternSizeSlider) {
-      els.patternSizeSlider.value = String(normalized);
-      const min = Number(els.patternSizeSlider.min) || 12;
-      const max = Number(els.patternSizeSlider.max) || 100;
-      const progress = clamp((normalized - min) / Math.max(1, max - min), 0, 1);
-      els.patternSizeSlider.style.setProperty("--size-progress", `${Math.round(progress * 100)}%`);
-    }
-    if (els.patternSizeValue) els.patternSizeValue.textContent = String(normalized);
-    if (els.customSizeMeta) els.customSizeMeta.textContent = `${normalized}x${normalized}`;
-  }
-
-  function applyPatternSize(size) {
-    const normalized = normalizePatternSize(size);
-    if (normalized === state.selectedPattern.size) {
-      uiSetSizeControls(normalized);
-      return;
-    }
-    uiSetSizeControls(normalized);
-    const base = findBasePattern();
-    if (baseIdFor(base).startsWith("custom-") && base.sourceImageDataUrl) {
-      reconvertCustomPatternAtSize(base, normalized, state.phase !== "choose");
-      return;
-    }
-    loadPattern(resizePattern(base, normalized), state.phase !== "choose");
-    showToast(`图纸已调整为 ${normalized}x${normalized}。`);
   }
 
   function loadPattern(pattern, keepPhase = false) {
@@ -605,104 +491,6 @@ import {
         ctx.fillRect(px, py, pw, ph);
       }
     }
-  }
-
-  async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
-    try {
-      const image = await loadImageFromDataUrl(basePattern.sourceImageDataUrl);
-      const removeWhite = basePattern.sourceRemoveWhite !== false;
-      const denoiseLevel = normalizedCustomDenoiseLevel(basePattern.sourceDenoiseLevel ?? state.customDenoiseLevel);
-      const result = convertImageToPattern(image, { removeWhite, size, denoiseLevel });
-      const rows = result.rows;
-      const beadCount = rows.join("").replace(/\./g, "").length;
-      if (!beadCount) {
-        showToast("这个尺寸下识别不到可用豆子。");
-        return;
-      }
-      const updated = {
-        ...basePattern,
-        size,
-        rows,
-        sourceRows: rows,
-        sourceSize: size,
-        sourceDenoiseLevel: denoiseLevel,
-        conversionStats: result.stats,
-        note: pickCustomPatternNote(
-          "image",
-          size,
-          basePattern.sourceImageDataUrl || `${size}|${rows.join("")}`,
-        ),
-      };
-      invalidatePatternDataCaches(updated);
-      const idx = patterns.findIndex((item) => baseIdFor(item) === baseIdFor(basePattern));
-      if (idx >= 0) patterns[idx] = updated;
-      state.lastConversionStats = result.stats;
-      loadPattern(updated, keepPhase);
-      showToast(`已按 ${size}x${size} 重新识别图片图纸。`);
-    } catch (error) {
-      showToast("图片重新识别失败。");
-    }
-  }
-
-  function handleCustomImage(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const sourceImageDataUrl = String(reader.result || "");
-        const image = await loadImageFromDataUrl(sourceImageDataUrl);
-        const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
-        const removeWhite = els.customWhiteToggle.checked;
-        const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
-        uiSetSizeControls(size);
-        // Yield a frame so the "正在识别图片…" toast paints before the
-        // synchronous conversion (which can briefly block on large images).
-        await new Promise((resolve) => setTimeout(resolve, 16));
-        const result = convertImageToPattern(image, {
-          removeWhite,
-          size,
-          denoiseLevel,
-        });
-        const rows = result.rows;
-        const beadCount = rows.join("").replace(/\./g, "").length;
-        if (!beadCount) {
-          showToast("这张图转换后没有可用豆子。");
-          return;
-        }
-        const pattern = {
-          id: "custom-user",
-          name: "自定义图纸",
-          size,
-          craft: "原版",
-          rows,
-          sourceRows: rows,
-          sourceSize: size,
-          sourceImageDataUrl,
-          sourceRemoveWhite: removeWhite,
-          sourceDenoiseLevel: denoiseLevel,
-          conversionStats: result.stats,
-          note: pickCustomPatternNote("image", size, sourceImageDataUrl),
-        };
-        state.lastConversionStats = result.stats;
-        for (let i = patterns.length - 1; i >= 0; i -= 1) {
-          if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-        }
-        patterns.unshift(pattern);
-        loadPattern(pattern);
-        showToast(`自定义图纸已生成：${result.stats.total}颗 / ${result.stats.colors.length}色。`);
-      } catch (error) {
-        showToast("图片读取失败。");
-      } finally {
-        event.target.value = "";
-      }
-    };
-    reader.onerror = () => {
-      showToast("图片读取失败。");
-      event.target.value = "";
-    };
-    showToast("正在识别图片…");
-    reader.readAsDataURL(file);
   }
 
 
@@ -1890,44 +1678,6 @@ import {
     showToast(`工具换成${currentToolStyle().name}款。`);
     markDirty();
   });
-  let sizeSliderTimer = null;
-  els.patternSizeSlider?.addEventListener("input", () => {
-    const size = normalizePatternSize(els.patternSizeSlider.value);
-    setSizeControls(size);
-    if (sizeSliderTimer) window.clearTimeout(sizeSliderTimer);
-    sizeSliderTimer = window.setTimeout(() => applyPatternSize(size), 110);
-  });
-  els.patternSizeSlider?.addEventListener("change", () => {
-    const size = normalizePatternSize(els.patternSizeSlider.value);
-    setSizeControls(size);
-    applyPatternSize(size);
-  });
-
-  let customDenoiseTimer = null;
-  els.customDenoiseSlider?.addEventListener("input", () => {
-    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
-    const current = state.selectedPattern;
-    if (!isCustomFromImagePattern(current)) return;
-    if (customDenoiseTimer) window.clearTimeout(customDenoiseTimer);
-    customDenoiseTimer = window.setTimeout(() => {
-      const base = findBasePattern(current);
-      base.sourceDenoiseLevel = level;
-      reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
-    }, 140);
-  });
-  els.customDenoiseSlider?.addEventListener("change", () => {
-    const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
-    const current = state.selectedPattern;
-    if (!isCustomFromImagePattern(current)) return;
-    if (customDenoiseTimer) {
-      window.clearTimeout(customDenoiseTimer);
-      customDenoiseTimer = null;
-    }
-    const base = findBasePattern(current);
-    base.sourceDenoiseLevel = level;
-    reconvertCustomPatternAtSize(base, current.size, state.phase !== "choose");
-  });
-  els.customImageInput.addEventListener("change", handleCustomImage);
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
   els.remapResetButton?.addEventListener("click", () => resetPatternColorMapping());
@@ -2052,6 +1802,8 @@ import {
     requestCloudShareForPattern,
   });
   initDrawingStudioEvents();
+  setCustomPatternActions({ loadPattern });
+  initCustomPatternEvents();
   setUIActions({
     getCollection: () => collection,
     updateCollection: (nextCollection) => {
