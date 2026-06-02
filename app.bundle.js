@@ -5817,6 +5817,62 @@
   function prefersReducedMotion() {
     return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
   }
+  function stableHash(text) {
+    const source = String(text || "");
+    let hash = 2166136261 >>> 0;
+    for (let i = 0; i < source.length; i += 1) {
+      hash ^= source.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+  function pickWeightedText(entries, fallback = "", seedText = "") {
+    if (!Array.isArray(entries) || !entries.length) return fallback;
+    const normalized = entries.map((entry) => ({ text: String(entry?.text || ""), weight: Number(entry?.weight) > 0 ? Number(entry.weight) : 0 })).filter((entry) => entry.text && entry.weight > 0);
+    if (!normalized.length) return fallback;
+    const total = normalized.reduce((sum, entry) => sum + entry.weight, 0);
+    const ratio = (stableHash(seedText) + 0.5) / 4294967296;
+    let cursor = ratio * total;
+    for (let i = 0; i < normalized.length; i += 1) {
+      cursor -= normalized[i].weight;
+      if (cursor <= 0) return normalized[i].text;
+    }
+    return normalized[normalized.length - 1].text || fallback;
+  }
+  var sharedNotes = [
+    { text: "\u8FD9\u5F20\u56FE\u53EF\u4EE5\u76F4\u63A5\u5F00\u62FC", weight: 30 },
+    { text: "\u4ECA\u5929\u5C31\u505A\u8FD9\u5F20\u5427", weight: 24 },
+    { text: "\u770B\u7740\u5C31\u60F3\u5F00\u5DE5", weight: 18 },
+    { text: "\u5148\u6536\u7740\uFF0C\u665A\u70B9\u62FC", weight: 14 },
+    { text: "\u914D\u8272\u770B\u7740\u5F88\u987A\u773C", weight: 10 },
+    { text: "\u8FD9\u5F20\u6709\u70B9\u4E0A\u5934", weight: 4 }
+  ];
+  var customPatternNotePool = {
+    draw: [
+      { text: "\u624B\u7ED8\u5B8C\u6210\uFF0C\u51C6\u5907\u5F00\u62FC", weight: 40 },
+      { text: "\u81EA\u5DF1\u753B\u7684\uFF0C\u8D8A\u770B\u8D8A\u987A\u773C", weight: 35 },
+      { text: "\u521A\u753B\u5B8C\uFF0C\u624B\u611F\u6B63\u70ED", weight: 25 },
+      ...sharedNotes
+    ],
+    image: [
+      { text: "\u56FE\u7247\u8F6C\u597D\u4E86\uFF0C\u76F4\u63A5\u5F00\u62FC", weight: 45 },
+      { text: "\u8FD9\u5F20\u8F6C\u51FA\u6765\u8FD8\u4E0D\u9519", weight: 35 },
+      { text: "\u914D\u8272\u5DF2\u7ECF\u6574\u7406\u597D", weight: 20 },
+      ...sharedNotes
+    ],
+    imported: [
+      { text: "\u77ED\u7801\u5BFC\u5165\u6210\u529F", weight: 45 },
+      { text: "\u65B0\u56FE\u7EB8\u5DF2\u5C31\u4F4D", weight: 35 },
+      { text: "\u8FD9\u5F20\u5148\u653E\u5230\u5F85\u62FC", weight: 20 },
+      ...sharedNotes
+    ]
+  };
+  function pickCustomPatternNote(kind = "generic", size = 0, seedText = "") {
+    const pool = customPatternNotePool[kind] || [...customPatternNotePool.draw, ...customPatternNotePool.image, ...customPatternNotePool.imported];
+    const fallbackSize = Number(size);
+    const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0 ? `\u81EA\u5B9A\u4E49\u56FE\u7EB8 ${fallbackSize}x${fallbackSize}` : "\u81EA\u5B9A\u4E49\u56FE\u7EB8";
+    return pickWeightedText(pool, fallback, seedText);
+  }
 
   // src/ui.js
   var uiActions = {
@@ -6718,132 +6774,31 @@
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
   }
 
-  // src/main.js
-  var collection = readCollection();
-  var galleryItems = [];
-  var galleryLoaded = false;
-  var galleryError = false;
-  state.achievements = readAchievements();
-  var lastFrame = performance.now();
-  var drawState = {
-    size: 24,
-    width: 24,
-    height: 24,
-    tool: "brush",
-    shapeMode: "rect",
-    selectedColor: "K",
-    grid: [],
-    drawing: false,
-    lastCellKey: "",
-    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
-    recentColors: [],
-    undoStack: [],
-    undoStrokeSnapshotTaken: false,
-    shapeDrag: null,
-    shapeDragEnd: null
+  // src/gallery.js
+  var galleryActions = {
+    loadPattern: () => {
+    },
+    setAppMode: () => {
+    },
+    onModalOpened: () => {
+    },
+    restoreModalFocus: () => {
+    },
+    uiRenderUI: () => {
+    }
   };
-  var drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
-  var drawPointers = {};
-  var drawGesture = null;
-  var drawRenderKey = "";
-  var IRON_DEFAULT_TEMPERATURE = 62;
-  var IRON_DEFAULT_PRESSURE = 56;
+  function setGalleryActions(actions) {
+    galleryActions = { ...galleryActions, ...actions };
+  }
   function readShareApiBase() {
     const metaBase = document.querySelector('meta[name="beam-share-api-base"]')?.content || window.BEAM_SHARE_API_BASE || "";
     return String(metaBase).replace(/\/+$/, "");
   }
   var shareApiBase = readShareApiBase();
   var cloudShortIdPattern = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}$/;
-  var sharedCustomPatternNotes = [
-    { text: "\u8FD9\u5F20\u56FE\u53EF\u4EE5\u76F4\u63A5\u5F00\u62FC", weight: 30 },
-    { text: "\u4ECA\u5929\u5C31\u505A\u8FD9\u5F20\u5427", weight: 24 },
-    { text: "\u770B\u7740\u5C31\u60F3\u5F00\u5DE5", weight: 18 },
-    { text: "\u5148\u6536\u7740\uFF0C\u665A\u70B9\u62FC", weight: 14 },
-    { text: "\u914D\u8272\u770B\u7740\u5F88\u987A\u773C", weight: 10 },
-    { text: "\u8FD9\u5F20\u6709\u70B9\u4E0A\u5934", weight: 4 }
-  ];
-  var customPatternNotePool = {
-    draw: [
-      { text: "\u624B\u7ED8\u5B8C\u6210\uFF0C\u51C6\u5907\u5F00\u62FC", weight: 40 },
-      { text: "\u81EA\u5DF1\u753B\u7684\uFF0C\u8D8A\u770B\u8D8A\u987A\u773C", weight: 35 },
-      { text: "\u521A\u753B\u5B8C\uFF0C\u624B\u611F\u6B63\u70ED", weight: 25 },
-      ...sharedCustomPatternNotes
-    ],
-    image: [
-      { text: "\u56FE\u7247\u8F6C\u597D\u4E86\uFF0C\u76F4\u63A5\u5F00\u62FC", weight: 45 },
-      { text: "\u8FD9\u5F20\u8F6C\u51FA\u6765\u8FD8\u4E0D\u9519", weight: 35 },
-      { text: "\u914D\u8272\u5DF2\u7ECF\u6574\u7406\u597D", weight: 20 },
-      ...sharedCustomPatternNotes
-    ],
-    imported: [
-      { text: "\u77ED\u7801\u5BFC\u5165\u6210\u529F", weight: 45 },
-      { text: "\u65B0\u56FE\u7EB8\u5DF2\u5C31\u4F4D", weight: 35 },
-      { text: "\u8FD9\u5F20\u5148\u653E\u5230\u5F85\u62FC", weight: 20 },
-      ...sharedCustomPatternNotes
-    ]
-  };
-  var minDrawDimension = 3;
-  var maxDrawDimension = 100;
-  function normalizeDrawDimension(value, fallback = 24) {
-    const parsed = Number.parseInt(value, 10);
-    const fallbackValue = Number.parseInt(fallback, 10);
-    if (!Number.isFinite(parsed)) {
-      return clamp(Number.isFinite(fallbackValue) ? fallbackValue : 24, minDrawDimension, maxDrawDimension);
-    }
-    return clamp(parsed, minDrawDimension, maxDrawDimension);
-  }
-  function normalizeDrawSizeValues(widthValue, heightValue, fallbackWidth = drawWidth(), fallbackHeight = drawHeight()) {
-    return {
-      width: normalizeDrawDimension(widthValue, fallbackWidth),
-      height: normalizeDrawDimension(heightValue, fallbackHeight)
-    };
-  }
-  function stableHash(text) {
-    const source = String(text || "");
-    let hash = 2166136261 >>> 0;
-    for (let i = 0; i < source.length; i += 1) {
-      hash ^= source.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-  }
-  function pickWeightedText(entries, fallback = "", seedText = "") {
-    if (!Array.isArray(entries) || !entries.length) return fallback;
-    const normalized = entries.map((entry) => ({
-      text: String(entry?.text || ""),
-      weight: Number(entry?.weight) > 0 ? Number(entry.weight) : 0
-    })).filter((entry) => entry.text && entry.weight > 0);
-    if (!normalized.length) return fallback;
-    const total = normalized.reduce((sum, entry) => sum + entry.weight, 0);
-    const ratio = (stableHash(seedText) + 0.5) / 4294967296;
-    let cursor = ratio * total;
-    for (let i = 0; i < normalized.length; i += 1) {
-      cursor -= normalized[i].weight;
-      if (cursor <= 0) return normalized[i].text;
-    }
-    return normalized[normalized.length - 1].text || fallback;
-  }
-  function pickCustomPatternNote(kind = "generic", size = 0, seedText = "") {
-    const pool = customPatternNotePool[kind] || [...customPatternNotePool.draw, ...customPatternNotePool.image, ...customPatternNotePool.imported];
-    const fallbackSize = Number(size);
-    const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0 ? `\u81EA\u5B9A\u4E49\u56FE\u7EB8 ${fallbackSize}x${fallbackSize}` : "\u81EA\u5B9A\u4E49\u56FE\u7EB8";
-    return pickWeightedText(pool, fallback, seedText);
-  }
-  function drawWidth() {
-    return drawState.width || drawState.size || 24;
-  }
-  function drawHeight() {
-    return drawState.height || drawState.size || 24;
-  }
-  function drawSquareSize() {
-    return Math.max(drawWidth(), drawHeight());
-  }
-  function createDrawGrid(width, height = width, fill = ".") {
-    return Array(width * height).fill(fill);
-  }
-  function drawIndex(x, y, width = drawWidth()) {
-    return y * width + x;
-  }
+  var galleryItems = [];
+  var galleryLoaded = false;
+  var galleryError = false;
   function shareApiUrl(path) {
     return `${shareApiBase}${path}`;
   }
@@ -6914,21 +6869,21 @@
       const safeAuthor = escapeHtml(item.author || "\u533F\u540D\u6295\u7A3F");
       const safeSize = escapeHtml(`${pattern.size}x${pattern.size}`);
       card.innerHTML = `
-        <button type="button" class="gallery-card-body" aria-label="\u6253\u5F00 ${safeName}">
-          <canvas class="gallery-thumb" width="180" height="180" aria-hidden="true"></canvas>
-          <span class="gallery-card-meta">
-            <strong>${safeName}</strong>
-            <span>${safeSize} \xB7 ${safeAuthor}</span>
-          </span>
-        </button>
-      `;
+      <button type="button" class="gallery-card-body" aria-label="\u6253\u5F00 ${safeName}">
+        <canvas class="gallery-thumb" width="180" height="180" aria-hidden="true"></canvas>
+        <span class="gallery-card-meta">
+          <strong>${safeName}</strong>
+          <span>${safeSize} \xB7 ${safeAuthor}</span>
+        </span>
+      </button>
+    `;
       card.querySelector(".gallery-card-body").addEventListener("click", () => {
-        loadPattern(pattern, false);
-        setAppMode("bead");
+        galleryActions.loadPattern(pattern, false);
+        galleryActions.setAppMode("bead");
         showToast(`\u5DF2\u6253\u5F00\u753B\u5ECA\u56FE\u7EB8\uFF1A${pattern.name}`);
       });
       els.galleryGrid.appendChild(card);
-      drawPatternThumb2(card.querySelector("canvas"), pattern);
+      drawPatternThumb(card.querySelector("canvas"), pattern);
     });
   }
   async function loadGallery({ silent = false } = {}) {
@@ -6957,6 +6912,10 @@
       if (!silent) showToast("\u753B\u5ECA\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
     }
   }
+  function enterGalleryMode() {
+    renderGallery();
+    if (!galleryLoaded) void loadGallery({ silent: true });
+  }
   async function resolvePatternCodeInput(raw) {
     const extracted = extractPatternCode(raw);
     if (extracted) {
@@ -6982,7 +6941,7 @@
     state.gallerySubmitModalOpen = true;
     els.gallerySubmitModal.classList.add("show");
     els.gallerySubmitModal.setAttribute("aria-hidden", "false");
-    onModalOpened(els.gallerySubmitModal);
+    galleryActions.onModalOpened(els.gallerySubmitModal);
   }
   function closeGallerySubmitModal() {
     if (!els.gallerySubmitModal) return;
@@ -6990,7 +6949,7 @@
     els.gallerySubmitModal.classList.remove("show");
     els.gallerySubmitModal.setAttribute("aria-hidden", "true");
     if (els.gallerySubmitCode) els.gallerySubmitCode.readOnly = false;
-    restoreModalFocus();
+    galleryActions.restoreModalFocus();
   }
   async function submitGalleryPattern() {
     const button = els.gallerySubmitConfirmBtn;
@@ -7016,12 +6975,7 @@
     try {
       const patternCode = await resolvePatternCodeInput(raw);
       const decoded = decodePatternCode(patternCode);
-      await requestGalleryApi("/api/gallery/submit", {
-        name,
-        author,
-        patternCode,
-        size: decoded.size
-      });
+      await requestGalleryApi("/api/gallery/submit", { name, author, patternCode, size: decoded.size });
       closeGallerySubmitModal();
       showToast("\u6295\u7A3F\u5DF2\u8FDB\u5165\u5BA1\u6838\u961F\u5217\u3002");
     } catch {
@@ -7078,22 +7032,19 @@
       if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
     }
     patterns.unshift(imported);
-    loadPattern(imported, false);
+    galleryActions.loadPattern(imported, false);
     state.patternsDirty = true;
-    renderUI();
+    galleryActions.uiRenderUI();
     showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
     return imported;
   }
-  async function requestCloudShareForPattern(pattern, options = {}) {
+  async function requestCloudShareForPattern2(pattern, options = {}) {
     const patternCode = encodePatternCode(pattern);
-    return requestShareApi("/api/share/create", {
-      name: pattern.name,
-      patternCode
-    }, options);
+    return requestShareApi("/api/share/create", { name: pattern.name, patternCode }, options);
   }
   async function createCloudShareForPattern(pattern) {
     try {
-      const share = await requestCloudShareForPattern(pattern);
+      const share = await requestCloudShareForPattern2(pattern);
       if (share?.shortId) {
         await autoCopyText(
           share.shortId,
@@ -7146,6 +7097,65 @@
       showToast("\u77ED\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
       return false;
     }
+  }
+
+  // src/main.js
+  var collection = readCollection();
+  state.achievements = readAchievements();
+  var lastFrame = performance.now();
+  var drawState = {
+    size: 24,
+    width: 24,
+    height: 24,
+    tool: "brush",
+    shapeMode: "rect",
+    selectedColor: "K",
+    grid: [],
+    drawing: false,
+    lastCellKey: "",
+    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
+    recentColors: [],
+    undoStack: [],
+    undoStrokeSnapshotTaken: false,
+    shapeDrag: null,
+    shapeDragEnd: null
+  };
+  var drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
+  var drawPointers = {};
+  var drawGesture = null;
+  var drawRenderKey = "";
+  var IRON_DEFAULT_TEMPERATURE = 62;
+  var IRON_DEFAULT_PRESSURE = 56;
+  var minDrawDimension = 3;
+  var maxDrawDimension = 100;
+  function normalizeDrawDimension(value, fallback = 24) {
+    const parsed = Number.parseInt(value, 10);
+    const fallbackValue = Number.parseInt(fallback, 10);
+    if (!Number.isFinite(parsed)) {
+      return clamp(Number.isFinite(fallbackValue) ? fallbackValue : 24, minDrawDimension, maxDrawDimension);
+    }
+    return clamp(parsed, minDrawDimension, maxDrawDimension);
+  }
+  function normalizeDrawSizeValues(widthValue, heightValue, fallbackWidth = drawWidth(), fallbackHeight = drawHeight()) {
+    return {
+      width: normalizeDrawDimension(widthValue, fallbackWidth),
+      height: normalizeDrawDimension(heightValue, fallbackHeight)
+    };
+  }
+  function drawWidth() {
+    return drawState.width || drawState.size || 24;
+  }
+  function drawHeight() {
+    return drawState.height || drawState.size || 24;
+  }
+  function drawSquareSize() {
+    return Math.max(drawWidth(), drawHeight());
+  }
+  function createDrawGrid(width, height = width, fill = ".") {
+    return Array(width * height).fill(fill);
+  }
+  function drawIndex(x, y, width = drawWidth()) {
+    return y * width + x;
   }
   function recordRecentColor(code) {
     if (!code || code === ".") return false;
@@ -7787,8 +7797,7 @@
       renderDrawStudio();
     }
     if (state.appMode === "gallery") {
-      renderGallery();
-      if (!galleryLoaded) void loadGallery({ silent: true });
+      enterGalleryMode();
       return;
     }
     if (state.appMode === "collection") {
@@ -8129,35 +8138,6 @@
     const sourceCode = state.selectedPattern.rows[cell.y]?.[cell.x] || ".";
     if (sourceCode === ".") return;
     openRemapModal(sourceCode);
-  }
-  function drawPatternThumb2(canvas, pattern) {
-    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
-    const cssSize = canvas.clientWidth || Number(canvas.getAttribute("width")) || 58;
-    const dim = Math.round(cssSize * dpr);
-    if (canvas.width !== dim || canvas.height !== dim) {
-      canvas.width = dim;
-      canvas.height = dim;
-    }
-    const ctx = canvas.getContext("2d");
-    const size = pattern.size;
-    const cell = dim / size;
-    const rows = getEffectiveTargetRows(pattern);
-    ctx.clearRect(0, 0, dim, dim);
-    ctx.fillStyle = "#eef2f7";
-    ctx.fillRect(0, 0, dim, dim);
-    for (let y = 0; y < size; y++) {
-      const row = rows[y] || "";
-      for (let x = 0; x < size; x++) {
-        const code = row[x];
-        if (!code || code === ".") continue;
-        const px = Math.round(x * cell);
-        const py = Math.round(y * cell);
-        const pw = Math.round((x + 1) * cell) - px;
-        const ph = Math.round((y + 1) * cell) - py;
-        ctx.fillStyle = palette[code] || "#ccc";
-        ctx.fillRect(px, py, pw, ph);
-      }
-    }
   }
   async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
     try {
@@ -9834,6 +9814,7 @@
   });
   window.addEventListener("resize", onResize);
   setAutoSaveHook(scheduleAutoSave);
+  setGalleryActions({ loadPattern, setAppMode, onModalOpened, restoreModalFocus, uiRenderUI: renderUI });
   setUIActions({
     getCollection: () => collection,
     updateCollection: (nextCollection) => {
