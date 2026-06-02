@@ -292,7 +292,7 @@ export function applyImportedPattern(decoded, name = "导入图纸") {
   return imported;
 }
 
-async function requestCloudShareForPattern(pattern, options = {}) {
+export async function requestCloudShareForPattern(pattern, options = {}) {
   const patternCode = encodePatternCode(pattern);
   return requestShareApi("/api/share/create", { name: pattern.name, patternCode }, options);
 }
