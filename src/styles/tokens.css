@@ -17,6 +17,10 @@
   --brand: var(--mint);
   --brand-ink: #1f6153;
   --brand-edge: #3f988b;
+  /* Primary CTA: lighter mint-teal. Top #3D9C8C ≈ 3.3:1 with white, bottom #389586 ≈ 3.6:1.
+     Note: ~3.3:1 meets WCAG large-text (3:1), not normal-text AA (4.5) — chosen for a brighter look. */
+  --brand-cta: #3D9C8C;
+  --brand-cta-strong: #389586;
 
   /* —— Surfaces (converged neutrals) —— */
   --surface: #ffffff;

@@ -1,0 +1,13 @@
+{
+  "envId": "beam-prod-d7g2xz88ee6532631",
+  "functionRoot": "cloudbase",
+  "functions": [
+    {
+      "name": "share-api",
+      "memorySize": 256,
+      "timeout": 30,
+      "runtime": "Nodejs18.15",
+      "installDependency": true
+    }
+  ]
+}

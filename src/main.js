@@ -57,6 +57,7 @@ import {
   setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
   renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
 } from './ui.js';
+import { escapeHtml } from './utils.js';
 
 
 
@@ -64,6 +65,7 @@ import {
   let collection = readCollection();
   let galleryItems = [];
   let galleryLoaded = false;
+  let galleryError = false;
   state.achievements = readAchievements();
   let lastFrame = performance.now();
 
@@ -79,8 +81,8 @@ import {
     lastCellKey: "",
     view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
     recentColors: [],
-    undoGrid: null,
-    undoActive: false,
+    undoStack: [],
+    undoStrokeSnapshotTaken: false,
     shapeDrag: null,
     shapeDragEnd: null,
   };
@@ -88,7 +90,13 @@ import {
   const drawPointers = {};
   let drawGesture = null;
   let drawRenderKey = "";
-  const shareApiBase = String(window.BEAM_SHARE_API_BASE || "").replace(/\/+$/, "");
+  const IRON_DEFAULT_TEMPERATURE = 62;
+  const IRON_DEFAULT_PRESSURE = 56;
+  function readShareApiBase() {
+    const metaBase = document.querySelector('meta[name="beam-share-api-base"]')?.content || window.BEAM_SHARE_API_BASE || "";
+    return String(metaBase).replace(/\/+$/, "");
+  }
+  const shareApiBase = readShareApiBase();
   const cloudShortIdPattern = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}$/;
   const sharedCustomPatternNotes = [
     { text: "这张图可以直接开拼", weight: 30 },
@@ -140,15 +148,6 @@ import {
       width: normalizeDrawDimension(widthValue, fallbackWidth),
       height: normalizeDrawDimension(heightValue, fallbackHeight),
     };
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
   }
 
   function stableHash(text) {
@@ -261,7 +260,18 @@ import {
     els.galleryGrid.innerHTML = "";
     const items = Array.isArray(galleryItems) ? galleryItems : [];
     els.galleryEmpty.hidden = items.length > 0;
-    els.galleryEmpty.textContent = galleryLoaded ? "画廊还没有发布图纸。" : "正在读取画廊...";
+    if (items.length === 0) {
+      const galleryIcon = '<svg class="gallery-empty-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h.01"/><path d="m3 16 4.5-4.5a2 2 0 0 1 2.8 0L14 15"/><path d="m13 14 1.5-1.5a2 2 0 0 1 2.8 0L21 16"/></svg>';
+      if (!galleryLoaded) {
+        els.galleryEmpty.innerHTML = `<p class="gallery-empty-text">正在读取画廊…</p>`;
+      } else if (galleryError) {
+        els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">画廊读取失败</p><button type="button" class="ghost-button" data-gallery-retry>点此重试</button>`;
+        els.galleryEmpty.querySelector("[data-gallery-retry]")?.addEventListener("click", () => { void loadGallery(); });
+      } else {
+        els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">画廊还没有公开图纸</p><p class="gallery-empty-sub">来当第一个投稿的人吧</p><button type="button" class="primary-button" data-gallery-submit>投稿图纸</button>`;
+        els.galleryEmpty.querySelector("[data-gallery-submit]")?.addEventListener("click", () => openGallerySubmitModal());
+      }
+    }
     items.forEach((item) => {
       let pattern = null;
       try {
@@ -308,10 +318,12 @@ import {
     try {
       const data = await requestGalleryApi("/api/gallery/list", { limit: 48 });
       galleryItems = Array.isArray(data?.items) ? data.items : [];
+      galleryError = false;
       galleryLoaded = true;
       renderGallery();
     } catch {
       galleryLoaded = true;
+      galleryError = true;
       galleryItems = [];
       renderGallery();
       if (!silent) showToast("画廊读取失败，请稍后再试。");
@@ -690,8 +702,9 @@ import {
     drawState.height = height;
     drawState.size = Math.max(width, height);
     drawState.grid = createDrawGrid(width, height);
-    drawState.undoGrid = null;
-    drawState.undoActive = false;
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     resetDrawView();
     setDrawSizeControlValue(width, height);
     drawState.lastCellKey = "";
@@ -751,14 +764,17 @@ import {
     if (restoreSelectValue) setDrawSizeControlValue(drawWidth(), drawHeight());
   }
 
+  let drawCodeMode = "import";
   function openDrawCodeModal(mode, value = "") {
     if (!els.drawCodeModal) return;
+    drawCodeMode = mode;
     const isExport = mode === "export";
+    const isBead = mode === "import-bead";
     if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "导出图纸" : "导入图纸";
     if (els.drawCodeHint) {
       els.drawCodeHint.textContent = isExport
         ? "已生成图纸短码或图纸码，可直接复制分享。"
-        : "粘贴图纸码或短码，然后导入到绘图台。";
+        : (isBead ? "粘贴图纸码或短码，导入到拼豆台。" : "粘贴图纸码或短码，然后导入到绘图台。");
     }
     if (els.drawCodeInput) {
       els.drawCodeInput.value = value;
@@ -848,8 +864,9 @@ import {
     }
     setDrawSizeControlValue(drawState.width, drawState.height);
     drawState.lastCellKey = "";
-    drawState.undoGrid = null;
-    drawState.undoActive = false;
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     resetDrawView();
     ensureDrawPaletteColor();
     renderDrawStudio();
@@ -905,22 +922,26 @@ import {
     return changed;
   }
 
+  const DRAW_UNDO_LIMIT = 40;
+
+  function updateUndoButton() {
+    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
+  }
+
+  // Push the pre-edit grid onto the undo stack once an action is confirmed to change state.
   function saveUndoSnapshot() {
-    drawState.undoGrid = [...drawState.grid];
-    drawState.undoActive = false;
-    if (els.drawUndoButton) els.drawUndoButton.disabled = false;
-    if (els.drawUndoButton) els.drawUndoButton.classList.remove("active");
+    drawState.undoStack.push([...drawState.grid]);
+    if (drawState.undoStack.length > DRAW_UNDO_LIMIT) drawState.undoStack.shift();
+    updateUndoButton();
   }
 
   function doUndo() {
-    if (!drawState.undoGrid) return;
-    const tmp = [...drawState.grid];
-    drawState.grid = drawState.undoGrid;
-    drawState.undoGrid = tmp;
-    drawState.undoActive = !drawState.undoActive;
+    if (!drawState.undoStack.length) return;
+    drawState.grid = drawState.undoStack.pop();
     drawState.lastCellKey = "";
+    drawState.undoStrokeSnapshotTaken = false;
     drawCanvasPaint();
-    if (els.drawUndoButton) els.drawUndoButton.classList.toggle("active", drawState.undoActive);
+    updateUndoButton();
   }
 
   function getShapeCells(sx, sy, ex, ey) {
@@ -954,7 +975,14 @@ import {
     const key = `${x},${y}`;
     if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
     drawState.lastCellKey = key;
-    if (drawState.tool === "eraser") return paintDrawCell(x, y, ".");
+    if (drawState.tool === "eraser") {
+      if (drawState.grid[drawIndex(x, y)] === ".") return false;
+      if (!drawState.undoStrokeSnapshotTaken) {
+        saveUndoSnapshot();
+        drawState.undoStrokeSnapshotTaken = true;
+      }
+      return paintDrawCell(x, y, ".");
+    }
     if (drawState.tool === "picker") {
       const pick = drawState.grid[drawIndex(x, y)];
       if (pick && pick !== "." && pick !== drawState.selectedColor) {
@@ -965,10 +993,18 @@ import {
       return false;
     }
     if (drawState.tool === "fill") {
+      const start = drawState.grid[drawIndex(x, y)];
+      if (start === drawState.selectedColor) return false;
       saveUndoSnapshot();
+      drawState.undoStrokeSnapshotTaken = true;
       const result = floodFillDraw(x, y, drawState.selectedColor);
       if (result && recordRecentColor(drawState.selectedColor)) { drawRenderKey = ""; renderDrawPalette(); }
       return result;
+    }
+    if (drawState.grid[drawIndex(x, y)] === drawState.selectedColor) return false;
+    if (!drawState.undoStrokeSnapshotTaken) {
+      saveUndoSnapshot();
+      drawState.undoStrokeSnapshotTaken = true;
     }
     const result = paintDrawCell(x, y, drawState.selectedColor);
     if (result && recordRecentColor(drawState.selectedColor)) { drawRenderKey = ""; renderDrawPalette(); }
@@ -1105,7 +1141,7 @@ import {
         ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`
         : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`;
     }
-    if (els.drawUndoButton) els.drawUndoButton.disabled = !drawState.undoGrid;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
   }
 
   function renderDrawStudio() {
@@ -1176,10 +1212,28 @@ import {
     markDirty();
   }
 
+  // Keep only the active screen exposed to assistive tech / the doc outline,
+  // so the per-screen <h1>s don't stack up as multiple level-1 headings (A3).
+  function applyScreenAria() {
+    const mode = state.appMode;
+    const beadActive = mode === "bead";
+    [
+      [els.startScreen, mode === "home"],
+      [els.galleryScreen, mode === "gallery"],
+      [els.collectionScreen, mode === "collection"],
+      [els.drawingStudio, mode === "draw"],
+      [document.querySelector(".bead-topbar"), beadActive],
+      [els.studioGrid, beadActive],
+    ].forEach(([el, active]) => {
+      if (el) el.setAttribute("aria-hidden", active ? "false" : "true");
+    });
+  }
+
   function setAppMode(mode) {
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
+    applyScreenAria();
     if (state.appMode === "bead") {
       state.uiDirty = true;
       state.previewDirty = true;
@@ -1198,7 +1252,7 @@ import {
     }
     if (state.appMode === "collection") {
       state.collectionPageOpen = true;
-      renderCollection();
+      uiRenderCollection();
     }
   }
 
@@ -1444,6 +1498,8 @@ import {
     if (phase !== "choose" && state.remapModalOpen) closeRemapModal();
     if (phase === "inspect") runInspection();
     if (phase === "iron") {
+      state.temperature = IRON_DEFAULT_TEMPERATURE;
+      state.pressure = IRON_DEFAULT_PRESSURE;
       state.showHints = false;
     }
     if (phase === "cool" && state.cooling < 12) {
@@ -1458,9 +1514,6 @@ import {
     markDirty();
   }
 
-  function prefersReducedMotion() {
-    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-  }
 
   function schedulePhaseViewportReset() {
     state.pendingPageReset = true;
@@ -1523,8 +1576,6 @@ import {
       tweezerBead: state.tweezerBead,
       needleLoaded: state.needleLoaded,
       errors: state.errors,
-      temperature: state.temperature,
-      pressure: state.pressure,
       warp: state.warp,
       cooling: state.cooling,
       spill: state.spill
@@ -1564,8 +1615,6 @@ import {
       state.tweezerBead = session.tweezerBead || null;
       state.needleLoaded = ~~session.needleLoaded;
       state.errors = session.errors || [];
-      state.temperature = session.temperature || 62;
-      state.pressure = session.pressure || 56;
       state.warp = session.warp || 18;
       state.cooling = session.cooling || 0;
       state.spill = session.spill || null;
@@ -1634,248 +1683,6 @@ import {
     openRemapModal(sourceCode);
   }
 
-  function renderUI() {
-    if (els.studioGrid) els.studioGrid.dataset.phase = state.phase;
-    if (state.patternsDirty) {
-      renderPatterns();
-      state.patternsDirty = false;
-    }
-    renderPhases();
-    renderCurrentPatternChip();
-    renderControls();
-    renderToolRack();
-    renderPalette();
-    renderCustomStats();
-    renderPatternColorStats();
-    renderSidebarReference();
-    const counts = getTargetCounts();
-    const colorCount = Object.keys(counts).length;
-    els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
-    els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
-    els.collectionCount.textContent = String(collection.length);
-    if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
-    if (state.phase === "inspect") {
-      els.colorMeta.textContent = "检查辅助";
-    } else {
-      els.colorMeta.textContent = beadLabel(state.selectedColor);
-    }
-    if (els.rightPanelTitle) {
-      els.rightPanelTitle.textContent = state.phase === "inspect" ? "检查台" : "豆盒";
-    }
-    if (els.sandboxButton) {
-      const beakerIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L5 19a1.6 1.6 0 0 0 1.4 2.4h11.2A1.6 1.6 0 0 0 19 19l-5-9.5V3"/><path d="M7.5 14h9"/></svg>';
-      const loupeIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>';
-      els.sandboxButton.innerHTML = state.sandboxMode ? beakerIcon : loupeIcon;
-      els.sandboxButton.title = state.sandboxMode ? "沙盒：开（自由拼摆不校验）" : "沙盒：自由拼摆不校验";
-      els.sandboxButton.setAttribute("aria-label", state.sandboxMode ? "沙盒模式：开" : "沙盒模式：关");
-      els.sandboxButton.classList.toggle("active", state.sandboxMode);
-    }
-    if (els.chooseStartButton) els.chooseStartButton.hidden = state.phase !== "choose";
-    if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
-    if (els.topToolStyleSelect) {
-      if (!els.topToolStyleSelect.options.length) {
-        const options = Object.entries(toolStyles)
-          .map(([id, style]) => `<option value="${id}">${style.name}</option>`)
-          .join("");
-        els.topToolStyleSelect.innerHTML = options;
-      }
-      els.topToolStyleSelect.value = state.toolStyle;
-    }
-    const toolStyleField = els.topToolStyleSelect?.closest(".tool-style-picker");
-    if (toolStyleField) toolStyleField.style.display = useMobileDirectPlacement() ? "none" : "";
-    els.statusLine.textContent = statusText();
-    const showPlacementUi = state.phase === "place";
-    const showToolUi = showPlacementUi && !useMobileDirectPlacement();
-    if (!showPlacementUi) {
-      state.lastPlaceHintKey = "";
-      hidePlaceHint();
-    }
-    const showRightPanelUi = state.phase === "place" || state.phase === "inspect";
-    if (els.toolRack) els.toolRack.style.display = showToolUi ? "" : "none";
-    if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
-    if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
-    if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
-    if (state.remapModalOpen) renderRemapModal();
-  }
-
-  let patternColorStatsRenderKey = "";
-  function renderPatternColorStats() {
-    if (!els.patternColorStats) return;
-    const sourceCounts = getSourceCounts();
-    const map = state.patternColorMap || {};
-    const activeCodes = new Set(allColorCodes());
-    const items = Object.entries(sourceCounts)
-      .map(([sourceCode, count]) => {
-        const targetCode = activeCodes.has(map[sourceCode]) ? map[sourceCode] : sourceCode;
-        return { sourceCode, targetCode, count };
-      })
-      .sort((a, b) => b.count - a.count || (beadIds[a.targetCode] || a.targetCode).localeCompare(beadIds[b.targetCode] || b.targetCode, "zh-Hans-CN", { numeric: true }))
-      .slice(0, 10);
-    const key = items.map((item) => `${item.sourceCode}:${item.targetCode}:${item.count}`).join("|");
-    if (key === patternColorStatsRenderKey) return;
-    patternColorStatsRenderKey = key;
-    els.patternColorStats.innerHTML = items.map((item) => {
-      return `
-      <button type="button" class="pattern-color-chip" data-source-code="${item.sourceCode}" title="点击换色：${beadIds[item.targetCode] || item.targetCode}" aria-label="换色 ${beadIds[item.targetCode] || item.targetCode}">
-        <span class="dot" style="background:${palette[item.targetCode]}"></span>
-        <span class="code">${beadIds[item.targetCode] || item.targetCode}</span>
-        <span class="count">${item.count}</span>
-      </button>
-    `;
-    }).join("");
-  }
-
-  let sidebarReferenceRenderKey = "";
-  function renderSidebarReference() {
-    if (!els.sideReference || !sideReferenceCanvas || !sideReferenceCtx) return;
-    const visible = state.phase !== "choose";
-    els.sideReference.hidden = !visible;
-    if (!visible) {
-      sidebarReferenceRenderKey = "hidden";
-      return;
-    }
-
-    const pattern = state.selectedPattern;
-    const size = pattern.size;
-    const ctx = sideReferenceCtx;
-    const rect = sideReferenceCanvas.getBoundingClientRect();
-    const cssW = Math.max(1, Math.round(rect.width || 300));
-    const cssH = Math.max(1, Math.round(rect.height || cssW));
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const pixelW = Math.max(1, Math.round(cssW * dpr));
-    const pixelH = Math.max(1, Math.round(cssH * dpr));
-    const effective = getEffectivePatternResult(pattern);
-    const key = `${baseIdFor(pattern)}:${effective.key}:${cssW}x${cssH}:${dpr}`;
-    if (key === sidebarReferenceRenderKey) return;
-    sidebarReferenceRenderKey = key;
-    if (sideReferenceCanvas.width !== pixelW || sideReferenceCanvas.height !== pixelH) {
-      sideReferenceCanvas.width = pixelW;
-      sideReferenceCanvas.height = pixelH;
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, pixelW, pixelH);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const w = cssW;
-    const h = cssH;
-    const cell = Math.max(2, Math.floor(Math.min((w - 24) / size, (h - 24) / size)));
-    const gridSize = cell * size;
-    const x0 = Math.floor((w - gridSize) / 2);
-    const y0 = Math.floor((h - gridSize) / 2);
-    const rows = effective.rows;
-
-    ctx.fillStyle = "#f7f9fc";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x0 - 6, y0 - 6, gridSize + 12, gridSize + 12);
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        ctx.strokeStyle = "rgba(100, 109, 126, 0.16)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x0 + x * cell, y0 + y * cell, cell, cell);
-        const code = rows[y]?.[x] || ".";
-        if (code === ".") continue;
-        ctx.fillStyle = palette[code];
-        ctx.fillRect(x0 + x * cell + 0.5, y0 + y * cell + 0.5, Math.max(1, cell - 1), Math.max(1, cell - 1));
-      }
-    }
-    ctx.strokeStyle = "rgba(79, 92, 116, 0.32)";
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(x0 - 6, y0 - 6, gridSize + 12, gridSize + 12);
-
-    if (els.sideReferenceMeta) {
-      els.sideReferenceMeta.textContent = `${pattern.name} · ${size}x${size}`;
-    }
-    if (els.sideReferenceLegend) {
-      const counts = getTargetCounts(pattern);
-      const list = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1] || (beadIds[a[0]] || a[0]).localeCompare(beadIds[b[0]] || b[0], "zh-Hans-CN", { numeric: true }))
-        .slice(0, 8);
-      els.sideReferenceLegend.innerHTML = list.map(([code, count]) => `
-        <span class="side-reference-chip">
-          <i style="background:${palette[code]}"></i>
-          <b>${beadIds[code] || code}</b>
-          <em>${count}</em>
-        </span>
-      `).join("");
-    }
-  }
-
-  function clearHiddenPreviewSources(silent = false) {
-    const pattern = state.selectedPattern;
-    const patternId = baseIdFor(pattern);
-    const hidden = getPatternHiddenSourceList();
-    if (!hidden.length) return false;
-    state.patternHiddenSources[patternId] = [];
-    if (isCustomFromImagePattern(pattern)) {
-      delete state.customHiddenRecalcCache[patternId];
-      delete state.customHiddenRecalcPending[patternId];
-      delete state.customHiddenRecalcQueued[patternId];
-    }
-    invalidateEffectiveMap();
-    state.previewDirty = true;
-    const available = getPatternColors();
-    if (!available.includes(state.selectedColor)) state.selectedColor = available[0] || state.selectedColor;
-    if (!silent) showToast("已恢复所有隐藏颜色。");
-    markDirty();
-    return true;
-  }
-
-  function handlePatternColorChipToggle(event) {
-    const button = event.target.closest(".pattern-color-chip[data-source-code]");
-    if (!button) return;
-    const sourceCode = button.getAttribute("data-source-code");
-    if (!sourceCode) return;
-    openRemapModal(sourceCode);
-  }
-
-  function renderPatterns() {
-    els.patternList.innerHTML = "";
-    const customPattern = findCustomPattern();
-
-    const importRow = document.createElement("div");
-    importRow.className = "pattern-import-row";
-
-    const imgBtn = document.createElement("button");
-    imgBtn.type = "button";
-    imgBtn.className = `pattern-import-half${customPattern && state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
-    imgBtn.textContent = "导入图片";
-    imgBtn.addEventListener("click", () => els.customImageInput?.click());
-
-    const codeBtn = document.createElement("button");
-    codeBtn.type = "button";
-    codeBtn.className = "pattern-import-half";
-    codeBtn.textContent = "导入短码";
-    codeBtn.addEventListener("click", async () => {
-      const raw = window.prompt("请粘贴图纸短码：");
-      if (!raw) return;
-      await importPatternCode(raw);
-    });
-
-    importRow.appendChild(imgBtn);
-    importRow.appendChild(codeBtn);
-    els.patternList.appendChild(importRow);
-
-    patterns.forEach((pattern) => {
-      const isCustom = pattern.id.startsWith("custom-");
-      const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
-      const safePatternName = escapeHtml(pattern.name);
-      const button = document.createElement("button");
-      button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
-      button.type = "button";
-      button.innerHTML = `
-        <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-        <span><strong>${safePatternName}</strong><span>${displayPattern.size}x${displayPattern.size}</span></span>
-      `;
-      button.addEventListener("click", () => {
-        loadPattern(isCustom ? pattern : resizePattern(pattern, state.patternSize), state.phase !== "choose");
-        if (state.phase !== "choose") setPhase("place");
-        showToast(`已换成 ${pattern.name}`);
-      });
-      els.patternList.appendChild(button);
-      drawPatternThumb(button.querySelector("canvas"), displayPattern);
-    });
-  }
-
   function drawPatternThumb(canvas, pattern) {
     // Render at the real device resolution so the small bitmap is never blurrily
     // upscaled (which would leave light halos / seams between cells on HiDPI screens).
@@ -1907,25 +1714,6 @@ import {
       }
     }
   }
-
-  function drawCustomPatternPlaceholder(canvas) {
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#f3f6fa";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "rgba(128, 140, 156, 0.46)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(6.5, 6.5, canvas.width - 13, canvas.height - 13);
-    ctx.strokeStyle = "rgba(102, 116, 134, 0.72)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 18);
-    ctx.lineTo(canvas.width / 2, canvas.height - 18);
-    ctx.moveTo(18, canvas.height / 2);
-    ctx.lineTo(canvas.width - 18, canvas.height / 2);
-    ctx.stroke();
-  }
-
 
   async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
     try {
@@ -2027,85 +1815,6 @@ import {
 
 
 
-  function renderPhases() {
-    if (!els.workflowProgress) return;
-    const activeIndex = phases.findIndex((phase) => phase.id === state.phase);
-    els.workflowProgress.innerHTML = "";
-    phases.forEach((phase, index) => {
-      if (index > 0) {
-        const sep = document.createElement("span");
-        sep.className = "workflow-sep";
-        sep.setAttribute("aria-hidden", "true");
-        els.workflowProgress.appendChild(sep);
-      }
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = `workflow-step${index === activeIndex ? " active" : ""}${index < activeIndex ? " done" : ""}`;
-      item.setAttribute("aria-label", `${index + 1} ${phase.name}`);
-      item.innerHTML = `<span class="step-dot">${index + 1}</span><span>${phase.name}</span>`;
-      item.disabled = index >= activeIndex;
-      item.addEventListener("click", () => {
-        if (index >= activeIndex) return;
-        const target = phase.id;
-        if (target === "choose") {
-          if (
-            (placedCount() > 0 || state.fusedPieces.length > 0) &&
-            !window.confirm("回到选图会离开当前作品的进度，确定吗？")
-          ) {
-            return;
-          }
-          setPhase("choose");
-          return;
-        }
-        const losesFused =
-          state.fusedPieces.length > 0 &&
-          (target === "place" || target === "inspect" || target === "iron");
-        if (losesFused && !window.confirm("回退到该步会清除已熨烫/冷却的结果，确定吗？")) {
-          return;
-        }
-        setPhase(target);
-      });
-      els.workflowProgress.appendChild(item);
-    });
-    if (state.pendingWorkflowScroll) {
-      state.pendingWorkflowScroll = false;
-      scrollActiveWorkflowStep();
-    }
-    if (state.pendingPageReset) {
-      state.pendingPageReset = false;
-      resetPhaseViewport();
-    }
-  }
-
-  function scrollActiveWorkflowStep() {
-    const activeStep = els.workflowProgress?.querySelector(".workflow-step.active");
-    if (!activeStep) return;
-    window.requestAnimationFrame(() => {
-      activeStep.scrollIntoView({
-        block: "nearest",
-        inline: "center",
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
-      });
-    });
-  }
-
-  function renderCurrentPatternChip() {
-    if (!els.currentPatternChip) return;
-    const visible = state.phase !== "choose";
-    els.currentPatternChip.dataset.visible = visible ? "true" : "false";
-    if (!visible) return;
-    if (els.currentPatternName) els.currentPatternName.textContent = state.selectedPattern.name;
-    if (els.currentPatternMeta) {
-      const counts = getTargetCounts();
-      const colorCount = Object.keys(counts).length;
-      els.currentPatternMeta.textContent = `${state.selectedPattern.size}×${state.selectedPattern.size} · ${getTargetTotal()}颗 · ${colorCount}色`;
-    }
-    if (els.currentPatternThumb) {
-      drawPatternThumb(els.currentPatternThumb, state.selectedPattern);
-    }
-  }
-
-
   // --- Modal focus management (a11y): trap focus and restore on close ---
   function getOpenModalEl() {
     if (state.remapModalOpen) return els.remapModal;
@@ -2144,7 +1853,7 @@ import {
     if (!els.collectionScreen) return;
     state.collectionPageOpen = true;
     setAppMode("collection");
-    renderCollection();
+    uiRenderCollection();
   }
 
   function closeCollectionPage() {
@@ -2210,173 +1919,9 @@ import {
       state.warp = clamp(state.warp + 8, 0, 80);
       showToast("你选择直接熨烫，倒下的豆子已经糊在一起。");
     }
+    state.temperature = IRON_DEFAULT_TEMPERATURE;
+    state.pressure = IRON_DEFAULT_PRESSURE;
     setPhase("iron");
-  }
-
-  function renderControls() {
-    els.stageControls.innerHTML = "";
-    els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "工具台";
-    els.toolMeta.textContent = state.phase === "place" && !useMobileDirectPlacement()
-      ? (state.tool === "needle"
-        ? "豆针"
-        : `镊子${state.tweezerBead ? ` · ${beadIds[state.tweezerBead]}` : " · 空夹"}`)
-      : "";
-
-    if (state.phase === "choose") {
-      return;
-    }
-
-    if (state.phase === "place") {
-      const placeHintText = state.spill
-        ? "有一颗豆子倒下来卡住了。你可以先继续摆放，熨烫前记得处理。"
-        : (useMobileDirectPlacement()
-          ? "从豆盒选颜色，点格子放置或替换；同色再点一次会取下。"
-          : (state.tool === "needle"
-          ? `点击豆盒倒豆进筛；点豆筛某条槽给豆针上豆（最多 ${needleCapacity()} 颗）。`
-          : (state.tweezerBead ? `镊子正夹着 ${beadLabel(state.tweezerBead)}，点击空格放下。` : "镊子可从豆筛点取一颗，或从板面夹起一颗再放下。")));
-      const placeHintKey = state.spill
-        ? `spill:${state.spill.index}:${state.spill.code}`
-        : (useMobileDirectPlacement()
-          ? `mobile:${state.selectedColor}`
-          : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`);
-      showPlaceHint(placeHintText, placeHintKey);
-      addControlRow([
-        ["检查作品", "primary-button", () => setPhase("inspect")],
-        ["清空板面", "danger-button", () => clearBoard()],
-      ]);      return;
-    }
-
-    if (state.phase === "inspect") {
-      const summary = inspectionSummary();
-      addHint(state.sandboxMode
-        ? "沙盒模式不做漏放/错色校验，可直接进入熨烫。"
-        : `漏放 ${summary.missing}，错色 ${summary.wrong}，多放 ${summary.extra}。`);
-      if (state.spill) {
-        addHint("还有倒下的豆子没夹起。继续熨烫会把这颗豆糊在板面上。");
-      }
-      const hintsOn = state.showHints;
-      addControlRow([
-        ["", `icon-pill ${hintsOn ? "active" : ""}`, () => {
-          state.showHints = !state.showHints;
-          markDirty();
-        }, false, {
-          icon: hintsOn
-            ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
-            : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
-          ariaLabel: hintsOn ? "隐藏提示" : "显示提示",
-          title: hintsOn ? "隐藏提示" : "显示提示",
-        }],
-        ["", "icon-pill", () => setPhase("place"), false, {
-          icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
-          ariaLabel: "返回修正",
-          title: "返回修正",
-        }],
-      ], "control-row-icons");
-      if (state.spill) {
-        addControlRow([
-          ["先去夹起", "", () => setPhase("place")],
-          ["仍然熨烫", "danger-button", () => startIroning(true)],
-        ]);
-      } else {
-        addButton("盖纸熨烫", "primary-button", () => startIroning(false), !state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72);
-      }
-      if (!state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72) {
-        addHint("误差较多，建议先修正再熨烫。");
-      }      return;
-    }
-
-    if (state.phase === "iron") {
-      addHint("按住并移动熨斗。慢、热、重会增加粘连，也更容易糊孔和变形。");
-      addSlider("温度", "temperature", 35, 90, state.temperature, (value) => {
-        state.temperature = Number(value);
-      });
-      addSlider("压力", "pressure", 25, 90, state.pressure, (value) => {
-        state.pressure = Number(value);
-      });
-      addControlRow([
-        ["查看检查", "", () => setPhase("inspect")],
-        ["进入冷却", "primary-button", () => setPhase("cool")],
-      ]);      return;
-    }
-
-    if (state.phase === "cool") {
-      addHint("冷却过程中压平可以减少翘曲。温度稳定后就能取下作品。");
-      addControlRow([
-        ["压平", "", () => pressFlat()],
-        ["翻面再熨", "", () => flipAndIron(), state.flipCount >= 1],
-      ]);
-      addButton("完成收藏", "primary-button", () => completeWork());
-      if (state.cooling < 78) addHint("提前取下也能完成，但冷却不足会影响最终评级。");      return;
-    }
-
-    if (state.phase === "finish") {
-      if (state.conceptEaster) {
-        const full = state.conceptEasterType === "full";
-        addHint(full ? "满板彩蛋已解锁。" : "空板彩蛋已解锁。");
-        addHint(`隐藏成就：${full ? fullBoardAchievement : conceptAchievement}`);
-        addControlRow([
-          ["保存作品", "primary-button", () => saveCurrentWork()],
-          ["再做一张", "", () => {
-            loadPattern(state.selectedPattern);
-            setPhase("choose");
-          }],
-        ]);
-        addButton("分享小红书", "", () => openShareModal());        return;
-      }
-      addCraftToggle();
-      addHint(`评级 ${finalGrade()}。可以换一种成品形式后再次保存。`);
-      addControlRow([
-        ["保存作品", "primary-button", () => saveCurrentWork()],
-        ["再做一张", "", () => {
-          loadPattern(state.selectedPattern);
-          setPhase("choose");
-        }],
-      ]);
-      addButton("分享小红书", "", () => openShareModal());    }
-  }
-
-  function addButton(label, className, handler, disabled = false) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.className = className || "";
-    button.disabled = disabled;
-    button.addEventListener("click", handler);
-    els.stageControls.appendChild(button);
-  }
-
-  function addControlRow(items, extraClass = "") {
-    const row = document.createElement("div");
-    row.className = `control-row ${extraClass}`.trim();
-    items.forEach((entry) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      const [label, className, handler, disabled, options] = entry;
-      const opts = options || {};
-      if (opts.icon && label) {
-        button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${opts.icon}</span><span class="btn-label">${label}</span>`;
-        button.classList.add("icon-text-button");
-      } else if (opts.icon) {
-        button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${opts.icon}</span>`;
-        button.classList.add("icon-only-button");
-      } else {
-        button.textContent = label;
-      }
-      if (opts.title) button.title = opts.title;
-      if (opts.ariaLabel) button.setAttribute("aria-label", opts.ariaLabel);
-      button.className = `${button.className} ${className || ""}`.trim();
-      button.disabled = Boolean(disabled);
-      button.addEventListener("click", handler);
-      row.appendChild(button);
-    });
-    els.stageControls.appendChild(row);
-  }
-
-  function addHint(text) {
-    const box = document.createElement("div");
-    box.className = "hint-box";
-    box.textContent = text;
-    els.stageControls.appendChild(box);
   }
 
   function openRemapModal(focusSource = null) {
@@ -2475,462 +2020,6 @@ import {
       });
       card.appendChild(swatchGrid);
       els.remapModalBody.appendChild(card);
-    });
-  }
-
-  function addToolToggle() {
-    const wrap = document.createElement("div");
-    wrap.className = "tool-toggle";
-    [
-      ["needle", "针工具"],
-      ["tweezers", "镊子"],
-    ].forEach(([tool, label]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.className = state.tool === tool ? "active" : "";
-      button.addEventListener("click", () => {
-        state.tool = tool;
-        markDirty();
-      });
-      wrap.appendChild(button);
-    });
-    els.stageControls.appendChild(wrap);
-  }
-
-  function addSlider(label, key, min, max, value, onChange) {
-    const field = document.createElement("div");
-    field.className = "slider-field";
-    field.innerHTML = `<label><span>${label}</span><strong>${value}</strong></label>`;
-    const input = document.createElement("input");
-    input.type = "range";
-    input.min = min;
-    input.max = max;
-    input.value = value;
-    input.addEventListener("input", () => {
-      onChange(input.value);
-      field.querySelector("strong").textContent = input.value;
-    });
-    field.appendChild(input);
-    els.stageControls.appendChild(field);
-  }
-
-  function addCraftToggle() {
-    const wrap = document.createElement("div");
-    wrap.className = "craft-toggle";
-    craftOptions.forEach((craft) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = craft;
-      button.className = state.craft === craft ? "active" : "";
-      button.addEventListener("click", () => {
-        state.craft = craft;
-        state.savedCurrent = false;
-        markDirty();
-      });
-      wrap.appendChild(button);
-    });
-    els.stageControls.appendChild(wrap);
-  }
-
-  function renderToolRack() {
-    if (!els.toolRack) return;
-    if (state.phase !== "place" || useMobileDirectPlacement()) {
-      els.toolRack.innerHTML = "";
-      return;
-    }
-    const trayLabel = state.trayColor ? beadIds[state.trayColor] : "空";
-    const needleCap = needleCapacity();
-    const needleSlots = Array.from({ length: needleCap }, (_, i) => i < state.needleLoaded ? state.trayColor : null);
-    const tweezerSlots = [state.tweezerBead];
-    const needleFoot = state.trayColor
-      ? `豆筛 ${trayLabel} · 剩余 ${state.trayBeans}`
-      : "先倒入一种颜色，再从豆筛取豆";
-    const needleFootText = state.spill ? "先用镊子夹起卡住豆" : needleFoot;
-    const tweezerFoot = state.tweezerBead
-      ? `夹着 ${beadIds[state.tweezerBead]}`
-      : `从豆盒夹一颗 ${beadIds[state.selectedColor]}`;
-    els.toolRack.innerHTML = `
-      <button type="button" class="tool-card${state.tool === "needle" ? " active" : ""}" data-tool="needle">
-        <div class="tool-head"><span>豆针</span></div>
-        ${renderBeadStrip(needleSlots)}
-        <div class="tool-foot">${needleFootText}</div>
-      </button>
-      <button type="button" class="tool-card${state.tool === "tweezers" ? " active" : ""}" data-tool="tweezers">
-        <div class="tool-head"><span>镊子</span><span class="tool-count">${state.tweezerBead ? "1/1" : "0/1"}</span></div>
-        ${renderBeadStrip(tweezerSlots)}
-        <div class="tool-foot">${tweezerFoot}</div>
-      </button>
-    `;
-    els.toolRack.querySelectorAll("[data-tool]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const tool = button.getAttribute("data-tool");
-        if (!tool || state.tool === tool) return;
-        state.tool = tool;
-        markDirty();
-      });
-    });
-  }
-
-  function renderBeadStrip(codes) {
-    return `
-      <div class="bead-strip" style="grid-template-columns: repeat(${Math.max(1, codes.length)}, minmax(0, 1fr));">
-        ${codes.map((code) => `
-          <span class="bead-slot${code ? " loaded" : ""}" style="${code ? `background:${palette[code]};` : ""}"></span>
-        `).join("")}
-      </div>
-    `;
-  }
-
-  let paletteRenderKey = "";
-  function renderPalette() {
-    if (state.phase === "inspect") {
-      els.colorPalette.classList.add("inspect-mode");
-      renderInspectAssistPanel();
-      paletteRenderKey = "inspect";
-      return;
-    }
-    els.colorPalette.classList.remove("inspect-mode");
-    if (state.phase !== "place") {
-      if (paletteRenderKey !== `phase:${state.phase}`) {
-        els.colorPalette.innerHTML = "";
-        paletteRenderKey = `phase:${state.phase}`;
-      }
-      return;
-    }
-    const counts = getTargetCounts();
-    const placedCounts = getPlacedCounts();
-    const codes = allColorCodes();
-    const key = [
-      "place",
-      state.selectedColor,
-      state.tweezerBead || "",
-      state.placedVersion,
-      getPatternAnalysis().key,
-      useMobileDirectPlacement() ? "mobile" : "desktop",
-    ].join(":");
-    if (key === paletteRenderKey) return;
-    paletteRenderKey = key;
-    els.colorPalette.innerHTML = "";
-    codes.forEach((code) => {
-      const placed = placedCounts[code] || 0;
-      const needed = counts[code] || 0;
-      const inPattern = needed > 0;
-      const remaining = Math.max(0, needed - placed);
-      const isSelected = state.selectedColor === code;
-      const button = document.createElement("button");
-      const isHeld = !useMobileDirectPlacement() && state.tweezerBead === code;
-      button.className = `color-chip${isSelected ? " active" : ""}${inPattern ? " needed" : ""}${isHeld ? " held" : ""}`;
-      button.type = "button";
-      button.title = `${beadLabel(code)}：${placed}/${needed}`;
-      const isTransparent = beadIds[code] === "H1";
-      button.innerHTML = `
-        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
-        <span class="chip-label">${beadIds[code] || code}</span>
-        ${inPattern && isSelected ? `<span class="chip-count">${remaining}</span>` : ""}
-      `;
-      button.addEventListener("click", () => {
-        state.selectedColor = code;
-        if (state.phase === "place" && !useMobileDirectPlacement()) pourSelectedColor();
-        markDirty();
-      });
-      els.colorPalette.appendChild(button);
-    });
-  }
-
-  function updateSelectedPaletteCount() {
-    if (!els.colorPalette || state.phase !== "place") return;
-    const chip = els.colorPalette.querySelector(".color-chip.active");
-    if (!chip) return;
-    const counts = getTargetCounts();
-    const placedCounts = getPlacedCounts();
-    const placed = placedCounts[state.selectedColor] || 0;
-    const needed = counts[state.selectedColor] || 0;
-    const remaining = Math.max(0, needed - placed);
-    chip.title = `${beadLabel(state.selectedColor)}：${placed}/${needed}`;
-    const count = chip.querySelector(".chip-count");
-    if (count) count.textContent = String(remaining);
-  }
-
-  function renderInspectAssistPanel() {
-    if (!els.colorPalette) return;
-    if (!els.colorPalette.querySelector(".inspect-assist")) {
-      els.colorPalette.innerHTML = `
-        <div class="inspect-assist">
-          <section class="inspect-card">
-            <div class="inspect-card-head">
-              <strong>局部放大镜</strong>
-              <span>查看当前孔位与邻域</span>
-            </div>
-            <canvas class="inspect-canvas inspect-zoom" width="360" height="212" aria-label="局部放大镜"></canvas>
-          </section>
-          <section class="inspect-card">
-            <div class="inspect-card-head">
-              <strong>烫完预览图</strong>
-              <span>融合轮廓预估</span>
-            </div>
-            <canvas class="inspect-canvas inspect-fuse" width="360" height="212" aria-label="烫完预览图"></canvas>
-          </section>
-        </div>
-      `;
-    }
-    updateInspectAssistCanvases();
-  }
-
-
-  function renderSharePanel() {
-    els.sharePanel.innerHTML = "";
-    const safePatternName = escapeHtml(state.selectedPattern.name);
-    const card = document.createElement("div");
-    card.className = "share-card";
-    card.innerHTML = `
-      <strong>${safePatternName}</strong>
-      <span>${normalizeCraft(state.selectedPattern.craft)} · 评级 ${state.phase === "finish" ? finalGrade() : scoreLabel()} · ${placedCount()}/${getTargetTotal()} 颗</span>
-    `;
-    els.sharePanel.appendChild(card);
-
-    const row = document.createElement("div");
-    row.className = "control-row";
-    [
-      ["导出竖图", () => exportShareImage("portrait")],
-      ["导出方图", () => exportShareImage("square")],
-    ].forEach(([label, handler]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = label;
-      button.addEventListener("click", handler);
-      row.appendChild(button);
-    });
-    els.sharePanel.appendChild(row);
-    addShareButton("复制文案", () => copyShareText());
-  }
-
-  function addShareButton(label, handler) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.addEventListener("click", handler);
-    els.sharePanel.appendChild(button);
-  }
-
-  function renderCustomStats() {
-    const stats = state.selectedPattern.conversionStats;
-    if (!stats) {
-      els.customStats.classList.add("is-empty");
-      els.customStats.innerHTML = "";
-      return;
-    }
-    els.customStats.classList.remove("is-empty");
-    const list = stats.colors.slice(0, 8).map((item) => `${beadIds[item.code]} ${item.count}`).join(" · ");
-    els.customStats.innerHTML = `
-      <strong>${stats.size}x${stats.size} · ${stats.total}颗 · ${stats.colors.length}色</strong>
-      <span>源图估计 ${stats.sourceSignificantCount} 色 · 聚类 ${stats.simplifiedColorCount} 色 · 清理前 ${stats.preCleanupColorCount} 色</span>
-      <span>${stats.denoised ? "已启用轻度降噪" : "保留像素边缘（未降噪）"}</span>
-      <span>${list}${stats.colors.length > 8 ? " · ..." : ""}</span>
-    `;
-  }
-
-  function renderCollection() {
-    if (!els.collectionPanel) return;
-    els.collectionPanel.innerHTML = "";
-    if (!collection.length) {
-      const empty = document.createElement("div");
-      empty.className = "empty-state";
-      empty.textContent = "还没有完成品";
-      els.collectionPanel.appendChild(empty);
-      return;
-    }
-    const toolbar = document.createElement("div");
-    toolbar.className = "collection-toolbar";
-    toolbar.innerHTML = `
-      <span class="collection-toolbar-count">共 ${collection.length} 件</span>
-      <button type="button" class="danger-button collection-clear-all">清空作品集</button>
-    `;
-    toolbar.querySelector(".collection-clear-all").addEventListener("click", () => {
-      if (!collection.length) return;
-      if (!window.confirm("确定清空所有作品？此操作不可撤销。")) return;
-      collection = [];
-      writeCollection(collection);
-      renderCollection();
-      showToast("作品集已清空。");
-    });
-    els.collectionPanel.appendChild(toolbar);
-
-    const grid = document.createElement("div");
-    grid.className = "collection-grid";
-    els.collectionPanel.appendChild(grid);
-
-    collection.forEach((item) => {
-      const safeItemName = escapeHtml(item.name);
-      const tile = document.createElement("div");
-      tile.className = "collection-tile";
-      const thumbSize = 168;
-      tile.innerHTML = `
-        <button type="button" class="collection-tile-body" aria-label="放大 ${safeItemName}">
-          <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
-          <div class="collection-tile-meta">
-            <strong>${safeItemName}</strong>
-            <span>${normalizeCraft(item.craft)} · 评级 ${item.grade} · ${item.date}</span>
-          </div>
-        </button>
-        <button type="button" class="collection-tile-delete" aria-label="删除这件作品" title="删除">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      `;
-      tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
-      tile.querySelector(".collection-tile-delete").addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (!window.confirm(`删除 ${item.name}？`)) return;
-        collection = collection.filter((entry) => entry.id !== item.id);
-        writeCollection(collection);
-        renderCollection();
-        showToast("已删除。");
-      });
-      grid.appendChild(tile);
-      const canvas = tile.querySelector("canvas");
-      drawCollectionThumb(canvas, item);
-    });
-  }
-
-  function drawCollectionThumb(canvas, item) {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    setupHiDpiCanvas(canvas, ctx);
-    const rect = canvas.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    ctx.clearRect(0, 0, w, h);
-    // Soft paper-ish background.
-    ctx.fillStyle = "#f3f5f8";
-    ctx.fillRect(0, 0, w, h);
-
-    const size = item.size || state.selectedPattern.size || 16;
-    const placed = item.placed || [];
-    const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
-    const pad = 10;
-    const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
-    const gridSize = cell * size;
-    const x0 = Math.floor((w - gridSize) / 2);
-    const y0 = Math.floor((h - gridSize) / 2);
-
-    // Per-cell helpers — render as if just ironed: rounded-square bead shapes
-    // with neighbor-aware corners so it matches the in-game fused look.
-    const cellCode = (x, y) => {
-      if (x < 0 || y < 0 || x >= size || y >= size) return null;
-      if (placed.length) {
-        const c = placed[y * size + x];
-        return c && c !== "." ? c : null;
-      }
-      if (fallback) {
-        const c = (fallback.rows[y] || "")[x];
-        return c && c !== "." ? c : null;
-      }
-      return null;
-    };
-
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const code = cellCode(x, y);
-        if (!code) continue;
-        const px = x0 + x * cell;
-        const py = y0 + y * cell;
-        const cx = px + cell / 2;
-        const cy = py + cell / 2;
-        const edges = {
-          left: !cellCode(x - 1, y),
-          right: !cellCode(x + 1, y),
-          up: !cellCode(x, y - 1),
-          down: !cellCode(x, y + 1),
-        };
-        const halfConnected = cell * 0.5;
-        const halfExposed = cell * 0.6;
-        const halfL = edges.left ? halfExposed : halfConnected;
-        const halfR = edges.right ? halfExposed : halfConnected;
-        const halfU = edges.up ? halfExposed : halfConnected;
-        const halfD = edges.down ? halfExposed : halfConnected;
-        const cornerFor = (a, b, hA, hB) => {
-          const cap = Math.min(hA, hB);
-          if (a && b) return cap;
-          if (a || b) return cap * 0.55;
-          return cap * 0.08;
-        };
-        const rTL = cornerFor(edges.up, edges.left, halfU, halfL);
-        const rTR = cornerFor(edges.up, edges.right, halfU, halfR);
-        const rBR = cornerFor(edges.down, edges.right, halfD, halfR);
-        const rBL = cornerFor(edges.down, edges.left, halfD, halfL);
-        const left = cx - halfL;
-        const right = cx + halfR;
-        const top = cy - halfU;
-        const bottom = cy + halfD;
-
-        const path = () => {
-          ctx.beginPath();
-          ctx.moveTo(left + rTL, top);
-          ctx.lineTo(right - rTR, top);
-          ctx.arcTo(right, top, right, top + rTR, rTR);
-          ctx.lineTo(right, bottom - rBR);
-          ctx.arcTo(right, bottom, right - rBR, bottom, rBR);
-          ctx.lineTo(left + rBL, bottom);
-          ctx.arcTo(left, bottom, left, bottom - rBL, rBL);
-          ctx.lineTo(left, top + rTL);
-          ctx.arcTo(left, top, left + rTL, top, rTL);
-          ctx.closePath();
-        };
-
-        ctx.fillStyle = palette[code] || "#bbb";
-        path();
-        ctx.fill();
-
-        // Subtle highlight on isolated edge sides
-        ctx.fillStyle = "rgba(255,255,255,0.16)";
-        ctx.beginPath();
-        ctx.arc(cx - cell * 0.18, cy - cell * 0.18, cell * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Center hole hint for fully exposed (isolated) beads only
-        const exposedCount = (edges.left ? 1 : 0) + (edges.right ? 1 : 0) + (edges.up ? 1 : 0) + (edges.down ? 1 : 0);
-        if (exposedCount >= 3 && cell >= 8) {
-          ctx.fillStyle = "rgba(0,0,0,0.18)";
-          ctx.beginPath();
-          ctx.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-  }
-
-  function enlargeCollectionEntry(entry) {
-    if (!els.collectionScreen) return;
-    let viewer = els.collectionScreen.querySelector(".collection-enlarged");
-    if (!viewer) {
-      viewer = document.createElement("div");
-      viewer.className = "collection-enlarged";
-      viewer.innerHTML = `
-        <button type="button" class="collection-enlarged-close" aria-label="关闭放大">×</button>
-        <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
-        <div class="collection-enlarged-meta"></div>
-        <div class="collection-enlarged-actions">
-          <button type="button" class="primary-button collection-enlarged-open">打开这张图纸</button>
-        </div>
-      `;
-      els.collectionScreen.appendChild(viewer);
-      viewer.querySelector(".collection-enlarged-close").addEventListener("click", () => {
-        viewer.classList.remove("show");
-      });
-    }
-    viewer.classList.add("show");
-    const canvas = viewer.querySelector("canvas");
-    canvas.style.width = "min(640px, 78vh)";
-    canvas.style.height = "min(640px, 78vh)";
-    requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
-    viewer.querySelector(".collection-enlarged-meta").textContent =
-      `${entry.name} · ${normalizeCraft(entry.craft)} · 评级 ${entry.grade} · ${entry.date}`;
-    const openBtn = viewer.querySelector(".collection-enlarged-open");
-    const newBtn = openBtn.cloneNode(true);
-    openBtn.replaceWith(newBtn);
-    newBtn.addEventListener("click", () => {
-      viewer.classList.remove("show");
-      openCollectionEntry(entry);
     });
   }
 
@@ -3945,8 +3034,9 @@ import {
     drawState.size = Math.max(newWidth, newHeight);
     drawState.grid = resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol);
     drawState.lastCellKey = "";
-    drawState.undoGrid = null;
-    drawState.undoActive = false;
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     setDrawSizeControlValue(newWidth, newHeight);
     closeDrawResizeModal(false);
     renderDrawStudio();
@@ -3984,6 +3074,9 @@ import {
     ensureDrawGrid();
     drawState.grid = createDrawGrid(drawWidth(), drawHeight());
     drawState.lastCellKey = "";
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
     drawCanvasPaint();
     showToast("绘图已清空。");
   });
@@ -4042,6 +3135,11 @@ import {
   });
   els.drawCodeImportConfirmBtn?.addEventListener("click", async () => {
     const raw = els.drawCodeInput?.value || "";
+    if (drawCodeMode === "import-bead") {
+      const ok = await importPatternCode(raw);
+      if (ok) closeDrawCodeModal();
+      return;
+    }
     const extracted = extractPatternCode(raw);
     const shortId = extractCloudShortId(raw);
     if (!extracted && !shortId) {
@@ -4092,13 +3190,13 @@ import {
       } else if (drawState.tool === "shape") {
         const cell = drawCellFromPointer(event);
         if (cell) {
-          saveUndoSnapshot();
+          drawState.undoStrokeSnapshotTaken = false;
           drawState.shapeDrag = { x: cell.x, y: cell.y };
           drawState.shapeDragEnd = { x: cell.x, y: cell.y };
           drawState.drawing = true;
         }
       } else {
-        if (drawState.tool === "brush" || drawState.tool === "eraser") saveUndoSnapshot();
+        drawState.undoStrokeSnapshotTaken = false;
         drawState.drawing = true;
         drawState.lastCellKey = "";
         handleDrawPointer(event);
@@ -4137,9 +3235,11 @@ import {
             drawState.shapeDragEnd.x, drawState.shapeDragEnd.y
           );
           const code = drawState.selectedColor;
-          let changed = false;
-          for (const [cx, cy] of cells) changed = paintDrawCell(cx, cy, code) || changed;
-          if (changed) {
+          const shouldSaveUndo = cells.some(([cx, cy]) => drawState.grid[drawIndex(cx, cy)] !== code);
+          if (shouldSaveUndo) saveUndoSnapshot();
+          let painted = false;
+          for (const [cx, cy] of cells) painted = paintDrawCell(cx, cy, code) || painted;
+          if (painted) {
             recordRecentColor(code);
             drawRenderKey = "";
             renderDrawPalette();
@@ -4150,6 +3250,7 @@ import {
         }
         drawState.drawing = false;
         drawState.lastCellKey = "";
+        drawState.undoStrokeSnapshotTaken = false;
       }
     };
     els.drawCanvas.addEventListener("pointerup", endDrawPointer);
@@ -4249,7 +3350,7 @@ import {
   els.collectionBackButton?.addEventListener("click", () => closeCollectionPage());
   els.collectionSettingsButton?.addEventListener("click", () => openSettingsModal());
   els.collectionRefreshButton?.addEventListener("click", () => {
-    renderCollection();
+    uiRenderCollection();
   });
   els.shareModalClose?.addEventListener("click", () => closeShareModal());
   els.shareModal?.addEventListener("click", (event) => {
@@ -4368,6 +3469,7 @@ import {
     copyShareText,
     createCloudShare,
     importPatternCode,
+    openImportCodeModal: () => openDrawCodeModal("import-bead"),
     submitCurrentToGallery,
   });
   validatePatterns();

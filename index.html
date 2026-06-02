@@ -10,6 +10,24 @@
     />
     <meta name="theme-color" content="#eef2f4" />
     <meta name="color-scheme" content="light" />
+    <style>
+      :root {
+        --bg-home-image: url("images/backgrounds/home.png");
+        --bg-select-image: url("images/backgrounds/select-pattern.png");
+        --bg-place-image: url("images/backgrounds/place.png");
+        --bg-inspect-image: url("images/backgrounds/inspect.png");
+        --bg-iron-image: url("images/backgrounds/iron.png");
+        --bg-cool-image: url("images/backgrounds/cool.png");
+        --bg-gallery-image: url("images/backgrounds/gallery.png");
+        --bg-collection-image: url("images/backgrounds/gallery.png");
+        --bg-draw-image: url("images/backgrounds/draw-studio.png");
+      }
+    </style>
+    <meta name="beam-share-api-base" content="https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; manifest-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com https://beam-prod-d7g2xz88ee6532631-1438742199.tcloudbaseapp.com https://fonts.googleapis.com https://fonts.gstatic.com;"
+    />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="manifest" href="manifest.json" />
 
@@ -637,9 +655,6 @@
     <!-- 打包产物：由 `npm run build`（或 `npm run watch`）从 src/main.js 生成。
          用普通脚本（非 module）以便直接双击 index.html（file://）也能运行。
          开发时只改 src/ 下的源码即可，watch 会自动重建此文件。 -->
-    <script>
-      window.BEAM_SHARE_API_BASE = "https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com";
-    </script>
     <script defer src="app.bundle.js"></script>
   </body>
 </html>

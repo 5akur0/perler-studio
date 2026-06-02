@@ -17,6 +17,8 @@
   --brand: var(--mint);
   --brand-ink: #1f6153;
   --brand-edge: #3f988b;
+  --brand-cta: #3D9C8C;
+  --brand-cta-strong: #389586;
   --surface: #ffffff;
   --surface-2: #f6f8fc;
   --surface-3: #edf2f5;
@@ -119,7 +121,12 @@ button:active {
   transform: translateY(0.5px) scale(0.995);
   box-shadow: none;
 }
-button:focus-visible {
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--brand) 72%, transparent);
   outline-offset: 2px;
 }
@@ -772,6 +779,11 @@ body[data-app-mode=collection] .gallery-screen {
   font-weight: 750;
   outline: none;
 }
+.bg-picker:focus-within,
+.tool-style-picker:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--brand) 72%, transparent);
+  outline-offset: 2px;
+}
 .ghost-button {
   padding: 0 14px;
 }
@@ -782,17 +794,19 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .sandbox-sticker {
   min-height: 44px;
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  display: grid;
-  place-items: center;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   color: #4a5160;
   background: #fff;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 750;
+}
+.sandbox-sticker .sandbox-state {
+  line-height: 1;
 }
 .sandbox-sticker.active {
   border-color: var(--brand-edge);
@@ -806,6 +820,60 @@ body[data-app-mode=collection] .gallery-screen {
   gap: 16px;
   margin-top: 16px;
   align-items: stretch;
+}
+.bead-studio-grid {
+  background-color: var(--surface-2);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.bead-studio-grid[data-phase=iron] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.16)),
+    var(--bg-iron-image, none);
+}
+.bead-studio-grid[data-phase=cool] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.16)),
+    var(--bg-cool-image, none);
+}
+.bead-studio-grid[data-phase=finish] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0.14)),
+    var(--bg-gallery-image, none);
+}
+.bead-studio-grid[data-phase=choose] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0.14)),
+    var(--bg-select-image, none);
+}
+.bead-studio-grid[data-phase=place] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0.14)),
+    var(--bg-place-image, none);
+}
+.bead-studio-grid[data-phase=inspect] {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0.14)),
+    var(--bg-inspect-image, none);
 }
 .bead-studio-grid[data-phase=choose] [data-stage=working] {
   display: none;
@@ -1317,22 +1385,22 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .primary-button {
   color: #fff;
-  border-color: #3f988b;
+  border-color: #2f8473;
   background:
     linear-gradient(
       180deg,
-      #66c6b5,
-      var(--mint));
-  box-shadow: var(--sh-inset), 0 6px 16px rgba(87, 184, 167, 0.28);
+      var(--brand-cta),
+      var(--brand-cta-strong));
+  box-shadow: var(--sh-inset), 0 6px 16px rgba(56, 149, 134, 0.28);
 }
 .primary-button:hover {
-  border-color: #3f988b;
+  border-color: #2a7567;
   background:
     linear-gradient(
       180deg,
-      #6ecdbc,
-      #54b3a2);
-  box-shadow: var(--sh-inset), 0 10px 22px rgba(87, 184, 167, 0.32);
+      #37907f,
+      #2f8174);
+  box-shadow: var(--sh-inset), 0 10px 22px rgba(56, 149, 134, 0.32);
 }
 .danger-button {
   color: #fff;

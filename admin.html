@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>拼豆工坊 · 画廊审核</title>
+    <meta name="beam-share-api-base" content="https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com https://beam-prod-d7g2xz88ee6532631-1438742199.tcloudbaseapp.com https://fonts.googleapis.com https://fonts.gstatic.com;"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="admin-page">
@@ -20,125 +25,6 @@
       <section id="grid" class="grid"></section>
     </main>
 
-    <script>
-      window.BEAM_SHARE_API_BASE = "https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com";
-    </script>
-    <script type="module">
-      import { decodePatternCode } from "./src/pattern-code.js";
-      import { palette, beadIds } from "./src/palette.js";
-
-      const apiBase = String(window.BEAM_SHARE_API_BASE || "").replace(/\/+$/, "");
-      const tokenInput = document.querySelector("#adminToken");
-      const loadButton = document.querySelector("#loadButton");
-      const statusEl = document.querySelector("#status");
-      const grid = document.querySelector("#grid");
-
-      function setStatus(text) {
-        statusEl.textContent = text;
-      }
-
-      async function request(path, payload = {}) {
-        const response = await fetch(`${apiBase}${path}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...payload, adminToken: tokenInput.value.trim() }),
-        });
-        const json = await response.json().catch(() => null);
-        if (!response.ok || !json?.ok) {
-          throw new Error(json?.error?.message || "Request failed.");
-        }
-        return json.data;
-      }
-
-      function drawPattern(canvas, pattern) {
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const rect = canvas.getBoundingClientRect();
-        const dim = Math.max(180, Math.round((rect.width || 240) * dpr));
-        canvas.width = dim;
-        canvas.height = dim;
-        const ctx = canvas.getContext("2d");
-        const cell = dim / pattern.size;
-        ctx.fillStyle = "#f6f8fc";
-        ctx.fillRect(0, 0, dim, dim);
-        pattern.rows.forEach((row, y) => {
-          Array.from(row).forEach((code, x) => {
-            if (code === ".") return;
-            ctx.fillStyle = palette[code] || "#bbb";
-            ctx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell), Math.ceil(cell));
-          });
-        });
-      }
-
-      function safeText(value, fallback = "") {
-        return String(value || fallback).replace(/[<>&"']/g, "");
-      }
-
-      function render(items) {
-        grid.innerHTML = "";
-        if (!items.length) {
-          setStatus("没有待审核投稿。");
-          return;
-        }
-        setStatus(`共 ${items.length} 条待审核。`);
-        items.forEach((item) => {
-          let pattern;
-          try {
-            pattern = decodePatternCode(item.patternCode, { name: item.name });
-          } catch {
-            pattern = null;
-          }
-          const card = document.createElement("article");
-          card.className = "card";
-          card.innerHTML = `
-            <canvas aria-label="图纸预览"></canvas>
-            <div class="meta">
-              <strong>${safeText(item.name, "投稿图纸")}</strong>
-              <span>${safeText(item.author, "匿名投稿")} · ${safeText(item.size)}x${safeText(item.size)}</span>
-              <span>${safeText(item.createdAt)}</span>
-            </div>
-            <div class="actions">
-              <button class="primary" type="button" data-action="approve">通过</button>
-              <button class="danger" type="button" data-action="reject">拒绝</button>
-            </div>
-          `;
-          const canvas = card.querySelector("canvas");
-          if (pattern) drawPattern(canvas, pattern);
-          card.querySelectorAll("button[data-action]").forEach((button) => {
-            button.addEventListener("click", async () => {
-              const action = button.dataset.action;
-              card.querySelectorAll("button").forEach((btn) => { btn.disabled = true; });
-              try {
-                await request(`/api/gallery/${action}`, { id: item.id });
-                card.remove();
-                setStatus(action === "approve" ? "已通过。" : "已拒绝。");
-              } catch (error) {
-                card.querySelectorAll("button").forEach((btn) => { btn.disabled = false; });
-                setStatus(error.message || "操作失败。");
-              }
-            });
-          });
-          grid.appendChild(card);
-        });
-      }
-
-      async function loadPending() {
-        if (!tokenInput.value.trim()) {
-          setStatus("请先输入 ADMIN_TOKEN。");
-          return;
-        }
-        setStatus("正在读取...");
-        loadButton.disabled = true;
-        try {
-          const data = await request("/api/gallery/pending", { limit: 96 });
-          render(Array.isArray(data.items) ? data.items : []);
-        } catch (error) {
-          setStatus(error.message || "读取失败。");
-        } finally {
-          loadButton.disabled = false;
-        }
-      }
-
-      loadButton.addEventListener("click", loadPending);
-    </script>
+    <script type="module" src="./admin.js"></script>
   </body>
 </html>

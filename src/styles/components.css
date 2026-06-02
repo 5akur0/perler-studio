@@ -417,6 +417,14 @@
   outline: none;
 }
 
+/* The wrapped <select> has its own outline suppressed; surface keyboard focus
+   on the surrounding pill instead so the focus ring stays visible (A4). */
+.bg-picker:focus-within,
+.tool-style-picker:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--brand) 72%, transparent);
+  outline-offset: 2px;
+}
+
 .ghost-button {
   padding: 0 14px;
 }
@@ -429,17 +437,20 @@
 
 .sandbox-sticker {
   min-height: 44px;
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  display: grid;
-  place-items: center;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   color: #4a5160;
   background: #fff;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: 750;
+}
+
+.sandbox-sticker .sandbox-state {
+  line-height: 1;
 }
 
 .sandbox-sticker.active {
@@ -455,6 +466,49 @@
   gap: 16px;
   margin-top: 16px;
   align-items: stretch;
+}
+
+.bead-studio-grid {
+  background-color: var(--surface-2);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.bead-studio-grid[data-phase="iron"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
+    var(--bg-iron-image, none);
+}
+
+.bead-studio-grid[data-phase="cool"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
+    var(--bg-cool-image, none);
+}
+
+.bead-studio-grid[data-phase="finish"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+    var(--bg-gallery-image, none);
+}
+
+.bead-studio-grid[data-phase="choose"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+    var(--bg-select-image, none);
+}
+
+.bead-studio-grid[data-phase="place"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+    var(--bg-place-image, none);
+}
+
+.bead-studio-grid[data-phase="inspect"] {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+    var(--bg-inspect-image, none);
 }
 
 .bead-studio-grid[data-phase="choose"] [data-stage="working"] {
@@ -1020,15 +1074,15 @@
 
 .primary-button {
   color: #fff;
-  border-color: #3f988b;
-  background: linear-gradient(180deg, #66c6b5, var(--mint));
-  box-shadow: var(--sh-inset), 0 6px 16px rgba(87, 184, 167, 0.28);
+  border-color: #2f8473;
+  background: linear-gradient(180deg, var(--brand-cta), var(--brand-cta-strong));
+  box-shadow: var(--sh-inset), 0 6px 16px rgba(56, 149, 134, 0.28);
 }
 
 .primary-button:hover {
-  border-color: #3f988b;
-  background: linear-gradient(180deg, #6ecdbc, #54b3a2);
-  box-shadow: var(--sh-inset), 0 10px 22px rgba(87, 184, 167, 0.32);
+  border-color: #2a7567;
+  background: linear-gradient(180deg, #37907f, #2f8174);
+  box-shadow: var(--sh-inset), 0 10px 22px rgba(56, 149, 134, 0.32);
 }
 
 .danger-button {
