@@ -1,3 +1,4 @@
+# ⚠️ 下方 Content-Security-Policy 与 index.html 的 <meta http-equiv> 双写，改一处需同步另一处
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: SAMEORIGIN
