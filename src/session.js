@@ -23,11 +23,13 @@ function hasValidPlacedCells(placed) {
 }
 
 function hasBoardProgress(source) {
+  const placed = source?.placed;
+  const heat = source?.heat;
   return Boolean(
-    hasValidPlacedCells(source.placed) ||
-    source.spill ||
-    (Array.isArray(source.heat) && source.heat.some((value) => Number(value) > 0)) ||
-    source.cooling > 0
+    hasValidPlacedCells(placed) ||
+    normalizeSpill(source?.spill) ||
+    (Array.isArray(heat) && heat.some((value) => Number(value) > 0)) ||
+    source?.cooling > 0
   );
 }
 
@@ -57,10 +59,25 @@ function normalizeHeat(heat, total) {
   return Array.from({ length: total }, (_, index) => Number(heat[index]) || 0);
 }
 
+function normalizeSpill(spill, total = Number.MAX_SAFE_INTEGER) {
+  if (!spill || typeof spill !== "object") return null;
+  const index = Number(spill.index);
+  const code = spill.code;
+  if (!Number.isInteger(index) || index < 0 || index >= total) return null;
+  if (!code || !palette[code]) return null;
+  return {
+    ...spill,
+    index,
+    code,
+  };
+}
+
 function snapshotCustomPattern(pattern) {
   if (!pattern || !baseIdFor(pattern).startsWith("custom-")) return null;
   return {
     kind: "custom-pattern",
+    sourceKind: pattern.sourceImageDataUrl ? "image" : "rows",
+    sourceWasImage: Boolean(pattern.sourceImageDataUrl),
     id: baseIdFor(pattern),
     name: pattern.name,
     size: pattern.size,
@@ -117,6 +134,11 @@ function findStoredPattern(id) {
   return patterns.find((pattern) => pattern.id === storedId || pattern.id === fallbackId) || null;
 }
 
+function isSupportedSessionVersion(version) {
+  if (version === undefined || version === null) return true;
+  return Number.isInteger(version) && version > 0 && version <= sessionVersion;
+}
+
 function captureSession() {
   const patternSize = state.selectedPattern?.size || state.patternSize;
   return {
@@ -171,7 +193,12 @@ export function loadAutoSave() {
     const data = localStorage.getItem(sessionKey);
     if (!data) return false;
     const session = JSON.parse(data);
-    if (!session || !restorablePhases.has(session.phase) || !hasBoardProgress(session)) {
+    if (
+      !session ||
+      !isSupportedSessionVersion(session.version) ||
+      !restorablePhases.has(session.phase) ||
+      !hasBoardProgress(session)
+    ) {
       clearStoredSession();
       return false;
     }
@@ -195,6 +222,7 @@ export function loadAutoSave() {
     state.placed = normalizePlaced(session.placed, total);
     invalidatePlacedCounts();
     state.heat = normalizeHeat(session.heat, total);
+    const spill = normalizeSpill(session.spill, total);
     state.tool = session.tool || "needle";
     state.trayColor = session.trayColor || null;
     state.trayBeans = ~~session.trayBeans;
@@ -204,11 +232,12 @@ export function loadAutoSave() {
     state.errors = session.errors || [];
     state.warp = session.warp || 18;
     state.cooling = session.cooling || 0;
-    state.spill = session.spill || null;
+    state.spill = spill;
 
     sessionActions.setPhase(state.phase);
     return true;
   } catch {
+    clearStoredSession();
     return false;
   }
 }
