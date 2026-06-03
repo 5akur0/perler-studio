@@ -5,7 +5,7 @@ import { patterns, resamplePatternRows, validatePatterns } from './patterns-data
 import {
   phases, backgroundThemes, toolStyles, craftOptions,
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
-  collectionKey, sessionKey, collectionLimit, achievementKey,
+  collectionKey, collectionLimit, achievementKey,
   conceptAchievement, fullBoardAchievement, needleLoadSortThreshold,
 } from './constants.js';
 import {
@@ -68,6 +68,14 @@ import {
   setCustomPatternActions, initCustomPatternEvents, setCustomDenoiseControls,
   recomputeCustomHiddenRowsFromOriginal,
 } from './custom-pattern.js';
+import {
+  setSessionActions, scheduleAutoSave, flushAutoSave, clearAutoSave, loadAutoSave,
+} from './session.js';
+import {
+  setModalActions, getOpenModalEl, focusablesIn, onModalOpened, restoreModalFocus,
+  openShareModal, closeShareModal, openSettingsModal, closeSettingsModal,
+  openRemapModal, closeRemapModal,
+} from './modal-controller.js';
 
 
 
@@ -331,83 +339,6 @@ import {
   }
 
 
-  // --- Auto Save ---
-  let autoSaveTimer = 0;
-
-  function autoSave() {
-    if (state.phase === "choose") {
-      localStorage.removeItem(sessionKey);
-      return;
-    }
-    const session = {
-      phase: state.phase,
-      sandboxMode: state.sandboxMode,
-      selectedPatternId: state.selectedPattern ? state.selectedPattern.id : null,
-      patternColorMaps: state.patternColorMaps,
-      patternSize: state.patternSize,
-      placed: state.placed,
-      heat: state.heat,
-      tool: state.tool,
-      trayColor: state.trayColor,
-      trayBeans: state.trayBeans,
-      trayMatrix: state.trayMatrix,
-      tweezerBead: state.tweezerBead,
-      needleLoaded: state.needleLoaded,
-      errors: state.errors,
-      warp: state.warp,
-      cooling: state.cooling,
-      spill: state.spill
-    };
-    try {
-      localStorage.setItem(sessionKey, JSON.stringify(session));
-    } catch(e) {}
-  }
-
-  function scheduleAutoSave(delay = 550) {
-    window.clearTimeout(autoSaveTimer);
-    autoSaveTimer = window.setTimeout(autoSave, delay);
-  }
-
-  function loadAutoSave() {
-    try {
-      const data = localStorage.getItem(sessionKey);
-      if (!data) return false;
-      const session = JSON.parse(data);
-      if (!session || session.phase === "choose") return false;
-      
-      const pattern = patterns.find(p => p.id === session.selectedPatternId);
-      if (!pattern) return false;
-      
-      state.phase = session.phase;
-      state.sandboxMode = session.sandboxMode;
-      state.selectedPattern = pattern;
-      if (session.patternColorMaps) state.patternColorMaps = session.patternColorMaps;
-      if (session.patternSize) state.patternSize = session.patternSize;
-      state.placed = session.placed || [];
-      invalidatePlacedCounts();
-      state.heat = session.heat || [];
-      state.tool = session.tool || "needle";
-      state.trayColor = session.trayColor || null;
-      state.trayBeans = ~~session.trayBeans;
-      state.trayMatrix = session.trayMatrix || [];
-      state.tweezerBead = session.tweezerBead || null;
-      state.needleLoaded = ~~session.needleLoaded;
-      state.errors = session.errors || [];
-      state.warp = session.warp || 18;
-      state.cooling = session.cooling || 0;
-      state.spill = session.spill || null;
-      
-      // restore transient states
-      if (state.selectedPattern) loadPattern(state.selectedPattern);
-      if (state.phase !== "choose") compileCurrentPattern();
-      syncFusionMatrix();
-      setPhase(state.phase);
-      return true;
-    } catch(e) {
-      return false;
-    }
-  }
-
 
 
   function canDropToFloorAt(x, y) {
@@ -495,40 +426,6 @@ import {
 
 
 
-  // --- Modal focus management (a11y): trap focus and restore on close ---
-  function getOpenModalEl() {
-    if (state.remapModalOpen) return els.remapModal;
-    if (state.settingsModalOpen) return els.settingsModal;
-    if (state.shareModalOpen) return els.shareModal;
-    if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
-    return null;
-  }
-
-  function focusablesIn(modalEl) {
-    if (!modalEl) return [];
-    return [...modalEl.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )].filter((el) => !el.disabled && el.offsetParent !== null && el.getAttribute("aria-hidden") !== "true");
-  }
-
-  function onModalOpened(modalEl) {
-    if (!modalEl) return;
-    const active = document.activeElement;
-    // Remember the real trigger (skip if focus is already inside any modal).
-    if (active && active !== document.body && !active.closest(".remap-modal")) {
-      state.modalReturnFocus = active;
-    }
-    const focusables = focusablesIn(modalEl);
-    if (focusables.length) focusables[0].focus();
-  }
-
-  function restoreModalFocus() {
-    if (getOpenModalEl()) return; // another modal is still open
-    const el = state.modalReturnFocus;
-    state.modalReturnFocus = null;
-    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
-  }
-
   function openCollectionPage() {
     if (!els.collectionScreen) return;
     state.collectionPageOpen = true;
@@ -543,39 +440,6 @@ import {
     if (viewer) viewer.classList.remove("show");
     setAppMode("home");
     requestAnimationFrame(() => els.collectionButton?.focus?.());
-  }
-
-  function openShareModal() {
-    if (!els.shareModal) return;
-    state.shareModalOpen = true;
-    els.shareModal.classList.add("show");
-    els.shareModal.setAttribute("aria-hidden", "false");
-    uiRenderSharePanel();
-    onModalOpened(els.shareModal);
-  }
-
-  function closeShareModal() {
-    if (!els.shareModal) return;
-    state.shareModalOpen = false;
-    els.shareModal.classList.remove("show");
-    els.shareModal.setAttribute("aria-hidden", "true");
-    restoreModalFocus();
-  }
-
-  function openSettingsModal() {
-    if (!els.settingsModal) return;
-    state.settingsModalOpen = true;
-    els.settingsModal.classList.add("show");
-    els.settingsModal.setAttribute("aria-hidden", "false");
-    onModalOpened(els.settingsModal);
-  }
-
-  function closeSettingsModal() {
-    if (!els.settingsModal) return;
-    state.settingsModalOpen = false;
-    els.settingsModal.classList.remove("show");
-    els.settingsModal.setAttribute("aria-hidden", "true");
-    restoreModalFocus();
   }
 
   function startIroning(forceSpill = false) {
@@ -602,27 +466,6 @@ import {
     state.temperature = IRON_DEFAULT_TEMPERATURE;
     state.pressure = IRON_DEFAULT_PRESSURE;
     setPhase("iron");
-  }
-
-  function openRemapModal(focusSource = null) {
-    if (state.phase !== "choose") return;
-    state.remapFocusSource = focusSource || null;
-    state.remapModalOpen = true;
-    if (els.remapModal) {
-      els.remapModal.classList.add("show");
-      els.remapModal.setAttribute("aria-hidden", "false");
-    }
-    renderRemapModal();
-    onModalOpened(els.remapModal);
-  }
-
-  function closeRemapModal() {
-    state.remapModalOpen = false;
-    if (els.remapModal) {
-      els.remapModal.classList.remove("show");
-      els.remapModal.setAttribute("aria-hidden", "true");
-    }
-    restoreModalFocus();
   }
 
   function resetPatternColorMapping() {
@@ -1627,6 +1470,7 @@ import {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
     if (hasProgress && !window.confirm("重置会清空当前所有进度，确定吗？")) return;
     loadPattern(state.selectedPattern);
+    clearAutoSave();
     showToast("已重置当前作品。");
   });
   els.startBeadButton?.addEventListener("click", () => {
@@ -1660,6 +1504,10 @@ import {
   els.beadBackButton?.addEventListener("click", () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
     if (hasProgress && !window.confirm("返回首页将退出当前进度，确定吗？")) return;
+    if (hasProgress) {
+      loadPattern(state.selectedPattern);
+      clearAutoSave();
+    }
     setAppMode("home");
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
@@ -1790,7 +1638,14 @@ import {
 
   window.addEventListener("resize", onResize);
 
-  setAutoSaveHook(scheduleAutoSave);
+  setSessionActions({
+    loadPattern,
+    setPhase,
+  });
+  setModalActions({
+    renderRemapModal,
+    uiRenderSharePanel,
+  });
   setGalleryActions({ loadPattern, setAppMode, onModalOpened, restoreModalFocus, uiRenderUI });
   setDrawActions({
     loadPattern,
@@ -1832,12 +1687,19 @@ import {
     submitCurrentToGallery,
   });
   validatePatterns();
-  setAppMode("home");
   loadPattern(resizePattern(patterns[0], state.patternSize));
   setCustomDenoiseControls(state.customDenoiseLevel);
   applyBackgroundTheme(state.bgTheme);
-  if (!loadAutoSave()) {
+  if (loadAutoSave()) {
+    setAppMode("bead");
+  } else {
+    setAppMode("home");
     setPhase("choose");
   }
+  setAutoSaveHook(scheduleAutoSave);
+  window.addEventListener("pagehide", () => flushAutoSave());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushAutoSave();
+  });
   uiRenderUI();
   requestAnimationFrame(tick);

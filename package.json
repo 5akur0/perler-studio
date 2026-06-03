@@ -8,6 +8,7 @@
     "build:js": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js",
     "build:css": "esbuild src/styles/index.css --bundle --outfile=styles.css",
     "build": "npm run build:js && npm run build:css",
+    "test:session": "node scripts/session-regression.mjs",
     "watch:js": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js --watch",
     "watch:css": "esbuild src/styles/index.css --bundle --outfile=styles.css --watch"
   },
