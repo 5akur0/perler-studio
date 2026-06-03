@@ -8359,10 +8359,13 @@
   }
   function normalizeBoardView(boardView) {
     if (!boardView || typeof boardView !== "object") return { scale: 1, panX: 0, panY: 0 };
+    const scale = Number(boardView.scale);
+    const panX = Number(boardView.panX);
+    const panY = Number(boardView.panY);
     return {
-      scale: Number(boardView.scale) || 1,
-      panX: Number(boardView.panX) || 0,
-      panY: Number(boardView.panY) || 0
+      scale: Number.isFinite(scale) && scale > 0 ? Math.min(scale, 8) : 1,
+      panX: Number.isFinite(panX) ? panX : 0,
+      panY: Number.isFinite(panY) ? panY : 0
     };
   }
   function normalizeToolPose(toolPose) {
@@ -8488,6 +8491,7 @@
       localStorage.setItem(sessionKey, JSON.stringify(captureSession()));
       return true;
     } catch {
+      clearStoredSession();
       return false;
     }
   }
@@ -8524,7 +8528,7 @@
       const restoredPattern = resizePattern(pattern, state.patternSize);
       sessionActions.loadPattern(restoredPattern, true);
       state.phase = session.phase;
-      state.sandboxMode = session.sandboxMode;
+      state.sandboxMode = Boolean(session.sandboxMode);
       state.lampOn = Boolean(session.lampOn);
       state.patternSize = restoredPattern.size;
       const total = restoredPattern.size * restoredPattern.size;
