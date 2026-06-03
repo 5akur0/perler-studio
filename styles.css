@@ -1681,11 +1681,11 @@ body[data-app-mode=collection] .gallery-screen {
   transition: background 0.12s;
 }
 .anchor-cell[aria-pressed=true] {
-  border-color: var(--mint);
-  background: rgba(87, 184, 167, 0.12);
+  border-color: var(--brand);
+  background: var(--brand-tint);
 }
 .anchor-cell[aria-pressed=true]::after {
-  background: var(--mint);
+  background: var(--brand);
 }
 .anchor-cell:hover:not([aria-pressed=true]) {
   border-color: var(--muted);
