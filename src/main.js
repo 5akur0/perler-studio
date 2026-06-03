@@ -101,6 +101,9 @@ import {
     root.style.setProperty("--brand-edge", theme.brandEdge || "#3f988b");
     root.style.setProperty("--brand-tint", theme.brandTint || "rgba(87, 184, 167, 0.16)");
     root.style.setProperty("--brand-tint-strong", theme.brandTintStrong || "rgba(87, 184, 167, 0.25)");
+    root.style.setProperty("--brand-cta", theme.cta?.[0] || "#3D9C8C");
+    root.style.setProperty("--brand-cta-strong", theme.cta?.[1] || "#389586");
+    root.style.setProperty("--bg-scrim", theme.scrim || "rgba(255, 255, 255, 0.16)");
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     markDirty();
   }
