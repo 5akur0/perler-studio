@@ -2515,6 +2515,54 @@ body[data-app-mode=collection] .gallery-screen {
   font-weight: 800;
   line-height: 1;
 }
+.onboarding-modal-card {
+  max-width: 420px;
+}
+.onboarding-lead {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.onboarding-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.onboarding-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.onboarding-step-no {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-xs);
+  font-weight: 750;
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+}
+.onboarding-steps li > span:last-child {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.onboarding-steps strong {
+  display: block;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.onboarding-tip {
+  margin: 16px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
 
 /* src/styles/screens.css */
 .start-screen {

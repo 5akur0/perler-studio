@@ -20,6 +20,7 @@ export const state = {
   collectionModalOpen: false,
   collectionPageOpen: false,
   settingsModalOpen: false,
+  onboardingModalOpen: false,
   shareModalOpen: false,
   gallerySubmitModalOpen: false,
   modalReturnFocus: null,

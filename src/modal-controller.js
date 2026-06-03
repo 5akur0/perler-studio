@@ -1,5 +1,7 @@
 import { state } from './state.js';
 import { els } from './dom.js';
+import { onboardingKey } from './constants.js';
+import { useMobileDirectPlacement } from './render.js';
 
 const modalActions = {
   renderRemapModal: () => {},
@@ -13,6 +15,7 @@ export function setModalActions(actions = {}) {
 export function getOpenModalEl() {
   if (state.remapModalOpen) return els.remapModal;
   if (state.settingsModalOpen) return els.settingsModal;
+  if (state.onboardingModalOpen) return els.onboardingModal;
   if (state.shareModalOpen) return els.shareModal;
   if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
   return null;
@@ -73,6 +76,57 @@ export function closeSettingsModal() {
   els.settingsModal.classList.remove("show");
   els.settingsModal.setAttribute("aria-hidden", "true");
   restoreModalFocus();
+}
+
+function onboardingHtml() {
+  const mobile = useMobileDirectPlacement();
+  const steps = mobile
+    ? [
+        ["选颜色", "点下方豆盒里的色号（只显示本图用到的色）。"],
+        ["放豆", "点拼豆板的格子放下；同色再点一次会取下。"],
+        ["对照", "照着参考图纸，把每个格子填好。"],
+        ["熨烫定型", "检查 → 盖纸熨烫 → 冷却压平 → 保存到作品集。"],
+      ]
+    : [
+        ["选颜色", "点右侧豆盒里的色号，把豆子倒进豆筛。"],
+        ["取豆", "点豆筛给「豆针」上豆铺大面积；或用「镊子」从豆筛/板面夹单颗。"],
+        ["摆放", "在拼豆板对应孔位放下豆子，照着左侧参考图纸拼。"],
+        ["熨烫定型", "检查 → 盖纸熨烫 → 冷却压平 → 保存到作品集。"],
+      ];
+  const lead = mobile ? "在手机上拼豆很简单：" : "在浏览器里完整体验拼豆手作：";
+  const tip = mobile ? "双指可缩放板面。" : "按住板面可拖动，滚轮缩放。";
+  const items = steps
+    .map(([t, d], i) => `<li><span class="onboarding-step-no">${i + 1}</span><span><strong>${t}</strong>${d}</span></li>`)
+    .join("");
+  return `<p class="onboarding-lead">${lead}</p><ol class="onboarding-steps">${items}</ol><p class="onboarding-tip">${tip}</p>`;
+}
+
+export function openOnboardingModal() {
+  if (!els.onboardingModal) return;
+  if (els.onboardingBody) els.onboardingBody.innerHTML = onboardingHtml();
+  state.onboardingModalOpen = true;
+  els.onboardingModal.classList.add("show");
+  els.onboardingModal.setAttribute("aria-hidden", "false");
+  onModalOpened(els.onboardingModal);
+}
+
+export function closeOnboardingModal() {
+  if (!els.onboardingModal) return;
+  state.onboardingModalOpen = false;
+  els.onboardingModal.classList.remove("show");
+  els.onboardingModal.setAttribute("aria-hidden", "true");
+  try { localStorage.setItem(onboardingKey, "seen"); } catch { /* ignore quota */ }
+  restoreModalFocus();
+}
+
+/** Show the onboarding once, the first time the player reaches the place phase (skips sandbox). */
+export function maybeShowOnboarding() {
+  if (state.sandboxMode) return;
+  if (getOpenModalEl()) return;
+  let seen = false;
+  try { seen = localStorage.getItem(onboardingKey) === "seen"; } catch { seen = false; }
+  if (seen) return;
+  openOnboardingModal();
 }
 
 export function openRemapModal(focusSource = null) {

@@ -75,6 +75,7 @@ import {
   setModalActions, getOpenModalEl, focusablesIn, onModalOpened, restoreModalFocus,
   openShareModal, closeShareModal, openSettingsModal, closeSettingsModal,
   openRemapModal, closeRemapModal,
+  openOnboardingModal, closeOnboardingModal, maybeShowOnboarding,
 } from './modal-controller.js';
 
 
@@ -298,6 +299,7 @@ import {
     state.pendingWorkflowScroll = true;
     schedulePhaseViewportReset();
     markDirty();
+    if (phase === "place") maybeShowOnboarding();
   }
 
 
@@ -1540,6 +1542,11 @@ import {
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();
   });
+  els.onboardingDoneBtn?.addEventListener("click", () => closeOnboardingModal());
+  els.onboardingCloseBtn?.addEventListener("click", () => closeOnboardingModal());
+  els.onboardingModal?.addEventListener("click", (event) => {
+    if (event.target === els.onboardingModal) closeOnboardingModal();
+  });
   els.collectionButton?.addEventListener("click", () => {
     openCollectionPage();
   });
@@ -1621,6 +1628,7 @@ import {
     if (state.gallerySubmitModalOpen) { closeGallerySubmitModal(); return; }
     if (els.drawCodeModal?.classList.contains("show")) { closeDrawCodeModal(); return; }
     if (els.drawResizeModal?.classList.contains("show")) { closeDrawResizeModal(true); return; }
+    if (state.onboardingModalOpen) { closeOnboardingModal(); return; }
     if (state.remapModalOpen) closeRemapModal();
     if (state.collectionPageOpen || state.appMode === "collection") { closeCollectionPage(); return; }
     if (state.settingsModalOpen) closeSettingsModal();
