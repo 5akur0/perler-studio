@@ -8301,6 +8301,277 @@
     els.customImageInput?.addEventListener("change", handleCustomImage);
   }
 
+  // src/session.js
+  var sessionVersion = 2;
+  var restorablePhases = /* @__PURE__ */ new Set(["place", "inspect", "iron", "cool", "finish"]);
+  var sessionActions = {
+    loadPattern: () => {
+    },
+    setPhase: () => {
+    }
+  };
+  function setSessionActions(actions = {}) {
+    Object.assign(sessionActions, actions);
+  }
+  var autoSaveTimer = 0;
+  function hasValidPlacedCells(placed) {
+    return Array.isArray(placed) && placed.some((code) => Boolean(code && palette[code]));
+  }
+  function hasBoardProgress(source) {
+    return Boolean(
+      hasValidPlacedCells(source.placed) || source.spill || Array.isArray(source.heat) && source.heat.some((value) => Number(value) > 0) || source.cooling > 0
+    );
+  }
+  function clearStoredSession() {
+    try {
+      localStorage.removeItem(sessionKey);
+    } catch {
+    }
+  }
+  function clearAutoSave() {
+    window.clearTimeout(autoSaveTimer);
+    clearStoredSession();
+  }
+  function normalizePlaced(placed, total) {
+    if (!Array.isArray(placed)) return Array(total).fill(null);
+    return Array.from({ length: total }, (_, index) => {
+      const code = placed[index];
+      return code && palette[code] ? code : null;
+    });
+  }
+  function normalizeHeat(heat, total) {
+    if (!Array.isArray(heat)) return Array(total).fill(0);
+    return Array.from({ length: total }, (_, index) => Number(heat[index]) || 0);
+  }
+  function snapshotCustomPattern(pattern) {
+    if (!pattern || !baseIdFor(pattern).startsWith("custom-")) return null;
+    return {
+      kind: "custom-pattern",
+      id: baseIdFor(pattern),
+      name: pattern.name,
+      size: pattern.size,
+      width: pattern.width,
+      height: pattern.height,
+      craft: pattern.craft,
+      rows: pattern.rows,
+      sourceRows: pattern.sourceRows,
+      sourceSize: pattern.sourceSize,
+      sourceWidth: pattern.sourceWidth,
+      sourceHeight: pattern.sourceHeight,
+      sourceRemoveWhite: pattern.sourceRemoveWhite,
+      sourceDenoiseLevel: pattern.sourceDenoiseLevel,
+      conversionStats: pattern.conversionStats,
+      note: pattern.note
+    };
+  }
+  function normalizeRows(rows, size) {
+    if (!Array.isArray(rows) || rows.length !== size) return null;
+    const normalized = rows.map((row) => String(row || "").slice(0, size).padEnd(size, "."));
+    const valid = normalized.every((row) => row.length === size && [...row].every((code) => code === "." || palette[code]));
+    return valid ? normalized : null;
+  }
+  function restoreCustomPattern(snapshot) {
+    if (!snapshot || !snapshot.size) return null;
+    const size = normalizePatternSize(snapshot.size);
+    const rows = normalizeRows(snapshot.rows, size);
+    if (!rows) return null;
+    const sourceSize = normalizePatternSize(snapshot.sourceSize || size);
+    const sourceRows = normalizeRows(snapshot.sourceRows || rows, sourceSize) || rows;
+    const pattern = {
+      ...snapshot,
+      id: snapshot.id || "custom-session",
+      name: snapshot.name || "\u81EA\u5B9A\u4E49\u56FE\u7EB8",
+      craft: snapshot.craft || "\u539F\u7248",
+      size,
+      rows,
+      sourceRows,
+      sourceSize
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(pattern);
+    state.patternsDirty = true;
+    return pattern;
+  }
+  function findStoredPattern(id) {
+    const storedId = String(id || "");
+    const fallbackId = storedId.replace(/-\d+$/, "");
+    return patterns.find((pattern) => pattern.id === storedId || pattern.id === fallbackId) || null;
+  }
+  function captureSession() {
+    const patternSize = state.selectedPattern?.size || state.patternSize;
+    return {
+      version: sessionVersion,
+      phase: state.phase,
+      sandboxMode: state.sandboxMode,
+      selectedPatternId: state.selectedPattern ? baseIdFor(state.selectedPattern) : null,
+      customPattern: snapshotCustomPattern(state.selectedPattern),
+      patternColorMaps: state.patternColorMaps,
+      patternSize,
+      placed: state.placed,
+      heat: state.heat,
+      tool: state.tool,
+      trayColor: state.trayColor,
+      trayBeans: state.trayBeans,
+      trayMatrix: state.trayMatrix,
+      tweezerBead: state.tweezerBead,
+      needleLoaded: state.needleLoaded,
+      errors: state.errors,
+      warp: state.warp,
+      cooling: state.cooling,
+      spill: state.spill
+    };
+  }
+  function autoSave() {
+    if (state.phase === "choose" || !hasBoardProgress(state)) {
+      clearStoredSession();
+      return false;
+    }
+    try {
+      localStorage.setItem(sessionKey, JSON.stringify(captureSession()));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function scheduleAutoSave(delay = 550) {
+    window.clearTimeout(autoSaveTimer);
+    autoSaveTimer = window.setTimeout(autoSave, delay);
+  }
+  function flushAutoSave() {
+    window.clearTimeout(autoSaveTimer);
+    return autoSave();
+  }
+  function loadAutoSave() {
+    try {
+      const data = localStorage.getItem(sessionKey);
+      if (!data) return false;
+      const session = JSON.parse(data);
+      if (!session || !restorablePhases.has(session.phase) || !hasBoardProgress(session)) {
+        clearStoredSession();
+        return false;
+      }
+      const pattern = restoreCustomPattern(session.customPattern) || findStoredPattern(session.selectedPatternId);
+      if (!pattern) {
+        clearStoredSession();
+        return false;
+      }
+      if (session.patternColorMaps && typeof session.patternColorMaps === "object") state.patternColorMaps = session.patternColorMaps;
+      if (session.patternSize) state.patternSize = normalizePatternSize(session.patternSize);
+      const restoredPattern = resizePattern(pattern, state.patternSize);
+      sessionActions.loadPattern(restoredPattern, true);
+      state.phase = session.phase;
+      state.sandboxMode = session.sandboxMode;
+      state.patternSize = restoredPattern.size;
+      const total = restoredPattern.size * restoredPattern.size;
+      state.placed = normalizePlaced(session.placed, total);
+      invalidatePlacedCounts();
+      state.heat = normalizeHeat(session.heat, total);
+      state.tool = session.tool || "needle";
+      state.trayColor = session.trayColor || null;
+      state.trayBeans = ~~session.trayBeans;
+      state.trayMatrix = session.trayMatrix || [];
+      state.tweezerBead = session.tweezerBead || null;
+      state.needleLoaded = ~~session.needleLoaded;
+      state.errors = session.errors || [];
+      state.warp = session.warp || 18;
+      state.cooling = session.cooling || 0;
+      state.spill = session.spill || null;
+      sessionActions.setPhase(state.phase);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // src/modal-controller.js
+  var modalActions = {
+    renderRemapModal: () => {
+    },
+    uiRenderSharePanel: () => {
+    }
+  };
+  function setModalActions(actions = {}) {
+    Object.assign(modalActions, actions);
+  }
+  function getOpenModalEl() {
+    if (state.remapModalOpen) return els.remapModal;
+    if (state.settingsModalOpen) return els.settingsModal;
+    if (state.shareModalOpen) return els.shareModal;
+    if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
+    return null;
+  }
+  function focusablesIn(modalEl) {
+    if (!modalEl) return [];
+    return [...modalEl.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )].filter((el) => !el.disabled && el.offsetParent !== null && el.getAttribute("aria-hidden") !== "true");
+  }
+  function onModalOpened(modalEl) {
+    if (!modalEl) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && !active.closest(".remap-modal")) {
+      state.modalReturnFocus = active;
+    }
+    const focusables = focusablesIn(modalEl);
+    if (focusables.length) focusables[0].focus();
+  }
+  function restoreModalFocus() {
+    if (getOpenModalEl()) return;
+    const el = state.modalReturnFocus;
+    state.modalReturnFocus = null;
+    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
+  }
+  function openShareModal() {
+    if (!els.shareModal) return;
+    state.shareModalOpen = true;
+    els.shareModal.classList.add("show");
+    els.shareModal.setAttribute("aria-hidden", "false");
+    modalActions.uiRenderSharePanel();
+    onModalOpened(els.shareModal);
+  }
+  function closeShareModal() {
+    if (!els.shareModal) return;
+    state.shareModalOpen = false;
+    els.shareModal.classList.remove("show");
+    els.shareModal.setAttribute("aria-hidden", "true");
+    restoreModalFocus();
+  }
+  function openSettingsModal() {
+    if (!els.settingsModal) return;
+    state.settingsModalOpen = true;
+    els.settingsModal.classList.add("show");
+    els.settingsModal.setAttribute("aria-hidden", "false");
+    onModalOpened(els.settingsModal);
+  }
+  function closeSettingsModal() {
+    if (!els.settingsModal) return;
+    state.settingsModalOpen = false;
+    els.settingsModal.classList.remove("show");
+    els.settingsModal.setAttribute("aria-hidden", "true");
+    restoreModalFocus();
+  }
+  function openRemapModal(focusSource = null) {
+    if (state.phase !== "choose") return;
+    state.remapFocusSource = focusSource || null;
+    state.remapModalOpen = true;
+    if (els.remapModal) {
+      els.remapModal.classList.add("show");
+      els.remapModal.setAttribute("aria-hidden", "false");
+    }
+    modalActions.renderRemapModal();
+    onModalOpened(els.remapModal);
+  }
+  function closeRemapModal() {
+    state.remapModalOpen = false;
+    if (els.remapModal) {
+      els.remapModal.classList.remove("show");
+      els.remapModal.setAttribute("aria-hidden", "true");
+    }
+    restoreModalFocus();
+  }
+
   // src/main.js
   var collection = readCollection();
   state.achievements = readAchievements();
@@ -8483,75 +8754,6 @@
     showToast(state.lampOn ? "\u5DE5\u4F5C\u706F\u5DF2\u6253\u5F00\uFF1A\u6295\u5F71\u8272\u7A3F\u53EF\u89C1\u3002" : "\u5DE5\u4F5C\u706F\u5DF2\u5173\u95ED\uFF1A\u5173\u95ED\u6295\u5F71\u8272\u7A3F\u3002");
     markDirty();
   }
-  var autoSaveTimer = 0;
-  function autoSave() {
-    if (state.phase === "choose") {
-      localStorage.removeItem(sessionKey);
-      return;
-    }
-    const session = {
-      phase: state.phase,
-      sandboxMode: state.sandboxMode,
-      selectedPatternId: state.selectedPattern ? state.selectedPattern.id : null,
-      patternColorMaps: state.patternColorMaps,
-      patternSize: state.patternSize,
-      placed: state.placed,
-      heat: state.heat,
-      tool: state.tool,
-      trayColor: state.trayColor,
-      trayBeans: state.trayBeans,
-      trayMatrix: state.trayMatrix,
-      tweezerBead: state.tweezerBead,
-      needleLoaded: state.needleLoaded,
-      errors: state.errors,
-      warp: state.warp,
-      cooling: state.cooling,
-      spill: state.spill
-    };
-    try {
-      localStorage.setItem(sessionKey, JSON.stringify(session));
-    } catch (e) {
-    }
-  }
-  function scheduleAutoSave(delay = 550) {
-    window.clearTimeout(autoSaveTimer);
-    autoSaveTimer = window.setTimeout(autoSave, delay);
-  }
-  function loadAutoSave() {
-    try {
-      const data = localStorage.getItem(sessionKey);
-      if (!data) return false;
-      const session = JSON.parse(data);
-      if (!session || session.phase === "choose") return false;
-      const pattern = patterns.find((p) => p.id === session.selectedPatternId);
-      if (!pattern) return false;
-      state.phase = session.phase;
-      state.sandboxMode = session.sandboxMode;
-      state.selectedPattern = pattern;
-      if (session.patternColorMaps) state.patternColorMaps = session.patternColorMaps;
-      if (session.patternSize) state.patternSize = session.patternSize;
-      state.placed = session.placed || [];
-      invalidatePlacedCounts();
-      state.heat = session.heat || [];
-      state.tool = session.tool || "needle";
-      state.trayColor = session.trayColor || null;
-      state.trayBeans = ~~session.trayBeans;
-      state.trayMatrix = session.trayMatrix || [];
-      state.tweezerBead = session.tweezerBead || null;
-      state.needleLoaded = ~~session.needleLoaded;
-      state.errors = session.errors || [];
-      state.warp = session.warp || 18;
-      state.cooling = session.cooling || 0;
-      state.spill = session.spill || null;
-      if (state.selectedPattern) loadPattern(state.selectedPattern);
-      if (state.phase !== "choose") compileCurrentPattern();
-      syncFusionMatrix();
-      setPhase(state.phase);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
   function canDropToFloorAt(x, y) {
     if (boardCellFromPoint(x, y)) return false;
     if (shouldShowTray() && pointInTray(x, y)) return false;
@@ -8600,34 +8802,6 @@
     if (sourceCode === ".") return;
     openRemapModal(sourceCode);
   }
-  function getOpenModalEl() {
-    if (state.remapModalOpen) return els.remapModal;
-    if (state.settingsModalOpen) return els.settingsModal;
-    if (state.shareModalOpen) return els.shareModal;
-    if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
-    return null;
-  }
-  function focusablesIn(modalEl) {
-    if (!modalEl) return [];
-    return [...modalEl.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )].filter((el) => !el.disabled && el.offsetParent !== null && el.getAttribute("aria-hidden") !== "true");
-  }
-  function onModalOpened(modalEl) {
-    if (!modalEl) return;
-    const active = document.activeElement;
-    if (active && active !== document.body && !active.closest(".remap-modal")) {
-      state.modalReturnFocus = active;
-    }
-    const focusables = focusablesIn(modalEl);
-    if (focusables.length) focusables[0].focus();
-  }
-  function restoreModalFocus() {
-    if (getOpenModalEl()) return;
-    const el = state.modalReturnFocus;
-    state.modalReturnFocus = null;
-    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
-  }
   function openCollectionPage() {
     if (!els.collectionScreen) return;
     state.collectionPageOpen = true;
@@ -8641,35 +8815,6 @@
     if (viewer) viewer.classList.remove("show");
     setAppMode("home");
     requestAnimationFrame(() => els.collectionButton?.focus?.());
-  }
-  function openShareModal() {
-    if (!els.shareModal) return;
-    state.shareModalOpen = true;
-    els.shareModal.classList.add("show");
-    els.shareModal.setAttribute("aria-hidden", "false");
-    renderSharePanel();
-    onModalOpened(els.shareModal);
-  }
-  function closeShareModal() {
-    if (!els.shareModal) return;
-    state.shareModalOpen = false;
-    els.shareModal.classList.remove("show");
-    els.shareModal.setAttribute("aria-hidden", "true");
-    restoreModalFocus();
-  }
-  function openSettingsModal() {
-    if (!els.settingsModal) return;
-    state.settingsModalOpen = true;
-    els.settingsModal.classList.add("show");
-    els.settingsModal.setAttribute("aria-hidden", "false");
-    onModalOpened(els.settingsModal);
-  }
-  function closeSettingsModal() {
-    if (!els.settingsModal) return;
-    state.settingsModalOpen = false;
-    els.settingsModal.classList.remove("show");
-    els.settingsModal.setAttribute("aria-hidden", "true");
-    restoreModalFocus();
   }
   function startIroning(forceSpill = false) {
     if (placedCount() <= 0) {
@@ -8695,25 +8840,6 @@
     state.temperature = IRON_DEFAULT_TEMPERATURE;
     state.pressure = IRON_DEFAULT_PRESSURE;
     setPhase("iron");
-  }
-  function openRemapModal(focusSource = null) {
-    if (state.phase !== "choose") return;
-    state.remapFocusSource = focusSource || null;
-    state.remapModalOpen = true;
-    if (els.remapModal) {
-      els.remapModal.classList.add("show");
-      els.remapModal.setAttribute("aria-hidden", "false");
-    }
-    renderRemapModal();
-    onModalOpened(els.remapModal);
-  }
-  function closeRemapModal() {
-    state.remapModalOpen = false;
-    if (els.remapModal) {
-      els.remapModal.classList.remove("show");
-      els.remapModal.setAttribute("aria-hidden", "true");
-    }
-    restoreModalFocus();
   }
   function resetPatternColorMapping() {
     const map = state.patternColorMap || {};
@@ -9611,6 +9737,7 @@
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
     if (hasProgress && !window.confirm("\u91CD\u7F6E\u4F1A\u6E05\u7A7A\u5F53\u524D\u6240\u6709\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
     loadPattern(state.selectedPattern);
+    clearAutoSave();
     showToast("\u5DF2\u91CD\u7F6E\u5F53\u524D\u4F5C\u54C1\u3002");
   });
   els.startBeadButton?.addEventListener("click", () => {
@@ -9644,6 +9771,10 @@
   els.beadBackButton?.addEventListener("click", () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
     if (hasProgress && !window.confirm("\u8FD4\u56DE\u9996\u9875\u5C06\u9000\u51FA\u5F53\u524D\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+    if (hasProgress) {
+      loadPattern(state.selectedPattern);
+      clearAutoSave();
+    }
     setAppMode("home");
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
@@ -9843,7 +9974,14 @@
     }
   });
   window.addEventListener("resize", onResize);
-  setAutoSaveHook(scheduleAutoSave);
+  setSessionActions({
+    loadPattern,
+    setPhase
+  });
+  setModalActions({
+    renderRemapModal,
+    uiRenderSharePanel: renderSharePanel
+  });
   setGalleryActions({ loadPattern, setAppMode, onModalOpened, restoreModalFocus, uiRenderUI: renderUI });
   setDrawActions({
     loadPattern,
@@ -9885,13 +10023,20 @@
     submitCurrentToGallery
   });
   validatePatterns();
-  setAppMode("home");
   loadPattern(resizePattern(patterns[0], state.patternSize));
   setCustomDenoiseControls(state.customDenoiseLevel);
   applyBackgroundTheme(state.bgTheme);
-  if (!loadAutoSave()) {
+  if (loadAutoSave()) {
+    setAppMode("bead");
+  } else {
+    setAppMode("home");
     setPhase("choose");
   }
+  setAutoSaveHook(scheduleAutoSave);
+  window.addEventListener("pagehide", () => flushAutoSave());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushAutoSave();
+  });
   renderUI();
   requestAnimationFrame(tick);
 })();

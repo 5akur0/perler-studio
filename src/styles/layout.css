@@ -6,6 +6,10 @@
   padding: 18px;
 }
 
+body[data-app-mode="loading"] .app-shell {
+  visibility: hidden;
+}
+
 body[data-app-mode="home"] .bead-topbar,
 body[data-app-mode="home"] .bead-studio-grid,
 body[data-app-mode="home"] .drawing-studio,
