@@ -1340,6 +1340,7 @@
   var sessionKey = "beadWorkshopSession.v1";
   var collectionLimit = 24;
   var achievementKey = "beadWorkshopAchievements.v1";
+  var onboardingKey = "beadWorkshopOnboarding.v1";
   var conceptAchievement = "\u89C2\u5FF5\u5148\u4E8E\u71A8\u70EB";
   var fullBoardAchievement = "\u6CA1\u6709\u4E00\u4E2A\u5B54\u4F4D\u662F\u65E0\u8F9C\u7684";
   var needleLoadSortThreshold = 70;
@@ -1365,6 +1366,7 @@
     collectionModalOpen: false,
     collectionPageOpen: false,
     settingsModalOpen: false,
+    onboardingModalOpen: false,
     shareModalOpen: false,
     gallerySubmitModalOpen: false,
     modalReturnFocus: null,
@@ -1563,6 +1565,10 @@
     settingsDot: $("#settingsDot"),
     settingsModal: $("#settingsModal"),
     settingsModalClose: $("#settingsModalClose"),
+    onboardingModal: $("#onboardingModal"),
+    onboardingBody: $("#onboardingBody"),
+    onboardingDoneBtn: $("#onboardingDoneBtn"),
+    onboardingCloseBtn: $("#onboardingCloseBtn"),
     shareModal: $("#shareModal"),
     shareModalClose: $("#shareModalClose"),
     remapModal: $("#remapModal"),
@@ -8577,6 +8583,7 @@
   function getOpenModalEl() {
     if (state.remapModalOpen) return els.remapModal;
     if (state.settingsModalOpen) return els.settingsModal;
+    if (state.onboardingModalOpen) return els.onboardingModal;
     if (state.shareModalOpen) return els.shareModal;
     if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
     return null;
@@ -8630,6 +8637,55 @@
     els.settingsModal.classList.remove("show");
     els.settingsModal.setAttribute("aria-hidden", "true");
     restoreModalFocus();
+  }
+  function onboardingHtml() {
+    const mobile = useMobileDirectPlacement();
+    const steps = mobile ? [
+      ["\u9009\u989C\u8272", "\u70B9\u4E0B\u65B9\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF08\u53EA\u663E\u793A\u672C\u56FE\u7528\u5230\u7684\u8272\uFF09\u3002"],
+      ["\u653E\u8C46", "\u70B9\u62FC\u8C46\u677F\u7684\u683C\u5B50\u653E\u4E0B\uFF1B\u540C\u8272\u518D\u70B9\u4E00\u6B21\u4F1A\u53D6\u4E0B\u3002"],
+      ["\u5BF9\u7167", "\u7167\u7740\u53C2\u8003\u56FE\u7EB8\uFF0C\u628A\u6BCF\u4E2A\u683C\u5B50\u586B\u597D\u3002"],
+      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
+    ] : [
+      ["\u9009\u989C\u8272", "\u70B9\u53F3\u4FA7\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF0C\u628A\u8C46\u5B50\u5012\u8FDB\u8C46\u7B5B\u3002"],
+      ["\u53D6\u8C46", "\u70B9\u8C46\u7B5B\u7ED9\u300C\u8C46\u9488\u300D\u4E0A\u8C46\u94FA\u5927\u9762\u79EF\uFF1B\u6216\u7528\u300C\u954A\u5B50\u300D\u4ECE\u8C46\u7B5B/\u677F\u9762\u5939\u5355\u9897\u3002"],
+      ["\u6446\u653E", "\u5728\u62FC\u8C46\u677F\u5BF9\u5E94\u5B54\u4F4D\u653E\u4E0B\u8C46\u5B50\uFF0C\u7167\u7740\u5DE6\u4FA7\u53C2\u8003\u56FE\u7EB8\u62FC\u3002"],
+      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
+    ];
+    const lead = mobile ? "\u5728\u624B\u673A\u4E0A\u62FC\u8C46\u5F88\u7B80\u5355\uFF1A" : "\u5728\u6D4F\u89C8\u5668\u91CC\u5B8C\u6574\u4F53\u9A8C\u62FC\u8C46\u624B\u4F5C\uFF1A";
+    const tip = mobile ? "\u53CC\u6307\u53EF\u7F29\u653E\u677F\u9762\u3002" : "\u6309\u4F4F\u677F\u9762\u53EF\u62D6\u52A8\uFF0C\u6EDA\u8F6E\u7F29\u653E\u3002";
+    const items = steps.map(([t, d], i) => `<li><span class="onboarding-step-no">${i + 1}</span><span><strong>${t}</strong>${d}</span></li>`).join("");
+    return `<p class="onboarding-lead">${lead}</p><ol class="onboarding-steps">${items}</ol><p class="onboarding-tip">${tip}</p>`;
+  }
+  function openOnboardingModal() {
+    if (!els.onboardingModal) return;
+    if (els.onboardingBody) els.onboardingBody.innerHTML = onboardingHtml();
+    state.onboardingModalOpen = true;
+    els.onboardingModal.classList.add("show");
+    els.onboardingModal.setAttribute("aria-hidden", "false");
+    onModalOpened(els.onboardingModal);
+  }
+  function closeOnboardingModal() {
+    if (!els.onboardingModal) return;
+    state.onboardingModalOpen = false;
+    els.onboardingModal.classList.remove("show");
+    els.onboardingModal.setAttribute("aria-hidden", "true");
+    try {
+      localStorage.setItem(onboardingKey, "seen");
+    } catch {
+    }
+    restoreModalFocus();
+  }
+  function maybeShowOnboarding() {
+    if (state.sandboxMode) return;
+    if (getOpenModalEl()) return;
+    let seen = false;
+    try {
+      seen = localStorage.getItem(onboardingKey) === "seen";
+    } catch {
+      seen = false;
+    }
+    if (seen) return;
+    openOnboardingModal();
   }
   function openRemapModal(focusSource = null) {
     if (state.phase !== "choose") return;
@@ -8814,6 +8870,7 @@
     state.pendingWorkflowScroll = true;
     schedulePhaseViewportReset();
     markDirty();
+    if (phase === "place") maybeShowOnboarding();
   }
   function schedulePhaseViewportReset() {
     state.pendingPageReset = true;
@@ -9886,6 +9943,11 @@
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();
   });
+  els.onboardingDoneBtn?.addEventListener("click", () => closeOnboardingModal());
+  els.onboardingCloseBtn?.addEventListener("click", () => closeOnboardingModal());
+  els.onboardingModal?.addEventListener("click", (event) => {
+    if (event.target === els.onboardingModal) closeOnboardingModal();
+  });
   els.collectionButton?.addEventListener("click", () => {
     openCollectionPage();
   });
@@ -10016,6 +10078,10 @@
     }
     if (els.drawResizeModal?.classList.contains("show")) {
       closeDrawResizeModal(true);
+      return;
+    }
+    if (state.onboardingModalOpen) {
+      closeOnboardingModal();
       return;
     }
     if (state.remapModalOpen) closeRemapModal();

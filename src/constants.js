@@ -108,6 +108,7 @@ export const collectionKey = "beadWorkshopCollection.v1";
 export const sessionKey = "beadWorkshopSession.v1";
 export const collectionLimit = 24;
 export const achievementKey = "beadWorkshopAchievements.v1";
+export const onboardingKey = "beadWorkshopOnboarding.v1";
 export const conceptAchievement = "观念先于熨烫";
 export const fullBoardAchievement = "没有一个孔位是无辜的";
 export const needleLoadSortThreshold = 70;
