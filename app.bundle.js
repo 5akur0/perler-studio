@@ -1256,6 +1256,8 @@
       pageGlowB: "rgba(231, 100, 95, 0.11)",
       table: ["#e4eceb", "#d7e2e0", "#c8d6d5"],
       brand: "#57b8a7",
+      cta: ["#3D9C8C", "#389586"],
+      scrim: "rgba(215, 226, 224, 0.52)",
       brandInk: "#1f6153",
       brandEdge: "#3f988b",
       brandTint: "rgba(87, 184, 167, 0.16)",
@@ -1271,6 +1273,8 @@
       pageGlowB: "rgba(119, 170, 143, 0.11)",
       table: ["#eee8dc", "#e4dbc9", "#d7cfbf"],
       brand: "#d8aa5c",
+      cta: ["#AC8749", "#A48146"],
+      scrim: "rgba(228, 219, 201, 0.52)",
       brandInk: "#8a5f23",
       brandEdge: "#c48f41",
       brandTint: "rgba(216, 170, 92, 0.16)",
@@ -1286,6 +1290,8 @@
       pageGlowB: "rgba(105, 166, 158, 0.1)",
       table: ["#efe4e6", "#e4d8dc", "#d8cbd1"],
       brand: "#e78e96",
+      cta: ["#C4787F", "#BA7379"],
+      scrim: "rgba(228, 216, 220, 0.52)",
       brandInk: "#9a4757",
       brandEdge: "#d56b78",
       brandTint: "rgba(231, 142, 150, 0.16)",
@@ -1301,6 +1307,8 @@
       pageGlowB: "rgba(219, 176, 101, 0.1)",
       table: ["#e2edf1", "#d4e4ea", "#c7d8df"],
       brand: "#659dc2",
+      cta: ["#5F93B6", "#5A8CAD"],
+      scrim: "rgba(212, 228, 234, 0.52)",
       brandInk: "#365c79",
       brandEdge: "#4f8fb8",
       brandTint: "rgba(101, 157, 194, 0.16)",
@@ -1316,6 +1324,8 @@
       pageGlowB: "rgba(213, 165, 96, 0.11)",
       table: ["#e4eadf", "#d8e1d2", "#cbd6c4"],
       brand: "#749e70",
+      cta: ["#6F976B", "#6A9066"],
+      scrim: "rgba(216, 225, 210, 0.52)",
       brandInk: "#40673f",
       brandEdge: "#5d8458",
       brandTint: "rgba(116, 158, 112, 0.16)",
@@ -8727,6 +8737,9 @@
     root.style.setProperty("--brand-edge", theme.brandEdge || "#3f988b");
     root.style.setProperty("--brand-tint", theme.brandTint || "rgba(87, 184, 167, 0.16)");
     root.style.setProperty("--brand-tint-strong", theme.brandTintStrong || "rgba(87, 184, 167, 0.25)");
+    root.style.setProperty("--brand-cta", theme.cta?.[0] || "#3D9C8C");
+    root.style.setProperty("--brand-cta-strong", theme.cta?.[1] || "#389586");
+    root.style.setProperty("--bg-scrim", theme.scrim || "rgba(255, 255, 255, 0.16)");
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     markDirty();
   }

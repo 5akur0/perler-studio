@@ -19,6 +19,7 @@
   --brand-edge: #3f988b;
   --brand-cta: #3D9C8C;
   --brand-cta-strong: #389586;
+  --bg-scrim: rgba(215, 226, 224, 0.52);
   --surface: #ffffff;
   --surface-2: #f6f8fc;
   --surface-3: #edf2f5;
@@ -834,48 +835,48 @@ body[data-app-mode=collection] .gallery-screen {
   background-image:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.16),
-      rgba(255, 255, 255, 0.16)),
+      var(--bg-scrim),
+      var(--bg-scrim)),
     var(--bg-iron-image, none);
 }
 .bead-studio-grid[data-phase=cool] {
   background-image:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.16),
-      rgba(255, 255, 255, 0.16)),
+      var(--bg-scrim),
+      var(--bg-scrim)),
     var(--bg-cool-image, none);
 }
 .bead-studio-grid[data-phase=finish] {
   background-image:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.14),
-      rgba(255, 255, 255, 0.14)),
+      var(--bg-scrim),
+      var(--bg-scrim)),
     var(--bg-gallery-image, none);
 }
 .bead-studio-grid[data-phase=choose] {
   background-image:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.14),
-      rgba(255, 255, 255, 0.14)),
+      var(--bg-scrim),
+      var(--bg-scrim)),
     var(--bg-select-image, none);
 }
 .bead-studio-grid[data-phase=place] {
   background-image:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.14),
-      rgba(255, 255, 255, 0.14)),
+      var(--bg-scrim),
+      var(--bg-scrim)),
     var(--bg-place-image, none);
 }
 .bead-studio-grid[data-phase=inspect] {
   background-image:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.14),
-      rgba(255, 255, 255, 0.14)),
+      var(--bg-scrim),
+      var(--bg-scrim)),
     var(--bg-inspect-image, none);
 }
 .bead-studio-grid[data-phase=choose] [data-stage=working] {
