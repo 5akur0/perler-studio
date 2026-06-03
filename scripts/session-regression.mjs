@@ -7,11 +7,13 @@ let store = {};
 globalThis.localStorage = {
   getItem: (key) => store[key] || null,
   setItem: (key, value) => {
+    if (globalThis.localStorage.throwOnSet) throw new Error("setItem failed");
     store[key] = String(value);
   },
   removeItem: (key) => {
     delete store[key];
   },
+  throwOnSet: false,
 };
 
 const { patterns } = await import("../src/patterns-data.js");
@@ -60,6 +62,7 @@ function resetState() {
   setDefaultSessionActions();
   removeCustomPatterns();
   clearStore();
+  globalThis.localStorage.throwOnSet = false;
   state.phase = "choose";
   state.patternSize = 24;
   state.selectedPattern = basePattern;
@@ -149,6 +152,19 @@ run("phase choose does not save and clears session", () => {
   assert(readSession() === null, "choose phase should clear stored session");
 });
 
+run("autosave write failure clears old session", () => {
+  localStorage.setItem(sessionKey, JSON.stringify({ phase: "place", selectedPatternId: "stale" }));
+  state.phase = "place";
+  state.selectedPattern = resizePattern(basePattern, 24);
+  state.patternSize = 24;
+  state.placed = Array(24 * 24).fill(null);
+  state.heat = Array(24 * 24).fill(0);
+  localStorage.throwOnSet = true;
+  assert(autoSave() === false, "autosave should return false when setItem throws");
+  localStorage.throwOnSet = false;
+  assert(readSession() === null, "failed autosave should clear stale session");
+});
+
 run("empty place session autosaves and restores", () => {
   state.phase = "place";
   state.selectedPattern = resizePattern(basePattern, 24);
@@ -213,6 +229,7 @@ run("missing version legacy session restores", () => {
   assert(loadAutoSave() === true, "legacy missing-version session should restore");
   assert(state.selectedPattern.size === 24, "legacy session should keep saved size");
   assert(state.placed.length === 24 * 24, "legacy empty board should restore");
+  assert(state.sandboxMode === false, "legacy missing sandboxMode should restore as false");
 });
 
 run("built-in resized session restores", () => {
@@ -293,6 +310,60 @@ run("board view restores", () => {
   assert(state.boardView.scale === 2.2, "board scale should restore");
   assert(state.boardView.panX === 12, "board panX should restore");
   assert(state.boardView.panY === -8, "board panY should restore");
+});
+
+run("board view invalid values normalize", () => {
+  writeSession({
+    version: 2,
+    phase: "place",
+    selectedPatternId: "berry-cat",
+    patternSize: 24,
+    placed: Array(24 * 24).fill(null),
+    heat: Array(24 * 24).fill(0),
+    boardView: { scale: -2, panX: Number.NaN, panY: Number.POSITIVE_INFINITY },
+  });
+  assert(loadAutoSave() === true, "invalid board view session should restore");
+  assert(state.boardView.scale === 1, "negative board scale should normalize to 1");
+  assert(state.boardView.panX === 0, "NaN panX should normalize to 0");
+  assert(state.boardView.panY === 0, "Infinity panY should normalize to 0");
+});
+
+run("board view zero infinity and huge scale normalize", () => {
+  writeSession({
+    version: 2,
+    phase: "place",
+    selectedPatternId: "berry-cat",
+    patternSize: 24,
+    placed: Array(24 * 24).fill(null),
+    heat: Array(24 * 24).fill(0),
+    boardView: { scale: 0, panX: 4, panY: -5 },
+  });
+  assert(loadAutoSave() === true, "zero board scale session should restore");
+  assert(state.boardView.scale === 1, "zero board scale should normalize to 1");
+  resetState();
+  writeSession({
+    version: 2,
+    phase: "place",
+    selectedPatternId: "berry-cat",
+    patternSize: 24,
+    placed: Array(24 * 24).fill(null),
+    heat: Array(24 * 24).fill(0),
+    boardView: { scale: Number.POSITIVE_INFINITY, panX: 1, panY: 2 },
+  });
+  assert(loadAutoSave() === true, "infinite board scale session should restore");
+  assert(state.boardView.scale === 1, "infinite board scale should normalize to 1");
+  resetState();
+  writeSession({
+    version: 2,
+    phase: "place",
+    selectedPatternId: "berry-cat",
+    patternSize: 24,
+    placed: Array(24 * 24).fill(null),
+    heat: Array(24 * 24).fill(0),
+    boardView: { scale: 99, panX: 1, panY: 2 },
+  });
+  assert(loadAutoSave() === true, "huge board scale session should restore");
+  assert(state.boardView.scale === 8, "huge board scale should clamp to 8");
 });
 
 run("lamp tray tool pose and needle direction restore", () => {
