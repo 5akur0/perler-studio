@@ -1512,7 +1512,10 @@ import {
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
   els.chooseStartButton?.addEventListener("click", () => {
-    if (state.phase === "choose") setPhase("place");
+    if (state.phase === "choose") {
+      setPhase("place");
+      flushAutoSave();
+    }
   });
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
   els.bgThemeSelect?.addEventListener("change", () => {
