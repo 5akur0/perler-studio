@@ -20,6 +20,9 @@
   --brand-cta: #3D9C8C;
   --brand-cta-strong: #389586;
   --bg-scrim: rgba(215, 226, 224, 0.52);
+  --glass-bg: color-mix(in srgb, var(--brand) 10%, rgba(255, 255, 255, 0.0));
+  --glass-border: color-mix(in srgb, var(--brand) 40%, rgba(255, 255, 255, 0.5));
+  --glass-blur: 3px;
   --surface: #ffffff;
   --surface-2: #f6f8fc;
   --surface-3: #edf2f5;
@@ -68,6 +71,12 @@
 * {
   box-sizing: border-box;
 }
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  :root {
+    --glass-bg: color-mix(in srgb, var(--brand) 12%, rgba(255, 255, 255, 0.92));
+    --glass-border: color-mix(in srgb, var(--brand) 26%, rgba(255, 255, 255, 0.8));
+  }
+}
 
 /* src/styles/base.css */
 html,
@@ -91,6 +100,19 @@ body {
   transition: background 0.24s ease;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(var(--bg-scrim), var(--bg-scrim)), var(--bg-current, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--bg-current-on, 0);
+  transition: opacity 0.3s ease;
 }
 button,
 input,
@@ -408,11 +430,12 @@ body[data-app-mode=collection] .gallery-screen {
   gap: 16px;
   min-height: 70px;
   padding: 8px 12px;
-  border: 1px solid rgba(139, 148, 166, 0.42);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass-bg);
   box-shadow: var(--sh-2);
-  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 .gallery-topbar,
 .collection-topbar {
@@ -826,58 +849,10 @@ body[data-app-mode=collection] .gallery-screen {
   align-items: stretch;
 }
 .bead-studio-grid {
-  background-color: var(--surface-2);
+  background-color: transparent;
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-}
-.bead-studio-grid[data-phase=iron] {
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--bg-scrim),
-      var(--bg-scrim)),
-    var(--bg-iron-image, none);
-}
-.bead-studio-grid[data-phase=cool] {
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--bg-scrim),
-      var(--bg-scrim)),
-    var(--bg-cool-image, none);
-}
-.bead-studio-grid[data-phase=finish] {
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--bg-scrim),
-      var(--bg-scrim)),
-    var(--bg-gallery-image, none);
-}
-.bead-studio-grid[data-phase=choose] {
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--bg-scrim),
-      var(--bg-scrim)),
-    var(--bg-select-image, none);
-}
-.bead-studio-grid[data-phase=place] {
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--bg-scrim),
-      var(--bg-scrim)),
-    var(--bg-place-image, none);
-}
-.bead-studio-grid[data-phase=inspect] {
-  background-image:
-    linear-gradient(
-      180deg,
-      var(--bg-scrim),
-      var(--bg-scrim)),
-    var(--bg-inspect-image, none);
 }
 .bead-studio-grid[data-phase=choose] [data-stage=working] {
   display: none;
@@ -908,10 +883,12 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .side-panel section {
   padding: 8px;
-  border: 1px solid rgba(139, 148, 166, 0.42);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.87);
+  background: var(--glass-bg);
   box-shadow: var(--sh-2);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 .right-panel section {
   flex: 1 1 auto;
@@ -2747,11 +2724,13 @@ body[data-app-mode=collection] .gallery-screen {
   flex: 1 1 auto;
   min-height: 0;
   padding: clamp(14px, 2vw, 24px);
-  border: 1px solid rgba(139, 148, 166, 0.34);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--glass-bg);
   box-shadow: var(--sh-2);
   box-sizing: border-box;
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 .gallery-toolbar {
   display: flex;
@@ -2787,11 +2766,13 @@ body[data-app-mode=collection] .gallery-screen {
   flex: 1 1 auto;
   min-height: 0;
   padding: clamp(14px, 2vw, 24px);
-  border: 1px solid rgba(139, 148, 166, 0.34);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--glass-bg);
   box-shadow: var(--sh-2);
   box-sizing: border-box;
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 .collection-panel {
   display: flex;

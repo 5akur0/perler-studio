@@ -666,7 +666,7 @@ export function drawToolEntities(w, h) {
 }
 
 export function drawNeedleEntityAtTip(tipX, tipY) {
-  drawNeedleEntity(tipX, tipY - 142);
+  drawNeedleEntity(tipX, tipY - 150);
 }
 
 export function drawNeedleEntity(x, y) {
@@ -683,15 +683,15 @@ export function drawNeedleEntity(x, y) {
   ctx.lineWidth = 5;
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(x, y + 138);
+  ctx.moveTo(x, y + 146);
   ctx.lineTo(x, y + 8);
   ctx.stroke();
   ctx.shadowColor = "transparent";
   ctx.strokeStyle = style.secondary;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(x - 2.2, y + 126);
-  ctx.lineTo(x - 2.2, y + 18);
+  ctx.moveTo(x - 2.2, y + 134);
+  ctx.lineTo(x - 2.2, y + 20);
   ctx.stroke();
   ctx.fillStyle = style.secondary;
   ctx.beginPath();
@@ -702,19 +702,22 @@ export function drawNeedleEntity(x, y) {
   drawToolDecoration(ctx, x, y + 7, style);
   ctx.fillStyle = style.tip;
   ctx.beginPath();
-  ctx.moveTo(x, y + 142);
-  ctx.lineTo(x - 3.2, y + 132);
-  ctx.lineTo(x + 3.2, y + 132);
+  ctx.moveTo(x, y + 150);
+  ctx.lineTo(x - 3.2, y + 140);
+  ctx.lineTo(x + 3.2, y + 140);
   ctx.closePath();
   ctx.fill();
   for (let i = 0; i < cap; i += 1) {
-    const by = y + 20 + i * 11.8;
+    const by = y + 10 + i * 11.5;
     const fillStart = Math.max(0, cap - state.needleLoaded);
     if (i >= fillStart) {
+      ctx.save();
+      ctx.globalAlpha = 0.52;
       drawFallenBead(ctx, x, by, 12, loadedCode, "v");
+      ctx.restore();
     } else {
       ctx.fillStyle = "rgba(102, 116, 128, 0.18)";
-      roundedPath(ctx, x - 4.5, by - 5.9, 9, 11.8, 2.6);
+      roundedPath(ctx, x - 4.5, by - 5.75, 9, 11.5, 2.6);
       ctx.fill();
     }
   }

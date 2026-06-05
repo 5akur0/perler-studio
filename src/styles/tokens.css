@@ -25,6 +25,11 @@
   /* 阶段背景图蒙版（叠在背景图上染色 + 提亮保证可读）。运行时由 JS 按主题覆盖（applyBackgroundTheme）。 */
   --bg-scrim: rgba(215, 226, 224, 0.52);
 
+  /* 玻璃面板（方案C：半透 + 主题色微染，配合 backdrop-filter blur）。随主题由 --brand 实时 color-mix。 */
+  --glass-bg: color-mix(in srgb, var(--brand) 10%, rgba(255, 255, 255, 0.0));
+  --glass-border: color-mix(in srgb, var(--brand) 40%, rgba(255, 255, 255, 0.5));
+  --glass-blur: 3px;
+
   /* —— Surfaces (converged neutrals) —— */
   --surface: #ffffff;
   --surface-2: #f6f8fc;
@@ -85,4 +90,12 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* 不支持 backdrop-filter 的浏览器：玻璃面板退回更不透明，保证文字可读。 */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  :root {
+    --glass-bg: color-mix(in srgb, var(--brand) 12%, rgba(255, 255, 255, 0.92));
+    --glass-border: color-mix(in srgb, var(--brand) 26%, rgba(255, 255, 255, 0.8));
+  }
 }

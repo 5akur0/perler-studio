@@ -16,6 +16,24 @@ body {
   text-rendering: geometricPrecision;
 }
 
+/* 全屏背景层：当前阶段背景图铺满整个窗口（顶栏/四周也覆盖），玻璃面板浮其上。
+   由 JS 按 mode/phase 设 --bg-current（图）与 --bg-current-on（0/1 开关）。 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--bg-scrim), var(--bg-scrim)),
+    var(--bg-current, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--bg-current-on, 0);
+  transition: opacity 0.3s ease;
+}
+
 button,
 input,
 select {
