@@ -2682,7 +2682,7 @@
     ctx.restore();
   }
   function drawNeedleEntityAtTip(tipX, tipY) {
-    drawNeedleEntity(tipX, tipY - 142);
+    drawNeedleEntity(tipX, tipY - 150);
   }
   function drawNeedleEntity(x, y) {
     const ctx = scene;
@@ -2698,15 +2698,15 @@
     ctx.lineWidth = 5;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(x, y + 138);
+    ctx.moveTo(x, y + 146);
     ctx.lineTo(x, y + 8);
     ctx.stroke();
     ctx.shadowColor = "transparent";
     ctx.strokeStyle = style.secondary;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x - 2.2, y + 126);
-    ctx.lineTo(x - 2.2, y + 18);
+    ctx.moveTo(x - 2.2, y + 134);
+    ctx.lineTo(x - 2.2, y + 20);
     ctx.stroke();
     ctx.fillStyle = style.secondary;
     ctx.beginPath();
@@ -2717,19 +2717,22 @@
     drawToolDecoration(ctx, x, y + 7, style);
     ctx.fillStyle = style.tip;
     ctx.beginPath();
-    ctx.moveTo(x, y + 142);
-    ctx.lineTo(x - 3.2, y + 132);
-    ctx.lineTo(x + 3.2, y + 132);
+    ctx.moveTo(x, y + 150);
+    ctx.lineTo(x - 3.2, y + 140);
+    ctx.lineTo(x + 3.2, y + 140);
     ctx.closePath();
     ctx.fill();
     for (let i = 0; i < cap; i += 1) {
-      const by = y + 20 + i * 11.8;
+      const by = y + 10 + i * 11.5;
       const fillStart = Math.max(0, cap - state.needleLoaded);
       if (i >= fillStart) {
+        ctx.save();
+        ctx.globalAlpha = 0.52;
         drawFallenBead(ctx, x, by, 12, loadedCode, "v");
+        ctx.restore();
       } else {
         ctx.fillStyle = "rgba(102, 116, 128, 0.18)";
-        roundedPath(ctx, x - 4.5, by - 5.9, 9, 11.8, 2.6);
+        roundedPath(ctx, x - 4.5, by - 5.75, 9, 11.5, 2.6);
         ctx.fill();
       }
     }
@@ -8757,11 +8760,35 @@
       if (el) el.setAttribute("aria-hidden", active ? "false" : "true");
     });
   }
+  var PHASE_BG = {
+    choose: "--bg-select-image",
+    place: "--bg-place-image",
+    inspect: "--bg-inspect-image",
+    iron: "--bg-iron-image",
+    cool: "--bg-cool-image",
+    finish: "--bg-gallery-image"
+  };
+  var MODE_BG = {
+    draw: "--bg-draw-image",
+    gallery: "--bg-gallery-image",
+    collection: "--bg-collection-image"
+  };
+  function updateFullBg() {
+    const v = state.appMode === "bead" ? PHASE_BG[state.phase] : MODE_BG[state.appMode];
+    const root = document.documentElement;
+    if (v) {
+      root.style.setProperty("--bg-current", `var(${v})`);
+      root.style.setProperty("--bg-current-on", "1");
+    } else {
+      root.style.setProperty("--bg-current-on", "0");
+    }
+  }
   function setAppMode(mode) {
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
     applyScreenAria();
+    updateFullBg();
     if (state.appMode === "bead") {
       state.uiDirty = true;
       state.previewDirty = true;
@@ -8883,6 +8910,7 @@
     state.pendingWorkflowScroll = true;
     schedulePhaseViewportReset();
     markDirty();
+    updateFullBg();
     if (phase === "place") maybeShowOnboarding();
   }
   function schedulePhaseViewportReset() {

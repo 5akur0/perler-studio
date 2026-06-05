@@ -197,11 +197,13 @@
   flex: 1 1 auto;
   min-height: 0;
   padding: clamp(14px, 2vw, 24px);
-  border: 1px solid rgba(139, 148, 166, 0.34);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--glass-bg);
   box-shadow: var(--sh-2);
   box-sizing: border-box;
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 
 .gallery-toolbar {
@@ -243,11 +245,13 @@
   flex: 1 1 auto;
   min-height: 0;
   padding: clamp(14px, 2vw, 24px);
-  border: 1px solid rgba(139, 148, 166, 0.34);
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--glass-bg);
   box-shadow: var(--sh-2);
   box-sizing: border-box;
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 
 .collection-panel {

@@ -125,11 +125,31 @@ import {
     });
   }
 
+  const PHASE_BG = {
+    choose: "--bg-select-image", place: "--bg-place-image", inspect: "--bg-inspect-image",
+    iron: "--bg-iron-image", cool: "--bg-cool-image", finish: "--bg-gallery-image",
+  };
+  const MODE_BG = {
+    draw: "--bg-draw-image", gallery: "--bg-gallery-image", collection: "--bg-collection-image",
+  };
+  // Full-window background layer (body::before): choose the image var for current mode/phase.
+  function updateFullBg() {
+    const v = state.appMode === "bead" ? PHASE_BG[state.phase] : MODE_BG[state.appMode];
+    const root = document.documentElement;
+    if (v) {
+      root.style.setProperty("--bg-current", `var(${v})`);
+      root.style.setProperty("--bg-current-on", "1");
+    } else {
+      root.style.setProperty("--bg-current-on", "0");
+    }
+  }
+
   function setAppMode(mode) {
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
     applyScreenAria();
+    updateFullBg();
     if (state.appMode === "bead") {
       state.uiDirty = true;
       state.previewDirty = true;
@@ -302,6 +322,7 @@ import {
     state.pendingWorkflowScroll = true;
     schedulePhaseViewportReset();
     markDirty();
+    updateFullBg();
     if (phase === "place") maybeShowOnboarding();
   }
 
