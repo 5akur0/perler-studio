@@ -61,15 +61,16 @@
 - 背景图务必压到 **< 200KB/张（WebP）**（见 backlog NEW-1）。
 
 **L1 · 玻璃面板**（侧栏 / 顶栏 / studio-card 等浮在背景图上的容器）
-统一配方（已在 `.topbar` 实现，需推广到所有面板）：
+统一配方走 `tokens.css` 的 `--glass-*`，全部面板（`.topbar`、`.side-panel section`、各 studio-card、画廊/收藏卡）共用同一组 token：
 ```
-background: rgba(255,255,255, 0.82~0.88);   /* 亮色玻璃必须 ≥0.80，禁止 white/0.1 这种 */
-backdrop-filter: blur(14~16px);             /* ← .side-panel section 目前缺这条，要补 */
-border: 1px solid rgba(139,148,166,0.42);
+background: var(--glass-bg);                 /* = color-mix(brand 10%, transparent) —— 高透，让背景图透出 */
+backdrop-filter: blur(var(--glass-blur));    /* = 3px —— 轻磨砂，不糊背景简笔 */
+border: 1px solid var(--glass-border);       /* = color-mix(brand 40%, white 0.5) */
 border-radius: var(--r-lg)/(--r-md);
 box-shadow: var(--sh-2);
 ```
-现状：`.topbar` ✓（0.85 + blur16）；`.side-panel section` 半透明 0.87 但**无 blur** → 待统一。
+> ⚠️ **刻意高透**：`--glass-bg` 实际不透明度仅 ~10%，是有意的「氛围感」取舍——面板几乎只靠 blur + 边框成形，背景图大面积透出。**可读性不靠面板本身，而靠 L0 的 `--bg-scrim` 把背景压淡**。所以背景图越忙/越深，越要靠提高该主题的 `scrim` alpha 来保 `--ink`/`--muted` 文字对比度（见 L0）。换背景图后必须按 §1 对比度规则实测 5 主题。
+> **降级**：`@supports not (backdrop-filter)` 时 `--glass-bg` 提到 `white 0.92`、`--glass-border` 提到 `white 0.8`（见 tokens.css 末），无 blur 也能读。
 
 **L2 · 实心卡片 / 弹窗**（不透背景）
 纯 `--surface` 白底，`.remap-modal` 弹窗骨架已统一（含焦点陷阱 + Esc）。新弹窗一律复用 `.remap-modal` + `modal-controller.js`。
@@ -137,7 +138,7 @@ box-shadow: var(--sh-2);
 ## 9. 演进路线（关联 backlog）
 
 0. ✅ 主按钮随主题（每主题 cta 压深到 ~3.3:1）+ 背景图随主题色蒙版染色（`--bg-scrim`）—— 已完成。
-1. **玻璃面板统一（B）** ← 当前重点：给 `.side-panel section` 等补 `backdrop-filter`，统一 opacity/border/shadow。
+1. ✅ **玻璃面板统一（B）**：全部面板已收敛到 `--glass-*` token（高透 + blur3 + 主题染 + `@supports` 降级）。背景图依赖 `--bg-scrim` 保可读——换图后按 §1 实测。
 2. 字号阶梯上调（§4）。
 3. 微交互 / 完成庆祝（§6）。
 4. 反馈系统统一（§5 提示）。
