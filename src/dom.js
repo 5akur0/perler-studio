@@ -121,4 +121,5 @@ export const els = {
   toast: $("#toast"),
   placeHint: $("#placeHint"),
   achievementToast: $("#achievementToast"),
+  celebrateLayer: $("#celebrateLayer"),
 };

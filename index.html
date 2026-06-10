@@ -667,6 +667,17 @@
     <div id="placeHint" class="place-hint" role="status" aria-live="polite"></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <!-- 完成收藏的小庆祝：纯 CSS sparkle 爆发，由 notify.js celebrate() 切 .show；reduced-motion 下被全局块吞掉动画。 -->
+    <div id="celebrateLayer" class="celebrate-layer" aria-hidden="true">
+      <span class="sparkle" style="--tx:-70;--ty:-54;--d:0ms"></span>
+      <span class="sparkle" style="--tx:64;--ty:-60;--d:40ms"></span>
+      <span class="sparkle" style="--tx:-92;--ty:8;--d:80ms"></span>
+      <span class="sparkle" style="--tx:88;--ty:16;--d:30ms"></span>
+      <span class="sparkle" style="--tx:-44;--ty:60;--d:110ms"></span>
+      <span class="sparkle" style="--tx:48;--ty:66;--d:70ms"></span>
+      <span class="sparkle" style="--tx:6;--ty:-96;--d:90ms"></span>
+    </div>
+
     <!-- 打包产物：由 `npm run build`（或 `npm run watch`）从 src/main.js 生成。
          用普通脚本（非 module）以便直接双击 index.html（file://）也能运行。
          开发时只改 src/ 下的源码即可，watch 会自动重建此文件。 -->

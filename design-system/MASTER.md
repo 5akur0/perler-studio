@@ -112,7 +112,7 @@ box-shadow: var(--sh-2);
 - **微交互**（hover/press/过渡/入场）时长 **150–300ms**，缓动柔和；只动 `transform`/`opacity`（不动 width/height）。hover/press 过渡不低于 150ms（已全站统一到 0.16s）。
 - **环境型无限循环动画**（如 `needed-chip-glow/-aura` 呼吸、`rotate-hint` 旋转）不受 150–300ms 约束——它们是持续氛围，慢一点才柔和；但仍须被 reduced-motion 覆盖。
 - 一律包 `@media (prefers-reduced-motion: reduce)`（JS 侧用 `prefersReducedMotion()`，`utils.js`）。
-- 治愈系靠反馈：阶段切换淡入、放豆弹性、**完成收藏的小庆祝**（待补，backlog D）。
+- 治愈系靠反馈：阶段切换淡入、放豆弹性。✅ **完成收藏的小庆祝**（backlog D 已补）：保存成功时 `celebrate()`（notify.js）触发 `.celebrate-layer` 的 7 颗错峰五角星从屏幕中心绽放（纯 CSS `celebrate-pop` 0.52s，仅 transform/opacity，reduced-motion 下被全局块吞掉、仅留 toast）。
 
 ---
 

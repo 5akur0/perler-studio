@@ -1468,6 +1468,7 @@
     placeHintTimer: null,
     lastPlaceHintKey: "",
     achievementTimer: null,
+    celebrateTimer: null,
     renderDirty: true,
     uiDirty: true,
     previewDirty: true,
@@ -1597,7 +1598,8 @@
     resetButton: $("#resetButton"),
     toast: $("#toast"),
     placeHint: $("#placeHint"),
-    achievementToast: $("#achievementToast")
+    achievementToast: $("#achievementToast"),
+    celebrateLayer: $("#celebrateLayer")
   };
 
   // src/notify.js
@@ -1623,6 +1625,17 @@
     state.placeHintTimer = window.setTimeout(() => {
       hidePlaceHint();
     }, duration);
+  }
+  function celebrate() {
+    const layer = els.celebrateLayer;
+    if (!layer) return;
+    window.clearTimeout(state.celebrateTimer);
+    layer.classList.remove("show");
+    void layer.offsetWidth;
+    layer.classList.add("show");
+    state.celebrateTimer = window.setTimeout(() => {
+      layer.classList.remove("show");
+    }, 760);
   }
   function showAchievementToast(name) {
     if (!els.achievementToast) {
@@ -9525,7 +9538,10 @@
       collection = collection.slice(0, collectionLimit);
       const stored = writeCollection(collection);
       state.savedCurrent = true;
-      if (stored) showToast("\u4F5C\u54C1\u5DF2\u6536\u5165\u4F5C\u54C1\u96C6\u3002");
+      if (stored) {
+        showToast("\u4F5C\u54C1\u5DF2\u6536\u5165\u4F5C\u54C1\u96C6\u3002");
+        celebrate();
+      }
     } else {
       showToast("\u8FD9\u4E2A\u7248\u672C\u5DF2\u7ECF\u4FDD\u5B58\u8FC7\u3002");
     }

@@ -27,6 +27,18 @@ export function showPlaceHint(message, key = message, duration = 2000) {
   }, duration);
 }
 
+export function celebrate() {
+  const layer = els.celebrateLayer;
+  if (!layer) return;
+  window.clearTimeout(state.celebrateTimer);
+  layer.classList.remove("show");
+  void layer.offsetWidth; // 强制重排，保证再次保存时动画重新触发
+  layer.classList.add("show");
+  state.celebrateTimer = window.setTimeout(() => {
+    layer.classList.remove("show");
+  }, 760);
+}
+
 export function showAchievementToast(name) {
   if (!els.achievementToast) {
     showToast(`隐藏成就解锁：${name}`);
