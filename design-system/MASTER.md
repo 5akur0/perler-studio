@@ -102,7 +102,7 @@ box-shadow: var(--sh-2);
 - **图标**：全 SVG，`viewBox="0 0 24 24"`，`stroke="currentColor"`，**禁止 emoji**。图标按钮必须有 `aria-label`。
 - **卡片/入口**：圆角 `--r-md`，hover 给边框色/阴影反馈 + `cursor:pointer`。
 - **弹窗**：复用 `.remap-modal` + `modal-controller`（自动获得焦点陷阱 / Esc / 焦点恢复 / `getOpenModalEl` 登记）。新弹窗照此接线。
-- **提示**：toast（`.toast` 居中底部）/ 摆放提示（`.place-hint`）/ 成就（`.achievement-toast`）—— 待统一圆角/位置/动效语言（backlog F）。
+- **提示**：toast（`.toast` 居中底部）/ 摆放提示（`.place-hint` 顶部居中）/ 成就（`.achievement-toast` 右上角）。✅ **已统一视觉语言**：三者共用 `--feedback-radius`(12) / `--feedback-shadow` / `--feedback-ease`(0.2s)，padding 对齐 `10px 14px`，停留时长收成两档（瞬时 toast/提示 2000ms、奖励成就 2600ms）。**刻意保留「分位」**：位置、深浅色身份（深 toast / 浅提示 / 近白成就）、入场位移方向各自不同——它们语义不同且会同时出现。
 - 触控目标 ≥ **44×44px**。
 
 ---

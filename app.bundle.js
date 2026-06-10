@@ -1607,13 +1607,13 @@
     els.toast.classList.add("show");
     state.toastTimer = window.setTimeout(() => {
       els.toast.classList.remove("show");
-    }, 1900);
+    }, 2e3);
   }
   function hidePlaceHint() {
     if (!els.placeHint) return;
     els.placeHint.classList.remove("show");
   }
-  function showPlaceHint(message, key = message, duration = 1800) {
+  function showPlaceHint(message, key = message, duration = 2e3) {
     if (!els.placeHint || !message) return;
     if (state.lastPlaceHintKey === key) return;
     state.lastPlaceHintKey = key;
@@ -1634,7 +1634,7 @@
     els.achievementToast.classList.add("show");
     state.achievementTimer = window.setTimeout(() => {
       els.achievementToast.classList.remove("show");
-    }, 2400);
+    }, 2600);
   }
 
   // src/storage.js
