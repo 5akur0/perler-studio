@@ -61,6 +61,11 @@
   --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --shadow: var(--sh-3);
 
+  /* —— 反馈三件套共用语言（toast / 摆放提示 / 成就）：统一圆角/阴影/缓动，位置与深浅色各自保留 —— */
+  --feedback-radius: var(--r-sm);
+  --feedback-shadow: 0 12px 30px rgba(38, 36, 43, 0.16);
+  --feedback-ease: opacity 0.2s ease, transform 0.2s ease;
+
   /* —— Type scale —— */
   --fs-2xs: 10px;
   --fs-xs: 11px;
