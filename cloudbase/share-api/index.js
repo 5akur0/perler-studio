@@ -324,12 +324,17 @@ function expireIso() {
 }
 
 function clientIp(event, context) {
+  // 平台注入的来源 IP 不可被客户端伪造，优先采用——否则攻击者可用伪造的
+  // X-Forwarded-For 每请求换 IP，绕过 admin 锁定（5 次/15 分钟）与限流（12 次/分钟）。
+  const platformIp = String(context?.requestContext?.sourceIp || context?.httpContext?.sourceIp || "").trim();
+  if (platformIp) return platformIp;
+  // 仅当平台未提供来源 IP（如本地调试）时才回退到可伪造的头部。
   const headers = event?.headers || {};
   const forwarded = String(headers["x-forwarded-for"] || headers["X-Forwarded-For"] || "").trim();
   if (forwarded) return forwarded.split(",")[0].trim();
   const realIp = String(headers["x-real-ip"] || headers["X-Real-Ip"] || "").trim();
   if (realIp) return realIp;
-  return String(context?.requestContext?.sourceIp || context?.httpContext?.sourceIp || "unknown");
+  return "unknown";
 }
 
 async function cleanupCollectionWhere(filter) {
