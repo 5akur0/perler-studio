@@ -535,7 +535,7 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
-  font-size: 15px;
+  font-size: var(--fs-title);
   font-weight: 750;
 }
 
@@ -1579,7 +1579,7 @@
 
 .collection-enlarged-meta {
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -1619,7 +1619,7 @@
 }
 
 .remap-modal-head strong {
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 800;
 }
 

@@ -90,7 +90,7 @@ box-shadow: var(--sh-2);
 ## 4. 字体与排版
 
 - 字族：`"Nunito","Varela Round","PingFang SC","Hiragino Sans GB","Microsoft YaHei"`（圆润、治愈，**勿换衬线**）。标题倾向 Varela Round。
-- 字号阶梯：`--fs-2xs 10 / xs 11 / sm 13 / base 14 / md 15 / lg 18 / xl 22`。
+- 字号阶梯：`--fs-2xs 10 / xs 11 / sm 13 / base 14 / md 15 / title 16 / lg 18 / xl 22`。`--fs-title 16` 专用于中层标题（模态/区块/卡片标题），与正文 base14 拉开一档，避免「标题与正文同号、只靠字重」。
 - 行高用 token：`--lh-heading 1.2`（标题/紧凑大字）/ `--lh-body 1.55`（多行正文，达 1.5-1.7 目标）。单行截断（nowrap）文字行高无效，不强制 token 化。Hero 标题 `1.12`（display 大字略放松）。输入框 ≥16px（防 iOS 聚焦缩放，已做）。
 - **演进方向**：正文 base 14 偏小 → 评估提到 15–16 增加「呼吸感」；首屏标题再大一档（Hero-centric）。改时整条阶梯一起调，勿单点。
 
