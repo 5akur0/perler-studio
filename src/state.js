@@ -105,6 +105,7 @@ export const state = {
   placeHintTimer: null,
   lastPlaceHintKey: "",
   achievementTimer: null,
+  celebrateTimer: null,
   renderDirty: true,
   uiDirty: true,
   previewDirty: true,

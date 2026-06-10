@@ -46,7 +46,7 @@ import {
   drawShareImage, setAutoSaveHook, markDirty,
 } from './render.js';
 import { placedCount } from './pattern.js';
-import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast } from './notify.js';
+import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast, celebrate } from './notify.js';
 import {
   setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
   renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
@@ -1318,7 +1318,10 @@ import {
       collection = collection.slice(0, collectionLimit);
       const stored = writeCollection(collection);
       state.savedCurrent = true;
-      if (stored) showToast("作品已收入作品集。");
+      if (stored) {
+        showToast("作品已收入作品集。");
+        celebrate();
+      }
     } else {
       showToast("这个版本已经保存过。");
     }

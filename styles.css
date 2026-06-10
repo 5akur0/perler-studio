@@ -3463,6 +3463,57 @@ body.admin-page {
   opacity: 1;
   transform: translateX(0);
 }
+.celebrate-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-high);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.celebrate-layer .sparkle {
+  grid-area: 1 / 1;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  background: var(--brand);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.celebrate-layer .sparkle:nth-child(2) {
+  background: var(--coral);
+}
+.celebrate-layer .sparkle:nth-child(3) {
+  background: var(--amber);
+}
+.celebrate-layer .sparkle:nth-child(4) {
+  background: var(--blue);
+}
+.celebrate-layer .sparkle:nth-child(5) {
+  background: var(--violet);
+}
+.celebrate-layer .sparkle:nth-child(6) {
+  background: var(--coral);
+}
+.celebrate-layer .sparkle:nth-child(7) {
+  background: var(--amber);
+}
+.celebrate-layer.show .sparkle {
+  animation: celebrate-pop 0.52s cubic-bezier(0.22, 0.7, 0.2, 1) var(--d, 0ms) both;
+}
+@keyframes celebrate-pop {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(calc(var(--tx) * 0.55px), calc(var(--ty) * 0.55px)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--tx) * 1px), calc(var(--ty) * 1px)) scale(0.5);
+  }
+}
 @media (max-width: 1280px) {
   .topbar {
     grid-template-columns: minmax(220px, 1fr) minmax(380px, 1.6fr) auto;
