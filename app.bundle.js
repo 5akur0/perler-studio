@@ -8379,6 +8379,12 @@
     const el = state.modalReturnFocus;
     state.modalReturnFocus = null;
     if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
+    const active = document.activeElement;
+    if (active && active.closest && active.closest(".remap-modal")) {
+      const anchor = [...document.querySelectorAll(".topbar button:not([disabled])")].find((b) => b.offsetParent !== null);
+      if (anchor && typeof anchor.focus === "function") anchor.focus();
+      else if (typeof active.blur === "function") active.blur();
+    }
   }
   function openShareModal() {
     if (!els.shareModal) return;
