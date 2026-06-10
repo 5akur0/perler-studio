@@ -34,12 +34,16 @@ export function onModalOpened(modalEl) {
   if (active && active !== document.body && !active.closest(".remap-modal")) {
     state.modalReturnFocus = active;
   }
+  // 锁背景滚动：移动端 overflow:hidden 只在 ≥861px 生效，否则弹窗背后页面仍可滚（scroll bleed-through）。
+  document.body.classList.add("modal-open");
   const focusables = focusablesIn(modalEl);
   if (focusables.length) focusables[0].focus();
 }
 
 export function restoreModalFocus() {
   if (getOpenModalEl()) return;
+  // 已无任何弹窗打开 → 解除背景滚动锁。
+  document.body.classList.remove("modal-open");
   const el = state.modalReturnFocus;
   state.modalReturnFocus = null;
   if (el && typeof el.focus === "function" && document.contains(el)) el.focus();

@@ -8613,11 +8613,13 @@
     if (active && active !== document.body && !active.closest(".remap-modal")) {
       state.modalReturnFocus = active;
     }
+    document.body.classList.add("modal-open");
     const focusables = focusablesIn(modalEl);
     if (focusables.length) focusables[0].focus();
   }
   function restoreModalFocus() {
     if (getOpenModalEl()) return;
+    document.body.classList.remove("modal-open");
     const el = state.modalReturnFocus;
     state.modalReturnFocus = null;
     if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
