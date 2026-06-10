@@ -320,7 +320,7 @@
 }
 
 .gallery-card-meta strong {
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 800;
 }
 

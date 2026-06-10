@@ -67,6 +67,7 @@
   --fs-sm: 13px;
   --fs-base: 14px;
   --fs-md: 15px;
+  --fs-title: 16px; /* 中层标题（模态/区块/卡片标题），与 base14 拉开一档但不连锁全站重排 */
   --fs-lg: 18px;
   --fs-xl: 22px;
 

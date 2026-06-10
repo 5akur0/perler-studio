@@ -50,6 +50,7 @@
   --fs-sm: 13px;
   --fs-base: 14px;
   --fs-md: 15px;
+  --fs-title: 16px;
   --fs-lg: 18px;
   --fs-xl: 22px;
   --lh-heading: 1.2;
@@ -907,7 +908,7 @@ body[data-app-mode=collection] .gallery-screen {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
-  font-size: 15px;
+  font-size: var(--fs-title);
   font-weight: 750;
 }
 .section-title small {
@@ -1861,7 +1862,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .collection-enlarged-meta {
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -1900,7 +1901,7 @@ body[data-app-mode=collection] .gallery-screen {
       var(--surface-2));
 }
 .remap-modal-head strong {
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 800;
 }
 .remap-modal-head button {
@@ -2850,7 +2851,7 @@ body[data-app-mode=collection] .gallery-screen {
   text-overflow: ellipsis;
 }
 .gallery-card-meta strong {
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 800;
 }
 .gallery-card-meta span {
