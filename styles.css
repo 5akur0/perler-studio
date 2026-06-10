@@ -136,10 +136,10 @@ button {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   transition:
-    transform 0.1s ease,
-    border-color 0.14s ease,
-    background 0.14s ease,
-    box-shadow 0.14s ease;
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 button:hover {
   transform: translateY(-0.5px);
@@ -550,7 +550,7 @@ body[data-app-mode=collection] .gallery-screen {
       rgba(245, 251, 249, 0.92));
   text-align: left;
   cursor: default;
-  transition: border-color 0.14s ease;
+  transition: border-color 0.16s ease;
 }
 .current-pattern[data-visible=true] {
   display: inline-flex;
@@ -1360,10 +1360,10 @@ body[data-app-mode=collection] .gallery-screen {
   border-radius: var(--r-sm);
   font-weight: 750;
   transition:
-    transform 0.1s ease,
-    border-color 0.14s ease,
-    background 0.14s ease,
-    box-shadow 0.14s ease;
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 .btn,
 :where(.icon-only-button) {
@@ -1653,7 +1653,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.16s, background 0.16s;
 }
 .anchor-cell::after {
   content: "";
@@ -1661,7 +1661,7 @@ body[data-app-mode=collection] .gallery-screen {
   height: 10px;
   border-radius: 50%;
   background: var(--line);
-  transition: background 0.12s;
+  transition: background 0.16s;
 }
 .anchor-cell[aria-pressed=true] {
   border-color: var(--brand);
@@ -1750,9 +1750,9 @@ body[data-app-mode=collection] .gallery-screen {
   border-radius: var(--r-lg);
   background: #fff;
   transition:
-    transform 0.14s ease,
-    border-color 0.14s ease,
-    box-shadow 0.14s ease;
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 .collection-tile:hover {
   border-color: var(--brand);
@@ -1791,7 +1791,7 @@ body[data-app-mode=collection] .gallery-screen {
   background: rgba(231, 100, 95, 0.86);
   color: #fff;
   opacity: 0;
-  transition: opacity 0.14s ease, background 0.14s ease;
+  transition: opacity 0.16s ease, background 0.16s ease;
 }
 .collection-tile-delete::after {
   content: "";
@@ -2121,9 +2121,9 @@ body[data-app-mode=collection] .gallery-screen {
   border-radius: var(--r-2xs);
   cursor: pointer;
   transition:
-    transform 0.12s ease,
-    box-shadow 0.14s ease,
-    border-color 0.14s ease;
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
 }
 .swatch-cell,
 .swatch-cell:hover,
@@ -2630,9 +2630,9 @@ body[data-app-mode=collection] .gallery-screen {
   background: var(--surface);
   border: 1.5px solid var(--line);
   transition:
-    transform 0.12s ease,
-    border-color 0.14s ease,
-    box-shadow 0.14s ease;
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 .start-row:hover {
   transform: translateY(-1px);
@@ -2698,7 +2698,7 @@ body[data-app-mode=collection] .gallery-screen {
 .start-row-arrow {
   flex-shrink: 0;
   color: var(--line);
-  transition: color 0.14s ease, transform 0.14s ease;
+  transition: color 0.16s ease, transform 0.16s ease;
 }
 .start-row:hover .start-row-arrow {
   color: var(--muted);
@@ -2808,9 +2808,9 @@ body[data-app-mode=collection] .gallery-screen {
   background: #fff;
   overflow: hidden;
   transition:
-    border-color 0.14s ease,
-    box-shadow 0.14s ease,
-    transform 0.14s ease;
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
 }
 .gallery-card:hover {
   border-color: var(--brand);

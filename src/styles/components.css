@@ -122,7 +122,7 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 251, 249, 0.92));
   text-align: left;
   cursor: default;
-  transition: border-color 0.14s ease;
+  transition: border-color 0.16s ease;
 }
 
 .current-pattern[data-visible="true"] {
@@ -1030,7 +1030,7 @@
   min-height: 44px;
   border-radius: var(--r-sm);
   font-weight: 750;
-  transition: transform 0.1s ease, border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
 .btn,
@@ -1339,7 +1339,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.16s, background 0.16s;
 }
 
 .anchor-cell::after {
@@ -1348,7 +1348,7 @@
   height: 10px;
   border-radius: 50%;
   background: var(--line);
-  transition: background 0.12s;
+  transition: background 0.16s;
 }
 
 .anchor-cell[aria-pressed="true"] {
@@ -1451,7 +1451,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: #fff;
-  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .collection-tile:hover {
@@ -1494,7 +1494,7 @@
   background: rgba(231, 100, 95, 0.86);
   color: #fff;
   opacity: 0;
-  transition: opacity 0.14s ease, background 0.14s ease;
+  transition: opacity 0.16s ease, background 0.16s ease;
 }
 
 /* 视觉保持 28px，点击热区扩到 44×44（透明外延），满足触控目标 ≥44px。 */
@@ -1866,7 +1866,7 @@
   border: 1px solid rgba(0, 0, 0, 0.14);
   border-radius: var(--r-2xs);
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
 .swatch-cell,
