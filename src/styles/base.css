@@ -16,6 +16,12 @@ body {
   text-rendering: geometricPrecision;
 }
 
+/* 弹窗打开时锁背景滚动（移动端 ≤860px 的 overflow:hidden 不在 base 生效，
+   否则弹窗背后页面仍可滚动）。由 modal-controller 切换 .modal-open。 */
+body.modal-open {
+  overflow: hidden;
+}
+
 /* 全屏背景层：当前阶段背景图铺满整个窗口（顶栏/四周也覆盖），玻璃面板浮其上。
    由 JS 按 mode/phase 设 --bg-current（图）与 --bg-current-on（0/1 开关）。 */
 body::before {
