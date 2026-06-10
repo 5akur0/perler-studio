@@ -47,6 +47,16 @@ export function restoreModalFocus() {
   const el = state.modalReturnFocus;
   state.modalReturnFocus = null;
   if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
+  // 兜底：若上面的恢复没生效（返回目标已不在 DOM，或已不可聚焦），焦点会滞留在刚隐藏的
+  // 弹窗里形成键盘死角。检查最终焦点，必要时回落到顶栏第一个可用按钮这一稳定锚点。
+  const active = document.activeElement;
+  if (active && active.closest && active.closest(".remap-modal")) {
+    // 每个屏都有自己的 .topbar，非活动屏 display:none。只取当前可见屏里的可聚焦按钮
+    // （offsetParent 非 null）作为锚点；都找不到就 blur 以释放键盘焦点。
+    const anchor = [...document.querySelectorAll(".topbar button:not([disabled])")].find((b) => b.offsetParent !== null);
+    if (anchor && typeof anchor.focus === "function") anchor.focus();
+    else if (typeof active.blur === "function") active.blur();
+  }
 }
 
 export function openShareModal() {
