@@ -176,7 +176,6 @@ function captureSession() {
     selectedPatternId: state.selectedPattern ? baseIdFor(state.selectedPattern) : null,
     customPattern: snapshotCustomPattern(state.selectedPattern),
     patternColorMaps: state.patternColorMaps,
-    patternHiddenSources: state.patternHiddenSources,
     patternSize,
     placed: state.placed,
     heat: state.heat,
@@ -250,7 +249,7 @@ export function loadAutoSave() {
     }
 
     if (session.patternColorMaps && typeof session.patternColorMaps === "object") state.patternColorMaps = session.patternColorMaps;
-    if (session.patternHiddenSources && typeof session.patternHiddenSources === "object") state.patternHiddenSources = session.patternHiddenSources;
+    // 旧存档可能带 patternHiddenSources（隐藏色功能已移除）——静默忽略。
     const restoredSize = normalizePatternSizeFromSession(session.patternSize, pattern.size);
     if (!restoredSize) {
       clearStoredSession();
