@@ -70,6 +70,11 @@
   --fs-lg: 18px;
   --fs-xl: 22px;
 
+  /* —— Line-height scale —— */
+  /* 标题/紧凑大字用 --lh-heading；正文/多行次要文字用 --lh-body（MASTER §4 目标 1.5-1.7）。 */
+  --lh-heading: 1.2;
+  --lh-body: 1.55;
+
   /* —— Brand tint (overridden at runtime by JS theme) —— */
   --brand-tint: rgba(87, 184, 167, 0.16);
   --brand-tint-strong: rgba(87, 184, 167, 0.25);
