@@ -4,14 +4,11 @@ import { els } from './dom.js';
 import { clamp } from './color-utils.js';
 import { loadImageFromDataUrl, convertImageToPattern } from './image-convert.js';
 import {
-  baseIdFor, customRecalcSignature, findBasePattern, findPatternByBaseId,
-  getPatternColors, getPatternHiddenSourceList, invalidateEffectiveMap,
-  invalidatePatternDataCaches, isCustomFromImagePattern, normalizePatternSize,
-  resizePattern,
+  baseIdFor, findBasePattern, invalidatePatternDataCaches,
+  isCustomFromImagePattern, normalizePatternSize, resizePattern,
 } from './pattern.js';
 import { setSizeControls as uiSetSizeControls } from './ui.js';
 import { showToast } from './notify.js';
-import { markDirty } from './render.js';
 import { pickCustomPatternNote } from './utils.js';
 
 const customPatternActions = {
@@ -32,65 +29,6 @@ export function setCustomDenoiseControls(level) {
   if (els.customDenoiseSlider) els.customDenoiseSlider.value = String(normalized);
   if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
   return normalized;
-}
-
-export async function recomputeCustomHiddenRowsFromOriginal(pattern = state.selectedPattern) {
-  if (!isCustomFromImagePattern(pattern)) return false;
-  const hidden = getPatternHiddenSourceList(pattern);
-  const id = baseIdFor(pattern);
-  if (!hidden.length) {
-    delete state.customHiddenRecalcCache[id];
-    invalidateEffectiveMap(pattern);
-    return true;
-  }
-  const signature = customRecalcSignature(pattern, hidden);
-  if (state.customHiddenRecalcCache[id]?.signature === signature) return true;
-  if (state.customHiddenRecalcPending[id]) {
-    if (state.customHiddenRecalcPending[id] !== signature) {
-      state.customHiddenRecalcQueued[id] = signature;
-    }
-    return false;
-  }
-  state.customHiddenRecalcPending[id] = signature;
-  try {
-    const image = await loadImageFromDataUrl(pattern.sourceImageDataUrl);
-    const result = convertImageToPattern(image, {
-      removeWhite: pattern.sourceRemoveWhite !== false,
-      size: pattern.size,
-      denoiseLevel: pattern.sourceDenoiseLevel ?? state.customDenoiseLevel,
-      excludedCodes: hidden,
-      allowPaletteExpansionOnExclude: true,
-    });
-    state.customHiddenRecalcCache[id] = {
-      signature,
-      rows: result.rows,
-      stats: result.stats,
-    };
-    if (baseIdFor(state.selectedPattern) === id && customRecalcSignature(state.selectedPattern) === signature) {
-      invalidateEffectiveMap(state.selectedPattern);
-      state.previewDirty = true;
-      const available = getPatternColors();
-      if (!available.includes(state.selectedColor)) state.selectedColor = available[0] || state.selectedColor;
-      showToast("已按原图完成重算。");
-      markDirty();
-    }
-    return true;
-  } catch (error) {
-    showToast("按原图重算失败。");
-    return false;
-  } finally {
-    if (state.customHiddenRecalcPending[id] === signature) {
-      delete state.customHiddenRecalcPending[id];
-    }
-    const queued = state.customHiddenRecalcQueued[id];
-    if (queued && queued !== signature) {
-      delete state.customHiddenRecalcQueued[id];
-      const nextPattern = findPatternByBaseId(id);
-      if (nextPattern) {
-        void recomputeCustomHiddenRowsFromOriginal(nextPattern);
-      }
-    }
-  }
 }
 
 function setPatternSizePreview(size) {

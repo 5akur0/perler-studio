@@ -18,9 +18,8 @@ import { readAchievements, writeAchievements, hasAchievement, unlockAchievement 
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import {
   targetAt, indexFor, sourceTargetAt, isBuiltInPattern, getPatternColorMap,
-  invalidateEffectiveMap, getPatternHiddenSourceList, getPatternHiddenSourceSet,
-  hiddenSignature, isCustomFromImagePattern,
-  getCustomRecalcRowsIfReady, getEffectiveTargetRows, getEffectivePatternResult,
+  invalidateEffectiveMap,
+  getEffectiveTargetRows, getEffectivePatternResult,
   getTargetCounts, getTargetTotal, allColorCodes, beadLabel, activePaletteColorCount,
   normalizePatternColorMapForActivePalette, getPatternColors, getPatternAnalysis,
   getSourceCounts, getSourcePatternColors, getSourcePatternAnalysis,
@@ -66,7 +65,6 @@ import {
 } from './draw.js';
 import {
   setCustomPatternActions, initCustomPatternEvents, setCustomDenoiseControls,
-  recomputeCustomHiddenRowsFromOriginal,
 } from './custom-pattern.js';
 import {
   setSessionActions, scheduleAutoSave, flushAutoSave, clearAutoSave, loadAutoSave,
@@ -179,15 +177,8 @@ import {
     if (baseIdFor(pattern).startsWith("custom-")) {
       closeRemapModal();
     }
-    const patternId = baseIdFor(pattern);
-    const previousHidden = state.patternHiddenSources[patternId] || [];
-    const sourceColors = getSourcePatternColors(pattern);
     const normalizedMap = normalizePatternColorMapForActivePalette(pattern);
-    state.patternHiddenSources[patternId] = [...new Set(previousHidden.filter((code) => sourceColors.includes(code)))];
     invalidateEffectiveMap(pattern);
-    if (isCustomFromImagePattern(pattern) && state.patternHiddenSources[patternId].length) {
-      void recomputeCustomHiddenRowsFromOriginal(pattern);
-    }
     state.patternColorMap = normalizedMap;
     uiSetSizeControls(pattern.size);
     const total = pattern.size * pattern.size;
@@ -498,8 +489,7 @@ import {
     const map = state.patternColorMap || {};
     const patternId = baseIdFor(state.selectedPattern);
     const sourceColors = getSourcePatternColors();
-    const hiddenCount = getPatternHiddenSourceList().length;
-    const changed = sourceColors.some((code) => (map[code] || code) !== code) || hiddenCount > 0;
+    const changed = sourceColors.some((code) => (map[code] || code) !== code);
     if (!changed) {
       showToast("当前就是原始配色。");
       return;
@@ -508,7 +498,6 @@ import {
       map[code] = code;
     });
     state.patternColorMaps[patternId] = map;
-    state.patternHiddenSources[patternId] = [];
     invalidateEffectiveMap();
     state.previewDirty = true;
     if (state.phase !== "choose" && (placedCount() > 0 || state.trayBeans > 0 || state.needleLoaded > 0 || state.tweezerBead || state.spill)) {

@@ -1365,12 +1365,8 @@
     selectedPattern: patterns[0],
     patternColorMaps: {},
     patternColorMap: {},
-    patternHiddenSources: {},
     patternEffectiveMapCache: {},
     patternAnalysisCache: {},
-    customHiddenRecalcCache: {},
-    customHiddenRecalcPending: {},
-    customHiddenRecalcQueued: {},
     remapFocusSource: null,
     remapModalOpen: false,
     collectionModalOpen: false,
@@ -1729,151 +1725,8 @@
     delete pattern.__sourceAnalysis;
     invalidateEffectiveMap(pattern);
   }
-  function getPatternHiddenSourceList(pattern = state.selectedPattern) {
-    const id = baseIdFor(pattern);
-    if (state.patternHiddenSources[id]?.length) {
-      state.patternHiddenSources[id] = [];
-      delete state.customHiddenRecalcCache[id];
-      delete state.customHiddenRecalcPending[id];
-      delete state.customHiddenRecalcQueued[id];
-      invalidateEffectiveMap(pattern);
-    }
-    return [];
-  }
-  function hiddenSignature(list) {
-    return list.slice().sort((a, b) => (beadIds[a] || a).localeCompare(beadIds[b] || b, "zh-Hans-CN", { numeric: true })).join("|");
-  }
-  function customRecalcSignature(pattern = state.selectedPattern, hiddenList = null) {
-    const hidden = hiddenList || getPatternHiddenSourceList(pattern);
-    return `${pattern.size}:${hiddenSignature(hidden)}:${pattern.sourceRemoveWhite !== false ? 1 : 0}`;
-  }
   function isCustomFromImagePattern(pattern = state.selectedPattern) {
     return baseIdFor(pattern).startsWith("custom-") && Boolean(pattern.sourceImageDataUrl);
-  }
-  function findPatternByBaseId(id) {
-    if (!id) return null;
-    if (baseIdFor(state.selectedPattern) === id) return state.selectedPattern;
-    return patterns.find((item) => baseIdFor(item) === id) || null;
-  }
-  function getCustomRecalcRowsIfReady(pattern = state.selectedPattern, hiddenList = null) {
-    if (!isCustomFromImagePattern(pattern)) return null;
-    const hidden = hiddenList || getPatternHiddenSourceList(pattern);
-    if (!hidden.length) return null;
-    const id = baseIdFor(pattern);
-    const expectedSignature = customRecalcSignature(pattern, hidden);
-    const entry = state.customHiddenRecalcCache[id];
-    if (!entry || entry.signature !== expectedSignature) return null;
-    return entry.rows;
-  }
-  function hiddenNeighborVotes(grid, size, x, y) {
-    const votes = {};
-    for (let dy = -1; dy <= 1; dy += 1) {
-      for (let dx = -1; dx <= 1; dx += 1) {
-        if (dx === 0 && dy === 0) continue;
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
-        const neighbor = grid[ny * size + nx];
-        if (!neighbor || neighbor === ".") continue;
-        const weight = dx === 0 || dy === 0 ? 2 : 1;
-        votes[neighbor] = (votes[neighbor] || 0) + weight;
-      }
-    }
-    return votes;
-  }
-  function voteWinner(votes) {
-    let winner = null;
-    let best = -1;
-    Object.entries(votes).forEach(([code, score]) => {
-      if (score > best) {
-        winner = code;
-        best = score;
-      }
-    });
-    return winner;
-  }
-  function fillNullCellsByBfs(grid, size) {
-    const nearest = Array(grid.length).fill(null);
-    const queue = [];
-    for (let i = 0; i < grid.length; i += 1) {
-      const code = grid[i];
-      if (!code || code === ".") continue;
-      nearest[i] = code;
-      queue.push(i);
-    }
-    let head = 0;
-    while (head < queue.length) {
-      const index = queue[head++];
-      const code = nearest[index];
-      const x = index % size;
-      const y = Math.floor(index / size);
-      const neighbors = [
-        [x + 1, y],
-        [x - 1, y],
-        [x, y + 1],
-        [x, y - 1]
-      ];
-      neighbors.forEach(([nx, ny]) => {
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
-        const next = ny * size + nx;
-        if (nearest[next] || grid[next] === ".") return;
-        nearest[next] = code;
-        queue.push(next);
-      });
-    }
-    for (let i = 0; i < grid.length; i += 1) {
-      if (grid[i] === null) grid[i] = nearest[i];
-    }
-  }
-  function recomputeHiddenCells(grid, sourceRows, size, hiddenSet) {
-    if (!hiddenSet.size) return;
-    const hiddenMask = Array(grid.length).fill(false);
-    for (let y = 0; y < size; y += 1) {
-      const row = sourceRows[y];
-      for (let x = 0; x < size; x += 1) {
-        const sourceCode = row[x];
-        if (sourceCode !== "." && hiddenSet.has(sourceCode)) {
-          hiddenMask[y * size + x] = true;
-        }
-      }
-    }
-    let changed = false;
-    for (let pass = 0; pass < 4; pass += 1) {
-      const snapshot = grid.slice();
-      let passChanged = false;
-      for (let i = 0; i < snapshot.length; i += 1) {
-        if (!hiddenMask[i] || snapshot[i] !== null) continue;
-        const x = i % size;
-        const y = Math.floor(i / size);
-        const winner = voteWinner(hiddenNeighborVotes(snapshot, size, x, y));
-        if (!winner) continue;
-        grid[i] = winner;
-        passChanged = true;
-      }
-      changed = changed || passChanged;
-      if (!passChanged) break;
-    }
-    if (grid.some((code) => code === null)) fillNullCellsByBfs(grid, size);
-    for (let pass = 0; pass < 2; pass += 1) {
-      const snapshot = grid.slice();
-      for (let i = 0; i < snapshot.length; i += 1) {
-        if (!hiddenMask[i] || snapshot[i] === "." || snapshot[i] === null) continue;
-        const x = i % size;
-        const y = Math.floor(i / size);
-        const votes = hiddenNeighborVotes(snapshot, size, x, y);
-        const winner = voteWinner(votes);
-        if (!winner) continue;
-        if ((votes[winner] || 0) >= 5 && winner !== snapshot[i]) grid[i] = winner;
-      }
-    }
-    if (!changed && hiddenSet.size) {
-      const fallback = grid.find((code) => code && code !== ".");
-      if (fallback) {
-        for (let i = 0; i < grid.length; i += 1) {
-          if (hiddenMask[i] && !grid[i]) grid[i] = fallback;
-        }
-      }
-    }
   }
   function getEffectiveTargetRows(pattern = state.selectedPattern) {
     return getEffectivePatternResult(pattern).rows;
@@ -1882,12 +1735,9 @@
     const id = baseIdFor(pattern);
     const fingerprint = patternFingerprint(pattern);
     const sourceColors = getSourcePatternColors(pattern);
-    const hidden = getPatternHiddenSourceList(pattern);
     const map = getPatternColorMap(pattern);
     const mapSignature = sourceColors.map((code) => `${code}:${map[code] || code}`).join("|");
-    const hiddenKey = hiddenSignature(hidden);
-    const customRows = getCustomRecalcRowsIfReady(pattern, hidden);
-    const cacheKey = `${fingerprint}:${mapSignature}:${hiddenKey}:${customRows ? "orig" : "local"}`;
+    const cacheKey = `${fingerprint}:${mapSignature}`;
     const cached = state.patternEffectiveMapCache[id];
     if (cached?.key === cacheKey) return cached;
     const baseMap = {};
@@ -1898,51 +1748,17 @@
     });
     const size = pattern.size;
     const sourceRows = pattern.rows;
-    const workingRows = customRows || sourceRows;
-    const hiddenSet = new Set(hidden);
-    const waitOriginal = isCustomFromImagePattern(pattern) && hiddenSet.size > 0 && !customRows;
     const grid = Array(size * size).fill(".");
     for (let y = 0; y < size; y += 1) {
-      const row = workingRows[y];
       for (let x = 0; x < size; x += 1) {
         const sourceCode = sourceRows[y][x];
         const index = y * size + x;
-        if (sourceCode === ".") {
-          grid[index] = ".";
-        } else if (customRows) {
-          grid[index] = row[x] || ".";
-        } else if (hiddenSet.has(sourceCode)) {
-          grid[index] = waitOriginal ? baseMap[sourceCode] || sourceCode : null;
-        } else {
-          grid[index] = baseMap[sourceCode] || sourceCode;
-        }
+        grid[index] = sourceCode === "." ? "." : baseMap[sourceCode] || sourceCode;
       }
-    }
-    if (hiddenSet.size && !customRows && !waitOriginal) recomputeHiddenCells(grid, sourceRows, size, hiddenSet);
-    const fallbackCode = grid.find((code) => code && code !== ".") || "K";
-    for (let i = 0; i < grid.length; i += 1) {
-      if (grid[i] === null) grid[i] = fallbackCode;
     }
     const rows = [];
     for (let y = 0; y < size; y += 1) rows.push(grid.slice(y * size, y * size + size).map((code) => code || ".").join(""));
-    const effectiveMap = { ...baseMap };
-    if (hiddenSet.size) {
-      hidden.forEach((sourceCode) => {
-        const votes = {};
-        for (let y = 0; y < size; y += 1) {
-          const row = sourceRows[y];
-          for (let x = 0; x < size; x += 1) {
-            if (row[x] !== sourceCode) continue;
-            const code = grid[y * size + x];
-            if (!code || code === ".") continue;
-            votes[code] = (votes[code] || 0) + 1;
-          }
-        }
-        const winner = voteWinner(votes);
-        if (winner) effectiveMap[sourceCode] = winner;
-      });
-    }
-    const result = { key: cacheKey, map: effectiveMap, rows };
+    const result = { key: cacheKey, map: { ...baseMap }, rows };
     state.patternEffectiveMapCache[id] = result;
     return result;
   }
@@ -8108,64 +7924,6 @@
     if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
     return normalized;
   }
-  async function recomputeCustomHiddenRowsFromOriginal(pattern = state.selectedPattern) {
-    if (!isCustomFromImagePattern(pattern)) return false;
-    const hidden = getPatternHiddenSourceList(pattern);
-    const id = baseIdFor(pattern);
-    if (!hidden.length) {
-      delete state.customHiddenRecalcCache[id];
-      invalidateEffectiveMap(pattern);
-      return true;
-    }
-    const signature = customRecalcSignature(pattern, hidden);
-    if (state.customHiddenRecalcCache[id]?.signature === signature) return true;
-    if (state.customHiddenRecalcPending[id]) {
-      if (state.customHiddenRecalcPending[id] !== signature) {
-        state.customHiddenRecalcQueued[id] = signature;
-      }
-      return false;
-    }
-    state.customHiddenRecalcPending[id] = signature;
-    try {
-      const image = await loadImageFromDataUrl(pattern.sourceImageDataUrl);
-      const result = convertImageToPattern(image, {
-        removeWhite: pattern.sourceRemoveWhite !== false,
-        size: pattern.size,
-        denoiseLevel: pattern.sourceDenoiseLevel ?? state.customDenoiseLevel,
-        excludedCodes: hidden,
-        allowPaletteExpansionOnExclude: true
-      });
-      state.customHiddenRecalcCache[id] = {
-        signature,
-        rows: result.rows,
-        stats: result.stats
-      };
-      if (baseIdFor(state.selectedPattern) === id && customRecalcSignature(state.selectedPattern) === signature) {
-        invalidateEffectiveMap(state.selectedPattern);
-        state.previewDirty = true;
-        const available = getPatternColors();
-        if (!available.includes(state.selectedColor)) state.selectedColor = available[0] || state.selectedColor;
-        showToast("\u5DF2\u6309\u539F\u56FE\u5B8C\u6210\u91CD\u7B97\u3002");
-        markDirty();
-      }
-      return true;
-    } catch (error) {
-      showToast("\u6309\u539F\u56FE\u91CD\u7B97\u5931\u8D25\u3002");
-      return false;
-    } finally {
-      if (state.customHiddenRecalcPending[id] === signature) {
-        delete state.customHiddenRecalcPending[id];
-      }
-      const queued = state.customHiddenRecalcQueued[id];
-      if (queued && queued !== signature) {
-        delete state.customHiddenRecalcQueued[id];
-        const nextPattern = findPatternByBaseId(id);
-        if (nextPattern) {
-          void recomputeCustomHiddenRowsFromOriginal(nextPattern);
-        }
-      }
-    }
-  }
   function setPatternSizePreview(size) {
     const normalized = normalizePatternSize(size);
     state.patternSize = normalized;
@@ -8473,7 +8231,6 @@
       selectedPatternId: state.selectedPattern ? baseIdFor(state.selectedPattern) : null,
       customPattern: snapshotCustomPattern(state.selectedPattern),
       patternColorMaps: state.patternColorMaps,
-      patternHiddenSources: state.patternHiddenSources,
       patternSize,
       placed: state.placed,
       heat: state.heat,
@@ -8537,7 +8294,6 @@
         return false;
       }
       if (session.patternColorMaps && typeof session.patternColorMaps === "object") state.patternColorMaps = session.patternColorMaps;
-      if (session.patternHiddenSources && typeof session.patternHiddenSources === "object") state.patternHiddenSources = session.patternHiddenSources;
       const restoredSize = normalizePatternSizeFromSession(session.patternSize, pattern.size);
       if (!restoredSize) {
         clearStoredSession();
@@ -8819,15 +8575,8 @@
     if (baseIdFor(pattern).startsWith("custom-")) {
       closeRemapModal();
     }
-    const patternId = baseIdFor(pattern);
-    const previousHidden = state.patternHiddenSources[patternId] || [];
-    const sourceColors = getSourcePatternColors(pattern);
     const normalizedMap = normalizePatternColorMapForActivePalette(pattern);
-    state.patternHiddenSources[patternId] = [...new Set(previousHidden.filter((code) => sourceColors.includes(code)))];
     invalidateEffectiveMap(pattern);
-    if (isCustomFromImagePattern(pattern) && state.patternHiddenSources[patternId].length) {
-      void recomputeCustomHiddenRowsFromOriginal(pattern);
-    }
     state.patternColorMap = normalizedMap;
     setSizeControls(pattern.size);
     const total = pattern.size * pattern.size;
@@ -9024,8 +8773,7 @@
     const map = state.patternColorMap || {};
     const patternId = baseIdFor(state.selectedPattern);
     const sourceColors = getSourcePatternColors();
-    const hiddenCount = getPatternHiddenSourceList().length;
-    const changed = sourceColors.some((code) => (map[code] || code) !== code) || hiddenCount > 0;
+    const changed = sourceColors.some((code) => (map[code] || code) !== code);
     if (!changed) {
       showToast("\u5F53\u524D\u5C31\u662F\u539F\u59CB\u914D\u8272\u3002");
       return;
@@ -9034,7 +8782,6 @@
       map[code] = code;
     });
     state.patternColorMaps[patternId] = map;
-    state.patternHiddenSources[patternId] = [];
     invalidateEffectiveMap();
     state.previewDirty = true;
     if (state.phase !== "choose" && (placedCount() > 0 || state.trayBeans > 0 || state.needleLoaded > 0 || state.tweezerBead || state.spill)) {
