@@ -46,7 +46,7 @@
   color: var(--brand-ink);
   font-family: "Varela Round", "Nunito", "PingFang SC", sans-serif;
   font-size: 36px;
-  line-height: 1.05;
+  line-height: 1.12;
   letter-spacing: 0;
 }
 
@@ -131,14 +131,14 @@
 .start-row-body strong {
   font-size: var(--fs-md);
   font-weight: 700;
-  line-height: 1;
+  line-height: var(--lh-heading);
   color: var(--ink);
 }
 
 .start-row-body small {
   font-size: var(--fs-sm);
   color: var(--muted);
-  line-height: 1.4;
+  line-height: var(--lh-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

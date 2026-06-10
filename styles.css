@@ -52,6 +52,8 @@
   --fs-md: 15px;
   --fs-lg: 18px;
   --fs-xl: 22px;
+  --lh-heading: 1.2;
+  --lh-body: 1.55;
   --brand-tint: rgba(87, 184, 167, 0.16);
   --brand-tint-strong: rgba(87, 184, 167, 0.25);
   --z-base: 1;
@@ -385,7 +387,7 @@ body[data-app-mode=collection] .gallery-screen {
     "Menlo",
     monospace;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: var(--lh-body);
   color: #2f3645;
   background: rgba(255, 255, 255, 0.96);
 }
@@ -405,7 +407,7 @@ body[data-app-mode=collection] .gallery-screen {
   color: var(--muted);
   font-size: var(--fs-sm);
   font-weight: 700;
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 .drawing-palette-panel {
   min-height: 0;
@@ -1053,14 +1055,14 @@ body[data-app-mode=collection] .gallery-screen {
   display: block;
   margin-top: 2px;
   font-size: 14px;
-  line-height: 1.2;
+  line-height: var(--lh-heading);
 }
 .pattern-card span {
   display: block;
   margin-top: 7px;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.3;
+  line-height: var(--lh-body);
 }
 #previewCanvas {
   display: block;
@@ -1445,7 +1447,7 @@ body[data-app-mode=collection] .gallery-screen {
       color-mix(in srgb, var(--brand-tint) 26%, white));
   box-shadow: 0 8px 20px color-mix(in srgb, var(--brand) 10%, transparent);
   font-size: var(--fs-sm);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 .controls-entry {
   width: 100%;
@@ -2607,7 +2609,7 @@ body[data-app-mode=collection] .gallery-screen {
     "PingFang SC",
     sans-serif;
   font-size: 36px;
-  line-height: 1.05;
+  line-height: 1.12;
   letter-spacing: 0;
 }
 .start-rows {
@@ -2681,13 +2683,13 @@ body[data-app-mode=collection] .gallery-screen {
 .start-row-body strong {
   font-size: var(--fs-md);
   font-weight: 700;
-  line-height: 1;
+  line-height: var(--lh-heading);
   color: var(--ink);
 }
 .start-row-body small {
   font-size: var(--fs-sm);
   color: var(--muted);
-  line-height: 1.4;
+  line-height: var(--lh-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
