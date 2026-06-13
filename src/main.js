@@ -14,6 +14,7 @@ import {
 } from './color-utils.js';
 import { state } from './state.js';
 import { readCollection, writeCollection } from './storage.js';
+import { toggleBgm, isBgmPlaying } from './bgm.js';
 import { readAchievements, writeAchievements, hasAchievement, unlockAchievement } from './achievements.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import {
@@ -74,10 +75,13 @@ import {
   openShareModal, closeShareModal, openSettingsModal, closeSettingsModal,
   openRemapModal, closeRemapModal,
   openOnboardingModal, closeOnboardingModal, maybeShowOnboarding,
+  confirmModal, resolveConfirm,
 } from './modal-controller.js';
+import { hydrateIcons } from './icons.js';
+import { keyboardGridAction, moveGridCursor, normalizeGridCursor } from './keyboard-grid.js';
+import { prefersReducedMotion } from './utils.js';
 
-
-
+  hydrateIcons(document);
 
   let collection = readCollection();
   state.achievements = readAchievements();
@@ -139,6 +143,26 @@ import {
       root.style.setProperty("--bg-current-on", "1");
     } else {
       root.style.setProperty("--bg-current-on", "0");
+    }
+  }
+
+  // Lazily prefetch stage background images: while the first screen is idle, pull the
+  // remaining stages' WebP into cache to remove the fade-in gap when switching.
+  // Each image is < 64KB; respect data-saver (skip in data-saver mode). Single source of
+  // truth for paths — read the --bg-* variables from index.html.
+  let backgroundsPreloaded = false;
+  function preloadBackgrounds() {
+    if (backgroundsPreloaded) return;
+    backgroundsPreloaded = true;
+    if (navigator.connection && navigator.connection.saveData) return;
+    const cs = getComputedStyle(document.documentElement);
+    const seen = new Set();
+    for (const v of [...Object.values(PHASE_BG), ...Object.values(MODE_BG)]) {
+      const m = cs.getPropertyValue(v).trim().match(/url\(["']?(.*?)["']?\)/);
+      if (m && m[1] && !seen.has(m[1])) {
+        seen.add(m[1]);
+        new Image().src = m[1];
+      }
     }
   }
 
@@ -283,6 +307,7 @@ import {
     state.gesture.active = false;
     state.gesture.touchActive = false;
     state.gesture.pointers = {};
+    if (phase !== "place") state.keyboardGrid.visible = false;
     if (phase !== "place" && phase !== "inspect") {
       if (state.boardView.scale > 1.01) {
         state.boardView.scale = 1;
@@ -733,7 +758,7 @@ import {
     markDirty();
   }
 
-  function clearBoard() {
+  async function clearBoard() {
     const hasContent =
       placedCount() > 0 ||
       state.trayBeans > 0 ||
@@ -741,7 +766,7 @@ import {
       state.tweezerBead ||
       state.spill ||
       state.fusedPieces.length > 0;
-    if (hasContent && !window.confirm("清空板面会移除已摆的全部豆子，确定吗？")) return;
+    if (hasContent && !(await confirmModal({ message: "清空板面会移除已摆的全部豆子，确定吗？", okText: "清空", danger: true }))) return;
     state.placed.fill(null);
     invalidatePlacedCounts();
     state.heat.fill(0);
@@ -1064,6 +1089,7 @@ import {
       state.spill = null;
     }
     const current = state.placed[index];
+    const removing = current === state.selectedColor && initial;
     if (current === state.selectedColor && initial) {
       state.placed[index] = null;
       state.heat[index] = 0;
@@ -1073,10 +1099,70 @@ import {
       state.placed[index] = state.selectedColor;
       state.heat[index] = 0;
     }
+    if (useMobileDirectPlacement()) {
+      triggerHaptic("light");
+      state.mobileBeadSettle = !removing && !prefersReducedMotion()
+        ? { index, startedAt: performance.now(), duration: 180 }
+        : null;
+    }
     invalidatePlacedCounts();
     state.savedCurrent = false;
     uiUpdateSelectedPaletteCount();
     markCanvasDirty(true);
+  }
+
+  function announceKeyboardGrid(message) {
+    showPlaceHint(message, `keyboard-grid:${message}`);
+  }
+
+  function showKeyboardGrid() {
+    if (state.phase !== "place") return;
+    if (!sceneCanvas.matches(":focus-visible")) return;
+    const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+    state.keyboardGrid = { ...cursor, visible: true };
+    announceKeyboardGrid(
+      `键盘格点：第 ${cursor.y + 1} 行，第 ${cursor.x + 1} 列，当前颜色 ${beadLabel(state.selectedColor)}。`,
+    );
+    markCanvasDirty();
+  }
+
+  function hideKeyboardGrid() {
+    if (!state.keyboardGrid.visible) return;
+    state.keyboardGrid.visible = false;
+    markCanvasDirty();
+  }
+
+  function handleKeyboardGridKey(event) {
+    if (document.activeElement !== sceneCanvas || state.phase !== "place") return false;
+    const action = keyboardGridAction(event.key);
+    if (action === "clear") {
+      event.preventDefault();
+      hideKeyboardGrid();
+      sceneCanvas.blur();
+      return true;
+    }
+    if (event.key.startsWith("Arrow")) {
+      event.preventDefault();
+      const cursor = moveGridCursor(state.keyboardGrid, event.key, state.selectedPattern.size);
+      state.keyboardGrid = { ...cursor, visible: true };
+      announceKeyboardGrid(
+        `第 ${cursor.y + 1} 行，第 ${cursor.x + 1} 列，当前颜色 ${beadLabel(state.selectedColor)}。`,
+      );
+      markCanvasDirty();
+      return true;
+    }
+    if (action === "place") {
+      event.preventDefault();
+      const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+      const index = indexFor(cursor.x, cursor.y);
+      const removed = state.placed[index] === state.selectedColor;
+      placeSelectedBead(cursor.x, cursor.y, true);
+      announceKeyboardGrid(
+        `${removed ? "已取下" : "已放置"} ${beadLabel(state.selectedColor)}，第 ${cursor.y + 1} 行，第 ${cursor.x + 1} 列。`,
+      );
+      return true;
+    }
+    return false;
   }
 
   function useTweezers(x, y) {
@@ -1365,6 +1451,10 @@ import {
     if (now < state.lampSwitchFlashUntil) return true;
     if (state.floorDrops.length > 0) return true;
     if (state.pressAnim && now - state.pressAnim.startedAt < state.pressAnim.duration) return true;
+    if (
+      state.mobileBeadSettle
+      && now - state.mobileBeadSettle.startedAt < state.mobileBeadSettle.duration
+    ) return true;
     const nav = state.kbdNav;
     if (nav.up || nav.down || nav.left || nav.right || nav.zoomIn || nav.zoomOut) return true;
     const bv = state.boardView;
@@ -1468,8 +1558,11 @@ import {
   sceneCanvas.addEventListener("touchend", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  sceneCanvas.addEventListener("focus", showKeyboardGrid);
+  sceneCanvas.addEventListener("blur", hideKeyboardGrid);
   sceneCanvas.addEventListener("wheel", (event) => {
     if (state.phase !== "place" && state.phase !== "inspect") return;
+    if (event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     const rect = sceneCanvas.getBoundingClientRect();
     const mx = event.clientX - rect.left;
@@ -1484,9 +1577,9 @@ import {
     setBoardZoom(nextScale, nextPanX, nextPanY);
   }, { passive: false });
 
-  els.resetButton.addEventListener("click", () => {
+  els.resetButton.addEventListener("click", async () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
-    if (hasProgress && !window.confirm("重置会清空当前所有进度，确定吗？")) return;
+    if (hasProgress && !(await confirmModal({ message: "重置会清空当前所有进度，确定吗？", okText: "重置", danger: true }))) return;
     loadPattern(state.selectedPattern);
     clearAutoSave();
     showToast("已重置当前作品。");
@@ -1519,9 +1612,9 @@ import {
   els.gallerySubmitModal?.addEventListener("click", (event) => {
     if (event.target === els.gallerySubmitModal) closeGallerySubmitModal();
   });
-  els.beadBackButton?.addEventListener("click", () => {
+  els.beadBackButton?.addEventListener("click", async () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
-    if (hasProgress && !window.confirm("返回首页将退出当前进度，确定吗？")) return;
+    if (hasProgress && !(await confirmModal({ message: "返回首页将退出当前进度，确定吗？", okText: "返回首页", danger: true }))) return;
     if (hasProgress) {
       loadPattern(state.selectedPattern);
       clearAutoSave();
@@ -1529,12 +1622,42 @@ import {
     setAppMode("home");
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
-  els.chooseStartButton?.addEventListener("click", () => {
+
+  function reflectBgmButton() {
+    if (!els.bgmButton) return;
+    const on = isBgmPlaying();
+    els.bgmButton.setAttribute("aria-checked", on ? "true" : "false");
+    els.bgmButton.setAttribute("aria-label", `背景音乐：${on ? "开" : "关"}`);
+  }
+  async function setBgm(next) {
+    await toggleBgm(next);
+    try { localStorage.setItem("perler-bgm", isBgmPlaying() ? "on" : "off"); } catch (e) { /* noop */ }
+    reflectBgmButton();
+  }
+  els.bgmButton?.addEventListener("click", () => {
+    void setBgm(!isBgmPlaying());
+  });
+  // If BGM was on last time, resume it on the first user gesture (works around autoplay restrictions).
+  let bgmPref = "off";
+  try { bgmPref = localStorage.getItem("perler-bgm") || "off"; } catch (e) { /* noop */ }
+  if (bgmPref === "on") {
+    const resume = () => {
+      document.removeEventListener("pointerdown", resume);
+      document.removeEventListener("keydown", resume);
+      void setBgm(true);
+    };
+    document.addEventListener("pointerdown", resume, { once: true });
+    document.addEventListener("keydown", resume, { once: true });
+  }
+  reflectBgmButton();
+  const startSelectedPattern = () => {
     if (state.phase === "choose") {
       setPhase("place");
       flushAutoSave();
     }
-  });
+  };
+  els.chooseStartButton?.addEventListener("click", startSelectedPattern);
+  els.mobileSelectionStartButton?.addEventListener("click", startSelectedPattern);
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
   els.bgThemeSelect?.addEventListener("change", () => {
     applyBackgroundTheme(els.bgThemeSelect.value);
@@ -1546,6 +1669,11 @@ import {
     state.toolStyle = next;
     showToast(`工具换成${currentToolStyle().name}款。`);
     markDirty();
+  });
+  els.confirmModalOk?.addEventListener("click", () => resolveConfirm(true));
+  els.confirmModalCancel?.addEventListener("click", () => resolveConfirm(false));
+  els.confirmModal?.addEventListener("click", (event) => {
+    if (event.target === els.confirmModal) resolveConfirm(false);
   });
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
@@ -1575,17 +1703,8 @@ import {
   els.shareModal?.addEventListener("click", (event) => {
     if (event.target === els.shareModal) closeShareModal();
   });
-  // Block browser pinch-zoom (mobile) and Ctrl/Cmd +/- wheel zoom (desktop).
-  window.addEventListener("wheel", (e) => {
-    if (e.ctrlKey || e.metaKey) e.preventDefault();
-  }, { passive: false });
-
   window.addEventListener("keydown", (event) => {
-    // Block Ctrl/Cmd + or - browser zoom on desktop.
-    if ((event.ctrlKey || event.metaKey) && (event.key === "+" || event.key === "-" || event.key === "=" || event.key === "_")) {
-      event.preventDefault();
-      return;
-    }
+    if (handleKeyboardGridKey(event)) return;
 
     // WASD / Arrow keys: pan board.  Z / X: zoom in / out.
     // Desktop only (non-touch), place/inspect phase, no modal open, no input focused.
@@ -1638,6 +1757,8 @@ import {
       return;
     }
     if (event.key !== "Escape") return;
+    // The confirm dialog sits on top; Esc cancels it first (same as clicking "Cancel").
+    if (state.confirmModalOpen) { resolveConfirm(false); return; }
     // If the enlarge viewer is open within the collection modal, close it first.
     const enlarged = els.collectionScreen?.querySelector(".collection-enlarged.show");
     if (enlarged) { enlarged.classList.remove("show"); return; }
@@ -1712,6 +1833,7 @@ import {
     importPatternCode,
     openImportCodeModal: () => openDrawCodeModal("import-bead"),
     submitCurrentToGallery,
+    triggerHaptic,
   });
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));
@@ -1730,3 +1852,5 @@ import {
   });
   uiRenderUI();
   requestAnimationFrame(tick);
+  // After the first screen settles, idle-prefetch the remaining stage backgrounds (removes the fade-in gap on stage switch).
+  (window.requestIdleCallback || ((cb) => setTimeout(cb, 1200)))(preloadBackgrounds);

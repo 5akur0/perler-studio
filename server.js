@@ -17,6 +17,7 @@ const MIME = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".webp": "image/webp",
+  ".mp3": "audio/mpeg",
 };
 
 function safePath(urlPath) {

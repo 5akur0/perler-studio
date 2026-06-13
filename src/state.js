@@ -19,6 +19,7 @@ export const state = {
   onboardingModalOpen: false,
   shareModalOpen: false,
   gallerySubmitModalOpen: false,
+  confirmModalOpen: false,
   modalReturnFocus: null,
   sandboxMode: false,
   bgTheme: "mist",
@@ -28,6 +29,9 @@ export const state = {
   pressAnim: null, // { startedAt, duration } — scraper sliding bottom→up
   projectedGuideCache: null,
   selectedColor: "K",
+  mobileColorPulseId: 0,
+  mobileColorPulsePending: false,
+  mobileBeadSettle: null,
   trayColor: null,
   trayProgress: 0,
   trayBeans: 0,
@@ -84,6 +88,11 @@ export const state = {
   kbdNav: {
     up: false, down: false, left: false, right: false,
     zoomIn: false, zoomOut: false,
+  },
+  keyboardGrid: {
+    x: 0,
+    y: 0,
+    visible: false,
   },
   gesture: {
     active: false,

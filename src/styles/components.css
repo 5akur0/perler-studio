@@ -1,3 +1,52 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Box primitives (Layout primitives) — each "box" is defined once; components compose them
+   instead of each writing its own. Existing components are wired in via "aliasing": their class
+   names are added to the primitive's selector list (keeping each one's original specificity, so
+   rendering is unchanged) and the duplicated lines are removed from the component. New components
+   just attach the primitive class.
+   Scale tokens are in tokens.css (--content-max / --list-cap / --scroll-pad).
+   Note: corner radius (--r-md/--r-lg) and padding differ per component, so they stay in the
+   component itself rather than the primitive.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Glass surface: semi-transparent + slight brand tint + soft shadow + background blur. Covers topbar / side panels / gallery & collection content surfaces. */
+.surface-glass,
+.topbar,
+.side-panel section,
+.gallery-layout,
+.collection-layout {
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--sh-2);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Scroll area: uniform inner breathing room so rounded cards / selection rings aren't hard-clipped at the scroll edge (overflow is declared per breakpoint by the container model). */
+.scroll-area,
+.pattern-list,
+.color-palette,
+.drawing-canvas-panel {
+  padding: var(--scroll-pad);
+}
+
+/* Studio shell: the centered fixed-width column shared by the gallery / collection / drawing studios. */
+.studio-shell,
+.gallery-studio-card,
+.collection-studio-card,
+.drawing-studio-card {
+  width: min(var(--content-max), 100%);
+}
+
+/* Card surface: white background + thin border (radius/padding differ per component and stay in the component; hover lift uses --sh-card-hover). */
+.card,
+.pattern-card,
+.gallery-card,
+.collection-tile {
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
 .topbar {
   display: grid;
   grid-template-columns: minmax(240px, 1fr) minmax(420px, 2fr) minmax(320px, auto);
@@ -5,12 +54,7 @@
   gap: 16px;
   min-height: 70px;
   padding: 8px 12px;
-  border: 1px solid var(--glass-border);
   border-radius: var(--r-lg);
-  background: var(--glass-bg);
-  box-shadow: var(--sh-2);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
 }
 
 .gallery-topbar,
@@ -39,7 +83,7 @@
 
 .brand h1 {
   margin: 0;
-  font-family: "Varela Round", "Nunito", "PingFang SC", sans-serif;
+  font-family: var(--font-cute);
   font-size: clamp(20px, 2.4vw, 28px);
   line-height: 1;
   letter-spacing: 0.2px;
@@ -66,6 +110,7 @@
   border-radius: var(--r-pill);
   color: var(--muted);
   background: rgba(255, 255, 255, 0.86);
+  font-family: var(--font-cute);
   font-size: var(--fs-xs);
   font-weight: 700;
   line-height: 1.2;
@@ -176,6 +221,10 @@
   letter-spacing: 0.2px;
 }
 
+.mobile-workflow-summary {
+  display: none;
+}
+
 .brand-mark {
   display: grid;
   grid-template-columns: repeat(2, 16px);
@@ -265,10 +314,22 @@
 
 .workflow-step.done {
   color: var(--brand-ink);
+  cursor: pointer;
+}
+
+/* Completed steps are clickable to go back — give clear hover feedback so "click the progress bar to go back" is discoverable. */
+.workflow-step.done:hover {
+  background: var(--brand-tint);
+  box-shadow: inset 0 0 0 1px var(--brand-tint-strong);
 }
 
 .workflow-step.done .step-dot {
   background: var(--brand);
+}
+
+/* The current step's disabled state should not show not-allowed (it just means "you are here"). */
+.workflow-step:disabled {
+  cursor: default;
 }
 
 .workflow-step.active {
@@ -436,29 +497,59 @@
   box-shadow: inset 0 0 0 2px var(--brand-tint-strong);
 }
 
-.sandbox-sticker {
+/* The switch in settings (iOS-style toggle), currently used for background music. */
+.settings-toggle {
   min-height: 44px;
-  padding: 0 14px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  color: #4a5160;
+}
+
+.settings-toggle:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-toggle-track {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  transition: background 0.18s ease;
+}
+
+.settings-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   background: #fff;
-  font-size: var(--fs-sm);
-  font-weight: 750;
+  box-shadow: 0 1px 3px rgba(38, 36, 43, 0.28);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sandbox-sticker .sandbox-state {
-  line-height: 1;
+.settings-toggle[aria-checked="true"] .settings-toggle-track {
+  background: var(--brand-edge);
 }
 
-.sandbox-sticker.active {
-  border-color: var(--brand-edge);
-  color: var(--brand-ink);
-  background: var(--brand-tint);
-  box-shadow: inset 0 0 0 1px var(--brand-tint-strong);
+.settings-toggle[aria-checked="true"] .settings-toggle-thumb {
+  transform: translateX(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-toggle-track,
+  .settings-toggle-thumb {
+    transition: none;
+  }
 }
 
 .studio-grid {
@@ -514,12 +605,7 @@
 
 .side-panel section {
   padding: 8px;
-  border: 1px solid var(--glass-border);
   border-radius: var(--r-md);
-  background: var(--glass-bg);
-  box-shadow: var(--sh-2);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
 }
 
 .right-panel section {
@@ -535,6 +621,7 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+  font-family: var(--font-cute);
   font-size: var(--fs-title);
   font-weight: 750;
 }
@@ -542,6 +629,7 @@
 .section-title small {
   min-width: 0;
   color: var(--muted);
+  font-family: var(--font-clear);
   font-size: 12px;
   font-weight: 600;
   text-align: right;
@@ -623,7 +711,11 @@
   gap: 8px;
   max-height: 360px;
   overflow: auto;
-  padding-right: 2px;
+  /* Inner breathing room is provided uniformly by the .scroll-area primitive (var(--scroll-pad)). */
+}
+
+.mobile-selection-summary {
+  display: none;
 }
 
 .pattern-import-row {
@@ -674,7 +766,7 @@
   flex: 1 1 auto;
   min-height: 0;
   /* Cap so the page doesn't expand vertically when many patterns are added. */
-  max-height: min(72vh, 720px);
+  max-height: var(--list-cap);
 }
 
 .pattern-card {
@@ -684,9 +776,7 @@
   width: 100%;
   min-height: 74px;
   padding: 8px;
-  border: 1px solid var(--line);
   border-radius: var(--r-xs);
-  background: #fff;
   text-align: left;
 }
 
@@ -1029,8 +1119,21 @@
 :where(.ghost-button, .primary-button, .danger-button, .icon-text-button, .choose-start-button, .draw-size-button, .collection-item-button) {
   min-height: 44px;
   border-radius: var(--r-sm);
-  font-weight: 750;
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+/* All action-button labels use the clear font family — buttons are functional "read and act" text, where clarity comes first.
+   Must use a real class selector (specificity 0,1,0) to override base.css's `button { font: inherit }` (0,0,1). */
+.btn,
+.ghost-button,
+.primary-button,
+.danger-button,
+.icon-text-button,
+.choose-start-button,
+.draw-size-button,
+.collection-item-button {
+  font-family: var(--font-clear);
+  font-weight: 750;
 }
 
 .btn,
@@ -1039,29 +1142,40 @@
   place-items: center;
 }
 
+/* Action buttons and tool-card titles in the workbench also use clear — they are functional text, clarity first. */
+.control-row > button,
+.craft-toggle button,
+.inspect-action-btn,
+.danger-text-button,
+.tool-head {
+  font-family: var(--font-clear);
+}
+
 .primary-button {
   color: #fff;
-  border-color: #2f8473;
+  border-color: color-mix(in srgb, var(--brand-cta-strong), #000 14%);
   background: linear-gradient(180deg, var(--brand-cta), var(--brand-cta-strong));
-  box-shadow: var(--sh-inset), 0 6px 16px rgba(56, 149, 134, 0.28);
+  box-shadow: var(--sh-inset), 0 6px 16px color-mix(in srgb, var(--brand-cta-strong) 28%, transparent);
 }
 
 .primary-button:hover {
-  border-color: #2a7567;
-  background: linear-gradient(180deg, #37907f, #2f8174);
-  box-shadow: var(--sh-inset), 0 10px 22px rgba(56, 149, 134, 0.32);
+  border-color: color-mix(in srgb, var(--brand-cta-strong), #000 22%);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--brand-cta), #000 5%),
+    color-mix(in srgb, var(--brand-cta-strong), #000 5%));
+  box-shadow: var(--sh-inset), 0 10px 22px color-mix(in srgb, var(--brand-cta-strong) 32%, transparent);
 }
 
 .danger-button {
   color: #fff;
-  border-color: #c9433e;
-  background: linear-gradient(180deg, #ef736e, var(--coral));
+  border-color: var(--danger-edge);
+  background: linear-gradient(180deg, var(--danger-top), var(--danger));
   box-shadow: var(--sh-inset), 0 6px 16px rgba(231, 100, 95, 0.26);
 }
 
 .danger-button:hover {
-  border-color: #c9433e;
-  background: linear-gradient(180deg, #f17f7a, #e1554f);
+  border-color: var(--danger-edge);
+  background: linear-gradient(180deg, var(--danger-top-hover), var(--danger-bottom-hover));
   box-shadow: var(--sh-inset), 0 10px 22px rgba(231, 100, 95, 0.3);
 }
 
@@ -1125,10 +1239,25 @@
   background: var(--surface);
 }
 
+.lucide-icon {
+  display: block;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
 .icon-only-button:hover {
   border-color: #aeb6c4;
   color: #1f2433;
   background: var(--surface-2);
+}
+
+/* Sandbox toggle moved to the topbar: when on, it highlights in the brand color to make "free mode active" clear. */
+.sandbox-toggle.active,
+.sandbox-toggle.active:hover {
+  border-color: var(--brand-edge);
+  color: var(--brand-ink);
+  background: var(--brand-tint);
+  box-shadow: inset 0 0 0 1px var(--brand-tint-strong);
 }
 
 .icon-text-button {
@@ -1301,7 +1430,23 @@
 }
 
 .settings-modal-card {
-  width: min(440px, calc(100vw - 24px));
+  /* Desktop doesn't need to be too wide — narrowing it also shrinks the gap between the inline "label—value" pair. */
+  width: min(340px, calc(100vw - 24px));
+}
+
+.confirm-modal-card {
+  width: min(380px, calc(100vw - 24px));
+}
+
+.confirm-modal-body {
+  padding: 18px 18px 6px;
+}
+
+.confirm-modal-body p {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-md);
+  line-height: 1.6;
 }
 
 .draw-resize-modal-card {
@@ -1368,13 +1513,20 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
 }
 
 .settings-modal-body .settings-collection-row,
 .settings-modal-body .settings-field {
   width: 100%;
   justify-content: space-between;
+  /* Soft light fill + light border, replacing the look of four hard-bordered "boxes" on white-on-white cards. */
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--line) 64%, transparent);
+}
+
+.settings-modal-body .settings-field span:first-child {
+  color: var(--ink);
 }
 
 .settings-modal-body .bg-picker select,
@@ -1409,19 +1561,19 @@
   font-size: var(--fs-sm);
 }
 
-.settings-sandbox-row {
+.settings-toggle-row {
   display: flex;
   align-items: center;
   gap: 7px;
   min-height: 44px;
-  padding: 0 9px 0 11px;
+  padding: 0 6px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: rgba(255, 255, 255, 0.9);
 }
 
-.settings-sandbox-row span {
-  color: var(--muted);
+.settings-toggle-row span {
+  color: var(--ink);
   font-size: var(--fs-sm);
   font-weight: 700;
 }
@@ -1448,16 +1600,14 @@
 .collection-tile {
   position: relative;
   padding: 0;
-  border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  background: #fff;
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .collection-tile:hover {
   border-color: var(--brand);
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(49, 54, 68, 0.1);
+  box-shadow: var(--sh-card-hover);
 }
 
 .collection-tile-body {
@@ -1485,7 +1635,7 @@
   right: 8px;
   width: 28px;
   height: 28px;
-  min-height: 0; /* 抵消全局 button{min-height:44px}，保持 28px 正圆；触控热区由 ::after 提供 */
+  min-height: 0; /* cancel the global button{min-height:44px} to keep a 28px perfect circle; the touch hit area is provided by ::after */
   padding: 0;
   display: grid;
   place-items: center;
@@ -1497,7 +1647,7 @@
   transition: opacity 0.16s ease, background 0.16s ease;
 }
 
-/* 视觉保持 28px，点击热区扩到 44×44（透明外延），满足触控目标 ≥44px。 */
+/* Visually stays 28px; the click hit area expands to 44×44 (transparent extension) to meet the ≥44px touch target. */
 .collection-tile-delete::after {
   content: "";
   position: absolute;
@@ -1508,7 +1658,7 @@
   opacity: 1;
 }
 
-/* 触屏设备无 hover：删除钮常显，否则手机/平板上完全看不到也点不到。 */
+/* Touch devices have no hover: keep the delete button always visible, otherwise it's invisible and untappable on phones/tablets. */
 @media (hover: none) {
   .collection-tile-delete {
     opacity: 1;
@@ -1619,6 +1769,7 @@
 }
 
 .remap-modal-head strong {
+  font-family: var(--font-cute);
   font-size: var(--fs-title);
   font-weight: 800;
 }
@@ -1627,9 +1778,12 @@
   min-height: 44px;
   min-width: 44px;
   padding: 0;
+  display: grid;
+  place-items: center;
   border-radius: var(--r-pill);
   border-color: transparent;
-  background: rgba(101, 115, 130, 0.08);
+  /* Drop the gray circular background — it misaligns with the X icon and looks dirty; keep only a centered X, deepening its color on hover. */
+  background: transparent;
   color: #4a5160;
   font-size: 22px;
   line-height: 1;
@@ -1637,7 +1791,7 @@
 }
 
 .remap-modal-head button:hover {
-  background: rgba(101, 115, 130, 0.16);
+  background: transparent;
   color: #1f2433;
   transform: none;
   box-shadow: none;
@@ -2116,7 +2270,8 @@
 
 .share-code-result strong {
   color: var(--brand-ink);
-  font-family: "Varela Round", "Nunito", "PingFang SC", sans-serif;
+  /* Short codes need to be read aloud / copied / typed, so use clear for legibility, not cute. */
+  font-family: var(--font-clear);
   font-size: 22px;
   letter-spacing: 0;
 }
@@ -2129,7 +2284,9 @@
   min-height: 0;
   max-height: none;
   overflow: auto;
-  padding-right: 2px;
+  /* Inner breathing room is provided uniformly by the .scroll-area primitive (var(--scroll-pad)) —
+     keeps selection rings / focus rings / the needed-glow from being hard-clipped at the scroll edge
+     (the right-side bead-box selection overflow issue). */
   align-content: start;
 }
 
@@ -2191,11 +2348,14 @@
   box-shadow: none;
 }
 
+/* Selection ring is fully contained inside the chip (inset white gap + ink ring)
+   so it never spills past the palette's overflow:auto edge — fixes edge chips
+   getting their ring clipped. Softer than a hard black outline, fits the cozy look. */
 .color-chip.active {
   border-color: var(--ink);
-  outline: 2px solid rgba(20, 20, 26, 0.8);
-  outline-offset: 2px;
-  box-shadow: inset 0 0 0 2px rgba(38, 36, 43, 0.12);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.92),
+    inset 0 0 0 3.5px var(--ink);
 }
 
 .color-chip.needed {
@@ -2220,14 +2380,12 @@
 }
 
 .color-chip.active.needed {
-  border-color: var(--brand-edge);
-  outline: 2px solid rgba(20, 20, 26, 0.8);
-  outline-offset: 2px;
+  border-color: var(--ink);
   box-shadow:
-    inset 0 0 0 2px var(--brand-tint-strong),
-    0 0 0 1px var(--brand-tint-strong),
-    0 0 20px var(--brand-tint),
-    0 0 28px color-mix(in srgb, var(--brand) 34%, transparent);
+    inset 0 0 0 2px rgba(255, 255, 255, 0.92),
+    inset 0 0 0 3.5px var(--ink),
+    0 0 16px var(--brand-tint),
+    0 0 24px color-mix(in srgb, var(--brand) 30%, transparent);
   animation: none;
 }
 
@@ -2295,7 +2453,7 @@
   line-height: 1;
 }
 
-/* ── 新手引导弹窗（O1） ───────────────────────────────────────── */
+/* ── Onboarding modal (O1) ───────────────────────────────────────── */
 .onboarding-modal-card { max-width: 420px; }
 .onboarding-lead { margin: 0 0 14px; color: var(--muted); font-size: var(--fs-sm); }
 .onboarding-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
@@ -2306,5 +2464,5 @@
   background: var(--brand-tint); color: var(--brand-ink);
 }
 .onboarding-steps li > span:last-child { font-size: var(--fs-sm); color: var(--muted); line-height: 1.5; }
-.onboarding-steps strong { display: block; color: var(--ink); margin-bottom: 2px; }
+.onboarding-steps strong { display: block; color: var(--ink); margin-bottom: 2px; font-family: var(--font-cute); }
 .onboarding-tip { margin: 16px 0 0; font-size: var(--fs-xs); color: var(--muted); }

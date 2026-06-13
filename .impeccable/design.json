@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-13T00:00:00Z",
+  "title": "Design System: 拼豆工坊 · Perler Studio",
+  "extensions": {
+    "colorMeta": {
+      "brand-mint": { "role": "primary", "displayName": "薄荷雾绿 / Misty Mint", "canonical": "#57b8a7", "note": "运行时按 5 套主题整体替换 (--brand)", "tonalRamp": ["#143832", "#1d4f47", "#2a6e62", "#3d9082", "#57b8a7", "#82ccc0", "#b0e0d8", "#dcf2ee"] },
+      "brand-ink": { "role": "primary", "displayName": "深苔绿 / Deep Moss", "canonical": "#1f6153", "tonalRamp": ["#0c2620", "#123a31", "#184f43", "#1f6153", "#3c8576", "#6aa99c", "#9ccabf", "#d2ebe4"] },
+      "brand-cta": { "role": "primary", "displayName": "亮松石 CTA / Brightened Teal", "canonical": "#3d9c8c", "note": "仅主按钮渐变；白字 ≈3.3:1，有意取舍，每主题各有压深值", "tonalRamp": ["#102a25", "#173f38", "#21574d", "#2c7264", "#3d9c8c", "#6bb9ac", "#9bd3c9", "#cfeee7"] },
+      "coral": { "role": "secondary", "displayName": "珊瑚橘红 / Coral", "canonical": "#e7645f", "tonalRamp": ["#4a1715", "#6f2622", "#a13a35", "#cc4d47", "#e7645f", "#ef8a86", "#f6b3b0", "#fbdcda"] },
+      "amber": { "role": "secondary", "displayName": "蜜糖琥珀 / Honey Amber", "canonical": "#d99b3d", "tonalRamp": ["#3f2c0e", "#5f4316", "#8a6220", "#b3802c", "#d99b3d", "#e6b870", "#f0d3a3", "#f8ecd2"] },
+      "blue": { "role": "secondary", "displayName": "晴空蓝 / Sky Blue", "canonical": "#4d77b8", "tonalRamp": ["#15223a", "#21345a", "#2f497d", "#3d5e9b", "#4d77b8", "#7e9bcd", "#aec2e0", "#dce6f3"] },
+      "violet": { "role": "secondary", "displayName": "薰衣草紫 / Lavender", "canonical": "#7b6fb1", "tonalRamp": ["#221d38", "#332b54", "#473c75", "#5b4e94", "#7b6fb1", "#a096c8", "#c5bedd", "#e7e3f2"] },
+      "ink": { "role": "neutral", "displayName": "浓墨 / Ink", "canonical": "#26242b", "tonalRamp": ["#26242b", "#3a3842", "#4f4c58", "#686572", "#8a8794", "#b3b0bb", "#d6dae2", "#f6f8fc"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero / 首屏大标题，Varela Round 22px，行高放松到 1.12。" },
+      "headline": { "displayName": "Headline", "purpose": "区块主标题 18px。" },
+      "title": { "displayName": "Title", "purpose": "模态/区块/卡片标题 16px，专门比正文高一档。" },
+      "body": { "displayName": "Body", "purpose": "多行正文 14px，行高 1.55 求呼吸感。" },
+      "label": { "displayName": "Label", "purpose": "色号/徽标/辅助小字 10–13px。" }
+    },
+    "shadows": [
+      { "name": "grounded", "value": "0 2px 8px rgba(49,54,68,0.06)", "purpose": "贴地小元素 (--sh-1)。" },
+      { "name": "panel", "value": "0 10px 24px rgba(49,54,68,0.09)", "purpose": "L1 玻璃面板 (--sh-2)。" },
+      { "name": "floating", "value": "0 18px 46px rgba(49,54,68,0.14)", "purpose": "浮起卡片 (--sh-3)。" },
+      { "name": "popover", "value": "0 22px 56px rgba(38,36,43,0.22)", "purpose": "L2 弹窗 (--sh-pop)。" },
+      { "name": "inset-highlight", "value": "inset 0 1px 0 rgba(255,255,255,0.7)", "purpose": "按钮顶部高光，黏土立体感来源 (--sh-inset)。" },
+      { "name": "feedback", "value": "0 12px 30px rgba(38,36,43,0.16)", "purpose": "提示三件套共用投影 (--feedback-shadow)。" }
+    ],
+    "motion": [
+      { "name": "micro", "value": "transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease", "purpose": "hover/press 微交互，全站统一 0.16s，只动 transform/opacity/color/shadow。" },
+      { "name": "feedback", "value": "opacity 0.2s ease, transform 0.2s ease", "purpose": "toast/提示/成就入场 (--feedback-ease)。" },
+      { "name": "ambient", "value": "needed-chip-glow / -aura / rotate-hint 等无限循环", "purpose": "环境型氛围动画，不受 150–300ms 约束，但仍被 reduced-motion 覆盖。" },
+      { "name": "reduced-motion", "value": "@media (prefers-reduced-motion: reduce)", "purpose": "所有动画必须有此回退；JS 侧用 prefersReducedMotion() (utils.js)。" }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "420px" },
+      { "name": "phone", "value": "620px" },
+      { "name": "mobile", "value": "860px" },
+      { "name": "tablet", "value": "1180px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "主操作。白字 + 亮松石 cta 渐变，每屏 ≤1 个。",
+      "html": "<button class=\"ds-btn-primary\">开始拼豆</button>",
+      "css": ".ds-btn-primary { min-height:44px; padding:0 16px; border:1px solid #2c7e70; border-radius:12px; color:#fff; font-weight:750; font-family:\"Varela Round\",Nunito,sans-serif; background:linear-gradient(180deg,#3d9c8c,#389586); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 6px 16px rgba(56,149,134,0.28); transition: background .16s ease, box-shadow .16s ease; cursor:pointer; } .ds-btn-primary:hover { background:linear-gradient(180deg,#3a9485,#357f72); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 10px 22px rgba(56,149,134,0.32); } .ds-btn-primary:focus-visible { outline:2px solid rgba(87,184,167,0.72); outline-offset:2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "次操作。白底墨字，hover 仅给品牌色描边。",
+      "html": "<button class=\"ds-btn-ghost\">取消</button>",
+      "css": ".ds-btn-ghost { min-height:44px; padding:0 14px; border:1px solid #d6dae2; border-radius:12px; color:#26242b; font-weight:750; font-family:Nunito,\"PingFang SC\",sans-serif; background:#fff; transition: border-color .16s ease, background .16s ease; cursor:pointer; } .ds-btn-ghost:hover { border-color:#3f988b; } .ds-btn-ghost:focus-visible { outline:2px solid rgba(87,184,167,0.72); outline-offset:2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "破坏性操作。白字 + 珊瑚红渐变。",
+      "html": "<button class=\"ds-btn-danger\">清空板面</button>",
+      "css": ".ds-btn-danger { min-height:44px; padding:0 16px; border:1px solid #c9433e; border-radius:12px; color:#fff; font-weight:750; font-family:Nunito,sans-serif; background:linear-gradient(180deg,#ef736e,#e7645f); box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 6px 16px rgba(231,100,95,0.26); transition: background .16s ease; cursor:pointer; } .ds-btn-danger:hover { background:linear-gradient(180deg,#ec635d,#d9534e); } .ds-btn-danger:focus-visible { outline:2px solid rgba(231,100,95,0.6); outline-offset:2px; }"
+    },
+    {
+      "name": "Color Chip",
+      "kind": "chip",
+      "refersTo": "chip-color",
+      "description": "MARD 色号 chip。白底、色块 + 色号，48px 触控高度。",
+      "html": "<button class=\"ds-chip\" aria-label=\"色号 H5\"><span class=\"ds-chip-swatch\"></span><span class=\"ds-chip-code\">H5</span></button>",
+      "css": ".ds-chip { display:grid; gap:2px; place-items:center; min-height:48px; padding:3px 4px 2px; border:1px solid #d6dae2; border-radius:8px; background:#fff; cursor:pointer; transition: border-color .16s ease; } .ds-chip-swatch { width:22px; height:22px; border-radius:6px; background:#57b8a7; } .ds-chip-code { font:700 10px Nunito,sans-serif; color:#26242b; } .ds-chip:hover { border-color:#3f988b; } .ds-chip:focus-visible { outline:2px solid rgba(87,184,167,0.72); outline-offset:2px; }"
+    },
+    {
+      "name": "Glass Panel (L1)",
+      "kind": "card",
+      "refersTo": "card-solid",
+      "description": "L1 高透磨砂玻璃面板：blur3 + 主题染边框 + 面板投影。可读性靠 L0 背景 scrim。",
+      "html": "<section class=\"ds-glass\"><h3 class=\"ds-glass-title\">豆盒</h3><p class=\"ds-glass-body\">把色号倒入豆筛后开始摆放。</p></section>",
+      "css": ".ds-glass { padding:16px; border:1px solid rgba(87,184,167,0.4); border-radius:16px; background:color-mix(in srgb,#57b8a7 10%,rgba(255,255,255,0)); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); box-shadow:0 10px 24px rgba(49,54,68,0.09); } .ds-glass-title { margin:0 0 6px; font:700 16px \"Varela Round\",sans-serif; color:#26242b; } .ds-glass-body { margin:0; font:400 14px/1.55 Nunito,sans-serif; color:#686572; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "桃面糖豆手作 / The Cozy Pastel Bead Tray",
+    "overview": "一盘像糖果一样的彩豆，摆在暖意的手作桌上——可爱、轻盈、想拍下来分享，但桌面始终干净，让作品和那张截图当主角。整套界面服务于一条慢节奏的拼豆流水线，目标是「桌前慢慢做手工」的安心与专注。视觉密度刻意压低：靠柔和粉彩、圆润形状、拟物质感传达可爱，而不是靠堆元素。三层结构是骨架——阶段背景图(L0)随主题染色、高透玻璃面板(L1)浮其上、纯白卡片弹窗(L2)承载需绝对可读的内容。品牌色不是写死的薄荷绿，而是运行时按 5 套主题整体替换的一组 token。明确拒绝商业 SaaS 冷淡风、一眼 AI 的生成感、emoji 图标，以及装饰性玻璃/渐变。可爱来自克制。",
+    "keyCharacteristics": [
+      "粉彩 + 拟物温度，圆润轻盈，黏土般柔和的投影（非硬黑）。",
+      "三层玻璃骨架：背景图 → 高透玻璃面板 → 实心卡片/弹窗。",
+      "主题即一组可运行时替换的 token：一套语言，五种氛围。",
+      "移动优先、强制朝向、每一屏都能单独截图发小红书。",
+      "治愈优先于效率：克制留白，把作品和截图当主角。"
+    ],
+    "rules": [
+      { "name": "The Theme-Token Rule（主题 token 铁律）", "body": "组件颜色一律用 var(--brand…) 等 token，永不写死薄荷绿；运行时按主题覆盖品牌色。", "section": "colors" },
+      { "name": "The Bright-CTA Exception Rule（亮 CTA 例外）", "body": "主按钮白字+cta 渐变 ≈3.3:1，满足大字 3:1 不满足正文 4.5:1，是有意取舍；cta 色绝不用于小字。", "section": "colors" },
+      { "name": "The Five-Accent Rule（五彩仅分类）", "body": "mint/coral/amber/blue/violet 只作分类标识，不承载正文文字；颜色不作唯一信息载体。", "section": "colors" },
+      { "name": "The Round-Only Rule（只用圆体）", "body": "字族锁定 Nunito/Varela Round + 中文圆黑回退，禁衬线、禁第二款几何无衬线。", "section": "typography" },
+      { "name": "The Title-Tier Rule（标题分档）", "body": "中层标题用 --fs-title 16 与正文 base 14 拉开一档，别只靠字重。", "section": "typography" },
+      { "name": "The Three-Layer Glass Rule（三层玻璃）", "body": "永远按 L0 背景图+scrim / L1 高透玻璃面板 / L2 实心卡片弹窗组织深度。", "section": "elevation" },
+      { "name": "The Scrim-Carries-Readability Rule（可读性靠蒙版）", "body": "L1 玻璃刻意高透，可读性靠 L0 的 --bg-scrim 压淡背景，不靠面板本身；换图后实测 5 主题。", "section": "elevation" },
+      { "name": "The Soft-Clay Shadow Rule（柔和黏土投影）", "body": "投影柔和扩散、低不透明度，禁硬黑投影；无 backdrop-filter 时玻璃退回更不透明。", "section": "elevation" },
+      { "name": "The Quiet Tray Rule（克制留白）", "body": "可爱来自颜色与圆角不来自堆元素；每屏先保证作品和可截图当主角，干扰元素能省则省。", "section": "elevation" }
+    ],
+    "dos": [
+      "Do 组件颜色一律用 var(--brand…) 等 token，让 5 套主题运行时整体替换。",
+      "Do 把深度组织成三层玻璃，可读性靠 L0 scrim 撑。",
+      "Do 用 Nunito/Varela Round 圆体；中层标题用 --fs-title 16 与正文拉开一档。",
+      "Do 图标全用 SVG（stroke=currentColor）；图标按钮必须有 aria-label。",
+      "Do 守住对比度：正文/小字 ≥4.5:1，大字 ≥3:1；触控 ≥44×44px；输入框 ≥16px。",
+      "Do 每屏只放 ≤1 个主 CTA；hover 只动 color/shadow。",
+      "Do 给所有动画包 prefers-reduced-motion（含环境型循环）。"
+    ],
+    "donts": [
+      "Don't 做成商业 SaaS 冷淡风：高对比硬朗、冷灰蓝、仪表盘式密度堆叠。",
+      "Don't 落入生成感：同质化等大卡片网格、缺氛围、薄荷绿写死不随主题。",
+      "Don't 用 emoji 当 UI 图标——一律 SVG。",
+      "Don't 用渐变文字、彩色侧边竖条（>1px border-left/right 当强调）。",
+      "Don't 把玻璃当装饰随手糊在卡片上——它是有意为之的三层系统。",
+      "Don't 把 cta 渐变色（≈3.3:1）用在小字文本上。",
+      "Don't 用裸 z-index 数字或 hover scale 位移。",
+      "Don't 为了更可爱往画面里堆干扰元素——克制留白。"
+    ]
+  }
+}
