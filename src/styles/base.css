@@ -4,6 +4,18 @@ body {
   margin: 0;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 body {
   color: var(--ink);
   background:
@@ -16,14 +28,14 @@ body {
   text-rendering: geometricPrecision;
 }
 
-/* 弹窗打开时锁背景滚动（移动端 ≤860px 的 overflow:hidden 不在 base 生效，
-   否则弹窗背后页面仍可滚动）。由 modal-controller 切换 .modal-open。 */
+/* Lock background scroll while a modal is open (the mobile ≤860px overflow:hidden does not apply in base,
+   otherwise the page behind the modal could still scroll). Toggled via .modal-open by modal-controller. */
 body.modal-open {
   overflow: hidden;
 }
 
-/* 全屏背景层：当前阶段背景图铺满整个窗口（顶栏/四周也覆盖），玻璃面板浮其上。
-   由 JS 按 mode/phase 设 --bg-current（图）与 --bg-current-on（0/1 开关）。 */
+/* Full-screen background layer: the current stage's background image fills the whole window (covering the topbar and edges too), with glass panels floating above.
+   JS sets --bg-current (the image) and --bg-current-on (0/1 switch) per mode/phase. */
 body::before {
   content: "";
   position: fixed;
@@ -44,6 +56,21 @@ button,
 input,
 select {
   font: inherit;
+}
+
+/* Tabular numerals for numeric readouts, so digit width doesn't jitter as sliders/counts update live (single source, maintained centrally by selector list). */
+.size-rail-value,
+.start-row-count,
+.slider-field label strong,
+#customDenoiseValue,
+#drawSizeValue {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Explicit placeholder color: the default browser placeholder ~#a9a9a9 (≈2.4:1) fails contrast; use --muted (≈7:1) to keep it readable. */
+::placeholder {
+  color: var(--muted);
+  opacity: 1; /* Firefox lowers placeholder opacity to ~0.54 by default; reset it here */
 }
 
 button {

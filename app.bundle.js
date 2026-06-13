@@ -666,25 +666,33 @@
     {
       id: "berry-cat",
       name: "\u8393\u679C\u5C0F\u732B",
-      size: 16,
+      size: 24,
       craft: "\u94A5\u5319\u6263",
       rows: [
-        "................",
-        "....K......K....",
-        "...KKK....KKK...",
-        "..KWWWK..KWWWK..",
-        "..KWWWWKKWWWWK..",
-        ".KWWWWWWWWWWWWK.",
-        ".KWWKWWWWWWKWWK.",
-        ".KWWWWPWWPWWWWK.",
-        ".KWWWWWWWWWWWWK.",
-        ".KWWWDWWWWDWWWK.",
-        "..KWWWWKKWWWWK..",
-        "...KWWWWWWWWK...",
-        "....KWWWWWWK....",
-        ".....KKKKKK.....",
-        "................",
-        "................"
+        "........................",
+        "........................",
+        ".......K........K.......",
+        "......KWK......KWK......",
+        ".....KWWWK....KWWWK.....",
+        "....KWWWWWK..KWWWWWK....",
+        ".....KKKKKKKKKKKKKK.....",
+        "....KWWWWWWWWWWWWWWK....",
+        "....KWWWWWWWWWWWWWWK....",
+        "....KWWRRWWWWWWWWWWK....",
+        "....KWWWWWWWWWWWWWWK....",
+        "....KWWWWWWWWWWWWWWK....",
+        "....KWWWKKWWWWKKWWWK....",
+        "....KWWWKKWWWWKKWWWK....",
+        "....KWWWKKWWWWKKWWWK....",
+        "....KWppWWWPPWWWppWK....",
+        "....KWppWWpWWpWWppWK....",
+        "....KWWWWWWWWWWWWWWK....",
+        "....KWWWWWWWWWWWWWWK....",
+        "....KWWWWWWWWWWWWWWK....",
+        ".....KKKKKKKKKKKKKK.....",
+        "........................",
+        "........................",
+        "........................"
       ],
       note: "\u732B\u732B\u8E6D\u5230\u679C\u6C41\u5566"
     },
@@ -1375,6 +1383,7 @@
     onboardingModalOpen: false,
     shareModalOpen: false,
     gallerySubmitModalOpen: false,
+    confirmModalOpen: false,
     modalReturnFocus: null,
     sandboxMode: false,
     bgTheme: "mist",
@@ -1385,6 +1394,9 @@
     // { startedAt, duration } — scraper sliding bottom→up
     projectedGuideCache: null,
     selectedColor: "K",
+    mobileColorPulseId: 0,
+    mobileColorPulsePending: false,
+    mobileBeadSettle: null,
     trayColor: null,
     trayProgress: 0,
     trayBeans: 0,
@@ -1447,6 +1459,11 @@
       right: false,
       zoomIn: false,
       zoomOut: false
+    },
+    keyboardGrid: {
+      x: 0,
+      y: 0,
+      visible: false
     },
     gesture: {
       active: false,
@@ -1545,6 +1562,12 @@
     statusLine: $("#statusLine"),
     patternMeta: $("#patternMeta"),
     patternList: $("#patternList"),
+    mobileSelectionSummary: $("#mobileSelectionSummary"),
+    mobileSelectionThumb: $("#mobileSelectionThumb"),
+    mobileSelectionName: $("#mobileSelectionName"),
+    mobileSelectionMeta: $("#mobileSelectionMeta"),
+    mobileSelectionStartButton: $("#mobileSelectionStartButton"),
+    customImageControls: $("#customImageControls"),
     customImageInput: $("#customImageInput"),
     customWhiteToggle: $("#customWhiteToggle"),
     customDenoiseSlider: $("#customDenoiseSlider"),
@@ -1563,6 +1586,11 @@
     sideReferenceLegend: $("#sideReferenceLegend"),
     studioGrid: $("#studioGrid"),
     workflowProgress: $("#workflowProgress"),
+    mobileWorkflowSummary: $("#mobileWorkflowSummary"),
+    mobilePatternThumb: $("#mobilePatternThumb"),
+    mobilePatternName: $("#mobilePatternName"),
+    mobileWorkflowCurrent: $("#mobileWorkflowCurrent"),
+    mobileWorkflowNext: $("#mobileWorkflowNext"),
     currentPatternChip: $("#currentPatternChip"),
     currentPatternThumb: document.querySelector("#currentPatternChip .current-pattern-thumb"),
     currentPatternName: $("#currentPatternName"),
@@ -1572,6 +1600,12 @@
     settingsDot: $("#settingsDot"),
     settingsModal: $("#settingsModal"),
     settingsModalClose: $("#settingsModalClose"),
+    bgmButton: $("#bgmButton"),
+    confirmModal: $("#confirmModal"),
+    confirmModalMessage: $("#confirmModalMessage"),
+    confirmModalTitle: $("#confirmModalTitle"),
+    confirmModalOk: $("#confirmModalOk"),
+    confirmModalCancel: $("#confirmModalCancel"),
     onboardingModal: $("#onboardingModal"),
     onboardingBody: $("#onboardingBody"),
     onboardingDoneBtn: $("#onboardingDoneBtn"),
@@ -1668,6 +1702,91 @@
       showToast("\u6D4F\u89C8\u5668\u963B\u6B62\u4E86\u672C\u5730\u4FDD\u5B58\uFF0C\u4F46\u4F5C\u54C1\u5DF2\u7ECF\u5B8C\u6210\u3002");
       return false;
     }
+  }
+
+  // src/bgm.js
+  var BGM_SOURCE = "./audio/background.mp3";
+  var TARGET_VOLUME = 0.4;
+  var FADE_IN_MS = 600;
+  var FADE_OUT_MS = 400;
+  var audio = null;
+  var playing = false;
+  var fadeGeneration = 0;
+  function ensureAudio() {
+    if (audio) return audio;
+    if (typeof Audio !== "function") return null;
+    try {
+      audio = new Audio(BGM_SOURCE);
+      audio.loop = true;
+      audio.preload = "auto";
+      audio.volume = 0;
+      return audio;
+    } catch (error) {
+      return null;
+    }
+  }
+  function requestFrame(callback) {
+    if (typeof requestAnimationFrame === "function") {
+      return requestAnimationFrame(callback);
+    }
+    return setTimeout(() => callback(Date.now()), 16);
+  }
+  function fadeVolume(track, target, duration, generation, onComplete) {
+    const initial = track.volume;
+    let startedAt = null;
+    const step = (timestamp) => {
+      if (generation !== fadeGeneration) return;
+      if (startedAt === null) startedAt = timestamp;
+      const progress = Math.min(1, (timestamp - startedAt) / duration);
+      track.volume = initial + (target - initial) * progress;
+      if (progress < 1) {
+        requestFrame(step);
+        return;
+      }
+      track.volume = target;
+      onComplete?.();
+    };
+    requestFrame(step);
+  }
+  function isBgmPlaying() {
+    return playing;
+  }
+  async function startBgm() {
+    if (playing) return true;
+    const track = ensureAudio();
+    if (!track) return false;
+    const generation = ++fadeGeneration;
+    track.volume = 0;
+    try {
+      await track.play();
+    } catch (error) {
+      if (generation === fadeGeneration) {
+        track.pause();
+        track.volume = 0;
+        playing = false;
+      }
+      return false;
+    }
+    if (generation !== fadeGeneration) {
+      track.pause();
+      return false;
+    }
+    playing = true;
+    fadeVolume(track, TARGET_VOLUME, FADE_IN_MS, generation);
+    return true;
+  }
+  function stopBgm() {
+    playing = false;
+    const track = audio;
+    if (!track) return false;
+    const generation = ++fadeGeneration;
+    fadeVolume(track, 0, FADE_OUT_MS, generation, () => {
+      track.pause();
+    });
+    return false;
+  }
+  async function toggleBgm(next = !playing) {
+    return next ? startBgm() : stopBgm();
   }
 
   // src/achievements.js
@@ -1942,6 +2061,77 @@
   }
   function findCustomPattern() {
     return patterns.find((item) => item.id.startsWith("custom-")) || null;
+  }
+
+  // src/utils.js
+  function escapeHtml(value) {
+    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  }
+  function prefersReducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+  }
+  function beadSettleScale(elapsed, duration = 180, reducedMotion = false) {
+    if (reducedMotion) return 1;
+    const safeDuration = Math.max(1, Number(duration) || 180);
+    const t = Math.max(0, Math.min(1, (Number(elapsed) || 0) / safeDuration));
+    const eased = 1 - Math.pow(1 - t, 4);
+    return 0.72 + (1 - 0.72) * eased;
+  }
+  function stableHash(text) {
+    const source = String(text || "");
+    let hash = 2166136261 >>> 0;
+    for (let i = 0; i < source.length; i += 1) {
+      hash ^= source.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+  function pickWeightedText(entries, fallback = "", seedText = "") {
+    if (!Array.isArray(entries) || !entries.length) return fallback;
+    const normalized = entries.map((entry) => ({ text: String(entry?.text || ""), weight: Number(entry?.weight) > 0 ? Number(entry.weight) : 0 })).filter((entry) => entry.text && entry.weight > 0);
+    if (!normalized.length) return fallback;
+    const total = normalized.reduce((sum, entry) => sum + entry.weight, 0);
+    const ratio = (stableHash(seedText) + 0.5) / 4294967296;
+    let cursor = ratio * total;
+    for (let i = 0; i < normalized.length; i += 1) {
+      cursor -= normalized[i].weight;
+      if (cursor <= 0) return normalized[i].text;
+    }
+    return normalized[normalized.length - 1].text || fallback;
+  }
+  var sharedNotes = [
+    { text: "\u8FD9\u5F20\u56FE\u53EF\u4EE5\u76F4\u63A5\u5F00\u62FC", weight: 30 },
+    { text: "\u4ECA\u5929\u5C31\u505A\u8FD9\u5F20\u5427", weight: 24 },
+    { text: "\u770B\u7740\u5C31\u60F3\u5F00\u5DE5", weight: 18 },
+    { text: "\u5148\u6536\u7740\uFF0C\u665A\u70B9\u62FC", weight: 14 },
+    { text: "\u914D\u8272\u770B\u7740\u5F88\u987A\u773C", weight: 10 },
+    { text: "\u8FD9\u5F20\u6709\u70B9\u4E0A\u5934", weight: 4 }
+  ];
+  var customPatternNotePool = {
+    draw: [
+      { text: "\u624B\u7ED8\u5B8C\u6210\uFF0C\u51C6\u5907\u5F00\u62FC", weight: 40 },
+      { text: "\u81EA\u5DF1\u753B\u7684\uFF0C\u8D8A\u770B\u8D8A\u987A\u773C", weight: 35 },
+      { text: "\u521A\u753B\u5B8C\uFF0C\u624B\u611F\u6B63\u70ED", weight: 25 },
+      ...sharedNotes
+    ],
+    image: [
+      { text: "\u56FE\u7247\u8F6C\u597D\u4E86\uFF0C\u76F4\u63A5\u5F00\u62FC", weight: 45 },
+      { text: "\u8FD9\u5F20\u8F6C\u51FA\u6765\u8FD8\u4E0D\u9519", weight: 35 },
+      { text: "\u914D\u8272\u5DF2\u7ECF\u6574\u7406\u597D", weight: 20 },
+      ...sharedNotes
+    ],
+    imported: [
+      { text: "\u77ED\u7801\u5BFC\u5165\u6210\u529F", weight: 45 },
+      { text: "\u65B0\u56FE\u7EB8\u5DF2\u5C31\u4F4D", weight: 35 },
+      { text: "\u8FD9\u5F20\u5148\u653E\u5230\u5F85\u62FC", weight: 20 },
+      ...sharedNotes
+    ]
+  };
+  function pickCustomPatternNote(kind = "generic", size = 0, seedText = "") {
+    const pool = customPatternNotePool[kind] || [...customPatternNotePool.draw, ...customPatternNotePool.image, ...customPatternNotePool.imported];
+    const fallbackSize = Number(size);
+    const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0 ? `\u81EA\u5B9A\u4E49\u56FE\u7EB8 ${fallbackSize}x${fallbackSize}` : "\u81EA\u5B9A\u4E49\u56FE\u7EB8";
+    return pickWeightedText(pool, fallback, seedText);
   }
 
   // src/render.js
@@ -2500,15 +2690,6 @@
     } else {
       drawTweezersEntityAtHead(tweezerHeadX, tweezerHeadY);
     }
-    ctx.save();
-    ctx.globalAlpha = follow ? 0.46 : 0.72;
-    ctx.fillStyle = "rgba(38, 36, 43, 0.62)";
-    ctx.font = "700 11px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-    const infoX = follow ? clamp(state.toolPose.x - 16, 14, w - 172) : defaultX + 8;
-    const infoY = follow ? clamp(state.toolPose.y - 14, 18, h - 62) : defaultY + 14;
-    ctx.fillText("\u9488", infoX, infoY);
-    ctx.fillText(`\u954A ${state.tweezerBead ? beadIds[state.tweezerBead] : "\u7A7A"}`, infoX, infoY + 14);
-    ctx.restore();
   }
   function drawNeedleEntityAtTip(tipX, tipY) {
     drawNeedleEntity(tipX, tipY - 150);
@@ -2813,16 +2994,43 @@
           return;
         }
         const shapeProfile = boardFusionShapeProfile(x, y);
+        const settle = state.mobileBeadSettle?.index === index ? state.mobileBeadSettle : null;
+        const settleElapsed = settle ? performance.now() - settle.startedAt : 0;
+        const settleScale = settle ? beadSettleScale(settleElapsed, settle.duration, false) : 1;
+        if (settle) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.scale(settleScale, settleScale);
+          ctx.translate(-cx, -cy);
+        }
         if (isSpillDamagedIndex(index)) {
           drawDamagedBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
         } else {
           drawBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
         }
         drawPegInBead(ctx, cx, cy, cell * 0.43, heat, boardFusedPhase);
+        if (settle) {
+          ctx.restore();
+          if (settleElapsed >= settle.duration) state.mobileBeadSettle = null;
+        }
       });
     }
     if (state.phase === "inspect" && state.showHints) {
       drawInspectionHints(layout);
+    }
+    if (state.phase === "place" && state.keyboardGrid.visible) {
+      const x = clamp(state.keyboardGrid.x, 0, size - 1);
+      const y = clamp(state.keyboardGrid.y, 0, size - 1);
+      const px = boardX + x * cell;
+      const py = boardY + y * cell;
+      ctx.save();
+      ctx.strokeStyle = "rgba(31, 97, 83, 0.96)";
+      ctx.lineWidth = Math.max(2, cell * 0.09);
+      ctx.strokeRect(px + 2, py + 2, Math.max(1, cell - 4), Math.max(1, cell - 4));
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
+      ctx.lineWidth = Math.max(1, cell * 0.04);
+      ctx.strokeRect(px + 5, py + 5, Math.max(1, cell - 10), Math.max(1, cell - 10));
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -3672,13 +3880,6 @@
         }
       }
     }
-    if (!color || state.trayBeans <= 0) {
-      ctx.fillStyle = "rgba(75, 90, 98, 0.28)";
-      ctx.font = "700 18px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("\u7A7A", trayX + trayW / 2, trayY + trayH / 2 + 6);
-      ctx.textAlign = "left";
-    }
     if (color) {
       ctx.fillStyle = "rgba(38, 36, 43, 0.11)";
       roundedRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7, 4);
@@ -3714,13 +3915,6 @@
     ctx.moveTo(cx - 1.8, cy - 7.2);
     ctx.lineTo(cx + 1.8, cy - 7.2);
     ctx.stroke();
-    ctx.fillStyle = "rgba(38, 36, 43, 0.72)";
-    ctx.font = "700 13px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-    if (color) {
-      ctx.fillText(`\u8C46\u7B5B ${beadLabel(color)}`, trayX + 18, trayY + trayH - 14);
-    } else {
-      ctx.fillText("\u8C46\u7B5B \u7A7A", trayX + 18, trayY + trayH - 14);
-    }
     ctx.restore();
   }
   function drawReferenceSheet(layout) {
@@ -4731,68 +4925,279 @@
     return `${state.selectedPattern.name}\u5B8C\u6210\uFF0C\u5DF2\u8FDB\u5165\u6536\u85CF\u9636\u6BB5\u3002`;
   }
 
-  // src/utils.js
-  function escapeHtml(value) {
-    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-  }
-  function prefersReducedMotion() {
-    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-  }
-  function stableHash(text) {
-    const source = String(text || "");
-    let hash = 2166136261 >>> 0;
-    for (let i = 0; i < source.length; i += 1) {
-      hash ^= source.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
+  // src/modal-controller.js
+  var modalActions = {
+    renderRemapModal: () => {
+    },
+    uiRenderSharePanel: () => {
     }
-    return hash >>> 0;
-  }
-  function pickWeightedText(entries, fallback = "", seedText = "") {
-    if (!Array.isArray(entries) || !entries.length) return fallback;
-    const normalized = entries.map((entry) => ({ text: String(entry?.text || ""), weight: Number(entry?.weight) > 0 ? Number(entry.weight) : 0 })).filter((entry) => entry.text && entry.weight > 0);
-    if (!normalized.length) return fallback;
-    const total = normalized.reduce((sum, entry) => sum + entry.weight, 0);
-    const ratio = (stableHash(seedText) + 0.5) / 4294967296;
-    let cursor = ratio * total;
-    for (let i = 0; i < normalized.length; i += 1) {
-      cursor -= normalized[i].weight;
-      if (cursor <= 0) return normalized[i].text;
-    }
-    return normalized[normalized.length - 1].text || fallback;
-  }
-  var sharedNotes = [
-    { text: "\u8FD9\u5F20\u56FE\u53EF\u4EE5\u76F4\u63A5\u5F00\u62FC", weight: 30 },
-    { text: "\u4ECA\u5929\u5C31\u505A\u8FD9\u5F20\u5427", weight: 24 },
-    { text: "\u770B\u7740\u5C31\u60F3\u5F00\u5DE5", weight: 18 },
-    { text: "\u5148\u6536\u7740\uFF0C\u665A\u70B9\u62FC", weight: 14 },
-    { text: "\u914D\u8272\u770B\u7740\u5F88\u987A\u773C", weight: 10 },
-    { text: "\u8FD9\u5F20\u6709\u70B9\u4E0A\u5934", weight: 4 }
-  ];
-  var customPatternNotePool = {
-    draw: [
-      { text: "\u624B\u7ED8\u5B8C\u6210\uFF0C\u51C6\u5907\u5F00\u62FC", weight: 40 },
-      { text: "\u81EA\u5DF1\u753B\u7684\uFF0C\u8D8A\u770B\u8D8A\u987A\u773C", weight: 35 },
-      { text: "\u521A\u753B\u5B8C\uFF0C\u624B\u611F\u6B63\u70ED", weight: 25 },
-      ...sharedNotes
-    ],
-    image: [
-      { text: "\u56FE\u7247\u8F6C\u597D\u4E86\uFF0C\u76F4\u63A5\u5F00\u62FC", weight: 45 },
-      { text: "\u8FD9\u5F20\u8F6C\u51FA\u6765\u8FD8\u4E0D\u9519", weight: 35 },
-      { text: "\u914D\u8272\u5DF2\u7ECF\u6574\u7406\u597D", weight: 20 },
-      ...sharedNotes
-    ],
-    imported: [
-      { text: "\u77ED\u7801\u5BFC\u5165\u6210\u529F", weight: 45 },
-      { text: "\u65B0\u56FE\u7EB8\u5DF2\u5C31\u4F4D", weight: 35 },
-      { text: "\u8FD9\u5F20\u5148\u653E\u5230\u5F85\u62FC", weight: 20 },
-      ...sharedNotes
-    ]
   };
-  function pickCustomPatternNote(kind = "generic", size = 0, seedText = "") {
-    const pool = customPatternNotePool[kind] || [...customPatternNotePool.draw, ...customPatternNotePool.image, ...customPatternNotePool.imported];
-    const fallbackSize = Number(size);
-    const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0 ? `\u81EA\u5B9A\u4E49\u56FE\u7EB8 ${fallbackSize}x${fallbackSize}` : "\u81EA\u5B9A\u4E49\u56FE\u7EB8";
-    return pickWeightedText(pool, fallback, seedText);
+  function setModalActions(actions = {}) {
+    Object.assign(modalActions, actions);
+  }
+  function getOpenModalEl() {
+    if (state.confirmModalOpen) return els.confirmModal;
+    if (state.remapModalOpen) return els.remapModal;
+    if (state.settingsModalOpen) return els.settingsModal;
+    if (state.onboardingModalOpen) return els.onboardingModal;
+    if (state.shareModalOpen) return els.shareModal;
+    if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
+    return null;
+  }
+  function focusablesIn(modalEl) {
+    if (!modalEl) return [];
+    return [...modalEl.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )].filter((el) => !el.disabled && el.offsetParent !== null && el.getAttribute("aria-hidden") !== "true");
+  }
+  function onModalOpened(modalEl) {
+    if (!modalEl) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && !active.closest(".remap-modal")) {
+      state.modalReturnFocus = active;
+    }
+    document.body.classList.add("modal-open");
+    const focusables = focusablesIn(modalEl);
+    if (focusables.length) focusables[0].focus();
+  }
+  function restoreModalFocus() {
+    if (getOpenModalEl()) return;
+    document.body.classList.remove("modal-open");
+    const el = state.modalReturnFocus;
+    state.modalReturnFocus = null;
+    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
+    const active = document.activeElement;
+    if (active && active.closest && active.closest(".remap-modal")) {
+      const anchor = [...document.querySelectorAll(".topbar button:not([disabled])")].find((b) => b.offsetParent !== null);
+      if (anchor && typeof anchor.focus === "function") anchor.focus();
+      else if (typeof active.blur === "function") active.blur();
+    }
+  }
+  var confirmResolve = null;
+  function confirmModal({ message, okText = "\u786E\u5B9A", cancelText = "\u53D6\u6D88", danger = false, title = "\u786E\u8BA4\u4E00\u4E0B" } = {}) {
+    return new Promise((resolve) => {
+      const modal = els.confirmModal;
+      if (!modal || !els.confirmModalOk) {
+        resolve(window.confirm(message));
+        return;
+      }
+      if (els.confirmModalTitle) els.confirmModalTitle.textContent = title;
+      if (els.confirmModalMessage) els.confirmModalMessage.textContent = message;
+      els.confirmModalOk.textContent = okText;
+      if (els.confirmModalCancel) els.confirmModalCancel.textContent = cancelText;
+      els.confirmModalOk.classList.toggle("danger-button", danger);
+      els.confirmModalOk.classList.toggle("primary-button", !danger);
+      confirmResolve = resolve;
+      state.confirmModalOpen = true;
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+      onModalOpened(modal);
+      if (els.confirmModalCancel) els.confirmModalCancel.focus();
+    });
+  }
+  function resolveConfirm(result) {
+    if (!state.confirmModalOpen) return;
+    state.confirmModalOpen = false;
+    if (els.confirmModal) {
+      els.confirmModal.classList.remove("show");
+      els.confirmModal.setAttribute("aria-hidden", "true");
+    }
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    restoreModalFocus();
+    if (resolve) resolve(Boolean(result));
+  }
+  function openShareModal() {
+    if (!els.shareModal) return;
+    state.shareModalOpen = true;
+    els.shareModal.classList.add("show");
+    els.shareModal.setAttribute("aria-hidden", "false");
+    modalActions.uiRenderSharePanel();
+    onModalOpened(els.shareModal);
+  }
+  function closeShareModal() {
+    if (!els.shareModal) return;
+    state.shareModalOpen = false;
+    els.shareModal.classList.remove("show");
+    els.shareModal.setAttribute("aria-hidden", "true");
+    restoreModalFocus();
+  }
+  function openSettingsModal() {
+    if (!els.settingsModal) return;
+    state.settingsModalOpen = true;
+    els.settingsModal.classList.add("show");
+    els.settingsModal.setAttribute("aria-hidden", "false");
+    onModalOpened(els.settingsModal);
+  }
+  function closeSettingsModal() {
+    if (!els.settingsModal) return;
+    state.settingsModalOpen = false;
+    els.settingsModal.classList.remove("show");
+    els.settingsModal.setAttribute("aria-hidden", "true");
+    restoreModalFocus();
+  }
+  function onboardingHtml() {
+    const mobile = useMobileDirectPlacement();
+    const steps = mobile ? [
+      ["\u9009\u989C\u8272", "\u70B9\u4E0B\u65B9\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF08\u53EA\u663E\u793A\u672C\u56FE\u7528\u5230\u7684\u8272\uFF09\u3002"],
+      ["\u653E\u8C46", "\u70B9\u62FC\u8C46\u677F\u7684\u683C\u5B50\u653E\u4E0B\uFF1B\u540C\u8272\u518D\u70B9\u4E00\u6B21\u4F1A\u53D6\u4E0B\u3002"],
+      ["\u5BF9\u7167", "\u7167\u7740\u53C2\u8003\u56FE\u7EB8\uFF0C\u628A\u6BCF\u4E2A\u683C\u5B50\u586B\u597D\u3002"],
+      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
+    ] : [
+      ["\u9009\u989C\u8272", "\u70B9\u53F3\u4FA7\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF0C\u628A\u8C46\u5B50\u5012\u8FDB\u8C46\u7B5B\u3002"],
+      ["\u53D6\u8C46", "\u70B9\u8C46\u7B5B\u7ED9\u300C\u8C46\u9488\u300D\u4E0A\u8C46\u94FA\u5927\u9762\u79EF\uFF1B\u6216\u7528\u300C\u954A\u5B50\u300D\u4ECE\u8C46\u7B5B/\u677F\u9762\u5939\u5355\u9897\u3002"],
+      ["\u6446\u653E", "\u5728\u62FC\u8C46\u677F\u5BF9\u5E94\u5B54\u4F4D\u653E\u4E0B\u8C46\u5B50\uFF0C\u7167\u7740\u5DE6\u4FA7\u53C2\u8003\u56FE\u7EB8\u62FC\u3002"],
+      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
+    ];
+    const lead = mobile ? "\u5728\u624B\u673A\u4E0A\u62FC\u8C46\u5F88\u7B80\u5355\uFF1A" : "\u5728\u6D4F\u89C8\u5668\u91CC\u5B8C\u6574\u4F53\u9A8C\u62FC\u8C46\u624B\u4F5C\uFF1A";
+    const tip = mobile ? "\u53CC\u6307\u53EF\u7F29\u653E\u677F\u9762\u3002" : "\u6309\u4F4F\u677F\u9762\u53EF\u62D6\u52A8\uFF0C\u6EDA\u8F6E\u7F29\u653E\u3002";
+    const items = steps.map(([t, d], i) => `<li><span class="onboarding-step-no">${i + 1}</span><span><strong>${t}</strong>${d}</span></li>`).join("");
+    return `<p class="onboarding-lead">${lead}</p><ol class="onboarding-steps">${items}</ol><p class="onboarding-tip">${tip}</p>`;
+  }
+  function openOnboardingModal() {
+    if (!els.onboardingModal) return;
+    if (els.onboardingBody) els.onboardingBody.innerHTML = onboardingHtml();
+    state.onboardingModalOpen = true;
+    els.onboardingModal.classList.add("show");
+    els.onboardingModal.setAttribute("aria-hidden", "false");
+    onModalOpened(els.onboardingModal);
+  }
+  function closeOnboardingModal() {
+    if (!els.onboardingModal) return;
+    state.onboardingModalOpen = false;
+    els.onboardingModal.classList.remove("show");
+    els.onboardingModal.setAttribute("aria-hidden", "true");
+    try {
+      localStorage.setItem(onboardingKey, "seen");
+    } catch {
+    }
+    restoreModalFocus();
+  }
+  function maybeShowOnboarding() {
+    if (state.sandboxMode) return;
+    if (getOpenModalEl()) return;
+    let seen = false;
+    try {
+      seen = localStorage.getItem(onboardingKey) === "seen";
+    } catch {
+      seen = false;
+    }
+    if (seen) return;
+    openOnboardingModal();
+  }
+  function openRemapModal(focusSource = null) {
+    if (state.phase !== "choose") return;
+    state.remapFocusSource = focusSource || null;
+    state.remapModalOpen = true;
+    if (els.remapModal) {
+      els.remapModal.classList.add("show");
+      els.remapModal.setAttribute("aria-hidden", "false");
+    }
+    modalActions.renderRemapModal();
+    onModalOpened(els.remapModal);
+  }
+  function closeRemapModal() {
+    state.remapModalOpen = false;
+    if (els.remapModal) {
+      els.remapModal.classList.remove("show");
+      els.remapModal.setAttribute("aria-hidden", "true");
+    }
+    restoreModalFocus();
+  }
+
+  // src/icons.js
+  var PATHS = {
+    // —— Navigation / topbar ——
+    "arrow-left": '<path d="m12 19l-7-7l7-7m7 7H5"/>',
+    "chevron-right": '<path d="m9 18l6-6l-6-6"/>',
+    settings: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+    "refresh-cw": '<path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+    // —— Entry (home four-up grid) ——
+    // pegboard: bead board (custom, maps to the bead grid)
+    pegboard: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10H20M4 14H20M10 4V20M14 4V20"/>',
+    pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497zM15 5l4 4"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    "clipboard-list": '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2m4 7h4m-4 5h4m-8-5h.01M8 16h.01"/>',
+    // —— Drawing studio tools ——
+    paintbrush: '<path d="m14.622 17.897l-10.68-2.913M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0zM9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/>',
+    eraser: '<path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21m-7.752-9.91l8.828 8.828"/>',
+    "paint-bucket": '<path d="M11 7L6 2m12.992 10H2.041m19.104 6.38A3.34 3.34 0 0 1 20 16.5a3.3 3.3 0 0 1-1.145 1.88c-.575.46-.855 1.02-.855 1.595A2 2 0 0 0 20 22a2 2 0 0 0 2-2.025c0-.58-.285-1.13-.855-1.595M8.5 4.5l2.148-2.148a1.205 1.205 0 0 1 1.704 0l7.296 7.296a1.205 1.205 0 0 1 0 1.704l-7.592 7.592a3.615 3.615 0 0 1-5.112 0l-3.888-3.888a3.615 3.615 0 0 1 0-5.112L5.67 7.33"/>',
+    square: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+    circle: '<circle cx="12" cy="12" r="10"/>',
+    pipette: '<path d="m12 9l-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/><path d="m18 9l.4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4l3.4-3.4a1 1 0 1 1 3 3zM2 22l.414-.414"/>',
+    "undo-2": '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+    // —— Common actions ——
+    "trash-2": '<path d="M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    upload: '<path d="M12 3v12m5-7l-5-5l-5 5m14 7v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+    download: '<path d="M12 15V3m9 12v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10l5 5l5-5"/>',
+    "share-2": '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51l6.83 3.98m-.01-10.98l-6.82 3.98"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    check: '<path d="M20 6L9 17l-5-5"/>',
+    scaling: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M14 15H9v-5m7-7h5v5m0-5L9 15"/>',
+    sparkles: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4m2-2h-4"/><circle cx="4" cy="20" r="2"/>',
+    // —— Inspect / settings states ——
+    eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696a10.75 10.75 0 0 1 19.876 0a1 1 0 0 1 0 .696a10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+    "eye-off": '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575a1 1 0 0 1 0 .696a10.8 10.8 0 0 1-1.444 2.49m-6.41-.679a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151a1 1 0 0 1 0-.696a10.75 10.75 0 0 1 4.446-5.143M2 2l20 20"/>',
+    reply: '<path d="M20 18v-2a4 4 0 0 0-4-4H4"/><path d="m9 17l-5-5l5-5"/>',
+    "flask-conical": '<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"/>',
+    search: '<path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+    x: '<path d="M18 6L6 18M6 6l12 12"/>',
+    "badge-check": '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77a4 4 0 0 1 6.74 0a4 4 0 0 1 4.78 4.78a4 4 0 0 1 0 6.74a4 4 0 0 1-4.77 4.78a4 4 0 0 1-6.75 0a4 4 0 0 1-4.78-4.77a4 4 0 0 1 0-6.76"/><path d="m9 12l2 2l4-4"/>',
+    "badge-x": '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77a4 4 0 0 1 6.74 0a4 4 0 0 1 4.78 4.78a4 4 0 0 1 0 6.74a4 4 0 0 1-4.77 4.78a4 4 0 0 1-6.75 0a4 4 0 0 1-4.78-4.77a4 4 0 0 1 0-6.76M15 9l-6 6m0-6l6 6"/>'
+  };
+  function escapeAttribute(value) {
+    return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  }
+  function icon(name, opts = {}) {
+    const body = PATHS[name];
+    if (!body) {
+      if (typeof console !== "undefined") console.warn(`[icons] unknown icon: ${name}`);
+      return "";
+    }
+    const size = Number(opts.size) > 0 ? Number(opts.size) : 18;
+    const sw = Number(opts.strokeWidth) > 0 ? Number(opts.strokeWidth) : 2;
+    const classes = `${opts.class || ""} lucide-icon`.trim().split(/\s+/).filter(Boolean);
+    const cls = ` class="${escapeAttribute([...new Set(classes)].join(" "))}"`;
+    const a11y = opts.label ? ` role="img" aria-label="${escapeAttribute(opts.label)}"` : ' aria-hidden="true"';
+    return `<svg${cls} viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"${a11y}>${body}</svg>`;
+  }
+  function hasIcon(name) {
+    return Object.prototype.hasOwnProperty.call(PATHS, name);
+  }
+  function hydrateIcons(root = document) {
+    if (!root?.querySelectorAll) return 0;
+    let hydrated = 0;
+    root.querySelectorAll("[data-lucide-icon]").forEach((placeholder) => {
+      const name = placeholder.dataset.lucideIcon;
+      if (!hasIcon(name)) {
+        if (typeof console !== "undefined") console.warn(`[icons] unknown icon: ${name}`);
+        return;
+      }
+      const className = [
+        typeof placeholder.className === "string" ? placeholder.className : "",
+        placeholder.dataset.iconClass || ""
+      ].filter(Boolean).join(" ");
+      placeholder.outerHTML = icon(name, {
+        size: placeholder.dataset.iconSize,
+        strokeWidth: placeholder.dataset.iconStrokeWidth,
+        class: className,
+        label: placeholder.dataset.iconLabel
+      });
+      hydrated += 1;
+    });
+    return hydrated;
+  }
+
+  // src/workflow.js
+  function workflowSummary(phases2, phaseId) {
+    const index = Math.max(0, phases2.findIndex((phase) => phase.id === phaseId));
+    return {
+      index,
+      total: phases2.length,
+      current: phases2[index]?.name || "",
+      next: phases2[index + 1]?.name || ""
+    };
   }
 
   // src/ui.js
@@ -4837,6 +5242,8 @@
     openImportCodeModal: () => {
     },
     submitCurrentToGallery: () => {
+    },
+    triggerHaptic: () => {
     }
   };
   function setUIActions(nextActions = {}) {
@@ -5045,18 +5452,18 @@
       item.setAttribute("aria-label", `${index + 1} ${phase.name}`);
       item.innerHTML = `<span class="step-dot">${index + 1}</span><span>${phase.name}</span>`;
       item.disabled = index >= activeIndex;
-      item.addEventListener("click", () => {
+      item.addEventListener("click", async () => {
         if (index >= activeIndex) return;
         const target = phase.id;
         if (target === "choose") {
-          if ((placedCount2() > 0 || state.fusedPieces.length > 0) && !window.confirm("\u56DE\u5230\u9009\u56FE\u4F1A\u79BB\u5F00\u5F53\u524D\u4F5C\u54C1\u7684\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) {
+          if ((placedCount2() > 0 || state.fusedPieces.length > 0) && !await confirmModal({ message: "\u56DE\u5230\u9009\u56FE\u4F1A\u79BB\u5F00\u5F53\u524D\u4F5C\u54C1\u7684\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u56DE\u5230\u9009\u56FE", danger: true })) {
             return;
           }
           uiActions.setPhase("choose");
           return;
         }
         const losesFused = state.fusedPieces.length > 0 && (target === "place" || target === "inspect" || target === "iron");
-        if (losesFused && !window.confirm("\u56DE\u9000\u5230\u8BE5\u6B65\u4F1A\u6E05\u9664\u5DF2\u71A8\u70EB/\u51B7\u5374\u7684\u7ED3\u679C\uFF0C\u786E\u5B9A\u5417\uFF1F")) {
+        if (losesFused && !await confirmModal({ message: "\u56DE\u9000\u5230\u8BE5\u6B65\u4F1A\u6E05\u9664\u5DF2\u71A8\u70EB/\u51B7\u5374\u7684\u7ED3\u679C\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u56DE\u9000", danger: true })) {
           return;
         }
         uiActions.setPhase(target);
@@ -5098,6 +5505,33 @@
       drawPatternThumb(els.currentPatternThumb, state.selectedPattern);
     }
   }
+  function renderMobileWorkflowSummary() {
+    if (!els.mobileWorkflowSummary) return;
+    const visible = state.phase !== "choose";
+    els.mobileWorkflowSummary.hidden = !visible;
+    if (!visible) return;
+    const summary = workflowSummary(phases, state.phase);
+    if (els.mobilePatternName) els.mobilePatternName.textContent = state.selectedPattern.name;
+    if (els.mobileWorkflowCurrent) {
+      els.mobileWorkflowCurrent.textContent = `${summary.index + 1}/${summary.total} \xB7 ${summary.current}`;
+    }
+    if (els.mobileWorkflowNext) {
+      els.mobileWorkflowNext.textContent = summary.next ? `\u4E0B\u4E00\u6B65 ${summary.next}` : "\u6700\u540E\u4E00\u6B65";
+    }
+    if (els.mobilePatternThumb) drawPatternThumb(els.mobilePatternThumb, state.selectedPattern);
+  }
+  function renderMobileSelectionSummary() {
+    if (!els.mobileSelectionSummary) return;
+    const visible = state.phase === "choose";
+    els.mobileSelectionSummary.hidden = !visible;
+    if (!visible) return;
+    const counts = getTargetCounts();
+    if (els.mobileSelectionName) els.mobileSelectionName.textContent = state.selectedPattern.name;
+    if (els.mobileSelectionMeta) {
+      els.mobileSelectionMeta.textContent = `${state.selectedPattern.size}\xD7${state.selectedPattern.size} \xB7 ${getTargetTotal()}\u9897 \xB7 ${Object.keys(counts).length}\u8272`;
+    }
+    if (els.mobileSelectionThumb) drawPatternThumb(els.mobileSelectionThumb, state.selectedPattern);
+  }
   function renderControls() {
     els.stageControls.innerHTML = "";
     els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "\u5DE5\u5177\u53F0";
@@ -5125,12 +5559,12 @@
           state.showHints = !state.showHints;
           markDirty();
         }, false, {
-          icon: hintsOn ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>' : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+          icon: icon(hintsOn ? "eye-off" : "eye", { size: 16 }),
           ariaLabel: hintsOn ? "\u9690\u85CF\u63D0\u793A" : "\u663E\u793A\u63D0\u793A",
           title: hintsOn ? "\u9690\u85CF\u63D0\u793A" : "\u663E\u793A\u63D0\u793A"
         }],
         ["\u8FD4\u56DE\u4FEE\u6B63", "inspect-action-btn", () => uiActions.setPhase("place"), false, {
-          icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
+          icon: icon("reply", { size: 16 }),
           ariaLabel: "\u8FD4\u56DE\u4FEE\u6B63",
           title: "\u8FD4\u56DE\u4FEE\u6B63"
         }]
@@ -5315,7 +5749,15 @@
     const placedCounts = getPlacedCounts();
     const allCodes = allColorCodes();
     const codes = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes;
-    const key = ["place", isMobile ? "m" : "d", state.selectedColor, state.tweezerBead || "", state.placedVersion, getPatternAnalysis().key].join(":");
+    const key = [
+      "place",
+      isMobile ? "m" : "d",
+      state.selectedColor,
+      state.tweezerBead || "",
+      state.placedVersion,
+      state.mobileColorPulseId,
+      getPatternAnalysis().key
+    ].join(":");
     if (key === paletteRenderKey) return;
     paletteRenderKey = key;
     els.colorPalette.innerHTML = "";
@@ -5327,7 +5769,8 @@
       const isSelected = state.selectedColor === code;
       const button = document.createElement("button");
       const isHeld = !isMobile && state.tweezerBead === code;
-      button.className = `color-chip${isSelected ? " active" : ""}${inPattern && !isMobile ? " needed" : ""}${isHeld ? " held" : ""}`;
+      const picked = isMobile && isSelected && state.mobileColorPulsePending;
+      button.className = `color-chip${isSelected ? " active" : ""}${inPattern && !isMobile ? " needed" : ""}${isHeld ? " held" : ""}${picked ? " picked" : ""}`;
       button.type = "button";
       button.title = `${beadLabel(code)}\uFF1A${placed}/${needed}`;
       const isTransparent = beadIds[code] === "H1";
@@ -5338,11 +5781,17 @@
       `;
       button.addEventListener("click", () => {
         state.selectedColor = code;
+        if (isMobile) {
+          state.mobileColorPulseId += 1;
+          state.mobileColorPulsePending = true;
+          uiActions.triggerHaptic("light");
+        }
         if (state.phase === "place" && !isMobile) uiActions.pourSelectedColor?.();
         markDirty();
       });
       els.colorPalette.appendChild(button);
     });
+    state.mobileColorPulsePending = false;
   }
   function updateSelectedPaletteCount() {
     if (!els.colorPalette || state.phase !== "place") return;
@@ -5450,7 +5899,7 @@
       <strong>${stats.size}x${stats.size} \xB7 ${stats.total}\u9897 \xB7 ${stats.colors.length}\u8272</strong>
       <span>\u6E90\u56FE\u4F30\u8BA1 ${stats.sourceSignificantCount} \u8272 \xB7 \u805A\u7C7B ${stats.simplifiedColorCount} \u8272 \xB7 \u6E05\u7406\u524D ${stats.preCleanupColorCount} \u8272</span>
       <span>${stats.denoised ? "\u5DF2\u542F\u7528\u8F7B\u5EA6\u964D\u566A" : "\u4FDD\u7559\u50CF\u7D20\u8FB9\u7F18\uFF08\u672A\u964D\u566A\uFF09"}</span>
-      <span>${list}${stats.colors.length > 8 ? " \xB7 ..." : ""}</span>
+      <span>${list}${stats.colors.length > 8 ? " \xB7 \u2026" : ""}</span>
     `;
   }
   function renderCollection() {
@@ -5470,9 +5919,9 @@
       <span class="collection-toolbar-count">\u5171 ${collection2.length} \u4EF6</span>
       <button type="button" class="danger-button collection-clear-all">\u6E05\u7A7A\u4F5C\u54C1\u96C6</button>
     `;
-    toolbar.querySelector(".collection-clear-all").addEventListener("click", () => {
+    toolbar.querySelector(".collection-clear-all").addEventListener("click", async () => {
       if (!collection2.length) return;
-      if (!window.confirm("\u786E\u5B9A\u6E05\u7A7A\u6240\u6709\u4F5C\u54C1\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002")) return;
+      if (!await confirmModal({ message: "\u786E\u5B9A\u6E05\u7A7A\u6240\u6709\u4F5C\u54C1\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002", okText: "\u6E05\u7A7A", danger: true })) return;
       uiActions.updateCollection([]);
       renderCollection();
       showToast("\u4F5C\u54C1\u96C6\u5DF2\u6E05\u7A7A\u3002");
@@ -5495,13 +5944,13 @@
           </div>
         </button>
         <button type="button" class="collection-tile-delete" aria-label="\u5220\u9664\u8FD9\u4EF6\u4F5C\u54C1" title="\u5220\u9664">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          ${icon("trash-2", { size: 14 })}
         </button>
       `;
       tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
-      tile.querySelector(".collection-tile-delete").addEventListener("click", (event) => {
+      tile.querySelector(".collection-tile-delete").addEventListener("click", async (event) => {
         event.stopPropagation();
-        if (!window.confirm(`\u5220\u9664 ${item.name}\uFF1F`)) return;
+        if (!await confirmModal({ message: `\u5220\u9664\u4F5C\u54C1\u300C${item.name}\u300D\uFF1F`, okText: "\u5220\u9664", danger: true })) return;
         uiActions.updateCollection(collection2.filter((entry) => entry.id !== item.id));
         renderCollection();
         showToast("\u5DF2\u5220\u9664\u3002");
@@ -5609,7 +6058,7 @@
       viewer = document.createElement("div");
       viewer.className = "collection-enlarged";
       viewer.innerHTML = `
-        <button type="button" class="collection-enlarged-close" aria-label="\u5173\u95ED\u653E\u5927">\xD7</button>
+        <button type="button" class="collection-enlarged-close" aria-label="\u5173\u95ED\u653E\u5927">${icon("x", { size: 18 })}</button>
         <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
         <div class="collection-enlarged-meta"></div>
         <div class="collection-enlarged-actions">
@@ -5640,6 +6089,8 @@
     renderPatterns();
     renderPhases();
     renderCurrentPatternChip();
+    renderMobileWorkflowSummary();
+    renderMobileSelectionSummary();
     renderControls();
     renderToolRack();
     renderPalette();
@@ -5656,16 +6107,17 @@
     if (els.colorMeta) els.colorMeta.textContent = state.phase === "inspect" ? "\u68C0\u67E5\u8F85\u52A9" : beadLabel(state.selectedColor);
     if (els.rightPanelTitle) els.rightPanelTitle.textContent = state.phase === "inspect" ? "\u68C0\u67E5\u53F0" : "\u8C46\u76D2";
     if (els.sandboxButton) {
-      const beakerIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L5 19a1.6 1.6 0 0 0 1.4 2.4h11.2A1.6 1.6 0 0 0 19 19l-5-9.5V3"/><path d="M7.5 14h9"/></svg>';
-      const loupeIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>';
       const stateLabel = state.sandboxMode ? "\u5F00" : "\u5173";
-      els.sandboxButton.innerHTML = `${state.sandboxMode ? beakerIcon : loupeIcon}<span class="sandbox-state">${stateLabel}</span>`;
-      els.sandboxButton.title = state.sandboxMode ? "\u6C99\u76D2\uFF1A\u5F00\uFF08\u81EA\u7531\u62FC\u6446\u4E0D\u6821\u9A8C\uFF09" : "\u6C99\u76D2\uFF1A\u5173\uFF08\u6309\u56FE\u7EB8\u6821\u9A8C\uFF09";
+      els.sandboxButton.title = state.sandboxMode ? "\u6C99\u76D2\u6A21\u5F0F\uFF1A\u5F00\uFF08\u81EA\u7531\u62FC\u6446\u4E0D\u6821\u9A8C\uFF09" : "\u6C99\u76D2\u6A21\u5F0F\uFF1A\u5173\uFF08\u6309\u56FE\u7EB8\u6821\u9A8C\uFF09";
       els.sandboxButton.setAttribute("aria-label", `\u6C99\u76D2\u6A21\u5F0F\uFF1A${stateLabel}`);
       els.sandboxButton.setAttribute("aria-pressed", state.sandboxMode ? "true" : "false");
       els.sandboxButton.classList.toggle("active", state.sandboxMode);
     }
     if (els.chooseStartButton) els.chooseStartButton.hidden = state.phase !== "choose";
+    if (els.mobileSelectionStartButton) els.mobileSelectionStartButton.hidden = state.phase !== "choose";
+    if (els.customImageControls) {
+      els.customImageControls.hidden = !state.selectedPattern?.sourceImageDataUrl;
+    }
     if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
     if (els.topToolStyleSelect) {
       if (!els.topToolStyleSelect.options.length) {
@@ -5949,7 +6401,7 @@
     const items = Array.isArray(galleryItems) ? galleryItems : [];
     els.galleryEmpty.hidden = items.length > 0;
     if (items.length === 0) {
-      const galleryIcon = '<svg class="gallery-empty-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h.01"/><path d="m3 16 4.5-4.5a2 2 0 0 1 2.8 0L14 15"/><path d="m13 14 1.5-1.5a2 2 0 0 1 2.8 0L21 16"/></svg>';
+      const galleryIcon = icon("image", { size: 40, strokeWidth: 1.8, class: "gallery-empty-icon" });
       if (!galleryLoaded) {
         els.galleryEmpty.innerHTML = `<p class="gallery-empty-text">\u6B63\u5728\u8BFB\u53D6\u753B\u5ECA\u2026</p>`;
       } else if (galleryError) {
@@ -6825,7 +7277,7 @@
     if (shapeBtn) {
       const isCircle = drawState.shapeMode === "circle";
       shapeBtn.setAttribute("aria-label", isCircle ? "\u5706\u5F62" : "\u77E9\u5F62");
-      shapeBtn.innerHTML = isCircle ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>` : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`;
+      shapeBtn.innerHTML = icon(isCircle ? "circle" : "square", { size: 16 });
     }
     if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
   }
@@ -6878,10 +7330,10 @@
       drawActions.setAppMode("home");
     });
     els.drawSettingsButton?.addEventListener("click", () => drawActions.openSettingsModal());
-    els.drawResetButton?.addEventListener("click", () => {
+    els.drawResetButton?.addEventListener("click", async () => {
       ensureDrawGrid();
       const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
-      if (hasContent && !window.confirm("\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+      if (hasContent && !await confirmModal({ message: "\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u6E05\u7A7A", danger: true })) return;
       drawState.grid = createDrawGrid(drawWidth(), drawHeight());
       drawState.lastCellKey = "";
       paintDrawCanvas();
@@ -8352,152 +8804,30 @@
     }
   }
 
-  // src/modal-controller.js
-  var modalActions = {
-    renderRemapModal: () => {
-    },
-    uiRenderSharePanel: () => {
-    }
-  };
-  function setModalActions(actions = {}) {
-    Object.assign(modalActions, actions);
+  // src/keyboard-grid.js
+  function normalizeGridCursor(cursor, size) {
+    const max = Math.max(0, Number(size) - 1);
+    return {
+      x: clamp(Math.round(Number(cursor?.x) || 0), 0, max),
+      y: clamp(Math.round(Number(cursor?.y) || 0), 0, max)
+    };
   }
-  function getOpenModalEl() {
-    if (state.remapModalOpen) return els.remapModal;
-    if (state.settingsModalOpen) return els.settingsModal;
-    if (state.onboardingModalOpen) return els.onboardingModal;
-    if (state.shareModalOpen) return els.shareModal;
-    if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
+  function moveGridCursor(cursor, key, size) {
+    const next = normalizeGridCursor(cursor, size);
+    if (key === "ArrowLeft") next.x -= 1;
+    if (key === "ArrowRight") next.x += 1;
+    if (key === "ArrowUp") next.y -= 1;
+    if (key === "ArrowDown") next.y += 1;
+    return normalizeGridCursor(next, size);
+  }
+  function keyboardGridAction(key) {
+    if (key === " " || key === "Enter") return "place";
+    if (key === "Escape") return "clear";
     return null;
-  }
-  function focusablesIn(modalEl) {
-    if (!modalEl) return [];
-    return [...modalEl.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )].filter((el) => !el.disabled && el.offsetParent !== null && el.getAttribute("aria-hidden") !== "true");
-  }
-  function onModalOpened(modalEl) {
-    if (!modalEl) return;
-    const active = document.activeElement;
-    if (active && active !== document.body && !active.closest(".remap-modal")) {
-      state.modalReturnFocus = active;
-    }
-    document.body.classList.add("modal-open");
-    const focusables = focusablesIn(modalEl);
-    if (focusables.length) focusables[0].focus();
-  }
-  function restoreModalFocus() {
-    if (getOpenModalEl()) return;
-    document.body.classList.remove("modal-open");
-    const el = state.modalReturnFocus;
-    state.modalReturnFocus = null;
-    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
-    const active = document.activeElement;
-    if (active && active.closest && active.closest(".remap-modal")) {
-      const anchor = [...document.querySelectorAll(".topbar button:not([disabled])")].find((b) => b.offsetParent !== null);
-      if (anchor && typeof anchor.focus === "function") anchor.focus();
-      else if (typeof active.blur === "function") active.blur();
-    }
-  }
-  function openShareModal() {
-    if (!els.shareModal) return;
-    state.shareModalOpen = true;
-    els.shareModal.classList.add("show");
-    els.shareModal.setAttribute("aria-hidden", "false");
-    modalActions.uiRenderSharePanel();
-    onModalOpened(els.shareModal);
-  }
-  function closeShareModal() {
-    if (!els.shareModal) return;
-    state.shareModalOpen = false;
-    els.shareModal.classList.remove("show");
-    els.shareModal.setAttribute("aria-hidden", "true");
-    restoreModalFocus();
-  }
-  function openSettingsModal() {
-    if (!els.settingsModal) return;
-    state.settingsModalOpen = true;
-    els.settingsModal.classList.add("show");
-    els.settingsModal.setAttribute("aria-hidden", "false");
-    onModalOpened(els.settingsModal);
-  }
-  function closeSettingsModal() {
-    if (!els.settingsModal) return;
-    state.settingsModalOpen = false;
-    els.settingsModal.classList.remove("show");
-    els.settingsModal.setAttribute("aria-hidden", "true");
-    restoreModalFocus();
-  }
-  function onboardingHtml() {
-    const mobile = useMobileDirectPlacement();
-    const steps = mobile ? [
-      ["\u9009\u989C\u8272", "\u70B9\u4E0B\u65B9\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF08\u53EA\u663E\u793A\u672C\u56FE\u7528\u5230\u7684\u8272\uFF09\u3002"],
-      ["\u653E\u8C46", "\u70B9\u62FC\u8C46\u677F\u7684\u683C\u5B50\u653E\u4E0B\uFF1B\u540C\u8272\u518D\u70B9\u4E00\u6B21\u4F1A\u53D6\u4E0B\u3002"],
-      ["\u5BF9\u7167", "\u7167\u7740\u53C2\u8003\u56FE\u7EB8\uFF0C\u628A\u6BCF\u4E2A\u683C\u5B50\u586B\u597D\u3002"],
-      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
-    ] : [
-      ["\u9009\u989C\u8272", "\u70B9\u53F3\u4FA7\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF0C\u628A\u8C46\u5B50\u5012\u8FDB\u8C46\u7B5B\u3002"],
-      ["\u53D6\u8C46", "\u70B9\u8C46\u7B5B\u7ED9\u300C\u8C46\u9488\u300D\u4E0A\u8C46\u94FA\u5927\u9762\u79EF\uFF1B\u6216\u7528\u300C\u954A\u5B50\u300D\u4ECE\u8C46\u7B5B/\u677F\u9762\u5939\u5355\u9897\u3002"],
-      ["\u6446\u653E", "\u5728\u62FC\u8C46\u677F\u5BF9\u5E94\u5B54\u4F4D\u653E\u4E0B\u8C46\u5B50\uFF0C\u7167\u7740\u5DE6\u4FA7\u53C2\u8003\u56FE\u7EB8\u62FC\u3002"],
-      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
-    ];
-    const lead = mobile ? "\u5728\u624B\u673A\u4E0A\u62FC\u8C46\u5F88\u7B80\u5355\uFF1A" : "\u5728\u6D4F\u89C8\u5668\u91CC\u5B8C\u6574\u4F53\u9A8C\u62FC\u8C46\u624B\u4F5C\uFF1A";
-    const tip = mobile ? "\u53CC\u6307\u53EF\u7F29\u653E\u677F\u9762\u3002" : "\u6309\u4F4F\u677F\u9762\u53EF\u62D6\u52A8\uFF0C\u6EDA\u8F6E\u7F29\u653E\u3002";
-    const items = steps.map(([t, d], i) => `<li><span class="onboarding-step-no">${i + 1}</span><span><strong>${t}</strong>${d}</span></li>`).join("");
-    return `<p class="onboarding-lead">${lead}</p><ol class="onboarding-steps">${items}</ol><p class="onboarding-tip">${tip}</p>`;
-  }
-  function openOnboardingModal() {
-    if (!els.onboardingModal) return;
-    if (els.onboardingBody) els.onboardingBody.innerHTML = onboardingHtml();
-    state.onboardingModalOpen = true;
-    els.onboardingModal.classList.add("show");
-    els.onboardingModal.setAttribute("aria-hidden", "false");
-    onModalOpened(els.onboardingModal);
-  }
-  function closeOnboardingModal() {
-    if (!els.onboardingModal) return;
-    state.onboardingModalOpen = false;
-    els.onboardingModal.classList.remove("show");
-    els.onboardingModal.setAttribute("aria-hidden", "true");
-    try {
-      localStorage.setItem(onboardingKey, "seen");
-    } catch {
-    }
-    restoreModalFocus();
-  }
-  function maybeShowOnboarding() {
-    if (state.sandboxMode) return;
-    if (getOpenModalEl()) return;
-    let seen = false;
-    try {
-      seen = localStorage.getItem(onboardingKey) === "seen";
-    } catch {
-      seen = false;
-    }
-    if (seen) return;
-    openOnboardingModal();
-  }
-  function openRemapModal(focusSource = null) {
-    if (state.phase !== "choose") return;
-    state.remapFocusSource = focusSource || null;
-    state.remapModalOpen = true;
-    if (els.remapModal) {
-      els.remapModal.classList.add("show");
-      els.remapModal.setAttribute("aria-hidden", "false");
-    }
-    modalActions.renderRemapModal();
-    onModalOpened(els.remapModal);
-  }
-  function closeRemapModal() {
-    state.remapModalOpen = false;
-    if (els.remapModal) {
-      els.remapModal.classList.remove("show");
-      els.remapModal.setAttribute("aria-hidden", "true");
-    }
-    restoreModalFocus();
   }
 
   // src/main.js
+  hydrateIcons(document);
   var collection = readCollection();
   state.achievements = readAchievements();
   var lastFrame = performance.now();
@@ -8558,6 +8888,21 @@
       root.style.setProperty("--bg-current-on", "1");
     } else {
       root.style.setProperty("--bg-current-on", "0");
+    }
+  }
+  var backgroundsPreloaded = false;
+  function preloadBackgrounds() {
+    if (backgroundsPreloaded) return;
+    backgroundsPreloaded = true;
+    if (navigator.connection && navigator.connection.saveData) return;
+    const cs = getComputedStyle(document.documentElement);
+    const seen = /* @__PURE__ */ new Set();
+    for (const v of [...Object.values(PHASE_BG), ...Object.values(MODE_BG)]) {
+      const m = cs.getPropertyValue(v).trim().match(/url\(["']?(.*?)["']?\)/);
+      if (m && m[1] && !seen.has(m[1])) {
+        seen.add(m[1]);
+        new Image().src = m[1];
+      }
     }
   }
   function setAppMode(mode) {
@@ -8641,6 +8986,49 @@
     if (!keepPhase) state.phase = "choose";
     markDirty();
   }
+  var audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+      }
+    }
+  }
+  function playClickSound(type = "light") {
+    if (!audioCtx) return;
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    if (type === "light") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.04);
+    } else if (type === "heavy") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.06);
+      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.06);
+    }
+  }
+  function triggerHaptic(type = "light") {
+    initAudio();
+    if (navigator.vibrate) {
+      if (type === "light") navigator.vibrate(5);
+      else if (type === "heavy") navigator.vibrate(10);
+      else if (type === "error") navigator.vibrate([15, 30, 15]);
+    }
+    playClickSound(type);
+  }
   function setPhase(phase) {
     state.phase = phase;
     state.pointer.down = false;
@@ -8650,6 +9038,7 @@
     state.gesture.active = false;
     state.gesture.touchActive = false;
     state.gesture.pointers = {};
+    if (phase !== "place") state.keyboardGrid.visible = false;
     if (phase !== "place" && phase !== "inspect") {
       if (state.boardView.scale > 1.01) {
         state.boardView.scale = 1;
@@ -9003,9 +9392,9 @@
     }
     loadTweezersFromTray(cell.row, cell.col);
   }
-  function clearBoard() {
+  async function clearBoard() {
     const hasContent = placedCount() > 0 || state.trayBeans > 0 || state.needleLoaded > 0 || state.tweezerBead || state.spill || state.fusedPieces.length > 0;
-    if (hasContent && !window.confirm("\u6E05\u7A7A\u677F\u9762\u4F1A\u79FB\u9664\u5DF2\u6446\u7684\u5168\u90E8\u8C46\u5B50\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+    if (hasContent && !await confirmModal({ message: "\u6E05\u7A7A\u677F\u9762\u4F1A\u79FB\u9664\u5DF2\u6446\u7684\u5168\u90E8\u8C46\u5B50\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u6E05\u7A7A", danger: true })) return;
     state.placed.fill(null);
     invalidatePlacedCounts();
     state.heat.fill(0);
@@ -9296,6 +9685,7 @@
       state.spill = null;
     }
     const current = state.placed[index];
+    const removing = current === state.selectedColor && initial;
     if (current === state.selectedColor && initial) {
       state.placed[index] = null;
       state.heat[index] = 0;
@@ -9305,10 +9695,64 @@
       state.placed[index] = state.selectedColor;
       state.heat[index] = 0;
     }
+    if (useMobileDirectPlacement()) {
+      triggerHaptic("light");
+      state.mobileBeadSettle = !removing && !prefersReducedMotion() ? { index, startedAt: performance.now(), duration: 180 } : null;
+    }
     invalidatePlacedCounts();
     state.savedCurrent = false;
     updateSelectedPaletteCount();
     markCanvasDirty(true);
+  }
+  function announceKeyboardGrid(message) {
+    showPlaceHint(message, `keyboard-grid:${message}`);
+  }
+  function showKeyboardGrid() {
+    if (state.phase !== "place") return;
+    if (!sceneCanvas.matches(":focus-visible")) return;
+    const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+    state.keyboardGrid = { ...cursor, visible: true };
+    announceKeyboardGrid(
+      `\u952E\u76D8\u683C\u70B9\uFF1A\u7B2C ${cursor.y + 1} \u884C\uFF0C\u7B2C ${cursor.x + 1} \u5217\uFF0C\u5F53\u524D\u989C\u8272 ${beadLabel(state.selectedColor)}\u3002`
+    );
+    markCanvasDirty();
+  }
+  function hideKeyboardGrid() {
+    if (!state.keyboardGrid.visible) return;
+    state.keyboardGrid.visible = false;
+    markCanvasDirty();
+  }
+  function handleKeyboardGridKey(event) {
+    if (document.activeElement !== sceneCanvas || state.phase !== "place") return false;
+    const action = keyboardGridAction(event.key);
+    if (action === "clear") {
+      event.preventDefault();
+      hideKeyboardGrid();
+      sceneCanvas.blur();
+      return true;
+    }
+    if (event.key.startsWith("Arrow")) {
+      event.preventDefault();
+      const cursor = moveGridCursor(state.keyboardGrid, event.key, state.selectedPattern.size);
+      state.keyboardGrid = { ...cursor, visible: true };
+      announceKeyboardGrid(
+        `\u7B2C ${cursor.y + 1} \u884C\uFF0C\u7B2C ${cursor.x + 1} \u5217\uFF0C\u5F53\u524D\u989C\u8272 ${beadLabel(state.selectedColor)}\u3002`
+      );
+      markCanvasDirty();
+      return true;
+    }
+    if (action === "place") {
+      event.preventDefault();
+      const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+      const index = indexFor(cursor.x, cursor.y);
+      const removed = state.placed[index] === state.selectedColor;
+      placeSelectedBead(cursor.x, cursor.y, true);
+      announceKeyboardGrid(
+        `${removed ? "\u5DF2\u53D6\u4E0B" : "\u5DF2\u653E\u7F6E"} ${beadLabel(state.selectedColor)}\uFF0C\u7B2C ${cursor.y + 1} \u884C\uFF0C\u7B2C ${cursor.x + 1} \u5217\u3002`
+      );
+      return true;
+    }
+    return false;
   }
   function useTweezers(x, y) {
     const index = indexFor(x, y);
@@ -9577,6 +10021,7 @@
     if (now < state.lampSwitchFlashUntil) return true;
     if (state.floorDrops.length > 0) return true;
     if (state.pressAnim && now - state.pressAnim.startedAt < state.pressAnim.duration) return true;
+    if (state.mobileBeadSettle && now - state.mobileBeadSettle.startedAt < state.mobileBeadSettle.duration) return true;
     const nav = state.kbdNav;
     if (nav.up || nav.down || nav.left || nav.right || nav.zoomIn || nav.zoomOut) return true;
     const bv = state.boardView;
@@ -9666,8 +10111,11 @@
   sceneCanvas.addEventListener("touchend", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  sceneCanvas.addEventListener("focus", showKeyboardGrid);
+  sceneCanvas.addEventListener("blur", hideKeyboardGrid);
   sceneCanvas.addEventListener("wheel", (event) => {
     if (state.phase !== "place" && state.phase !== "inspect") return;
+    if (event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     const rect = sceneCanvas.getBoundingClientRect();
     const mx = event.clientX - rect.left;
@@ -9681,9 +10129,9 @@
     const nextPanY = my - view.cy - (my - view.cy - view.panY) * ratio;
     setBoardZoom(nextScale, nextPanX, nextPanY);
   }, { passive: false });
-  els.resetButton.addEventListener("click", () => {
+  els.resetButton.addEventListener("click", async () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
-    if (hasProgress && !window.confirm("\u91CD\u7F6E\u4F1A\u6E05\u7A7A\u5F53\u524D\u6240\u6709\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+    if (hasProgress && !await confirmModal({ message: "\u91CD\u7F6E\u4F1A\u6E05\u7A7A\u5F53\u524D\u6240\u6709\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u91CD\u7F6E", danger: true })) return;
     loadPattern(state.selectedPattern);
     clearAutoSave();
     showToast("\u5DF2\u91CD\u7F6E\u5F53\u524D\u4F5C\u54C1\u3002");
@@ -9716,9 +10164,9 @@
   els.gallerySubmitModal?.addEventListener("click", (event) => {
     if (event.target === els.gallerySubmitModal) closeGallerySubmitModal();
   });
-  els.beadBackButton?.addEventListener("click", () => {
+  els.beadBackButton?.addEventListener("click", async () => {
     const hasProgress = state.phase !== "choose" || placedCount() > 0;
-    if (hasProgress && !window.confirm("\u8FD4\u56DE\u9996\u9875\u5C06\u9000\u51FA\u5F53\u524D\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F")) return;
+    if (hasProgress && !await confirmModal({ message: "\u8FD4\u56DE\u9996\u9875\u5C06\u9000\u51FA\u5F53\u524D\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u8FD4\u56DE\u9996\u9875", danger: true })) return;
     if (hasProgress) {
       loadPattern(state.selectedPattern);
       clearAutoSave();
@@ -9726,12 +10174,46 @@
     setAppMode("home");
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
-  els.chooseStartButton?.addEventListener("click", () => {
+  function reflectBgmButton() {
+    if (!els.bgmButton) return;
+    const on = isBgmPlaying();
+    els.bgmButton.setAttribute("aria-checked", on ? "true" : "false");
+    els.bgmButton.setAttribute("aria-label", `\u80CC\u666F\u97F3\u4E50\uFF1A${on ? "\u5F00" : "\u5173"}`);
+  }
+  async function setBgm(next) {
+    await toggleBgm(next);
+    try {
+      localStorage.setItem("perler-bgm", isBgmPlaying() ? "on" : "off");
+    } catch (e) {
+    }
+    reflectBgmButton();
+  }
+  els.bgmButton?.addEventListener("click", () => {
+    void setBgm(!isBgmPlaying());
+  });
+  var bgmPref = "off";
+  try {
+    bgmPref = localStorage.getItem("perler-bgm") || "off";
+  } catch (e) {
+  }
+  if (bgmPref === "on") {
+    const resume = () => {
+      document.removeEventListener("pointerdown", resume);
+      document.removeEventListener("keydown", resume);
+      void setBgm(true);
+    };
+    document.addEventListener("pointerdown", resume, { once: true });
+    document.addEventListener("keydown", resume, { once: true });
+  }
+  reflectBgmButton();
+  var startSelectedPattern = () => {
     if (state.phase === "choose") {
       setPhase("place");
       flushAutoSave();
     }
-  });
+  };
+  els.chooseStartButton?.addEventListener("click", startSelectedPattern);
+  els.mobileSelectionStartButton?.addEventListener("click", startSelectedPattern);
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
   els.bgThemeSelect?.addEventListener("change", () => {
     applyBackgroundTheme(els.bgThemeSelect.value);
@@ -9743,6 +10225,11 @@
     state.toolStyle = next;
     showToast(`\u5DE5\u5177\u6362\u6210${currentToolStyle().name}\u6B3E\u3002`);
     markDirty();
+  });
+  els.confirmModalOk?.addEventListener("click", () => resolveConfirm(true));
+  els.confirmModalCancel?.addEventListener("click", () => resolveConfirm(false));
+  els.confirmModal?.addEventListener("click", (event) => {
+    if (event.target === els.confirmModal) resolveConfirm(false);
   });
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
@@ -9772,14 +10259,8 @@
   els.shareModal?.addEventListener("click", (event) => {
     if (event.target === els.shareModal) closeShareModal();
   });
-  window.addEventListener("wheel", (e) => {
-    if (e.ctrlKey || e.metaKey) e.preventDefault();
-  }, { passive: false });
   window.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && (event.key === "+" || event.key === "-" || event.key === "=" || event.key === "_")) {
-      event.preventDefault();
-      return;
-    }
+    if (handleKeyboardGridKey(event)) return;
     if (!isTouchDevice()) {
       const tag = document.activeElement?.tagName;
       const inputFocused = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
@@ -9875,6 +10356,10 @@
       return;
     }
     if (event.key !== "Escape") return;
+    if (state.confirmModalOpen) {
+      resolveConfirm(false);
+      return;
+    }
     const enlarged = els.collectionScreen?.querySelector(".collection-enlarged.show");
     if (enlarged) {
       enlarged.classList.remove("show");
@@ -9980,7 +10465,8 @@
     createCloudShare,
     importPatternCode,
     openImportCodeModal: () => openDrawCodeModal("import-bead"),
-    submitCurrentToGallery
+    submitCurrentToGallery,
+    triggerHaptic
   });
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));
@@ -9999,4 +10485,5 @@
   });
   renderUI();
   requestAnimationFrame(tick);
+  (window.requestIdleCallback || ((cb) => setTimeout(cb, 1200)))(preloadBackgrounds);
 })();

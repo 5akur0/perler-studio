@@ -1,6 +1,6 @@
 
 .app-shell {
-  width: min(1640px, 100%);
+  width: min(var(--content-max), 100%);
   min-height: 100vh;
   margin: 0 auto;
   padding: 18px;
@@ -37,9 +37,7 @@ body[data-app-mode="collection"] .gallery-screen {
   display: none;
 }
 
-.drawing-studio-card {
-  width: min(1640px, 100%);
-}
+/* .drawing-studio-card's fixed width comes from the .studio-shell primitive; flex-column behavior is in the responsive.css ≥861 container model. */
 
 .drawing-topbar {
   margin-bottom: 16px;
@@ -243,6 +241,8 @@ body[data-app-mode="collection"] .gallery-screen {
   touch-action: none;
 }
 
+/* Pattern-code / short-code inputs: always carry spellcheck="false" autocapitalize="off" autocorrect="off",
+   to stop the OS from auto-correcting / capitalizing the machine codes (see the index.html markup; the convention is maintained alongside this class). */
 .drawing-code-input {
   width: 100%;
   min-height: 180px;

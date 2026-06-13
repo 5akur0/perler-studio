@@ -32,7 +32,7 @@ export function celebrate() {
   if (!layer) return;
   window.clearTimeout(state.celebrateTimer);
   layer.classList.remove("show");
-  void layer.offsetWidth; // 强制重排，保证再次保存时动画重新触发
+  void layer.offsetWidth; // force reflow so the animation re-triggers on the next save
   layer.classList.add("show");
   state.celebrateTimer = window.setTimeout(() => {
     layer.classList.remove("show");

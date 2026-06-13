@@ -13,6 +13,14 @@ export function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
+export function beadSettleScale(elapsed, duration = 180, reducedMotion = false) {
+  if (reducedMotion) return 1;
+  const safeDuration = Math.max(1, Number(duration) || 180);
+  const t = Math.max(0, Math.min(1, (Number(elapsed) || 0) / safeDuration));
+  const eased = 1 - Math.pow(1 - t, 4);
+  return 0.72 + (1 - 0.72) * eased;
+}
+
 // ─── Text / hash utilities ────────────────────────────────────────────────────
 
 /** FNV-1a 32-bit hash — fast, deterministic, no crypto dependency. */

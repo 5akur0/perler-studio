@@ -1,12 +1,15 @@
 import { decodePatternCode } from "./src/pattern-code.js";
 import { palette } from "./src/palette.js";
 import { escapeHtml } from "./src/utils.js";
+import { hydrateIcons } from "./src/icons.js";
 
 const apiBase = String(document.querySelector('meta[name="beam-share-api-base"]')?.content || "").replace(/\/+$/, "");
 const tokenInput = document.querySelector("#adminToken");
 const loadButton = document.querySelector("#loadButton");
 const statusEl = document.querySelector("#status");
 const grid = document.querySelector("#grid");
+
+hydrateIcons(document);
 
 function setStatus(text) {
   statusEl.textContent = text;
@@ -68,10 +71,17 @@ function render(items) {
         <span>${escapeHtml(item.createdAt)}</span>
       </div>
       <div class="actions">
-        <button class="primary" type="button" data-action="approve">通过</button>
-        <button class="danger" type="button" data-action="reject">拒绝</button>
+        <button class="primary icon-text-button" type="button" data-action="approve">
+          <span class="btn-glyph" data-lucide-icon="badge-check" data-icon-size="16"></span>
+          <span class="btn-label">通过</span>
+        </button>
+        <button class="danger icon-text-button" type="button" data-action="reject">
+          <span class="btn-glyph" data-lucide-icon="badge-x" data-icon-size="16"></span>
+          <span class="btn-label">拒绝</span>
+        </button>
       </div>
     `;
+    hydrateIcons(card);
     const canvas = card.querySelector("canvas");
     if (pattern) drawPattern(canvas, pattern);
     card.querySelectorAll("button[data-action]").forEach((button) => {

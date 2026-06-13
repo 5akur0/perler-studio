@@ -13,6 +13,8 @@ export function setModalActions(actions = {}) {
 }
 
 export function getOpenModalEl() {
+  // The confirm dialog is always on top and takes priority in the Tab focus trap.
+  if (state.confirmModalOpen) return els.confirmModal;
   if (state.remapModalOpen) return els.remapModal;
   if (state.settingsModalOpen) return els.settingsModal;
   if (state.onboardingModalOpen) return els.onboardingModal;
@@ -34,7 +36,7 @@ export function onModalOpened(modalEl) {
   if (active && active !== document.body && !active.closest(".remap-modal")) {
     state.modalReturnFocus = active;
   }
-  // 锁背景滚动：移动端 overflow:hidden 只在 ≥861px 生效，否则弹窗背后页面仍可滚（scroll bleed-through）。
+  // Lock background scroll: the mobile overflow:hidden only applies at ≥861px, otherwise the page behind the modal can still scroll (scroll bleed-through).
   document.body.classList.add("modal-open");
   const focusables = focusablesIn(modalEl);
   if (focusables.length) focusables[0].focus();
@@ -42,21 +44,62 @@ export function onModalOpened(modalEl) {
 
 export function restoreModalFocus() {
   if (getOpenModalEl()) return;
-  // 已无任何弹窗打开 → 解除背景滚动锁。
+  // No modal is open anymore → release the background scroll lock.
   document.body.classList.remove("modal-open");
   const el = state.modalReturnFocus;
   state.modalReturnFocus = null;
   if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
-  // 兜底：若上面的恢复没生效（返回目标已不在 DOM，或已不可聚焦），焦点会滞留在刚隐藏的
-  // 弹窗里形成键盘死角。检查最终焦点，必要时回落到顶栏第一个可用按钮这一稳定锚点。
+  // Fallback: if the restore above didn't take effect (the return target is no longer in the DOM, or no longer
+  // focusable), focus would be stranded inside the just-hidden modal, creating a keyboard dead end. Check the
+  // final focus and, if needed, fall back to the first usable topbar button as a stable anchor.
   const active = document.activeElement;
   if (active && active.closest && active.closest(".remap-modal")) {
-    // 每个屏都有自己的 .topbar，非活动屏 display:none。只取当前可见屏里的可聚焦按钮
-    // （offsetParent 非 null）作为锚点；都找不到就 blur 以释放键盘焦点。
+    // Each screen has its own .topbar; inactive screens are display:none. Take only a focusable button in the
+    // currently visible screen (offsetParent non-null) as the anchor; if none is found, blur to release keyboard focus.
     const anchor = [...document.querySelectorAll(".topbar button:not([disabled])")].find((b) => b.offsetParent !== null);
     if (anchor && typeof anchor.focus === "function") anchor.focus();
     else if (typeof active.blur === "function") active.blur();
   }
+}
+
+// —— In-page confirm dialog (replaces the ugly native window.confirm). Returns Promise<boolean>. ——
+let confirmResolve = null;
+
+export function confirmModal({ message, okText = "确定", cancelText = "取消", danger = false, title = "确认一下" } = {}) {
+  return new Promise((resolve) => {
+    const modal = els.confirmModal;
+    if (!modal || !els.confirmModalOk) {
+      // Fallback: in extreme cases fall back to the native confirm, so at least the action isn't blocked.
+      resolve(window.confirm(message));
+      return;
+    }
+    if (els.confirmModalTitle) els.confirmModalTitle.textContent = title;
+    if (els.confirmModalMessage) els.confirmModalMessage.textContent = message;
+    els.confirmModalOk.textContent = okText;
+    if (els.confirmModalCancel) els.confirmModalCancel.textContent = cancelText;
+    els.confirmModalOk.classList.toggle("danger-button", danger);
+    els.confirmModalOk.classList.toggle("primary-button", !danger);
+    confirmResolve = resolve;
+    state.confirmModalOpen = true;
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    onModalOpened(modal);
+    // Focusing "Cancel" by default is safer (especially for destructive actions).
+    if (els.confirmModalCancel) els.confirmModalCancel.focus();
+  });
+}
+
+export function resolveConfirm(result) {
+  if (!state.confirmModalOpen) return;
+  state.confirmModalOpen = false;
+  if (els.confirmModal) {
+    els.confirmModal.classList.remove("show");
+    els.confirmModal.setAttribute("aria-hidden", "true");
+  }
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  restoreModalFocus();
+  if (resolve) resolve(Boolean(result));
 }
 
 export function openShareModal() {

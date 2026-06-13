@@ -8,6 +8,7 @@ import { decodePatternCode, extractPatternCode, encodePatternCode } from './patt
 import { showToast } from './notify.js';
 import { escapeHtml, stableHash, pickCustomPatternNote } from './utils.js';
 import { drawPatternThumb } from './ui.js';
+import { icon } from './icons.js';
 
 // ─── Injected callbacks (set by main.js at startup) ──────────────────────────
 
@@ -96,7 +97,7 @@ export function renderGallery() {
   const items = Array.isArray(galleryItems) ? galleryItems : [];
   els.galleryEmpty.hidden = items.length > 0;
   if (items.length === 0) {
-    const galleryIcon = '<svg class="gallery-empty-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h.01"/><path d="m3 16 4.5-4.5a2 2 0 0 1 2.8 0L14 15"/><path d="m13 14 1.5-1.5a2 2 0 0 1 2.8 0L21 16"/></svg>';
+    const galleryIcon = icon("image", { size: 40, strokeWidth: 1.8, class: "gallery-empty-icon" });
     if (!galleryLoaded) {
       els.galleryEmpty.innerHTML = `<p class="gallery-empty-text">正在读取画廊…</p>`;
     } else if (galleryError) {

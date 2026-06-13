@@ -12,6 +12,7 @@ import {
   targetAt, indexFor, getEffectiveTargetRows, getTargetCounts, getTargetTotal,
   beadLabel, getPatternColors, getPlacedCounts, baseIdFor, getPatternColorMap,
 } from './pattern.js';
+import { beadSettleScale } from './utils.js';
 
 export function useMobileTrayGrid() {
   return window.matchMedia("(max-width: 860px)").matches;
@@ -384,7 +385,7 @@ export function render() {
     }
   } else {
     drawBoard(layout);
-    // Mobile keeps only the board itself — no taped reference note (贴纸便签).
+    // Mobile keeps only the board itself — no taped reference note.
     if (!useMobileDirectPlacement()) drawReferenceSheet(layout);
     if ((state.phase === "place" || state.phase === "inspect") && shouldShowTray(layout)) {
       if (state.trayColor) syncTrayMatrixShape();
@@ -394,7 +395,7 @@ export function render() {
     if (state.phase === "iron") drawIronLayer(layout);
     if (state.phase === "cool") drawCoolingLayer(layout);
   }
-  // Mobile removes the desk lamp (灯光) entirely — board only.
+  // Mobile removes the desk lamp entirely — board only.
   if (!useMobileDirectPlacement()) drawLampSwitch(layout);
   if (!useMobileDirectPlacement()) drawToolEntities(layout.w, layout.h);
 
@@ -654,15 +655,6 @@ export function drawToolEntities(w, h) {
   } else {
     drawTweezersEntityAtHead(tweezerHeadX, tweezerHeadY);
   }
-  ctx.save();
-  ctx.globalAlpha = follow ? 0.46 : 0.72;
-  ctx.fillStyle = "rgba(38, 36, 43, 0.62)";
-  ctx.font = "700 11px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  const infoX = follow ? clamp(state.toolPose.x - 16, 14, w - 172) : defaultX + 8;
-  const infoY = follow ? clamp(state.toolPose.y - 14, 18, h - 62) : defaultY + 14;
-  ctx.fillText("针", infoX, infoY);
-  ctx.fillText(`镊 ${state.tweezerBead ? beadIds[state.tweezerBead] : "空"}`, infoX, infoY + 14);
-  ctx.restore();
 }
 
 export function drawNeedleEntityAtTip(tipX, tipY) {
@@ -980,17 +972,45 @@ export function drawBoard(layout) {
         return;
       }
       const shapeProfile = boardFusionShapeProfile(x, y);
+      const settle = state.mobileBeadSettle?.index === index ? state.mobileBeadSettle : null;
+      const settleElapsed = settle ? performance.now() - settle.startedAt : 0;
+      const settleScale = settle ? beadSettleScale(settleElapsed, settle.duration, false) : 1;
+      if (settle) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(settleScale, settleScale);
+        ctx.translate(-cx, -cy);
+      }
       if (isSpillDamagedIndex(index)) {
         drawDamagedBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
       } else {
         drawBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
       }
       drawPegInBead(ctx, cx, cy, cell * 0.43, heat, boardFusedPhase);
+      if (settle) {
+        ctx.restore();
+        if (settleElapsed >= settle.duration) state.mobileBeadSettle = null;
+      }
     });
   }
 
   if (state.phase === "inspect" && state.showHints) {
     drawInspectionHints(layout);
+  }
+
+  if (state.phase === "place" && state.keyboardGrid.visible) {
+    const x = clamp(state.keyboardGrid.x, 0, size - 1);
+    const y = clamp(state.keyboardGrid.y, 0, size - 1);
+    const px = boardX + x * cell;
+    const py = boardY + y * cell;
+    ctx.save();
+    ctx.strokeStyle = "rgba(31, 97, 83, 0.96)";
+    ctx.lineWidth = Math.max(2, cell * 0.09);
+    ctx.strokeRect(px + 2, py + 2, Math.max(1, cell - 4), Math.max(1, cell - 4));
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
+    ctx.lineWidth = Math.max(1, cell * 0.04);
+    ctx.strokeRect(px + 5, py + 5, Math.max(1, cell - 10), Math.max(1, cell - 10));
+    ctx.restore();
   }
 
   ctx.restore();
@@ -1870,7 +1890,7 @@ export function drawTrayBeadRandomized(ctx, x, y, r, code, angle = 0, tilt = 1, 
   ctx.translate(x, y - heightLift);
   ctx.rotate(angle);
 
-  // 接触阴影（模拟轻微悬浮和姿态变化）
+  // Contact shadow (simulates slight hover and pose variation)
   ctx.fillStyle = "rgba(0,0,0,0.14)";
   ctx.beginPath();
   ctx.ellipse(0.3, thickness * 0.26, length * 0.42, Math.max(1.2, thickness * 0.22), 0, 0, Math.PI * 2);
@@ -1960,7 +1980,7 @@ export function drawTray(layout, compact = false) {
         const seedL = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-l`);
         const randX = trayX + 20 + seedX * (trayW - 40);
         const randY = trayY + 20 + seedY * (trayH - 54);
-        // 每颗豆独立收拢进度：避免“全体同步排齐”，更接近真实整理过程
+        // Per-bead independent gather progress: avoids "everyone snaps into line at once", closer to a real tidying process
         const lag = seedL * 0.58 + (row / rowNormDiv) * 0.14;
         const localP = p <= lag ? 0 : clamp((p - lag) / Math.max(0.08, 1 - lag), 0, 1);
         const settleNoiseX = (seedX - 0.5) * lerp(1.9, 0.55, localP);
@@ -1980,14 +2000,6 @@ export function drawTray(layout, compact = false) {
         drawTrayBeadRandomized(ctx, x, y, beadR, color, angle, tilt, lift);
       }
     }
-  }
-
-  if (!color || state.trayBeans <= 0) {
-    ctx.fillStyle = "rgba(75, 90, 98, 0.28)";
-    ctx.font = "700 18px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("空", trayX + trayW / 2, trayY + trayH / 2 + 6);
-    ctx.textAlign = "left";
   }
 
   if (color) {
@@ -2027,13 +2039,6 @@ export function drawTray(layout, compact = false) {
   ctx.lineTo(cx + 1.8, cy - 7.2);
   ctx.stroke();
 
-  ctx.fillStyle = "rgba(38, 36, 43, 0.72)";
-  ctx.font = "700 13px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  if (color) {
-    ctx.fillText(`豆筛 ${beadLabel(color)}`, trayX + 18, trayY + trayH - 14);
-  } else {
-    ctx.fillText("豆筛 空", trayX + 18, trayY + trayH - 14);
-  }
   ctx.restore();
 }
 
@@ -2342,8 +2347,8 @@ export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = nu
   const edges = shape?.edges || { left: true, right: true, up: true, down: true };
   const exposedCount = (edges.left ? 1 : 0) + (edges.right ? 1 : 0) + (edges.up ? 1 : 0) + (edges.down ? 1 : 0);
 
-  // 物理：贴邻居的一侧被挤平，恰好填到 cell 中线（r·1.18）；
-  // 暴露的一侧无约束，融化的塑料向外溢出，凸出 cell 边界（r·1.32）。
+  // Physics: the side touching a neighbor is squashed flat, filling exactly to the cell midline (r·1.18);
+  // the exposed side is unconstrained, the melted plastic overflows outward, bulging past the cell edge (r·1.32).
   const halfConnected = r * lerp(1.0, 1.18, melt);
   const halfExposed = r * lerp(1.0, 1.32, melt);
   const halfL = edges.left ? halfExposed : halfConnected;
@@ -2351,7 +2356,7 @@ export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = nu
   const halfU = edges.up ? halfExposed : halfConnected;
   const halfD = edges.down ? halfExposed : halfConnected;
 
-  // 每个角的半径取决于相邻两边是否暴露；两边都暴露时取相邻 half 的较小者以形成完整四分之一圆。
+  // Each corner's radius depends on whether its two adjacent sides are exposed; when both are exposed, take the smaller of the adjacent halves to form a full quarter-circle.
   const cornerFor = (sideA, sideB, halfA, halfB) => {
     const a = edges[sideA];
     const b = edges[sideB];

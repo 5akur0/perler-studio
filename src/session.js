@@ -249,7 +249,7 @@ export function loadAutoSave() {
     }
 
     if (session.patternColorMaps && typeof session.patternColorMaps === "object") state.patternColorMaps = session.patternColorMaps;
-    // 旧存档可能带 patternHiddenSources（隐藏色功能已移除）——静默忽略。
+    // Old saves may carry patternHiddenSources (hidden-color feature removed) — silently ignore.
     const restoredSize = normalizePatternSizeFromSession(session.patternSize, pattern.size);
     if (!restoredSize) {
       clearStoredSession();

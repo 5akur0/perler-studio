@@ -6,9 +6,11 @@ import { els } from './dom.js';
 import { clamp } from './color-utils.js';
 import { maxBoardScale } from './render.js';
 import { showToast } from './notify.js';
+import { confirmModal } from './modal-controller.js';
 import { pickCustomPatternNote } from './utils.js';
 import { state } from './state.js';
 import { extractCloudShortId, requestShareApi } from './gallery.js';
+import { icon } from './icons.js';
 
 const drawActions = {
   loadPattern: () => {},
@@ -697,9 +699,7 @@ function renderDrawToolButtons() {
   if (shapeBtn) {
     const isCircle = drawState.shapeMode === "circle";
     shapeBtn.setAttribute("aria-label", isCircle ? "圆形" : "矩形");
-    shapeBtn.innerHTML = isCircle
-      ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`
-      : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`;
+    shapeBtn.innerHTML = icon(isCircle ? "circle" : "square", { size: 16 });
   }
   if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
 }
@@ -756,10 +756,10 @@ export function initDrawingStudioEvents() {
     drawActions.setAppMode("home");
   });
   els.drawSettingsButton?.addEventListener("click", () => drawActions.openSettingsModal());
-  els.drawResetButton?.addEventListener("click", () => {
+  els.drawResetButton?.addEventListener("click", async () => {
     ensureDrawGrid();
     const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
-    if (hasContent && !window.confirm("清空会丢失当前绘图，确定吗？")) return;
+    if (hasContent && !(await confirmModal({ message: "清空会丢失当前绘图，确定吗？", okText: "清空", danger: true }))) return;
     drawState.grid = createDrawGrid(drawWidth(), drawHeight());
     drawState.lastCellKey = "";
     paintDrawCanvas();

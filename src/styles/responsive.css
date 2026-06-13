@@ -492,6 +492,7 @@
   transform: translate(-50%, 18px);
   pointer-events: none;
   transition: var(--feedback-ease);
+  font-family: var(--font-cute);
   font-size: 14px;
 }
 
@@ -516,6 +517,7 @@
   transform: translate(-50%, -8px);
   pointer-events: none;
   transition: var(--feedback-ease);
+  font-family: var(--font-cute);
   font-size: var(--fs-sm);
   line-height: var(--lh-body);
 }
@@ -544,6 +546,7 @@
   transition: var(--feedback-ease);
   display: grid;
   gap: 2px;
+  font-family: var(--font-cute);
 }
 
 .achievement-toast .label {
@@ -563,7 +566,7 @@
   transform: translateX(0);
 }
 
-/* 完成收藏的小庆祝：7 颗错峰星点从屏幕中心柔和绽放后淡出。仅 transform/opacity。 */
+/* Small save-to-collection celebration: 7 staggered sparkles bloom gently from screen center, then fade out. transform/opacity only. */
 .celebrate-layer {
   position: fixed;
   inset: 0;
@@ -789,6 +792,64 @@
     display: none;
   }
 
+  .mobile-workflow-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 44px;
+    padding: 4px 8px;
+    border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+  }
+
+  .mobile-workflow-summary[hidden] {
+    display: none;
+  }
+
+  .mobile-workflow-summary canvas {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+  }
+
+  .mobile-workflow-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .mobile-workflow-copy strong,
+  .mobile-workflow-copy span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-workflow-copy strong {
+    color: var(--ink);
+    font-size: var(--fs-sm);
+    line-height: 1.15;
+  }
+
+  .mobile-workflow-copy span,
+  .mobile-workflow-summary small {
+    color: var(--muted);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+  }
+
+  .mobile-workflow-summary small {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
   .top-stats {
     grid-column: 2;
     grid-row: 1;
@@ -833,6 +894,68 @@
     max-height: 260px;
   }
 
+  .mobile-selection-summary {
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid color-mix(in srgb, var(--brand) 32%, var(--line));
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--sh-2);
+  }
+
+  .mobile-selection-summary[hidden] {
+    display: none;
+  }
+
+  .mobile-selection-summary canvas {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+  }
+
+  .mobile-selection-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .mobile-selection-copy strong,
+  .mobile-selection-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-selection-copy strong {
+    font-size: var(--fs-sm);
+    color: var(--ink);
+  }
+
+  .mobile-selection-copy small {
+    color: var(--muted);
+    font-size: var(--fs-xs);
+  }
+
+  .mobile-selection-summary .primary-button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+
+  .color-chip.picked {
+    animation: mobile-color-pick 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   .workbench {
     order: -1;
     padding: 8px;
@@ -858,7 +981,7 @@
     order: 0;
   }
 
-  /* P1-6: 检查/清空按钮靠近 canvas，优先级高于参考图和侧边栏 */
+  /* P1-6: keep the inspect/clear buttons near the canvas, with higher priority than the reference sheet and sidebar */
   .bead-studio-grid:not([data-phase="choose"]) #stageControls {
     order: 1;
   }
@@ -964,18 +1087,18 @@
     margin-top: 2px;
   }
 
-  /* P1-1: iron/cool 阶段右侧面板（豆盒）在手机上不占高度 */
+  /* P1-1: in the iron/cool stages, the right panel (bead box) takes no height on mobile */
   .bead-studio-grid[data-phase="iron"] .right-panel,
   .bead-studio-grid[data-phase="cool"] .right-panel {
     display: none !important;
   }
 
-  /* P1-2: inspect 辅助 canvas 在手机上高度减半 */
+  /* P1-2: the inspect assist canvas is half-height on mobile */
   .inspect-canvas {
     height: 140px;
   }
 
-  /* P1-4: 豆盒底部留出 home bar 空间 */
+  /* P1-4: leave home-bar space at the bottom of the bead box */
   .color-palette {
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   }
@@ -1138,6 +1261,17 @@
   }
 }
 
+@keyframes mobile-color-pick {
+  0% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 var(--brand-tint-strong);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1155,7 +1289,7 @@
     transform: none !important;
   }
 
-  /* P2-7: orientation-overlay 旋转动画显式停止 */
+  /* P2-7: explicitly stop the orientation-overlay rotation animation */
   .orientation-overlay svg {
     animation: none !important;
   }

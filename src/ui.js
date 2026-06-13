@@ -9,6 +9,7 @@ import {
   baseIdFor,
 } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint } from './notify.js';
+import { confirmModal } from './modal-controller.js';
 import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
@@ -17,6 +18,8 @@ import {
 } from './render.js';
 import { els, sideReferenceCanvas, sideReferenceCtx, previewCanvas } from './dom.js';
 import { escapeHtml, prefersReducedMotion } from './utils.js';
+import { icon } from './icons.js';
+import { workflowSummary } from './workflow.js';
 
 let uiActions = {
   getCollection: () => [],
@@ -41,6 +44,7 @@ let uiActions = {
   importPatternCode: async () => false,
   openImportCodeModal: () => {},
   submitCurrentToGallery: () => {},
+  triggerHaptic: () => {},
 };
 
 export function setUIActions(nextActions = {}) {
@@ -292,13 +296,13 @@ export function renderPhases() {
     item.setAttribute("aria-label", `${index + 1} ${phase.name}`);
     item.innerHTML = `<span class="step-dot">${index + 1}</span><span>${phase.name}</span>`;
     item.disabled = index >= activeIndex;
-    item.addEventListener("click", () => {
+    item.addEventListener("click", async () => {
       if (index >= activeIndex) return;
       const target = phase.id;
       if (target === "choose") {
         if (
           (placedCount() > 0 || state.fusedPieces.length > 0) &&
-          !window.confirm("回到选图会离开当前作品的进度，确定吗？")
+          !(await confirmModal({ message: "回到选图会离开当前作品的进度，确定吗？", okText: "回到选图", danger: true }))
         ) {
           return;
         }
@@ -308,7 +312,7 @@ export function renderPhases() {
       const losesFused =
         state.fusedPieces.length > 0 &&
         (target === "place" || target === "inspect" || target === "iron");
-      if (losesFused && !window.confirm("回退到该步会清除已熨烫/冷却的结果，确定吗？")) {
+      if (losesFused && !(await confirmModal({ message: "回退到该步会清除已熨烫/冷却的结果，确定吗？", okText: "回退", danger: true }))) {
         return;
       }
       uiActions.setPhase(target);
@@ -351,6 +355,36 @@ export function renderCurrentPatternChip() {
   if (els.currentPatternThumb) {
     drawPatternThumb(els.currentPatternThumb, state.selectedPattern);
   }
+}
+
+export function renderMobileWorkflowSummary() {
+  if (!els.mobileWorkflowSummary) return;
+  const visible = state.phase !== "choose";
+  els.mobileWorkflowSummary.hidden = !visible;
+  if (!visible) return;
+  const summary = workflowSummary(phases, state.phase);
+  if (els.mobilePatternName) els.mobilePatternName.textContent = state.selectedPattern.name;
+  if (els.mobileWorkflowCurrent) {
+    els.mobileWorkflowCurrent.textContent = `${summary.index + 1}/${summary.total} · ${summary.current}`;
+  }
+  if (els.mobileWorkflowNext) {
+    els.mobileWorkflowNext.textContent = summary.next ? `下一步 ${summary.next}` : "最后一步";
+  }
+  if (els.mobilePatternThumb) drawPatternThumb(els.mobilePatternThumb, state.selectedPattern);
+}
+
+export function renderMobileSelectionSummary() {
+  if (!els.mobileSelectionSummary) return;
+  const visible = state.phase === "choose";
+  els.mobileSelectionSummary.hidden = !visible;
+  if (!visible) return;
+  const counts = getTargetCounts();
+  if (els.mobileSelectionName) els.mobileSelectionName.textContent = state.selectedPattern.name;
+  if (els.mobileSelectionMeta) {
+    els.mobileSelectionMeta.textContent =
+      `${state.selectedPattern.size}×${state.selectedPattern.size} · ${getTargetTotal()}颗 · ${Object.keys(counts).length}色`;
+  }
+  if (els.mobileSelectionThumb) drawPatternThumb(els.mobileSelectionThumb, state.selectedPattern);
 }
 
 export function renderControls() {
@@ -399,14 +433,12 @@ export function renderControls() {
         state.showHints = !state.showHints;
         markDirty();
       }, false, {
-        icon: hintsOn
-          ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M9.88 5.07A11 11 0 0 1 12 5c5.5 0 9.27 4.07 10 7-0.42 1.66-1.66 3.6-3.5 5.06"/><path d="M6.13 6.13C4.06 7.62 2.59 9.79 2 12c0.73 2.93 4.5 7 10 7 1.7 0 3.27-0.38 4.66-1"/><path d="M10.59 10.59A2 2 0 0 0 13.41 13.41"/></svg>'
-          : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+        icon: icon(hintsOn ? "eye-off" : "eye", { size: 16 }),
         ariaLabel: hintsOn ? "隐藏提示" : "显示提示",
         title: hintsOn ? "隐藏提示" : "显示提示",
       }],
       ["返回修正", "inspect-action-btn", () => uiActions.setPhase("place"), false, {
-        icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>',
+        icon: icon("reply", { size: 16 }),
         ariaLabel: "返回修正",
         title: "返回修正",
       }],
@@ -642,7 +674,15 @@ export function renderPalette() {
   const placedCounts = getPlacedCounts();
   const allCodes = allColorCodes();
   const codes = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes;
-  const key = ["place", isMobile ? "m" : "d", state.selectedColor, state.tweezerBead || "", state.placedVersion, getPatternAnalysis().key].join(":");
+  const key = [
+    "place",
+    isMobile ? "m" : "d",
+    state.selectedColor,
+    state.tweezerBead || "",
+    state.placedVersion,
+    state.mobileColorPulseId,
+    getPatternAnalysis().key,
+  ].join(":");
   if (key === paletteRenderKey) return;
   paletteRenderKey = key;
   els.colorPalette.innerHTML = "";
@@ -654,7 +694,8 @@ export function renderPalette() {
     const isSelected = state.selectedColor === code;
     const button = document.createElement("button");
     const isHeld = !isMobile && state.tweezerBead === code;
-    button.className = `color-chip${isSelected ? " active" : ""}${inPattern && !isMobile ? " needed" : ""}${isHeld ? " held" : ""}`;
+    const picked = isMobile && isSelected && state.mobileColorPulsePending;
+    button.className = `color-chip${isSelected ? " active" : ""}${inPattern && !isMobile ? " needed" : ""}${isHeld ? " held" : ""}${picked ? " picked" : ""}`;
     button.type = "button";
     button.title = `${beadLabel(code)}：${placed}/${needed}`;
     const isTransparent = beadIds[code] === "H1";
@@ -665,11 +706,17 @@ export function renderPalette() {
       `;
     button.addEventListener("click", () => {
       state.selectedColor = code;
+      if (isMobile) {
+        state.mobileColorPulseId += 1;
+        state.mobileColorPulsePending = true;
+        uiActions.triggerHaptic("light");
+      }
       if (state.phase === "place" && !isMobile) uiActions.pourSelectedColor?.();
       markDirty();
     });
     els.colorPalette.appendChild(button);
   });
+  state.mobileColorPulsePending = false;
 }
 
 export function updateSelectedPaletteCount() {
@@ -783,7 +830,7 @@ export function renderCustomStats() {
       <strong>${stats.size}x${stats.size} · ${stats.total}颗 · ${stats.colors.length}色</strong>
       <span>源图估计 ${stats.sourceSignificantCount} 色 · 聚类 ${stats.simplifiedColorCount} 色 · 清理前 ${stats.preCleanupColorCount} 色</span>
       <span>${stats.denoised ? "已启用轻度降噪" : "保留像素边缘（未降噪）"}</span>
-      <span>${list}${stats.colors.length > 8 ? " · ..." : ""}</span>
+      <span>${list}${stats.colors.length > 8 ? " · …" : ""}</span>
     `;
 }
 
@@ -804,9 +851,9 @@ export function renderCollection() {
       <span class="collection-toolbar-count">共 ${collection.length} 件</span>
       <button type="button" class="danger-button collection-clear-all">清空作品集</button>
     `;
-  toolbar.querySelector(".collection-clear-all").addEventListener("click", () => {
+  toolbar.querySelector(".collection-clear-all").addEventListener("click", async () => {
     if (!collection.length) return;
-    if (!window.confirm("确定清空所有作品？此操作不可撤销。")) return;
+    if (!(await confirmModal({ message: "确定清空所有作品？此操作不可撤销。", okText: "清空", danger: true }))) return;
     uiActions.updateCollection([]);
     renderCollection();
     showToast("作品集已清空。");
@@ -831,13 +878,13 @@ export function renderCollection() {
           </div>
         </button>
         <button type="button" class="collection-tile-delete" aria-label="删除这件作品" title="删除">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          ${icon("trash-2", { size: 14 })}
         </button>
       `;
     tile.querySelector(".collection-tile-body").addEventListener("click", () => enlargeCollectionEntry(item));
-    tile.querySelector(".collection-tile-delete").addEventListener("click", (event) => {
+    tile.querySelector(".collection-tile-delete").addEventListener("click", async (event) => {
       event.stopPropagation();
-      if (!window.confirm(`删除 ${item.name}？`)) return;
+      if (!(await confirmModal({ message: `删除作品「${item.name}」？`, okText: "删除", danger: true }))) return;
       uiActions.updateCollection(collection.filter((entry) => entry.id !== item.id));
       renderCollection();
       showToast("已删除。");
@@ -954,7 +1001,7 @@ function enlargeCollectionEntry(entry) {
     viewer = document.createElement("div");
     viewer.className = "collection-enlarged";
     viewer.innerHTML = `
-        <button type="button" class="collection-enlarged-close" aria-label="关闭放大">×</button>
+        <button type="button" class="collection-enlarged-close" aria-label="关闭放大">${icon("x", { size: 18 })}</button>
         <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
         <div class="collection-enlarged-meta"></div>
         <div class="collection-enlarged-actions">
@@ -987,6 +1034,8 @@ export function renderUI() {
   renderPatterns();
   renderPhases();
   renderCurrentPatternChip();
+  renderMobileWorkflowSummary();
+  renderMobileSelectionSummary();
   renderControls();
   renderToolRack();
   renderPalette();
@@ -1004,16 +1053,18 @@ export function renderUI() {
   if (els.colorMeta) els.colorMeta.textContent = state.phase === "inspect" ? "检查辅助" : beadLabel(state.selectedColor);
   if (els.rightPanelTitle) els.rightPanelTitle.textContent = state.phase === "inspect" ? "检查台" : "豆盒";
   if (els.sandboxButton) {
-    const beakerIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L5 19a1.6 1.6 0 0 0 1.4 2.4h11.2A1.6 1.6 0 0 0 19 19l-5-9.5V3"/><path d="M7.5 14h9"/></svg>';
-    const loupeIcon = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>';
+    // Sandbox lives in the topbar as an icon toggle: the flask icon is always present (in HTML); on/off is distinguished by .active + aria/title.
     const stateLabel = state.sandboxMode ? "开" : "关";
-    els.sandboxButton.innerHTML = `${state.sandboxMode ? beakerIcon : loupeIcon}<span class="sandbox-state">${stateLabel}</span>`;
-    els.sandboxButton.title = state.sandboxMode ? "沙盒：开（自由拼摆不校验）" : "沙盒：关（按图纸校验）";
+    els.sandboxButton.title = state.sandboxMode ? "沙盒模式：开（自由拼摆不校验）" : "沙盒模式：关（按图纸校验）";
     els.sandboxButton.setAttribute("aria-label", `沙盒模式：${stateLabel}`);
     els.sandboxButton.setAttribute("aria-pressed", state.sandboxMode ? "true" : "false");
     els.sandboxButton.classList.toggle("active", state.sandboxMode);
   }
   if (els.chooseStartButton) els.chooseStartButton.hidden = state.phase !== "choose";
+  if (els.mobileSelectionStartButton) els.mobileSelectionStartButton.hidden = state.phase !== "choose";
+  if (els.customImageControls) {
+    els.customImageControls.hidden = !state.selectedPattern?.sourceImageDataUrl;
+  }
   if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
   if (els.topToolStyleSelect) {
     if (!els.topToolStyleSelect.options.length) {

@@ -1,7 +1,8 @@
 :root {
   /* —— Brand & ink —— */
   --ink: #26242b;
-  --muted: #686572;
+  /* Secondary text. #5a5763 on white ≈7.05:1 (was #686572, only 5.69) — leaves contrast headroom when glass panels sit over background photos. */
+  --muted: #5a5763;
   --line: #d6dae2;
   --panel: #ffffff;
   --page-base: #eef2f4;
@@ -22,10 +23,17 @@
   --brand-cta: #3D9C8C;
   --brand-cta-strong: #389586;
 
-  /* 阶段背景图蒙版（叠在背景图上染色 + 提亮保证可读）。运行时由 JS 按主题覆盖（applyBackgroundTheme）。 */
+  /* —— Destructive-action semantic color (danger): a fixed red derived from --coral for uniform reference; does not change with theme —— */
+  --danger: var(--coral);
+  --danger-top: #ef736e;
+  --danger-edge: #c9433e;
+  --danger-top-hover: #f17f7a;
+  --danger-bottom-hover: #e1554f;
+
+  /* Stage background scrim (tints + lightens over the background image to keep text readable). Overridden at runtime by JS per theme (applyBackgroundTheme). */
   --bg-scrim: rgba(215, 226, 224, 0.52);
 
-  /* 玻璃面板（方案C：半透 + 主题色微染，配合 backdrop-filter blur）。随主题由 --brand 实时 color-mix。 */
+  /* Glass panel (option C: semi-transparent + slight brand tint, with backdrop-filter blur). color-mix from --brand at runtime per theme. */
   --glass-bg: color-mix(in srgb, var(--brand) 10%, rgba(255, 255, 255, 0.0));
   --glass-border: color-mix(in srgb, var(--brand) 40%, rgba(255, 255, 255, 0.5));
   --glass-blur: 3px;
@@ -59,9 +67,10 @@
   --sh-3: 0 18px 46px rgba(49, 54, 68, 0.14);
   --sh-pop: 0 22px 56px rgba(38, 36, 43, 0.22);
   --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --sh-card-hover: 0 12px 26px rgba(49, 54, 68, 0.1); /* Card hover lift (shared by gallery/collection tiles) */
   --shadow: var(--sh-3);
 
-  /* —— 反馈三件套共用语言（toast / 摆放提示 / 成就）：统一圆角/阴影/缓动，位置与深浅色各自保留 —— */
+  /* —— Shared language for the three feedback pieces (toast / placement hint / achievement): unified radius/shadow/easing; position and light/dark identity kept per-piece —— */
   --feedback-radius: var(--r-sm);
   --feedback-shadow: 0 12px 30px rgba(38, 36, 43, 0.16);
   --feedback-ease: opacity 0.2s ease, transform 0.2s ease;
@@ -72,18 +81,25 @@
   --fs-sm: 13px;
   --fs-base: 14px;
   --fs-md: 15px;
-  --fs-title: 16px; /* 中层标题（模态/区块/卡片标题），与 base14 拉开一档但不连锁全站重排 */
+  --fs-title: 16px; /* Mid-tier title (modal/section/card titles), one step above base 14 without cascading a full-app reflow */
   --fs-lg: 18px;
   --fs-xl: 22px;
 
   /* —— Line-height scale —— */
-  /* 标题/紧凑大字用 --lh-heading；正文/多行次要文字用 --lh-body（MASTER §4 目标 1.5-1.7）。 */
+  /* Use --lh-heading for headings/compact large text; --lh-body for body/multi-line secondary text (MASTER §4 target 1.5-1.7). */
   --lh-heading: 1.2;
   --lh-body: 1.55;
 
   /* —— Brand tint (overridden at runtime by JS theme) —— */
   --brand-tint: rgba(87, 184, 167, 0.16);
   --brand-tint-strong: rgba(87, 184, 167, 0.25);
+
+  /* —— Box / layout primitives (shared scales for the box primitives; used with the
+     .surface-glass / .scroll-area / .studio-shell / .card rules at the top of components.css
+     to eliminate scattered magic numbers) —— */
+  --content-max: 1640px;          /* max width of the studio content shell */
+  --list-cap: min(72vh, 720px);   /* scroll height cap for long lists */
+  --scroll-pad: 4px 6px 6px 4px;  /* uniform inner breathing room for scroll containers: keeps rounded cards / selection rings / focus rings from being hard-clipped at the scroll edge */
 
   /* —— Z-index scale —— */
   --z-base: 1;
@@ -96,14 +112,22 @@
   /* —— Responsive breakpoints (doc only — CSS vars can't be used in @media) —— */
   /* --bp-sm: 420px | --bp-phone: 620px | --bp-mobile: 860px | --bp-tablet: 1180px */
 
-  font-family: "Nunito", "Varela Round", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* —— Font-family tokens: the whole app uses only two fonts, chosen by "role" (in sync with DESIGN.md §3 / MASTER).
+     · --font-clear = Noto Sans SC (clearer): body / labels / data / color codes / counts / small text / inputs — anything that "reads information".
+     · --font-cute  = LXGW Marker Gothic (cuter, handwritten marker style): titles / brand / primary action buttons / the three feedback pieces — "identity and moments".
+     The token name is the role; to change a font, edit only these two values. Noto Sans SC loads via Google Fonts, LXGW via jsDelivr (allowed by CSP);
+     offline (file://), cute falls back to clear and clear falls back to the system rounded sans. —— */
+  --font-clear: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-cute: "LXGW Marker Gothic", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  font-family: var(--font-clear);
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* 不支持 backdrop-filter 的浏览器：玻璃面板退回更不透明，保证文字可读。 */
+/* Browsers without backdrop-filter support: glass panels fall back to more opaque to keep text readable. */
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
   :root {
     --glass-bg: color-mix(in srgb, var(--brand) 12%, rgba(255, 255, 255, 0.92));
