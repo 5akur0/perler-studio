@@ -1913,7 +1913,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .collection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr));
   gap: 14px;
 }
 .collection-tile {
@@ -2946,7 +2946,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr));
   gap: 14px;
 }
 .gallery-card {
@@ -3115,7 +3115,7 @@ body.admin-page {
 }
 .admin-page .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-min-lg), 1fr));
   gap: 14px;
 }
 .admin-page .card {
