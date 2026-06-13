@@ -554,7 +554,7 @@
 
 .studio-grid {
   display: grid;
-  grid-template-columns: 300px minmax(520px, 1fr) 320px;
+  grid-template-columns: var(--sidebar-w) minmax(var(--canvas-min), 1fr) var(--sidebar-w);
   gap: var(--panel-gap);
   margin-top: 16px;
   align-items: stretch;

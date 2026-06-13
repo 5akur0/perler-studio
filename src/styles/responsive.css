@@ -615,9 +615,8 @@
 }
 
 @media (max-width: 1179px) {
-  .studio-grid {
-    grid-template-columns: 220px minmax(360px, 1fr) 240px;
-  }
+  /* .studio-grid columns come from var(--sidebar-w)/var(--canvas-min), redefined to
+     240/360 at ≤1179 in tokens.css (was 220/360/240; left rail +20 for symmetry). */
 
   .right-panel section {
     min-height: auto;
