@@ -1382,8 +1382,8 @@
 }
 
 #remapModal .remap-modal-card {
-  width: min(680px, calc(100vw - var(--modal-gutter)));
-  max-height: min(86vh, 760px);
+  width: min(var(--modal-w-lg), calc(100vw - var(--modal-gutter)));
+  max-height: var(--modal-max-h);
   box-shadow: var(--sh-pop);
 }
 
@@ -1402,8 +1402,8 @@
 
 .remap-modal-card {
   position: relative;
-  width: min(700px, calc(100vw - var(--modal-gutter)));
-  max-height: min(82vh, 840px);
+  width: min(var(--modal-w-lg), calc(100vw - var(--modal-gutter)));
+  max-height: var(--modal-max-h);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border: 1px solid rgba(139, 148, 166, 0.5);
@@ -1414,7 +1414,7 @@
 }
 
 .collection-modal-card {
-  width: min(1280px, calc(100vw - var(--modal-gutter)));
+  width: min(var(--modal-w-xl), calc(100vw - var(--modal-gutter)));
   height: min(92vh, calc(100vh - 24px));
   display: flex;
   flex-direction: column;
@@ -1426,16 +1426,16 @@
 }
 
 .share-modal-card {
-  width: min(520px, calc(100vw - var(--modal-gutter)));
+  width: min(var(--modal-w-md), calc(100vw - var(--modal-gutter)));
 }
 
 .settings-modal-card {
   /* Desktop doesn't need to be too wide — narrowing it also shrinks the gap between the inline "label—value" pair. */
-  width: min(340px, calc(100vw - var(--modal-gutter)));
+  width: min(var(--modal-w-sm), calc(100vw - var(--modal-gutter)));
 }
 
 .confirm-modal-card {
-  width: min(380px, calc(100vw - var(--modal-gutter)));
+  width: min(var(--modal-w-sm), calc(100vw - var(--modal-gutter)));
 }
 
 .confirm-modal-body {
@@ -1450,7 +1450,7 @@
 }
 
 .draw-resize-modal-card {
-  width: min(320px, calc(100vw - var(--modal-gutter)));
+  width: min(var(--modal-w-sm), calc(100vw - var(--modal-gutter)));
 }
 
 .draw-resize-modal-body {
@@ -2007,8 +2007,8 @@
 }
 
 .remap-picker-modal-card {
-  width: min(680px, calc(100vw - var(--modal-gutter)));
-  max-height: min(86vh, 760px);
+  width: min(var(--modal-w-lg), calc(100vw - var(--modal-gutter)));
+  max-height: var(--modal-max-h);
 }
 
 .swatch-cell {
@@ -2454,7 +2454,7 @@
 }
 
 /* ── Onboarding modal (O1) ───────────────────────────────────────── */
-.onboarding-modal-card { max-width: 420px; }
+.onboarding-modal-card { max-width: var(--modal-w-sm); }
 .onboarding-lead { margin: 0 0 14px; color: var(--muted); font-size: var(--fs-sm); }
 .onboarding-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .onboarding-steps li { display: flex; gap: 12px; align-items: flex-start; }
