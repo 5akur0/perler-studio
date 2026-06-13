@@ -465,7 +465,7 @@ body[data-app-mode=collection] .gallery-screen {
   background: rgba(255, 255, 255, 0.96);
 }
 .draw-code-modal-card {
-  width: min(680px, calc(100vw - 24px));
+  width: min(680px, calc(100vw - var(--modal-gutter)));
 }
 .draw-code-modal-body {
   gap: 10px;
@@ -536,7 +536,7 @@ body[data-app-mode=collection] .gallery-screen {
   grid-template-columns: minmax(240px, 1fr) minmax(420px, 2fr) minmax(320px, auto);
   align-items: center;
   gap: 16px;
-  min-height: 70px;
+  min-height: var(--topbar-h);
   padding: 8px 12px;
   border-radius: var(--r-lg);
 }
@@ -980,7 +980,7 @@ body[data-app-mode=collection] .gallery-screen {
 .studio-grid {
   display: grid;
   grid-template-columns: 300px minmax(520px, 1fr) 320px;
-  gap: 16px;
+  gap: var(--panel-gap);
   margin-top: 16px;
   align-items: stretch;
 }
@@ -1735,7 +1735,7 @@ body[data-app-mode=collection] .gallery-screen {
   pointer-events: auto;
 }
 #remapModal .remap-modal-card {
-  width: min(680px, calc(100vw - 24px));
+  width: min(680px, calc(100vw - var(--modal-gutter)));
   max-height: min(86vh, 760px);
   box-shadow: var(--sh-pop);
 }
@@ -1752,7 +1752,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .remap-modal-card {
   position: relative;
-  width: min(700px, calc(100vw - 24px));
+  width: min(700px, calc(100vw - var(--modal-gutter)));
   max-height: min(82vh, 840px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -1763,7 +1763,7 @@ body[data-app-mode=collection] .gallery-screen {
   overflow: hidden;
 }
 .collection-modal-card {
-  width: min(1280px, calc(100vw - 24px));
+  width: min(1280px, calc(100vw - var(--modal-gutter)));
   height: min(92vh, calc(100vh - 24px));
   display: flex;
   flex-direction: column;
@@ -1773,13 +1773,13 @@ body[data-app-mode=collection] .gallery-screen {
   min-height: 0;
 }
 .share-modal-card {
-  width: min(520px, calc(100vw - 24px));
+  width: min(520px, calc(100vw - var(--modal-gutter)));
 }
 .settings-modal-card {
-  width: min(340px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - var(--modal-gutter)));
 }
 .confirm-modal-card {
-  width: min(380px, calc(100vw - 24px));
+  width: min(380px, calc(100vw - var(--modal-gutter)));
 }
 .confirm-modal-body {
   padding: 18px 18px 6px;
@@ -1791,7 +1791,7 @@ body[data-app-mode=collection] .gallery-screen {
   line-height: 1.6;
 }
 .draw-resize-modal-card {
-  width: min(320px, calc(100vw - 24px));
+  width: min(320px, calc(100vw - var(--modal-gutter)));
 }
 .draw-resize-modal-body {
   display: flex;
@@ -2282,7 +2282,7 @@ body[data-app-mode=collection] .gallery-screen {
   min-width: 0;
 }
 .remap-picker-modal-card {
-  width: min(680px, calc(100vw - 24px));
+  width: min(680px, calc(100vw - var(--modal-gutter)));
   max-height: min(86vh, 760px);
 }
 .swatch-cell {
@@ -3015,7 +3015,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: none;
 }
 .gallery-submit-modal-card {
-  width: min(560px, calc(100vw - 24px));
+  width: min(560px, calc(100vw - var(--modal-gutter)));
 }
 .gallery-submit-body {
   display: grid;
@@ -3579,7 +3579,7 @@ body.admin-page {
   right: 16px;
   z-index: var(--z-modal-high);
   min-width: 228px;
-  max-width: min(360px, calc(100vw - 24px));
+  max-width: min(360px, calc(100vw - var(--modal-gutter)));
   padding: 10px 14px;
   border: 1px solid rgba(38, 36, 43, 0.2);
   border-radius: var(--feedback-radius);
@@ -3715,7 +3715,6 @@ body.admin-page {
     grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.35fr) auto;
     grid-template-rows: auto;
     gap: 8px;
-    min-height: 60px;
     padding: 6px 10px;
   }
   .drawing-studio .drawing-topbar {
@@ -3880,9 +3879,6 @@ body.admin-page {
   }
   .brand p {
     font-size: var(--fs-sm);
-  }
-  .studio-grid {
-    gap: 12px;
   }
   .bead-studio-grid[data-phase=choose] {
     grid-template-columns: minmax(0, 1fr);

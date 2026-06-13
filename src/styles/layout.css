@@ -258,7 +258,7 @@ body[data-app-mode="collection"] .gallery-screen {
 }
 
 .draw-code-modal-card {
-  width: min(680px, calc(100vw - 24px));
+  width: min(680px, calc(100vw - var(--modal-gutter)));
 }
 
 .draw-code-modal-body {

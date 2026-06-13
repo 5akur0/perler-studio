@@ -533,7 +533,7 @@
   right: 16px;
   z-index: var(--z-modal-high);
   min-width: 228px;
-  max-width: min(360px, calc(100vw - 24px));
+  max-width: min(360px, calc(100vw - var(--modal-gutter)));
   padding: 10px 14px;
   border: 1px solid rgba(38, 36, 43, 0.2);
   border-radius: var(--feedback-radius);
@@ -668,7 +668,7 @@
     grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.35fr) auto;
     grid-template-rows: auto;
     gap: 8px;
-    min-height: 60px;
+    /* min-height comes from var(--topbar-h), redefined to 60 at 861-1179 in tokens.css */
     padding: 6px 10px;
   }
 
@@ -870,9 +870,7 @@
     font-size: var(--fs-sm);
   }
 
-  .studio-grid {
-    gap: 12px;
-  }
+  /* .studio-grid gap comes from var(--panel-gap), redefined to --sp-3 (12) at ≤860 in tokens.css */
 
   .bead-studio-grid[data-phase="choose"] {
     grid-template-columns: minmax(0, 1fr);

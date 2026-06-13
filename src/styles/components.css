@@ -52,7 +52,7 @@
   grid-template-columns: minmax(240px, 1fr) minmax(420px, 2fr) minmax(320px, auto);
   align-items: center;
   gap: 16px;
-  min-height: 70px;
+  min-height: var(--topbar-h);
   padding: 8px 12px;
   border-radius: var(--r-lg);
 }
@@ -555,7 +555,7 @@
 .studio-grid {
   display: grid;
   grid-template-columns: 300px minmax(520px, 1fr) 320px;
-  gap: 16px;
+  gap: var(--panel-gap);
   margin-top: 16px;
   align-items: stretch;
 }
@@ -1382,7 +1382,7 @@
 }
 
 #remapModal .remap-modal-card {
-  width: min(680px, calc(100vw - 24px));
+  width: min(680px, calc(100vw - var(--modal-gutter)));
   max-height: min(86vh, 760px);
   box-shadow: var(--sh-pop);
 }
@@ -1402,7 +1402,7 @@
 
 .remap-modal-card {
   position: relative;
-  width: min(700px, calc(100vw - 24px));
+  width: min(700px, calc(100vw - var(--modal-gutter)));
   max-height: min(82vh, 840px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -1414,7 +1414,7 @@
 }
 
 .collection-modal-card {
-  width: min(1280px, calc(100vw - 24px));
+  width: min(1280px, calc(100vw - var(--modal-gutter)));
   height: min(92vh, calc(100vh - 24px));
   display: flex;
   flex-direction: column;
@@ -1426,16 +1426,16 @@
 }
 
 .share-modal-card {
-  width: min(520px, calc(100vw - 24px));
+  width: min(520px, calc(100vw - var(--modal-gutter)));
 }
 
 .settings-modal-card {
   /* Desktop doesn't need to be too wide — narrowing it also shrinks the gap between the inline "label—value" pair. */
-  width: min(340px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - var(--modal-gutter)));
 }
 
 .confirm-modal-card {
-  width: min(380px, calc(100vw - 24px));
+  width: min(380px, calc(100vw - var(--modal-gutter)));
 }
 
 .confirm-modal-body {
@@ -1450,7 +1450,7 @@
 }
 
 .draw-resize-modal-card {
-  width: min(320px, calc(100vw - 24px));
+  width: min(320px, calc(100vw - var(--modal-gutter)));
 }
 
 .draw-resize-modal-body {
@@ -2007,7 +2007,7 @@
 }
 
 .remap-picker-modal-card {
-  width: min(680px, calc(100vw - 24px));
+  width: min(680px, calc(100vw - var(--modal-gutter)));
   max-height: min(86vh, 760px);
 }
 

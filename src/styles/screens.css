@@ -326,7 +326,7 @@
 }
 
 .gallery-submit-modal-card {
-  width: min(560px, calc(100vw - 24px));
+  width: min(560px, calc(100vw - var(--modal-gutter)));
 }
 
 .gallery-submit-body {
