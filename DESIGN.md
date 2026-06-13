@@ -231,8 +231,34 @@ components:
 - 尺度 token（`tokens.css`）：`--content-max 1640` / `--list-cap min(72vh,720px)` / `--scroll-pad`。**禁止再裸写这些魔法数。**
 - 自检：改动滚动/容器后跑 `grep -rn "overflow: *auto" src/styles/` 确认每个都进了 `.scroll-area`。
 
+#### 布局尺度 token（Layout scale tokens，`tokens.css`）
+页面外壳 / 栏宽 / 画布 / 间距 / 控件 / 卡片 / 弹窗的尺寸**一律走这些 token，禁止裸写魔法数**。断点差异用「在 `@media` 里重定义 token」表达（**不要**起 `-tablet` 兄弟 token），调用处永不分叉。
+
+| Token | 默认值 | `@media` 重定义 | 用途 |
+|---|---|---|---|
+| `--content-max` | `1640px` | — | 外壳/`.studio-shell` 最大宽 |
+| `--shell-pad` | `18px` | — | `.app-shell` 内边距；`calc(100vh - 2*var())` 由它派生 |
+| `--sidebar-w` | `320px` | `240px` ≤1179 | 拼豆台左右栏（对称） |
+| `--canvas-min` | `520px` | `360px` ≤1179 | 中央画布列下限 |
+| `--panel-gap` | `--sp-4`(16) | `--sp-3`(12) ≤860 | `.studio-grid` 间距 |
+| `--panel-pad` / `--panel-pad-tight` | 16 / 8 | — | 内容面 / 紧凑侧栏内边距 |
+| `--topbar-h` | `70px` | `60px` 861–1179 | 顶栏 min-height |
+| `--tap-min` | `44px` | — | 触控目标下限（WCAG） |
+| `--control-h-sm` | `28px` | — | 小圆按钮 / select / toggle |
+| `--field-h` | `42px` | — | 输入框 / 行 min-height |
+| `--tile-min` / `--tile-min-lg` | 200 / 240 | — | 画廊·作品集瓦片 / 放大·审核瓦片 |
+| `--list-cap` | `min(72vh,720px)` | — | 长列表滚动上限 |
+| `--modal-gutter` | `24px` | — | 弹窗视口侧距 |
+| `--modal-w-sm/md/lg/xl` | 360/520/700/1280 | — | 弹窗宽度阶梯 |
+| `--modal-max-h` | `min(86vh,760px)` | — | 弹窗高度上限 |
+
+- 弹窗宽度一律 `min(var(--modal-w-*), calc(100vw - var(--modal-gutter)))`。
+- **绘图台**左右栏是独立的**流式 clamp** 网格（`clamp(208,25vw,300) / clamp(216,27vw,320)`），不走 `--sidebar-w`，刻意保留。
+- 自检：改动布局后跑 `grep -rnP ': ?[0-9]+px' src/styles/ | grep -iE 'sidebar|canvas|modal|tile|topbar'` 确认没有新的裸魔法数。
+- **遗留（TODO）**：`gap`/`padding` 大多仍是 8/10/12/16 裸值，未并入 `--sp-*` 尺度；off-scale（5/7/9/10/14）待对齐。需一次专门的「spacing 扫描 + 截图复核」pass。
+
 ### Inputs / Fields
-- **Style:** 白底、`--r-sm`、`min-height 44px`、1px `--line` 描边、字号 ≥16px。
+- **Style:** 白底、`--r-sm`、`min-height: var(--field-h)`（行）/ `var(--tap-min)`（按钮触控）、1px `--line` 描边、字号 ≥16px。
 - **Focus:** 同全局 `:focus-visible` 品牌色焦点环。
 
 ### Modals（签名组件）
