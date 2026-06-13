@@ -69,6 +69,24 @@
   --content-max: 1640px;
   --list-cap: min(72vh, 720px);
   --scroll-pad: 4px 6px 6px 4px;
+  --shell-pad: 18px;
+  --panel-gap: var(--sp-4);
+  --sidebar-w: 320px;
+  --canvas-min: 520px;
+  --panel-pad: var(--sp-4);
+  --panel-pad-tight: var(--sp-2);
+  --topbar-h: 70px;
+  --tap-min: 44px;
+  --control-h-sm: 28px;
+  --field-h: 42px;
+  --tile-min: 200px;
+  --tile-min-lg: 240px;
+  --modal-gutter: 24px;
+  --modal-w-sm: 360px;
+  --modal-w-md: 520px;
+  --modal-w-lg: 700px;
+  --modal-w-xl: 1280px;
+  --modal-max-h: min(86vh, 760px);
   --z-base: 1;
   --z-dropdown: 20;
   --z-sticky: 26;
@@ -92,6 +110,22 @@
 }
 * {
   box-sizing: border-box;
+}
+@media (min-width: 861px) and (max-width: 1179px) {
+  :root {
+    --topbar-h: 60px;
+  }
+}
+@media (max-width: 1179px) {
+  :root {
+    --sidebar-w: 240px;
+    --canvas-min: 360px;
+  }
+}
+@media (max-width: 860px) {
+  :root {
+    --panel-gap: var(--sp-3);
+  }
 }
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
   :root {

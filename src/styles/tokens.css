@@ -101,6 +101,36 @@
   --list-cap: min(72vh, 720px);   /* scroll height cap for long lists */
   --scroll-pad: 4px 6px 6px 4px;  /* uniform inner breathing room for scroll containers: keeps rounded cards / selection rings / focus rings from being hard-clipped at the scroll edge */
 
+  /* —— Layout: shell —— */
+  --shell-pad: 18px;              /* .app-shell inset; the calc(100vh - 2*shell-pad) heights derive from it */
+
+  /* —— Layout: 3-column studio (bead + drawing) —— */
+  /* Breakpoint variance is expressed by redefining these on :root inside @media (see bottom of file),
+     so call sites never branch. */
+  --panel-gap: var(--sp-4);       /* 16 — studio-grid column/row gap (→ --sp-3 at ≤860) */
+  --sidebar-w: 320px;             /* symmetric left/right rail (→ 240 at ≤1179) */
+  --canvas-min: 520px;            /* center column min floor (→ 360 at ≤1179) */
+  --panel-pad: var(--sp-4);       /* 16 — content-surface inset */
+  --panel-pad-tight: var(--sp-2); /* 8 — dense side-panel inset */
+
+  /* —— Layout: topbar / controls —— */
+  --topbar-h: 70px;               /* topbar min-height (→ 60 at 861–1179) */
+  --tap-min: 44px;                /* WCAG touch-target floor */
+  --control-h-sm: 28px;           /* small round icon buttons / toggles */
+  --field-h: 42px;                /* input / row min-height */
+
+  /* —— Layout: cards & lists —— */
+  --tile-min: 200px;              /* gallery + collection browse tile floor */
+  --tile-min-lg: 240px;           /* enlarged / modal tile floor */
+
+  /* —— Layout: modals —— */
+  --modal-gutter: 24px;           /* viewport side gutter: min(--modal-w-*, calc(100vw - --modal-gutter)) */
+  --modal-w-sm: 360px;
+  --modal-w-md: 520px;
+  --modal-w-lg: 700px;
+  --modal-w-xl: 1280px;
+  --modal-max-h: min(86vh, 760px);
+
   /* —— Z-index scale —— */
   --z-base: 1;
   --z-dropdown: 20;
@@ -125,6 +155,25 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Layout token redefines per breakpoint — the single place these values vary.
+   Same specificity as the base :root, placed after it so the matching media query wins. */
+@media (min-width: 861px) and (max-width: 1179px) {
+  :root {
+    --topbar-h: 60px;
+  }
+}
+@media (max-width: 1179px) {
+  :root {
+    --sidebar-w: 240px;
+    --canvas-min: 360px;
+  }
+}
+@media (max-width: 860px) {
+  :root {
+    --panel-gap: var(--sp-3); /* 12 */
+  }
 }
 
 /* Browsers without backdrop-filter support: glass panels fall back to more opaque to keep text readable. */
