@@ -3,7 +3,7 @@
   width: min(var(--content-max), 100%);
   min-height: 100vh;
   margin: 0 auto;
-  padding: 18px;
+  padding: var(--shell-pad);
 }
 
 body[data-app-mode="loading"] .app-shell {

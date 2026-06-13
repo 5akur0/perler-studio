@@ -246,7 +246,7 @@ button:disabled {
   width: min(var(--content-max), 100%);
   min-height: 100vh;
   margin: 0 auto;
-  padding: 18px;
+  padding: var(--shell-pad);
 }
 body[data-app-mode=loading] .app-shell {
   visibility: hidden;
@@ -2727,7 +2727,7 @@ body[data-app-mode=collection] .gallery-screen {
 
 /* src/styles/screens.css */
 .start-screen {
-  min-height: calc(100vh - 36px);
+  min-height: calc(100vh - 2 * var(--shell-pad));
   display: grid;
   place-items: center;
   min-width: 0;
@@ -2885,7 +2885,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: block;
 }
 .gallery-screen {
-  min-height: calc(100vh - 36px);
+  min-height: calc(100vh - 2 * var(--shell-pad));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2915,7 +2915,7 @@ body[data-app-mode=collection] .gallery-screen {
   margin-bottom: 14px;
 }
 .collection-screen {
-  min-height: calc(100vh - 36px);
+  min-height: calc(100vh - 2 * var(--shell-pad));
   display: flex;
   flex-direction: column;
   align-items: center;
