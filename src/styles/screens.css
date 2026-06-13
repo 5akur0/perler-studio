@@ -199,7 +199,7 @@
 .gallery-layout {
   flex: 1 1 auto;
   min-height: 0;
-  padding: clamp(14px, 2vw, 24px);
+  padding: var(--panel-pad);
   border-radius: var(--r-lg);
   box-sizing: border-box;
 }
@@ -234,7 +234,7 @@
 .collection-layout {
   flex: 1 1 auto;
   min-height: 0;
-  padding: clamp(14px, 2vw, 24px);
+  padding: var(--panel-pad);
   border-radius: var(--r-lg);
   box-sizing: border-box;
 }

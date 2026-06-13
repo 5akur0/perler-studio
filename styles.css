@@ -1018,7 +1018,7 @@ body[data-app-mode=collection] .gallery-screen {
   gap: 12px;
 }
 .side-panel section {
-  padding: 8px;
+  padding: var(--panel-pad-tight);
   border-radius: var(--r-md);
 }
 .right-panel section {
@@ -2904,7 +2904,7 @@ body[data-app-mode=collection] .gallery-screen {
 .gallery-layout {
   flex: 1 1 auto;
   min-height: 0;
-  padding: clamp(14px, 2vw, 24px);
+  padding: var(--panel-pad);
   border-radius: var(--r-lg);
   box-sizing: border-box;
 }
@@ -2934,7 +2934,7 @@ body[data-app-mode=collection] .gallery-screen {
 .collection-layout {
   flex: 1 1 auto;
   min-height: 0;
-  padding: clamp(14px, 2vw, 24px);
+  padding: var(--panel-pad);
   border-radius: var(--r-lg);
   box-sizing: border-box;
 }
@@ -3879,9 +3879,6 @@ body.admin-page {
   }
   .bead-studio-grid[data-phase=choose] {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .side-panel section {
-    padding: 8px;
   }
   .pattern-list {
     max-height: 260px;

@@ -604,7 +604,7 @@
 }
 
 .side-panel section {
-  padding: 8px;
+  padding: var(--panel-pad-tight);
   border-radius: var(--r-md);
 }
 

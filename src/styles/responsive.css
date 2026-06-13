@@ -875,9 +875,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .side-panel section {
-    padding: 8px;
-  }
+  /* .side-panel section padding comes from var(--panel-pad-tight) (8); no mobile override needed. */
 
   .pattern-list {
     max-height: 260px;
