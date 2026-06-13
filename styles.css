@@ -201,7 +201,7 @@ select {
   opacity: 1;
 }
 button {
-  min-height: 44px;
+  min-height: var(--tap-min);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   color: var(--ink);
@@ -349,7 +349,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .drawing-size-fields input {
   width: 100%;
-  min-height: 40px;
+  min-height: var(--field-h);
   padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-xs);
@@ -366,7 +366,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .drawing-group select,
 .draw-size-button {
-  min-height: 40px;
+  min-height: var(--field-h);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 0 10px;
@@ -418,7 +418,7 @@ body[data-app-mode=collection] .gallery-screen {
   gap: 8px;
 }
 .drawing-actions button {
-  min-height: 40px;
+  min-height: var(--field-h);
 }
 .drawing-footer-actions {
   margin-top: 16px;
@@ -430,7 +430,7 @@ body[data-app-mode=collection] .gallery-screen {
   margin-top: 0;
 }
 .drawing-footer-row button {
-  min-height: 44px;
+  min-height: var(--tap-min);
 }
 .drawing-canvas-wrap {
   width: 100%;
@@ -653,8 +653,8 @@ body[data-app-mode=collection] .gallery-screen {
   border-color: var(--brand);
 }
 .current-pattern-thumb {
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   border: 1px solid #dce1e9;
   border-radius: var(--r-xs);
   background: var(--surface-2);
@@ -754,7 +754,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 4px 10px;
   border-radius: var(--r-pill);
   color: var(--muted);
@@ -807,7 +807,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -871,7 +871,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 9px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -883,7 +883,7 @@ body[data-app-mode=collection] .gallery-screen {
   font-weight: 700;
 }
 .bg-picker select {
-  min-height: 28px;
+  min-height: var(--control-h-sm);
   border: 0;
   color: var(--ink);
   background: transparent;
@@ -896,7 +896,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 9px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -908,7 +908,7 @@ body[data-app-mode=collection] .gallery-screen {
   font-weight: 700;
 }
 .tool-style-picker select {
-  min-height: 28px;
+  min-height: var(--control-h-sm);
   border: 0;
   color: var(--ink);
   background: transparent;
@@ -931,7 +931,7 @@ body[data-app-mode=collection] .gallery-screen {
   box-shadow: inset 0 0 0 2px var(--brand-tint-strong);
 }
 .settings-toggle {
-  min-height: 44px;
+  min-height: var(--tap-min);
   min-width: 0;
   padding: 0;
   border: 0;
@@ -948,7 +948,7 @@ body[data-app-mode=collection] .gallery-screen {
 .settings-toggle-track {
   position: relative;
   display: block;
-  width: 44px;
+  width: var(--tap-min);
   height: 26px;
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 18%, transparent);
@@ -1239,7 +1239,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .preview-canvas-wrap {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) var(--tap-min);
   gap: 12px;
   align-items: start;
 }
@@ -1318,7 +1318,7 @@ body[data-app-mode=collection] .gallery-screen {
   text-align: center;
 }
 .size-rail-value {
-  min-width: 28px;
+  min-width: var(--control-h-sm);
   min-height: 20px;
   color: #345684;
   font-size: var(--fs-sm);
@@ -1328,7 +1328,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .size-slider {
   --size-progress: 36%;
-  width: 28px;
+  width: var(--control-h-sm);
   height: 100%;
   min-height: 0;
   margin: 0;
@@ -1483,7 +1483,7 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .btn,
 :where(.ghost-button, .primary-button, .danger-button, .icon-text-button, .choose-start-button, .draw-size-button, .collection-item-button) {
-  min-height: 44px;
+  min-height: var(--tap-min);
   border-radius: var(--r-sm);
   transition:
     transform 0.16s ease,
@@ -1599,8 +1599,8 @@ body[data-app-mode=collection] .gallery-screen {
 }
 .icon-only-button {
   position: relative;
-  width: 44px;
-  min-width: 44px;
+  width: var(--tap-min);
+  min-width: var(--tap-min);
   padding: 0;
   display: grid;
   place-items: center;
@@ -1668,13 +1668,13 @@ body[data-app-mode=collection] .gallery-screen {
 .icon-pill .btn-glyph {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   color: inherit;
 }
 .icon-pill .btn-glyph svg {
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
 }
 .icon-pill:hover {
   border-color: #aeb6c4;
@@ -1693,7 +1693,7 @@ body[data-app-mode=collection] .gallery-screen {
   gap: 10px;
 }
 .inspect-action-btn {
-  min-height: 44px;
+  min-height: var(--tap-min);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface);
@@ -1864,7 +1864,7 @@ body[data-app-mode=collection] .gallery-screen {
   text-align: right;
 }
 .settings-link {
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -1889,7 +1889,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 6px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -1951,8 +1951,8 @@ body[data-app-mode=collection] .gallery-screen {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   min-height: 0;
   padding: 0;
   display: grid;
@@ -2041,8 +2041,8 @@ body[data-app-mode=collection] .gallery-screen {
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   padding: 0;
   border: 0;
   border-radius: var(--r-pill);
@@ -2077,8 +2077,8 @@ body[data-app-mode=collection] .gallery-screen {
   font-weight: 800;
 }
 .remap-modal-head button {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
   padding: 0;
   display: grid;
   place-items: center;
@@ -2132,7 +2132,7 @@ body[data-app-mode=collection] .gallery-screen {
   grid-template-columns: minmax(0, 1fr) auto minmax(160px, 1fr);
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: var(--field-h);
 }
 .remap-from {
   display: inline-flex;
@@ -3039,7 +3039,7 @@ body[data-app-mode=collection] .gallery-screen {
   color: var(--ink);
 }
 .gallery-submit-field input {
-  min-height: 42px;
+  min-height: var(--field-h);
   padding: 0 12px;
 }
 .gallery-submit-note {
@@ -3089,7 +3089,7 @@ body.admin-page {
   padding: var(--sp-3);
 }
 .admin-page input {
-  min-height: 42px;
+  min-height: var(--field-h);
   min-width: min(420px, 100%);
   flex: 1;
   padding: 0 var(--sp-3);
@@ -3098,7 +3098,7 @@ body.admin-page {
   font: inherit;
 }
 .admin-page button {
-  min-height: 42px;
+  min-height: var(--field-h);
   padding: 0 14px;
   border-radius: var(--r-xs);
   font-weight: 700;
@@ -3242,8 +3242,8 @@ body.admin-page {
     gap: 4px;
   }
   .drawing-tools-panel .tool-toggle button {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--tap-min);
+    height: var(--tap-min);
     border-radius: var(--r-xs);
   }
   .drawing-tools-panel .tool-toggle button svg {
@@ -3251,8 +3251,8 @@ body.admin-page {
     height: 20px;
   }
   .drawing-tools-panel .tool-group-small button {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--tap-min);
+    height: var(--tap-min);
   }
   .drawing-tools-panel .tool-group-small button svg {
     width: 16px;
@@ -3346,7 +3346,7 @@ body.admin-page {
     aspect-ratio: 1 / 1;
   }
   .size-rail {
-    flex: 0 0 44px;
+    flex: 0 0 var(--tap-min);
     align-self: stretch;
   }
 }
@@ -3469,7 +3469,7 @@ body.admin-page {
     gap: 8px;
   }
   .bead-studio-grid:not([data-phase=choose]) .color-chip {
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 3px 3px 2px;
   }
   .bead-studio-grid:not([data-phase=choose]) .swatch {
@@ -3770,9 +3770,9 @@ body.admin-page {
     gap: 6px;
   }
   .icon-only-button {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--tap-min);
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
     border-radius: var(--r-xs);
   }
 }
@@ -3818,7 +3818,7 @@ body.admin-page {
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 4px 8px;
     border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
     border-radius: var(--r-xs);
@@ -3936,7 +3936,7 @@ body.admin-page {
   }
   .mobile-selection-summary .primary-button {
     flex: 0 0 auto;
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding-inline: 12px;
   }
   .color-chip.picked {
@@ -3981,7 +3981,7 @@ body.admin-page {
     grid-template-columns: 1fr;
   }
   .preview-canvas-wrap {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) var(--tap-min);
     gap: 8px;
   }
   .choose-start-button {
@@ -3998,18 +3998,18 @@ body.admin-page {
     grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   }
   button {
-    min-height: 44px;
+    min-height: var(--tap-min);
   }
   .pattern-color-chip {
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 8px 10px;
   }
   .check-row {
-    min-height: 44px;
+    min-height: var(--tap-min);
   }
   .remap-source-chip {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
     padding: 3px 5px;
   }
   .remap-target-area {
@@ -4166,7 +4166,7 @@ body.admin-page {
     overflow-x: auto;
   }
   .workflow-step {
-    width: 44px;
+    width: var(--tap-min);
     justify-content: center;
     gap: 0;
     padding: 4px 0;

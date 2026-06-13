@@ -355,7 +355,7 @@
 }
 
 .gallery-submit-field input {
-  min-height: 42px;
+  min-height: var(--field-h);
   padding: 0 12px;
 }
 
@@ -409,7 +409,7 @@ body.admin-page {
 }
 
 .admin-page input {
-  min-height: 42px;
+  min-height: var(--field-h);
   min-width: min(420px, 100%);
   flex: 1;
   padding: 0 var(--sp-3);
@@ -419,7 +419,7 @@ body.admin-page {
 }
 
 .admin-page button {
-  min-height: 42px;
+  min-height: var(--field-h);
   padding: 0 14px;
   border-radius: var(--r-xs);
   font-weight: 700;

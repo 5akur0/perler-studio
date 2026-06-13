@@ -179,8 +179,8 @@
 }
 
 .current-pattern-thumb {
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   border: 1px solid #dce1e9;
   border-radius: var(--r-xs);
   background: var(--surface-2);
@@ -290,7 +290,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 4px 10px;
   border-radius: var(--r-pill);
   color: var(--muted);
@@ -354,7 +354,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -427,7 +427,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 9px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -441,7 +441,7 @@
 }
 
 .bg-picker select {
-  min-height: 28px;
+  min-height: var(--control-h-sm);
   border: 0;
   color: var(--ink);
   background: transparent;
@@ -455,7 +455,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 9px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -469,7 +469,7 @@
 }
 
 .tool-style-picker select {
-  min-height: 28px;
+  min-height: var(--control-h-sm);
   border: 0;
   color: var(--ink);
   background: transparent;
@@ -499,7 +499,7 @@
 
 /* The switch in settings (iOS-style toggle), currently used for background music. */
 .settings-toggle {
-  min-height: 44px;
+  min-height: var(--tap-min);
   min-width: 0;
   padding: 0;
   border: 0;
@@ -518,7 +518,7 @@
 .settings-toggle-track {
   position: relative;
   display: block;
-  width: 44px;
+  width: var(--tap-min);
   height: 26px;
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 18%, transparent);
@@ -857,7 +857,7 @@
 
 .preview-canvas-wrap {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) var(--tap-min);
   gap: 12px;
   align-items: start;
 }
@@ -943,7 +943,7 @@
 }
 
 .size-rail-value {
-  min-width: 28px;
+  min-width: var(--control-h-sm);
   min-height: 20px;
   color: #345684;
   font-size: var(--fs-sm);
@@ -954,7 +954,7 @@
 
 .size-slider {
   --size-progress: 36%;
-  width: 28px;
+  width: var(--control-h-sm);
   height: 100%;
   min-height: 0;
   margin: 0;
@@ -1117,7 +1117,7 @@
 
 .btn,
 :where(.ghost-button, .primary-button, .danger-button, .icon-text-button, .choose-start-button, .draw-size-button, .collection-item-button) {
-  min-height: 44px;
+  min-height: var(--tap-min);
   border-radius: var(--r-sm);
   transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
@@ -1230,8 +1230,8 @@
 
 .icon-only-button {
   position: relative;
-  width: 44px;
-  min-width: 44px;
+  width: var(--tap-min);
+  min-width: var(--tap-min);
   padding: 0;
   display: grid;
   place-items: center;
@@ -1310,14 +1310,14 @@
 .icon-pill .btn-glyph {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   color: inherit;
 }
 
 .icon-pill .btn-glyph svg {
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
 }
 
 .icon-pill:hover {
@@ -1340,7 +1340,7 @@
 }
 
 .inspect-action-btn {
-  min-height: 44px;
+  min-height: var(--tap-min);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface);
@@ -1537,7 +1537,7 @@
 }
 
 .settings-link {
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -1565,7 +1565,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 44px;
+  min-height: var(--tap-min);
   padding: 0 6px 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -1633,8 +1633,8 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   min-height: 0; /* cancel the global button{min-height:44px} to keep a 28px perfect circle; the touch hit area is provided by ::after */
   padding: 0;
   display: grid;
@@ -1738,8 +1738,8 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 44px;
-  height: 44px;
+  width: var(--tap-min);
+  height: var(--tap-min);
   padding: 0;
   border: 0;
   border-radius: var(--r-pill);
@@ -1775,8 +1775,8 @@
 }
 
 .remap-modal-head button {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
   padding: 0;
   display: grid;
   place-items: center;
@@ -1833,7 +1833,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(160px, 1fr);
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: var(--field-h);
 }
 
 .remap-from {

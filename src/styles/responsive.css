@@ -105,8 +105,8 @@
   }
 
   .drawing-tools-panel .tool-toggle button {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--tap-min);
+    height: var(--tap-min);
     border-radius: var(--r-xs);
   }
 
@@ -116,8 +116,8 @@
   }
 
   .drawing-tools-panel .tool-group-small button {
-    min-height: 44px;
-    height: 44px;
+    min-height: var(--tap-min);
+    height: var(--tap-min);
   }
 
   .drawing-tools-panel .tool-group-small button svg {
@@ -244,7 +244,7 @@
   }
 
   .size-rail {
-    flex: 0 0 44px;
+    flex: 0 0 var(--tap-min);
     align-self: stretch;
   }
 }
@@ -407,7 +407,7 @@
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .color-chip {
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 3px 3px 2px;
   }
 
@@ -738,9 +738,9 @@
   }
 
   .icon-only-button {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--tap-min);
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
     border-radius: var(--r-xs);
   }
 
@@ -798,7 +798,7 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 4px 8px;
     border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
     border-radius: var(--r-xs);
@@ -943,7 +943,7 @@
 
   .mobile-selection-summary .primary-button {
     flex: 0 0 auto;
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding-inline: 12px;
   }
 
@@ -1001,7 +1001,7 @@
   }
 
   .preview-canvas-wrap {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) var(--tap-min);
     gap: 8px;
   }
 
@@ -1023,21 +1023,21 @@
   }
 
   button {
-    min-height: 44px;
+    min-height: var(--tap-min);
   }
 
   .pattern-color-chip {
-    min-height: 44px;
+    min-height: var(--tap-min);
     padding: 8px 10px;
   }
 
   .check-row {
-    min-height: 44px;
+    min-height: var(--tap-min);
   }
 
   .remap-source-chip {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
     padding: 3px 5px;
   }
 
@@ -1230,7 +1230,7 @@
   }
 
   .workflow-step {
-    width: 44px;
+    width: var(--tap-min);
     justify-content: center;
     gap: 0;
     padding: 4px 0;
