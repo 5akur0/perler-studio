@@ -518,6 +518,19 @@ body[data-app-mode=collection] .gallery-screen {
 .drawing-canvas-panel {
   padding: var(--scroll-pad);
 }
+.pattern-list,
+.color-palette {
+  -webkit-mask-image:
+    linear-gradient(
+      to bottom,
+      #000 calc(100% - 20px),
+      transparent);
+  mask-image:
+    linear-gradient(
+      to bottom,
+      #000 calc(100% - 20px),
+      transparent);
+}
 .studio-shell,
 .gallery-studio-card,
 .collection-studio-card,

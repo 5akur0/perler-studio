@@ -30,6 +30,17 @@
   padding: var(--scroll-pad);
 }
 
+/* Soft bottom fade: a mid-scroll list shouldn't end in a hard-clipped card. The
+   gradient fades the bottom edge of the scroll viewport (independent of scroll
+   position), so a partially-visible last row reads as "more below" instead of a
+   blunt cut. padding-bottom only shows at scroll-end, so it can't do this.
+   Excludes .drawing-canvas-panel (holds a canvas, not a card list). */
+.pattern-list,
+.color-palette {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+}
+
 /* Studio shell: the centered fixed-width column shared by the gallery / collection / drawing studios. */
 .studio-shell,
 .gallery-studio-card,
