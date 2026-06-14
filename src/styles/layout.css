@@ -40,7 +40,7 @@ body[data-app-mode="collection"] .gallery-screen {
 /* .drawing-studio-card's fixed width comes from the .studio-shell primitive; flex-column behavior is in the responsive.css ≥861 container model. */
 
 .drawing-topbar {
-  margin-bottom: 16px;
+  margin-bottom: var(--sp-4);
 }
 
 .drawing-studio .drawing-topbar {
@@ -60,7 +60,7 @@ body[data-app-mode="collection"] .gallery-screen {
 .drawing-canvas-surface {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .drawing-canvas-panel {
@@ -78,13 +78,13 @@ body[data-app-mode="collection"] .gallery-screen {
 .drawing-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .drawing-size-card {
   display: grid;
-  gap: 10px;
-  padding: 10px;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
   border: 1px solid rgba(139, 148, 166, 0.42);
   border-radius: var(--r-md);
   background: rgba(255, 255, 255, 0.9);
@@ -95,7 +95,7 @@ body[data-app-mode="collection"] .gallery-screen {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .drawing-size-card-head span {
@@ -113,12 +113,12 @@ body[data-app-mode="collection"] .gallery-screen {
 .drawing-size-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .drawing-size-fields label {
   display: grid;
-  gap: 5px;
+  gap: var(--sp-1);
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
@@ -127,7 +127,7 @@ body[data-app-mode="collection"] .gallery-screen {
 .drawing-size-fields input {
   width: 100%;
   min-height: var(--field-h);
-  padding: 0 10px;
+  padding: 0 var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--r-xs);
   background: var(--surface);
@@ -148,7 +148,7 @@ body[data-app-mode="collection"] .gallery-screen {
   min-height: var(--field-h);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  padding: 0 10px;
+  padding: 0 var(--sp-3);
   background: #fff;
 }
 
@@ -157,14 +157,14 @@ body[data-app-mode="collection"] .gallery-screen {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--sp-2);
   text-align: left;
 }
 
 .draw-size-button-topbar {
   min-width: 72px;
   justify-content: center;
-  padding: 0 12px;
+  padding: 0 var(--sp-3);
 }
 
 .draw-size-button span {
@@ -180,7 +180,7 @@ body[data-app-mode="collection"] .gallery-screen {
 }
 
 .draw-size-slider-wrap {
-  padding: 8px 10px;
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: #fff;
@@ -202,7 +202,7 @@ body[data-app-mode="collection"] .gallery-screen {
 .drawing-actions {
   margin-top: auto;
   display: grid;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .drawing-actions button {
@@ -210,9 +210,9 @@ body[data-app-mode="collection"] .gallery-screen {
 }
 
 .drawing-footer-actions {
-  margin-top: 16px;
+  margin-top: var(--sp-4);
   display: grid;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .drawing-footer-row {
@@ -249,7 +249,7 @@ body[data-app-mode="collection"] .gallery-screen {
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  padding: 10px;
+  padding: var(--sp-3);
   font-family: "SFMono-Regular", "Consolas", "Menlo", monospace;
   font-size: 12px;
   line-height: var(--lh-body);
@@ -262,8 +262,8 @@ body[data-app-mode="collection"] .gallery-screen {
 }
 
 .draw-code-modal-body {
-  gap: 10px;
-  padding: 12px;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
 }
 
 .draw-code-modal-body .drawing-code-input {
@@ -290,10 +290,10 @@ body[data-app-mode="collection"] .gallery-screen {
 .draw-recent-colors {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  padding-bottom: 8px;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--line);
-  margin-bottom: 4px;
+  margin-bottom: var(--sp-1);
 }
 
 .draw-recent-colors:empty {

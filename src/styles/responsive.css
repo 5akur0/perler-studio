@@ -6,7 +6,7 @@
 
   .start-screen-inner {
     width: min(100%, calc(100vw - 20px));
-    padding: 20px 16px;
+    padding: var(--sp-5) var(--sp-4);
   }
 
   .start-brand h1 {
@@ -21,7 +21,7 @@
     display: flex;
     flex-direction: column;
     height: auto;
-    gap: 10px;
+    gap: var(--sp-3);
   }
 
   .drawing-canvas-panel {
@@ -51,7 +51,7 @@
   .drawing-tools-panel .drawing-tool-group {
     order: 0;
     flex: 0 0 auto;
-    padding: 8px;
+    padding: var(--sp-2);
     border: 1px solid rgba(139, 148, 166, 0.42);
     border-radius: var(--r-md);
     background: rgba(255, 255, 255, 0.87);
@@ -59,7 +59,7 @@
   }
 
   .drawing-tools-panel .drawing-group:not(.drawing-tool-group) {
-    padding: 8px;
+    padding: var(--sp-2);
     border: 1px solid rgba(139, 148, 166, 0.42);
     border-radius: var(--r-md);
     background: rgba(255, 255, 255, 0.87);
@@ -70,7 +70,7 @@
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-2);
   }
 
   .drawing-tools-panel .section-title {
@@ -92,7 +92,7 @@
 
   .drawing-tools-panel .tool-toggle {
     width: 100%;
-    gap: 6px;
+    gap: var(--sp-2);
   }
 
   .drawing-tools-panel .tool-group-large {
@@ -101,7 +101,7 @@
 
   .drawing-tools-panel .tool-group-small {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
+    gap: var(--sp-1);
   }
 
   .drawing-tools-panel .tool-toggle button {
@@ -129,12 +129,12 @@
     order: 0;
     flex: 0 0 auto;
     margin-top: 0;
-    gap: 8px;
+    gap: var(--sp-2);
   }
 
   .drawing-footer-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--sp-2);
   }
 
   .drawing-palette-panel {
@@ -230,7 +230,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
+    gap: var(--sp-3);
     min-height: 0;
     container-type: size;
   }
@@ -403,7 +403,7 @@
     max-height: none;
     flex: 1 1 auto;
     grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
-    gap: 8px;
+    gap: var(--sp-2);
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .color-chip {
@@ -422,7 +422,7 @@
 
 .slider-field {
   display: grid;
-  gap: 6px;
+  gap: var(--sp-2);
 }
 
 .slider-field label {
@@ -441,13 +441,13 @@
 .craft-toggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .collection-item {
   display: grid;
-  gap: 4px;
-  padding: 9px;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: #fff;
@@ -468,7 +468,7 @@
 }
 
 .empty-state {
-  padding: 10px;
+  padding: var(--sp-3);
   border: 1px dashed #bdc5d0;
   border-radius: var(--r-sm);
   color: var(--muted);
@@ -482,7 +482,7 @@
   bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px));
   z-index: var(--z-dropdown);
   max-width: min(460px, calc(100vw - 32px));
-  padding: 10px 14px;
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid rgba(38, 36, 43, 0.18);
   border-radius: var(--feedback-radius);
   color: #fff;
@@ -507,7 +507,7 @@
   top: 98px;
   z-index: var(--z-sticky);
   max-width: min(560px, calc(100vw - 28px));
-  padding: 10px 14px;
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--brand-tint-strong);
   border-radius: var(--feedback-radius);
   color: var(--brand-ink);
@@ -534,7 +534,7 @@
   z-index: var(--z-modal-high);
   min-width: 228px;
   max-width: min(360px, calc(100vw - var(--modal-gutter)));
-  padding: 10px 14px;
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid rgba(38, 36, 43, 0.2);
   border-radius: var(--feedback-radius);
   background: rgba(252, 252, 253, 0.97);
@@ -605,8 +605,8 @@
 @media (max-width: 1280px) {
   .topbar {
     grid-template-columns: minmax(220px, 1fr) minmax(380px, 1.6fr) auto;
-    gap: 12px;
-    padding: 10px 14px;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
   }
 
   .brand p {
@@ -666,9 +666,9 @@
   .topbar {
     grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.35fr) auto;
     grid-template-rows: auto;
-    gap: 8px;
+    gap: var(--sp-2);
     /* min-height comes from var(--topbar-h), redefined to 60 at 861-1179 in tokens.css */
-    padding: 6px 10px;
+    padding: var(--sp-2) var(--sp-3);
   }
 
   .drawing-studio .drawing-topbar {
@@ -683,14 +683,14 @@
   }
 
   .brand {
-    gap: 8px;
+    gap: var(--sp-2);
   }
 
   .brand-mark {
     grid-template-columns: repeat(2, 12px);
     grid-auto-rows: 12px;
     gap: 3px;
-    padding: 5px;
+    padding: var(--sp-1);
     border-radius: var(--r-xs);
   }
 
@@ -709,13 +709,13 @@
     grid-row: auto;
     justify-self: stretch;
     min-width: 0;
-    padding: 4px 6px;
+    padding: var(--sp-1) var(--sp-2);
     overflow-x: auto;
   }
 
   .workflow-step {
     min-height: 34px;
-    gap: 4px;
+    gap: var(--sp-1);
     padding: 2px 6px;
     font-size: var(--fs-xs);
   }
@@ -734,7 +734,7 @@
   .top-stats {
     justify-content: flex-end;
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: var(--sp-2);
   }
 
   .icon-only-button {
@@ -762,8 +762,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
-    gap: 6px 8px;
-    padding: 7px 10px;
+    gap: var(--sp-2) var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
     min-height: 0;
     border-radius: var(--r-sm);
   }
@@ -796,10 +796,10 @@
     grid-row: 2;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-2);
     min-width: 0;
     min-height: var(--tap-min);
-    padding: 4px 8px;
+    padding: var(--sp-1) var(--sp-2);
     border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
     border-radius: var(--r-xs);
     background: color-mix(in srgb, var(--surface) 88%, transparent);
@@ -854,7 +854,7 @@
     grid-row: 1;
     justify-content: flex-end;
     width: auto;
-    margin-top: 8px;
+    margin-top: var(--sp-2);
   }
 
   .top-stats .icon-button-label {
@@ -895,9 +895,9 @@
     z-index: var(--z-sticky);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-2);
     min-width: 0;
-    padding: 8px;
+    padding: var(--sp-2);
     border: 1px solid color-mix(in srgb, var(--brand) 32%, var(--line));
     border-radius: var(--r-md);
     background: var(--surface);
@@ -953,7 +953,7 @@
 
   .workbench {
     order: -1;
-    padding: 8px;
+    padding: var(--sp-2);
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .left-panel {
@@ -987,8 +987,8 @@
 
   .bead-studio-grid:not([data-phase="choose"]) .side-reference {
     order: 3;
-    margin-top: 10px;
-    margin-bottom: 16px;
+    margin-top: var(--sp-3);
+    margin-bottom: var(--sp-4);
   }
 
   .color-palette {
@@ -1002,7 +1002,7 @@
 
   .preview-canvas-wrap {
     grid-template-columns: minmax(0, 1fr) var(--tap-min);
-    gap: 8px;
+    gap: var(--sp-2);
   }
 
   .choose-start-button {
@@ -1011,7 +1011,7 @@
   }
 
   .preview-canvas-frame {
-    padding: 8px;
+    padding: var(--sp-2);
   }
 
   .preview-side {
@@ -1028,7 +1028,7 @@
 
   .pattern-color-chip {
     min-height: var(--tap-min);
-    padding: 8px 10px;
+    padding: var(--sp-2) var(--sp-3);
   }
 
   .check-row {
@@ -1047,12 +1047,12 @@
 
   .swatch-grid {
     grid-template-columns: repeat(9, minmax(0, 1fr));
-    gap: 5px;
+    gap: var(--sp-1);
   }
 
   /* ── Mobile palette: give chips room so box-shadow/::before glow isn't clipped ── */
   .color-palette {
-    padding: 4px;
+    padding: var(--sp-1);
   }
 
   /* ── Active chip on mobile: outline is never clipped by overflow:auto ── */
@@ -1113,11 +1113,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: var(--sp-5);
   background: var(--bg);
   color: var(--ink);
   text-align: center;
-  padding: 32px;
+  padding: var(--sp-6);
   font-size: 17px;
   font-weight: 600;
   line-height: 1.5;
@@ -1170,7 +1170,7 @@
 
   .topbar {
     border-radius: var(--r-sm);
-    padding: 6px 8px;
+    padding: var(--sp-2) var(--sp-2);
   }
 
   .brand p {
@@ -1178,16 +1178,16 @@
   }
 
   .choose-size-bar {
-    gap: 7px;
+    gap: var(--sp-2);
   }
 
   .right-panel {
-    gap: 10px;
+    gap: var(--sp-3);
   }
 
   .remap-row {
     grid-template-columns: minmax(0, 1fr);
-    gap: 5px;
+    gap: var(--sp-1);
   }
 
   .remap-arrow {
@@ -1207,8 +1207,8 @@
 
 @media (max-width: 420px) {
   .start-row {
-    gap: 12px;
-    padding: 14px 12px;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-3);
   }
 
   .start-row-icon {
@@ -1221,7 +1221,7 @@
   }
 
   .topbar {
-    gap: 4px 6px;
+    gap: var(--sp-1) var(--sp-2);
   }
 
   .workflow-progress {
@@ -1233,7 +1233,7 @@
     width: var(--tap-min);
     justify-content: center;
     gap: 0;
-    padding: 4px 0;
+    padding: var(--sp-1) 0;
   }
 
   .workflow-step > span:not(.step-dot) {
@@ -1242,8 +1242,8 @@
 
   .workflow-step.active {
     width: auto;
-    gap: 6px;
-    padding: 4px 9px;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-2);
   }
 
   .workflow-step.active > span:not(.step-dot) {
