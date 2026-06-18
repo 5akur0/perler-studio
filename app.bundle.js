@@ -1081,10 +1081,27 @@
     }
     return grid.map((row) => row.join(""));
   }
+  function padRowsTo(rows, target) {
+    const src = rows.length;
+    if (src >= target) return rows;
+    const padTop = Math.floor((target - src) / 2);
+    const blankRow = ".".repeat(target);
+    const out = [];
+    for (let i = 0; i < padTop; i += 1) out.push(blankRow);
+    for (const row of rows) {
+      const left = ".".repeat(padTop);
+      const right = ".".repeat(target - src - padTop);
+      out.push(left + row + right);
+    }
+    while (out.length < target) out.push(blankRow);
+    return out;
+  }
   var patterns = patternSeeds.map((seed) => ({
     ...seed,
-    size: 24,
-    rows: detailedRowsFromSeed(seed, 24),
+    size: 30,
+    width: 30,
+    height: 30,
+    rows: padRowsTo(detailedRowsFromSeed(seed, 24), 30),
     note: seed.note || ""
   }));
   function resamplePatternRows(sourceRows, sourceSize, targetSize) {
@@ -1179,9 +1196,9 @@
         const cells = [{ x: sx, y: sy }];
         let head = 0;
         while (head < queue.length) {
-          const index = queue[head++];
-          const x = index % sourceSize;
-          const y = Math.floor(index / sourceSize);
+          const index2 = queue[head++];
+          const x = index2 % sourceSize;
+          const y = Math.floor(index2 / sourceSize);
           const neighbors = [
             [x + 1, y],
             [x - 1, y],
@@ -1350,6 +1367,7 @@
     lavender: { name: "\u85B0\u8863\u8349", primary: "#9b8bd3", secondary: "#e2dbff", accent: "#f2c4d6", tip: "#5d5673", deco: "flower" }
   };
   var craftOptions = ["\u539F\u7248", "\u94A5\u5319\u6263", "\u676F\u57AB", "\u6446\u4EF6"];
+  var BOARD_SIZE = 30;
   var TRAY_DESKTOP_ROWS = 10;
   var TRAY_DESKTOP_COLS = 12;
   var TRAY_MOBILE_ROWS = 5;
@@ -1367,7 +1385,7 @@
   var state = {
     appMode: "home",
     phase: "choose",
-    patternSize: 24,
+    patternSize: 30,
     customDenoiseLevel: 25,
     paletteSize: 221,
     selectedPattern: patterns[0],
@@ -1508,6 +1526,11 @@
     startBeadButton: $("#startBeadButton"),
     startDrawButton: $("#startDrawButton"),
     startGalleryButton: $("#startGalleryButton"),
+    startShowcaseButton: $("#startShowcaseButton"),
+    startShowcaseCanvas: $("#startShowcaseCanvas"),
+    startShowcaseDots: $("#startShowcaseDots"),
+    startShowcaseName: $("#startShowcaseName"),
+    startShowcaseCraft: $("#startShowcaseCraft"),
     galleryScreen: $("#galleryScreen"),
     galleryBackButton: $("#galleryBackButton"),
     gallerySettingsButton: $("#gallerySettingsButton"),
@@ -1531,15 +1554,6 @@
     drawSettingsButton: $("#drawSettingsButton"),
     drawResetButton: $("#drawResetButton"),
     drawCanvas: $("#drawCanvas"),
-    drawSizeValue: $("#drawSizeValue"),
-    drawWidthInput: $("#drawWidthInput"),
-    drawHeightInput: $("#drawHeightInput"),
-    drawSizeApplyButton: $("#drawSizeApplyButton"),
-    drawResizeModal: $("#drawResizeModal"),
-    drawResizeModalTitle: $("#drawResizeModalTitle"),
-    drawResizeConfirmBtn: $("#drawResizeConfirmBtn"),
-    drawResizeCancelBtn: $("#drawResizeCancelBtn"),
-    drawResizeCloseBtn: $("#drawResizeCloseBtn"),
     drawCodeModal: $("#drawCodeModal"),
     drawCodeModalTitle: $("#drawCodeModalTitle"),
     drawCodeHint: $("#drawCodeHint"),
@@ -1547,10 +1561,11 @@
     drawCodeCancelBtn: $("#drawCodeCancelBtn"),
     drawCodeCopyBtn: $("#drawCodeCopyBtn"),
     drawCodeImportConfirmBtn: $("#drawCodeImportConfirmBtn"),
-    drawAnchorGrid: $("#drawAnchorGrid"),
     drawClearButton: $("#drawClearButton"),
     drawImportButton: $("#drawImportButton"),
     drawShortCodeButton: $("#drawShortCodeButton"),
+    drawImageStampButton: $("#drawImageStampButton"),
+    drawImageInput: $("#drawImageInput"),
     drawSubmitGalleryButton: $("#drawSubmitGalleryButton"),
     drawUsePatternButton: $("#drawUsePatternButton"),
     drawUndoButton: $("#drawUndoButton"),
@@ -1558,6 +1573,7 @@
     drawPaletteMeta: $("#drawPaletteMeta"),
     drawRecentColors: $("#drawRecentColors"),
     drawPalette: $("#drawPalette"),
+    drawPaletteSearch: $("#drawPaletteSearch"),
     beadBackButton: $("#beadBackButton"),
     statusLine: $("#statusLine"),
     patternMeta: $("#patternMeta"),
@@ -1572,8 +1588,6 @@
     customWhiteToggle: $("#customWhiteToggle"),
     customDenoiseSlider: $("#customDenoiseSlider"),
     customDenoiseValue: $("#customDenoiseValue"),
-    patternSizeSlider: $("#patternSizeSlider"),
-    patternSizeValue: $("#patternSizeValue"),
     customSizeMeta: $("#customSizeMeta"),
     customStats: $("#customStats"),
     patternColorStats: $("#patternColorStats"),
@@ -1625,8 +1639,9 @@
     sharePanel: $("#sharePanel"),
     collectionPanel: $("#collectionPanel"),
     collectionCount: $("#collectionCount"),
-    bgThemeSelect: $("#bgThemeSelect"),
-    topToolStyleSelect: $("#topToolStyleSelect"),
+    bgThemeChips: $("#bgThemeChips"),
+    toolStyleChips: $("#toolStyleChips"),
+    toolStyleField: $("#toolStyleField"),
     sandboxButton: $("#sandboxButton"),
     chooseStartButton: $("#chooseStartButton"),
     resetButton: $("#resetButton"),
@@ -1838,8 +1853,24 @@
     const code = row[x] || ".";
     return code === "." ? null : code;
   }
+  function boardCols(pattern = state.selectedPattern) {
+    return pattern?.width || pattern?.size || BOARD_SIZE;
+  }
+  function boardRows(pattern = state.selectedPattern) {
+    return pattern?.height || pattern?.size || BOARD_SIZE;
+  }
   function indexFor(x, y) {
-    return y * state.selectedPattern.size + x;
+    return y * boardCols() + x;
+  }
+  function isActiveTileCell(x, y, pattern = state.selectedPattern) {
+    const tiles = pattern?.tiles;
+    if (!tiles || tiles.length === 0) return true;
+    const originX = pattern.tileOriginX ?? 0;
+    const originY = pattern.tileOriginY ?? 0;
+    const tx = Math.floor(x / BOARD_SIZE) + originX;
+    const ty = Math.floor(y / BOARD_SIZE) + originY;
+    const key = `${tx},${ty}`;
+    return Array.isArray(tiles) ? tiles.includes(key) : tiles.has(key);
   }
   function getPatternColorMap(pattern = state.selectedPattern) {
     const id = baseIdFor(pattern);
@@ -1878,18 +1909,21 @@
       const mapped = map[code];
       baseMap[code] = mapped && activeCodes.has(mapped) ? mapped : code;
     });
-    const size = pattern.size;
-    const sourceRows = pattern.rows;
-    const grid = Array(size * size).fill(".");
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const sourceCode = sourceRows[y][x];
-        const index = y * size + x;
-        grid[index] = sourceCode === "." ? "." : baseMap[sourceCode] || sourceCode;
+    const cols = boardCols(pattern);
+    const rowsCount = boardRows(pattern);
+    const sourceRows = pattern.rows || [];
+    const grid = Array(cols * rowsCount).fill(".");
+    for (let y = 0; y < rowsCount; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const sourceCode = sourceRows[y]?.[x] || ".";
+        const index2 = y * cols + x;
+        grid[index2] = sourceCode === "." ? "." : baseMap[sourceCode] || sourceCode;
       }
     }
     const rows = [];
-    for (let y = 0; y < size; y += 1) rows.push(grid.slice(y * size, y * size + size).map((code) => code || ".").join(""));
+    for (let y = 0; y < rowsCount; y += 1) {
+      rows.push(grid.slice(y * cols, y * cols + cols).map((code) => code || ".").join(""));
+    }
     const result = { key: cacheKey, map: { ...baseMap }, rows };
     state.patternEffectiveMapCache[id] = result;
     return result;
@@ -1999,10 +2033,8 @@
   function placedCount() {
     return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
   }
-  function normalizePatternSize(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed)) return 48;
-    return clamp(parsed, 12, 100);
+  function normalizePatternSize() {
+    return BOARD_SIZE;
   }
   function baseIdFor(pattern) {
     return pattern.sourceId || pattern.id;
@@ -2020,7 +2052,7 @@
       hash ^= 124;
       hash = Math.imul(hash, 16777619);
     }
-    pattern.__gridFingerprint = `${pattern.size}:${rows.length}:${(hash >>> 0).toString(36)}`;
+    pattern.__gridFingerprint = `${boardCols(pattern)}x${boardRows(pattern)}:${(hash >>> 0).toString(36)}`;
     return pattern.__gridFingerprint;
   }
   function normalizeCraft(craft) {
@@ -2028,6 +2060,19 @@
     return craftOptions.includes(craft) ? craft : "\u94A5\u5319\u6263";
   }
   function resizePattern(pattern, targetSize) {
+    const width = boardCols(pattern);
+    const height = boardRows(pattern);
+    if (width > BOARD_SIZE || height > BOARD_SIZE || width !== height) {
+      return {
+        ...pattern,
+        sourceId: baseIdFor(pattern),
+        size: Math.max(width, height),
+        width,
+        height,
+        sourceRows: pattern.sourceRows || pattern.rows,
+        sourceSize: pattern.sourceSize || Math.max(width, height)
+      };
+    }
     const size = normalizePatternSize(targetSize);
     const sourceRows = pattern.sourceRows || pattern.rows;
     const sourceSize = pattern.sourceSize || pattern.size;
@@ -2048,6 +2093,8 @@
       sourceSize,
       sourceRows,
       size,
+      width: size,
+      height: size,
       rows,
       note: pattern.note || ""
     };
@@ -2132,6 +2179,204 @@
     const fallbackSize = Number(size);
     const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0 ? `\u81EA\u5B9A\u4E49\u56FE\u7EB8 ${fallbackSize}x${fallbackSize}` : "\u81EA\u5B9A\u4E49\u56FE\u7EB8";
     return pickWeightedText(pool, fallback, seedText);
+  }
+
+  // src/board-skin.js
+  function traceBoardPath(ctx, layout, radius = 6) {
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
+    const r = Math.min(radius, boardW / 2, boardH / 2);
+    const { boardX, boardY } = layout;
+    ctx.beginPath();
+    ctx.moveTo(boardX + r, boardY);
+    ctx.lineTo(boardX + boardW - r, boardY);
+    ctx.quadraticCurveTo(boardX + boardW, boardY, boardX + boardW, boardY + r);
+    ctx.lineTo(boardX + boardW, boardY + boardH - r);
+    ctx.quadraticCurveTo(boardX + boardW, boardY + boardH, boardX + boardW - r, boardY + boardH);
+    ctx.lineTo(boardX + r, boardY + boardH);
+    ctx.quadraticCurveTo(boardX, boardY + boardH, boardX, boardY + boardH - r);
+    ctx.lineTo(boardX, boardY + r);
+    ctx.quadraticCurveTo(boardX, boardY, boardX + r, boardY);
+  }
+  function drawBoardGuides(ctx, layout, cols, rows, scale = 1) {
+    const { boardX, boardY, cell } = layout;
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
+    ctx.save();
+    const stroke = (n, vertical) => {
+      const major = n % 10 === 0;
+      ctx.strokeStyle = major ? "rgba(70, 84, 96, 0.5)" : "rgba(70, 84, 96, 0.26)";
+      ctx.lineWidth = major ? Math.max(1.2 / scale, cell * 0.07) : 1 / scale;
+      ctx.setLineDash(major ? [] : [cell * 0.32, cell * 0.32]);
+      ctx.beginPath();
+      if (vertical) {
+        const px = boardX + n * cell;
+        ctx.moveTo(px, boardY);
+        ctx.lineTo(px, boardY + boardH);
+      } else {
+        const py = boardY + n * cell;
+        ctx.moveTo(boardX, py);
+        ctx.lineTo(boardX + boardW, py);
+      }
+      ctx.stroke();
+    };
+    for (let x = 5; x < cols; x += 5) stroke(x, true);
+    for (let y = 5; y < rows; y += 5) stroke(y, false);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+  function drawBoardSkin(ctx, layout, options = {}) {
+    const {
+      cols,
+      rows,
+      brand = "#57b8a7",
+      shadow = true,
+      guides = true,
+      frameInset = 14,
+      outerRadius = 8,
+      innerRadius = 6
+    } = options;
+    const { boardX, boardY, cell } = layout;
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
+    ctx.save();
+    if (shadow) {
+      ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
+      ctx.shadowBlur = 26;
+      ctx.shadowOffsetY = 14;
+    }
+    const baseGradient = ctx.createLinearGradient(
+      boardX,
+      boardY - frameInset,
+      boardX,
+      boardY + boardH + frameInset
+    );
+    baseGradient.addColorStop(0, "#f6f8fa");
+    baseGradient.addColorStop(1, "#d9e0e4");
+    ctx.fillStyle = baseGradient;
+    traceBoardPath(ctx, {
+      boardX: boardX - frameInset,
+      boardY: boardY - frameInset,
+      boardW: boardW + frameInset * 2,
+      boardH: boardH + frameInset * 2
+    }, outerRadius);
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.strokeStyle = "rgba(108, 118, 130, 0.34)";
+    ctx.stroke();
+    ctx.fillStyle = "#fbfcfd";
+    traceBoardPath(ctx, layout, innerRadius);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(70, 84, 96, 0.18)";
+    ctx.stroke();
+    ctx.save();
+    traceBoardPath(ctx, layout, innerRadius);
+    ctx.clip();
+    const tintLight = mixColor("#ffffff", brand, 0.06);
+    const tintDark = mixColor("#ffffff", brand, 0.15);
+    for (let by = 0; by * 10 < rows; by += 1) {
+      for (let bx = 0; bx * 10 < cols; bx += 1) {
+        ctx.fillStyle = (bx + by) % 2 ? tintDark : tintLight;
+        const px = boardX + bx * 10 * cell;
+        const py = boardY + by * 10 * cell;
+        const pw = Math.min(10, cols - bx * 10) * cell;
+        const ph = Math.min(10, rows - by * 10) * cell;
+        ctx.fillRect(px, py, pw, ph);
+      }
+    }
+    ctx.restore();
+    if (guides) drawBoardGuides(ctx, layout, cols, rows);
+    ctx.restore();
+  }
+  function pixelPatternPreviewLayout(width, height, cols, rows, options = {}) {
+    const minSide = Math.max(1, Math.min(width, height));
+    const compact = options.compact ?? minSide < 120;
+    const frameInset = options.frameInset ?? (compact ? Math.max(2, Math.min(5, minSide * 0.055)) : Math.max(7, Math.min(14, minSide * 0.035)));
+    const padding = options.padding ?? (compact ? Math.max(1, minSide * 0.025) : Math.max(8, minSide * 0.025));
+    const availableW = Math.max(1, width - (padding + frameInset) * 2);
+    const availableH = Math.max(1, height - (padding + frameInset) * 2);
+    const cell = Math.max(0.01, Math.min(availableW / cols, availableH / rows));
+    const boardW = cell * cols;
+    const boardH = cell * rows;
+    return {
+      boardX: (width - boardW) / 2,
+      boardY: (height - boardH) / 2,
+      boardW,
+      boardH,
+      boardSize: Math.max(boardW, boardH),
+      cell,
+      frameInset,
+      compact
+    };
+  }
+  function drawPixelPatternPreview(ctx, options = {}) {
+    const {
+      width,
+      height,
+      cols,
+      rows,
+      pixels = [],
+      colors = {},
+      brand = "#57b8a7",
+      table = ["#eef2f4", "#e4eceb", "#d7e2e0"]
+    } = options;
+    const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
+    const showGuides = options.guides ?? layout.cell >= 4;
+    const showCellGrid = options.cellGrid ?? layout.cell >= 2.5;
+    const shadow = options.shadow ?? !layout.compact;
+    ctx.save();
+    const background = ctx.createLinearGradient(0, 0, width, height);
+    background.addColorStop(0, table[0]);
+    background.addColorStop(0.55, table[1] || table[0]);
+    background.addColorStop(1, table[2] || table[1] || table[0]);
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, width, height);
+    drawBoardSkin(ctx, layout, {
+      cols,
+      rows,
+      brand,
+      shadow,
+      guides: false,
+      frameInset: layout.frameInset,
+      outerRadius: layout.compact ? Math.max(2, layout.frameInset * 0.8) : 8,
+      innerRadius: layout.compact ? Math.max(1, layout.frameInset * 0.5) : 6
+    });
+    ctx.save();
+    traceBoardPath(ctx, layout, layout.compact ? Math.max(1, layout.frameInset * 0.5) : 6);
+    ctx.clip();
+    for (let y = 0; y < rows; y += 1) {
+      const row = pixels[y] || "";
+      for (let x = 0; x < cols; x += 1) {
+        const code = row[x] || ".";
+        if (code === ".") continue;
+        const px = layout.boardX + x * layout.cell;
+        const py = layout.boardY + y * layout.cell;
+        ctx.fillStyle = colors[code] || "#9aa4b3";
+        ctx.fillRect(px, py, layout.cell, layout.cell);
+      }
+    }
+    if (showCellGrid) {
+      ctx.strokeStyle = "rgba(70, 84, 96, 0.13)";
+      ctx.lineWidth = Math.min(1, Math.max(0.5, layout.cell * 0.06));
+      for (let x = 1; x < cols; x += 1) {
+        const px = layout.boardX + x * layout.cell;
+        ctx.beginPath();
+        ctx.moveTo(px, layout.boardY);
+        ctx.lineTo(px, layout.boardY + layout.boardH);
+        ctx.stroke();
+      }
+      for (let y = 1; y < rows; y += 1) {
+        const py = layout.boardY + y * layout.cell;
+        ctx.beginPath();
+        ctx.moveTo(layout.boardX, py);
+        ctx.lineTo(layout.boardX + layout.boardW, py);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    if (showGuides) drawBoardGuides(ctx, layout, cols, rows);
+    ctx.restore();
+    return layout;
   }
 
   // src/render.js
@@ -2284,7 +2529,7 @@
   }
   function currentLayout(canvasRect = null) {
     const rect = quantizedCanvasRect(canvasRect || sceneCanvas.getBoundingClientRect());
-    const key = `${rect.width}x${rect.height}:${state.selectedPattern.size}`;
+    const key = `${rect.width}x${rect.height}:${boardCols()}x${boardRows()}`;
     if (_layoutCache && _layoutCacheKey === key) return _layoutCache;
     _layoutCache = computeLayout(rect);
     _layoutCacheKey = key;
@@ -2300,8 +2545,8 @@
     state.boardView.scale = scale;
     state.boardView.panX = panX;
     state.boardView.panY = panY;
-    const cx = layout.boardX + layout.boardSize * 0.5;
-    const cy = layout.boardY + layout.boardSize * 0.5;
+    const cx = layout.boardX + (layout.boardW || layout.boardSize) * 0.5;
+    const cy = layout.boardY + (layout.boardH || layout.boardSize) * 0.5;
     return { scale, panX, panY, cx, cy };
   }
   function setBoardZoom(nextScale, nextPanX = state.boardView.panX, nextPanY = state.boardView.panY) {
@@ -2374,15 +2619,20 @@
       const margin = 12;
       const rawBoard2 = clamp(Math.min(w - margin * 2, h - margin * 2), 240, 520);
       const boardSize2 = Math.floor(rawBoard2 / 8) * 8;
-      const boardX2 = Math.floor((w - boardSize2) / 2);
-      const boardY2 = Math.floor((h - boardSize2) / 2);
+      const cellM = boardSize2 / Math.max(boardCols(), boardRows());
+      const boardWM = cellM * boardCols();
+      const boardHM = cellM * boardRows();
+      const boardX2 = Math.floor((w - boardWM) / 2);
+      const boardY2 = Math.floor((h - boardHM) / 2);
       return {
         w,
         h,
         boardX: boardX2,
         boardY: boardY2,
         boardSize: boardSize2,
-        cell: boardSize2 / state.selectedPattern.size,
+        boardW: boardWM,
+        boardH: boardHM,
+        cell: cellM,
         refX: 0,
         refY: 0,
         refW: 0,
@@ -2401,6 +2651,9 @@
     const maxBoardForTray = w - boardX - trayGap - minTrayW - trayRightMargin;
     const rawBoard = Math.min(h - 78, w * 0.64, 590, maxBoardForTray);
     const boardSize = Math.floor(rawBoard / 8) * 8;
+    const cell = boardSize / Math.max(boardCols(), boardRows());
+    const boardW = cell * boardCols();
+    const boardH = cell * boardRows();
     const trayX = boardX + boardSize + trayGap;
     const naturalTrayW = w - trayX - trayRightMargin;
     const trayW = Math.max(minTrayW, naturalTrayW);
@@ -2412,7 +2665,9 @@
       boardX,
       boardY,
       boardSize,
-      cell: boardSize / state.selectedPattern.size,
+      boardW,
+      boardH,
+      cell,
       refX: trayX,
       refY: boardY,
       refW: trayW,
@@ -2916,54 +3171,86 @@
   }
   function drawBoard(layout) {
     const ctx = scene;
-    const { boardX, boardY, boardSize, cell } = layout;
+    const { boardX, boardY, cell } = layout;
+    const cols = boardCols();
+    const rows = boardRows();
     const boardView = boardViewTransform(layout);
-    const size = state.selectedPattern.size;
+    const theme = currentBackgroundTheme();
+    const brand = theme.brand || "#57b8a7";
     ctx.save();
     ctx.translate(boardView.cx + boardView.panX, boardView.cy + boardView.panY);
     ctx.scale(boardView.scale, boardView.scale);
     ctx.translate(-boardView.cx, -boardView.cy);
-    if (!useMobileDirectPlacement()) {
-      ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
-      ctx.shadowBlur = 26;
-      ctx.shadowOffsetY = 14;
+    const patTiles = state.selectedPattern?.tiles ? new Set(state.selectedPattern.tiles) : null;
+    const patOriginX = state.selectedPattern?.tileOriginX ?? 0;
+    const patOriginY = state.selectedPattern?.tileOriginY ?? 0;
+    const T = BOARD_SIZE;
+    if (patTiles) {
+      const tileW = T * cell;
+      const tileH = T * cell;
+      const tintLight = mixColor("#ffffff", brand, 0.06);
+      const tintDark = mixColor("#ffffff", brand, 0.15);
+      const blocksPerTile = T / 10;
+      for (const key of patTiles) {
+        const [tx, ty] = key.split(",").map(Number);
+        const tbx = boardX + (tx - patOriginX) * tileW;
+        const tby = boardY + (ty - patOriginY) * tileH;
+        ctx.fillStyle = "#fbfcfd";
+        ctx.fillRect(tbx, tby, tileW, tileH);
+        for (let by = 0; by < blocksPerTile; by++) {
+          for (let bx = 0; bx < blocksPerTile; bx++) {
+            ctx.fillStyle = (bx + by) % 2 ? tintDark : tintLight;
+            ctx.fillRect(tbx + bx * 10 * cell, tby + by * 10 * cell, 10 * cell, 10 * cell);
+          }
+        }
+      }
+      ctx.strokeStyle = "rgba(70, 84, 96, 0.35)";
+      ctx.lineWidth = 1.5 / boardView.scale;
+      for (const key of patTiles) {
+        const [tx, ty] = key.split(",").map(Number);
+        const tbx = boardX + (tx - patOriginX) * tileW;
+        const tby = boardY + (ty - patOriginY) * tileH;
+        if (!patTiles.has(`${tx},${ty - 1}`)) {
+          ctx.beginPath();
+          ctx.moveTo(tbx, tby);
+          ctx.lineTo(tbx + tileW, tby);
+          ctx.stroke();
+        }
+        if (!patTiles.has(`${tx + 1},${ty}`)) {
+          ctx.beginPath();
+          ctx.moveTo(tbx + tileW, tby);
+          ctx.lineTo(tbx + tileW, tby + tileH);
+          ctx.stroke();
+        }
+        if (!patTiles.has(`${tx},${ty + 1}`)) {
+          ctx.beginPath();
+          ctx.moveTo(tbx, tby + tileH);
+          ctx.lineTo(tbx + tileW, tby + tileH);
+          ctx.stroke();
+        }
+        if (!patTiles.has(`${tx - 1},${ty}`)) {
+          ctx.beginPath();
+          ctx.moveTo(tbx, tby);
+          ctx.lineTo(tbx, tby + tileH);
+          ctx.stroke();
+        }
+      }
+    } else {
+      drawBoardSkin(ctx, layout, { cols, rows, brand, shadow: !useMobileDirectPlacement(), guides: false });
     }
-    const baseGradient = ctx.createLinearGradient(boardX, boardY - 14, boardX, boardY + boardSize + 14);
-    baseGradient.addColorStop(0, "#f6f8fa");
-    baseGradient.addColorStop(1, "#d9e0e4");
-    ctx.fillStyle = baseGradient;
-    roundedRect(boardX - 14, boardY - 14, boardSize + 28, boardSize + 28, 8);
-    ctx.fill();
-    ctx.shadowColor = "transparent";
-    ctx.strokeStyle = "rgba(108, 118, 130, 0.34)";
-    ctx.stroke();
-    ctx.fillStyle = "#fbfcfd";
-    roundedRect(boardX, boardY, boardSize, boardSize, 6);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(70, 84, 96, 0.18)";
-    ctx.stroke();
     const guideVisible = state.lampOn && !useMobileDirectPlacement() && (state.phase === "place" || state.phase === "inspect");
     const templateOpacity = guideVisible ? state.phase === "place" ? 0.1 : 0.08 : 0;
     if (guideVisible) {
-      drawProjectedGuide(layout);
+      drawProjectedGuide(layout, templateOpacity);
     }
     const spillIndex = state.spill ? state.spill.index : -1;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const index = indexFor(x, y);
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        if (patTiles && !isActiveTileCell(x, y)) continue;
+        const index2 = indexFor(x, y);
         const px = boardX + x * cell;
         const py = boardY + y * cell;
-        const code = targetAt(x, y);
-        ctx.strokeStyle = "rgba(117, 126, 139, 0.18)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px, py, cell, cell);
-        if (code && templateOpacity > 0) {
-          ctx.globalAlpha = templateOpacity;
-          ctx.fillStyle = palette[code];
-          ctx.fillRect(px + 1, py + 1, cell - 2, cell - 2);
-          ctx.globalAlpha = 1;
-        }
-        if (index !== spillIndex) {
+        if (index2 !== spillIndex) {
           const pegR = cell * 0.138;
           ctx.fillStyle = "rgba(91, 104, 118, 0.32)";
           ctx.beginPath();
@@ -2976,25 +3263,37 @@
         }
       }
     }
+    if (patTiles) {
+      const tileW = T * cell;
+      const tileH = T * cell;
+      for (const key of patTiles) {
+        const [tx, ty] = key.split(",").map(Number);
+        const tbx = boardX + (tx - patOriginX) * tileW;
+        const tby = boardY + (ty - patOriginY) * tileH;
+        drawBoardGuides(ctx, { boardX: tbx, boardY: tby, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell }, T, T, boardView.scale);
+      }
+    } else {
+      drawBoardGuides(ctx, layout, cols, rows, boardView.scale);
+    }
     const boardFusedPhase = state.phase === "iron";
     const detachedPhase = state.phase === "cool" || state.phase === "finish";
     if (boardFusedPhase) drawFusionBridges(layout);
     if (detachedPhase) {
       drawDetachedFusedPieces(layout);
     } else {
-      state.placed.forEach((code, index) => {
+      state.placed.forEach((code, index2) => {
         if (!code) return;
-        const x = index % size;
-        const y = Math.floor(index / size);
-        const heat = state.heat[index] || 0;
+        const x = index2 % cols;
+        const y = Math.floor(index2 / cols);
+        const heat = state.heat[index2] || 0;
         const cx = boardX + x * cell + cell / 2;
         const cy = boardY + y * cell + cell / 2;
-        if (state.spill && state.spill.index === index) {
+        if (state.spill && state.spill.index === index2) {
           drawFallenBead(ctx, cx, cy, cell, code, state.spill.orientation || "h");
           return;
         }
         const shapeProfile = boardFusionShapeProfile(x, y);
-        const settle = state.mobileBeadSettle?.index === index ? state.mobileBeadSettle : null;
+        const settle = state.mobileBeadSettle?.index === index2 ? state.mobileBeadSettle : null;
         const settleElapsed = settle ? performance.now() - settle.startedAt : 0;
         const settleScale = settle ? beadSettleScale(settleElapsed, settle.duration, false) : 1;
         if (settle) {
@@ -3003,7 +3302,7 @@
           ctx.scale(settleScale, settleScale);
           ctx.translate(-cx, -cy);
         }
-        if (isSpillDamagedIndex(index)) {
+        if (isSpillDamagedIndex(index2)) {
           drawDamagedBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
         } else {
           drawBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
@@ -3019,8 +3318,8 @@
       drawInspectionHints(layout);
     }
     if (state.phase === "place" && state.keyboardGrid.visible) {
-      const x = clamp(state.keyboardGrid.x, 0, size - 1);
-      const y = clamp(state.keyboardGrid.y, 0, size - 1);
+      const x = clamp(state.keyboardGrid.x, 0, cols - 1);
+      const y = clamp(state.keyboardGrid.y, 0, rows - 1);
       const px = boardX + x * cell;
       const py = boardY + y * cell;
       ctx.save();
@@ -3034,81 +3333,138 @@
     }
     ctx.restore();
   }
-  function drawProjectedGuide(layout) {
-    const key = projectedGuideCacheKey(layout);
+  function drawProjectedGuide(layout, templateOpacity = 0) {
+    const key = projectedGuideCacheKey(layout, templateOpacity);
     if (!state.projectedGuideCache || state.projectedGuideCache.key !== key) {
-      state.projectedGuideCache = buildProjectedGuideCache(layout, key);
+      state.projectedGuideCache = buildProjectedGuideCache(layout, key, templateOpacity);
     }
     if (!state.projectedGuideCache?.canvas) return;
     scene.drawImage(
       state.projectedGuideCache.canvas,
       layout.boardX,
       layout.boardY,
-      layout.boardSize,
-      layout.boardSize
+      layout.boardW || layout.boardSize,
+      layout.boardH || layout.boardSize
     );
   }
-  function projectedGuideCacheKey(layout) {
+  function projectedGuideCacheKey(layout, templateOpacity = 0) {
     const map = getPatternColorMap();
     const mapSig = Object.keys(map).sort().map((code) => `${code}:${map[code]}`).join(",");
     return [
       baseIdFor(state.selectedPattern),
-      state.selectedPattern.size,
-      Math.round(layout.boardSize),
+      `${boardCols()}x${boardRows()}`,
+      Math.round(layout.boardW || layout.boardSize),
+      Math.round(layout.boardH || layout.boardSize),
+      Math.round(templateOpacity * 1e3),
       mapSig
     ].join("|");
   }
-  function buildProjectedGuideCache(layout, key) {
-    const size = state.selectedPattern.size;
-    const boardPx = Math.max(1, Math.round(layout.boardSize));
-    const cell = boardPx / size;
-    const canvas = document.createElement("canvas");
-    canvas.width = boardPx;
-    canvas.height = boardPx;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return { key, canvas: null };
-    const blur = Math.max(1.45, cell * 0.24);
+  function projectedGuideLightness(code) {
+    const rgb = hexToRgb(palette[code] || "#bbbbbb");
+    return (Math.max(rgb.r, rgb.g, rgb.b) + Math.min(rgb.r, rgb.g, rgb.b)) / 2;
+  }
+  function projectedGuideColor(code) {
+    const base = palette[code] || "#bbbbbb";
+    const lightness = projectedGuideLightness(code);
+    if (lightness >= 228) return mixColor(base, "#f3c04f", 0.46);
+    if (lightness >= 205) return mixColor(base, "#f3c04f", 0.24);
+    return base;
+  }
+  function projectedGuideAlpha(code, alpha) {
+    const lightness = projectedGuideLightness(code);
+    if (lightness >= 228) return Math.min(alpha * 1.7, 0.44);
+    if (lightness >= 205) return Math.min(alpha * 1.28, 0.36);
+    return alpha;
+  }
+  function drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity) {
+    if (templateOpacity <= 0) return;
+    const projectedBeadRadius = cell * 0.43;
     ctx.save();
-    ctx.filter = `blur(${blur}px)`;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
         const code = targetAt(x, y);
         if (!code) continue;
         const cx = x * cell + cell / 2;
         const cy = y * cell + cell / 2;
-        ctx.fillStyle = palette[code];
-        ctx.globalAlpha = 0.28;
+        ctx.fillStyle = projectedGuideColor(code);
+        ctx.globalAlpha = projectedGuideAlpha(code, templateOpacity);
         ctx.beginPath();
-        ctx.arc(cx, cy, cell * 0.44, 0, Math.PI * 2);
+        ctx.arc(cx, cy, projectedBeadRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
+    const cols = boardCols();
+    const rows = boardRows();
+    const cell = (layout.boardW || layout.boardSize) / cols;
+    const canvasW = Math.max(1, Math.round(layout.boardW || layout.boardSize));
+    const canvasH = Math.max(1, Math.round(layout.boardH || layout.boardSize));
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { key, canvas: null };
+    const blur = Math.max(1.45, cell * 0.24);
+    const spotCx = canvasW * 0.5;
+    const spotCy = canvasH * 0.5;
+    const projectedBeadRadius = cell * 0.43;
+    const spotRadius = Math.min(canvasW, canvasH) * 0.425;
+    ctx.fillStyle = "rgba(255, 248, 218, 0.14)";
+    ctx.beginPath();
+    ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.filter = `blur(${blur}px)`;
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const code = targetAt(x, y);
+        if (!code) continue;
+        const cx = x * cell + cell / 2;
+        const cy = y * cell + cell / 2;
+        ctx.fillStyle = projectedGuideColor(code);
+        ctx.globalAlpha = projectedGuideAlpha(code, 0.28);
+        ctx.beginPath();
+        ctx.arc(cx, cy, projectedBeadRadius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
     ctx.filter = "none";
     ctx.globalAlpha = 0.16;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
         const code = targetAt(x, y);
         if (!code) continue;
         const cx = x * cell + cell / 2;
         const cy = y * cell + cell / 2;
-        ctx.fillStyle = palette[code];
-        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = projectedGuideColor(code);
+        ctx.globalAlpha = projectedGuideAlpha(code, 0.14);
         ctx.beginPath();
-        ctx.arc(cx, cy, cell * 0.3, 0, Math.PI * 2);
+        ctx.arc(cx, cy, projectedBeadRadius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
+    ctx.restore();
+    drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity);
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
     return { key, canvas };
   }
   function drawFusionBridges(layout) {
     const ctx = scene;
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     ctx.save();
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const index = indexFor(x, y);
-        const code = state.placed[index];
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const index2 = indexFor(x, y);
+        const code = state.placed[index2];
         if (!code) continue;
         drawFusionBridgeTo(ctx, layout, x, y, x + 1, y);
         drawFusionBridgeTo(ctx, layout, x, y, x, y + 1);
@@ -3117,9 +3473,10 @@
     ctx.restore();
   }
   function boardFusionShapeProfile(x, y) {
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     const has = (cx, cy) => {
-      if (cx < 0 || cy < 0 || cx >= size || cy >= size) return false;
+      if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) return false;
       return Boolean(state.placed[indexFor(cx, cy)]);
     };
     const orth = Number(has(x - 1, y)) + Number(has(x + 1, y)) + Number(has(x, y - 1)) + Number(has(x, y + 1));
@@ -3134,18 +3491,20 @@
     return { cluster, edgeExposure, edges };
   }
   function buildFusedPiecesFromPlaced() {
-    const size = state.selectedPattern.size;
-    const total = size * size;
+    const cols = boardCols();
+    const rows = boardRows();
+    const total = cols * rows;
     const visited = Array(total).fill(false);
     const pieces = [];
-    const boardCenter = (size - 1) / 2;
-    for (let index = 0; index < total; index += 1) {
-      if (visited[index] || !state.placed[index]) continue;
-      const queue = [index];
-      visited[index] = true;
+    const boardCenterX = (cols - 1) / 2;
+    const boardCenterY = (rows - 1) / 2;
+    for (let index2 = 0; index2 < total; index2 += 1) {
+      if (visited[index2] || !state.placed[index2]) continue;
+      const queue = [index2];
+      visited[index2] = true;
       const cells = [];
-      let minX = size;
-      let minY = size;
+      let minX = cols;
+      let minY = rows;
       let maxX = 0;
       let maxY = 0;
       let sumX = 0;
@@ -3154,8 +3513,8 @@
         const current = queue[head];
         const code = state.placed[current];
         if (!code) continue;
-        const x = current % size;
-        const y = Math.floor(current / size);
+        const x = current % cols;
+        const y = Math.floor(current / cols);
         const heat = state.heat[current] || 0;
         cells.push({ index: current, x, y, code, heat });
         minX = Math.min(minX, x);
@@ -3171,7 +3530,7 @@
           [x, y + 1]
         ];
         neighbors.forEach(([nx, ny]) => {
-          if (nx < 0 || ny < 0 || nx >= size || ny >= size) return;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) return;
           const next = indexFor(nx, ny);
           if (visited[next] || !state.placed[next]) return;
           visited[next] = true;
@@ -3181,8 +3540,8 @@
       if (!cells.length) continue;
       const centerX = sumX / cells.length;
       const centerY = sumY / cells.length;
-      const dx = centerX - boardCenter;
-      const dy = centerY - boardCenter;
+      const dx = centerX - boardCenterX;
+      const dy = centerY - boardCenterY;
       const dist = Math.hypot(dx, dy) || 1;
       const seed = `${state.selectedPattern.id}:${state.flipCount}:${minX}:${minY}:${cells.length}`;
       const jitterX = (pseudoRandom(`${seed}-jx`) - 0.5) * 0.05;
@@ -3343,7 +3702,8 @@
     const displaySize = Math.min(initDisplay, maxDisplayByHeight);
     const bx = (w - displaySize) / 2;
     const by = Math.max(topPad, Math.min(h * 0.26, h - displaySize - bottomPad - gap - roughMetrics.boxH));
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     ctx.save();
     ctx.fillStyle = "#eef0f3";
     ctx.fillRect(0, 0, w, h);
@@ -3360,13 +3720,13 @@
     roundedRect(bx, by, displaySize, displaySize, 6);
     ctx.fill();
     ctx.restore();
-    const displayCell = displaySize / size;
+    const displayCell = displaySize / Math.max(cols, rows);
     const fullMode = type === "full";
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
         const px = bx + x * displayCell;
         const py = by + y * displayCell;
-        const index = indexFor(x, y);
+        const index2 = indexFor(x, y);
         const pegR = displayCell * 0.122;
         ctx.fillStyle = "rgba(97, 107, 120, 0.22)";
         ctx.beginPath();
@@ -3377,8 +3737,8 @@
         ctx.arc(px + displayCell / 2 - pegR * 0.22, py + displayCell / 2 - pegR * 0.22, pegR * 0.35, 0, Math.PI * 2);
         ctx.fill();
         if (fullMode) {
-          const code = state.placed[index] || state.selectedColor;
-          const heat = Math.max(62, state.heat[index] || 0);
+          const code = state.placed[index2] || state.selectedColor;
+          const heat = Math.max(62, state.heat[index2] || 0);
           drawBead(ctx, px + displayCell / 2, py + displayCell / 2, displayCell * 0.43, code, heat, true);
         }
       }
@@ -3483,11 +3843,11 @@
     const centerX = boardX + boardSize / 2;
     const slots = [boardY + boardSize * 0.34, boardY + boardSize * 0.7];
     const placed = [];
-    selected.forEach((piece, index) => {
+    selected.forEach((piece, index2) => {
       const pieceW = (piece.maxX - piece.minX + 1) * cell;
       const pieceH = (piece.maxY - piece.minY + 1) * cell;
       const scale = clamp(Math.min(boardSize * 0.58 / pieceW, boardSize * 0.28 / pieceH, 1), 0.52, 1);
-      const target = { x: centerX, y: slots[index] };
+      const target = { x: centerX, y: slots[index2] };
       placed.push({ piece, scale, target });
       drawFusedPieceTransformed(layout, piece, {
         scale,
@@ -3528,27 +3888,30 @@
   }
   function drawFinishOriginal(layout, pieces) {
     const ctx = scene;
-    const { boardX, boardY, boardSize, cell } = layout;
+    const { boardX, boardY, cell } = layout;
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
     ctx.save();
     ctx.shadowColor = "rgba(38, 36, 43, 0.14)";
     ctx.shadowBlur = 20;
     ctx.shadowOffsetY = 10;
-    const baseGradient = ctx.createLinearGradient(boardX, boardY - 10, boardX, boardY + boardSize + 10);
+    const baseGradient = ctx.createLinearGradient(boardX, boardY - 10, boardX, boardY + boardH + 10);
     baseGradient.addColorStop(0, "#f6f8fa");
     baseGradient.addColorStop(1, "#d9e0e4");
     ctx.fillStyle = baseGradient;
-    roundedRect(boardX - 9, boardY - 9, boardSize + 18, boardSize + 18, 9);
+    roundedRect(boardX - 9, boardY - 9, boardW + 18, boardH + 18, 9);
     ctx.fill();
     ctx.shadowColor = "transparent";
     ctx.fillStyle = "#fbfcfd";
-    roundedRect(boardX, boardY, boardSize, boardSize, 6);
+    roundedRect(boardX, boardY, boardW, boardH, 6);
     ctx.fill();
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     const spillIndex = state.spill ? state.spill.index : -1;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const index = indexFor(x, y);
-        if (index === spillIndex) continue;
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const index2 = indexFor(x, y);
+        if (index2 === spillIndex) continue;
         const px = boardX + x * cell;
         const py = boardY + y * cell;
         const pegR = cell * 0.138;
@@ -3659,8 +4022,7 @@
     });
   }
   function drawFusionBridgeTo(ctx, layout, x1, y1, x2, y2) {
-    const size = state.selectedPattern.size;
-    if (x2 < 0 || y2 < 0 || x2 >= size || y2 >= size) return;
+    if (x2 < 0 || y2 < 0 || x2 >= boardCols() || y2 >= boardRows()) return;
     const indexA = indexFor(x1, y1);
     const indexB = indexFor(x2, y2);
     const codeA = state.placed[indexA];
@@ -3710,15 +4072,15 @@
     ctx.save();
     ctx.lineWidth = Math.max(2, cell * 0.08);
     state.errors.slice(0, limit).forEach((error) => {
-      const x = error.index % state.selectedPattern.size;
-      const y = Math.floor(error.index / state.selectedPattern.size);
+      const x = error.index % boardCols();
+      const y = Math.floor(error.index / boardCols());
       ctx.strokeStyle = error.type === "missing" ? "#d99b3d" : "#e7645f";
       ctx.strokeRect(boardX + x * cell + 2, boardY + y * cell + 2, cell - 4, cell - 4);
     });
     ctx.restore();
   }
-  function isSpillDamagedIndex(index) {
-    return state.spillDamages.some((damage) => damage.index === index);
+  function isSpillDamagedIndex(index2) {
+    return state.spillDamages.some((damage) => damage.index === index2);
   }
   function drawDamagedBead(ctx, x, y, r, code, heat = 0, fused = false, shape = null) {
     const base = palette[code] || "#999";
@@ -3844,6 +4206,16 @@
       ctx.lineTo(g.lineEndX - 2, y - 1);
       ctx.stroke();
     }
+    if (!color) {
+      ctx.save();
+      ctx.fillStyle = "rgba(63, 81, 91, 0.46)";
+      ctx.font = "600 12px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("\u70B9\u8272\u53F7\u5012\u8C46", trayX + trayW / 2, trayY + trayH / 2 - 8);
+      ctx.fillText("\u8C46\u7B5B\u5C31\u6EE1\u5566", trayX + trayW / 2, trayY + trayH / 2 + 9);
+      ctx.restore();
+    }
     if (color) {
       const animateScatter = state.pointer.down && state.pointer.mode === "tray";
       const now = animateScatter ? performance.now() / 680 : 0;
@@ -3926,9 +4298,13 @@
     const preferSingleLegend = legendAll.length <= 6;
     const sheetPad = 12;
     const gridSize = Math.min(refH - sheetPad * 2, refW * 0.36);
-    const gridX = refX + sheetPad;
-    const gridY = refY + (refH - gridSize) / 2;
-    const cell = gridSize / pattern.size;
+    const cols = boardCols(pattern);
+    const rowCount = boardRows(pattern);
+    const cell = gridSize / Math.max(cols, rowCount);
+    const gridW = cell * cols;
+    const gridH = cell * rowCount;
+    const gridX = refX + sheetPad + (gridSize - gridW) / 2;
+    const gridY = refY + (refH - gridH) / 2;
     ctx.save();
     ctx.shadowColor = "rgba(38, 36, 43, 0.13)";
     ctx.shadowBlur = 18;
@@ -3948,7 +4324,7 @@
     roundedPath(ctx, refX + 3, refY + 3, refW - 6, refH - 6, 6);
     ctx.clip();
     ctx.fillStyle = "#f7f4ec";
-    roundedRect(gridX - 5, gridY - 5, gridSize + 10, gridSize + 10, 5);
+    roundedRect(gridX - 5, gridY - 5, gridW + 10, gridH + 10, 5);
     ctx.fill();
     const rows = getEffectiveTargetRows(pattern);
     rows.forEach((row, y) => {
@@ -3963,7 +4339,7 @@
         ctx.fillRect(px, py, Math.max(1, cell - 1), Math.max(1, cell - 1));
       });
     });
-    const textX = gridX + gridSize + 14;
+    const textX = refX + sheetPad + gridSize + 14;
     const textAreaW = Math.max(72, refX + refW - textX - 12);
     let nameSize = preferSingleLegend ? 16 : 14;
     while (nameSize > 12) {
@@ -3980,7 +4356,7 @@
     ctx.fillText(fitText(ctx, pattern.name, textAreaW), textX, nameY);
     ctx.fillStyle = "#686572";
     ctx.font = `${metaSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-    ctx.fillText(fitText(ctx, `${pattern.size}x${pattern.size} \xB7 ${getTargetTotal()} \u9897`, textAreaW), textX, metaY);
+    ctx.fillText(fitText(ctx, `${boardCols(pattern)}x${boardRows(pattern)} \xB7 ${getTargetTotal()} \u9897`, textAreaW), textX, metaY);
     const counts = getTargetCounts(pattern);
     const legendAreaW = textAreaW;
     const legendCols = preferSingleLegend || legendAreaW < 154 ? 1 : 2;
@@ -4023,11 +4399,11 @@
       ctx.bezierCurveTo(boardX + boardSize * 0.34, y - 7, boardX + boardSize * 0.62, y + 8, boardX + boardSize - 10, y - 2);
       ctx.stroke();
     }
-    for (let y = 0; y < state.selectedPattern.size; y += 1) {
-      for (let x = 0; x < state.selectedPattern.size; x += 1) {
-        const index = indexFor(x, y);
-        if (!state.placed[index]) continue;
-        const heat = state.heat[index] || 0;
+    for (let y = 0; y < boardRows(); y += 1) {
+      for (let x = 0; x < boardCols(); x += 1) {
+        const index2 = indexFor(x, y);
+        if (!state.placed[index2]) continue;
+        const heat = state.heat[index2] || 0;
         if (heat < 8) continue;
         ctx.globalAlpha = clamp(heat / 140, 0, 0.5);
         ctx.fillStyle = heat > 124 ? "#e7645f" : heat > 96 ? "#d99b3d" : "#57b8a7";
@@ -4364,45 +4740,40 @@
   }
   function drawPreview() {
     setupHiDpiCanvas(previewCanvas, preview);
-    const { w, h, cell, x0, y0 } = getPreviewLayout();
-    preview.clearRect(0, 0, w, h);
-    preview.fillStyle = "#f7f8fa";
-    preview.fillRect(0, 0, w, h);
+    const { w, h, cols, rows: rowCount } = getPreviewLayout();
     const pattern = state.selectedPattern;
-    preview.save();
-    preview.fillStyle = "#fbfcfe";
-    roundedPath(preview, x0 - 8, y0 - 8, cell * pattern.size + 16, cell * pattern.size + 16, 8);
-    preview.fill();
     const rows = getEffectiveTargetRows(pattern);
-    for (let y = 0; y < pattern.size; y += 1) {
-      for (let x = 0; x < pattern.size; x += 1) {
-        const code = rows[y]?.[x] || ".";
-        const px = x0 + x * cell;
-        const py = y0 + y * cell;
-        if (code === ".") {
-          preview.fillStyle = (x + y) % 2 === 0 ? "#e8edf3" : "#eef2f7";
-          preview.fillRect(px, py, cell - 1, cell - 1);
-          continue;
-        }
-        preview.fillStyle = palette[code] || "#bbb";
-        preview.fillRect(px, py, cell - 1, cell - 1);
-      }
-    }
-    preview.strokeStyle = "rgba(120, 132, 148, 0.3)";
-    preview.lineWidth = 1;
-    preview.strokeRect(x0 - 0.5, y0 - 0.5, cell * pattern.size + 1, cell * pattern.size + 1);
-    preview.restore();
+    const theme = currentBackgroundTheme();
+    drawPixelPatternPreview(preview, {
+      width: w,
+      height: h,
+      cols,
+      rows: rowCount,
+      pixels: rows,
+      colors: palette,
+      brand: theme.brand,
+      table: theme.table
+    });
   }
   function getPreviewLayout() {
     const rect = previewCanvas.getBoundingClientRect();
     const w = rect.width;
     const h = rect.height;
-    const size = state.selectedPattern.size;
-    const boardSide = Math.max(1, Math.min(w - 28, h - 28));
-    const cell = boardSide / size;
-    const x0 = (w - boardSide) / 2;
-    const y0 = (h - boardSide) / 2;
-    return { w, h, cell, x0, y0, size };
+    const cols = boardCols();
+    const rows = boardRows();
+    const layout = pixelPatternPreviewLayout(w, h, cols, rows);
+    return {
+      w,
+      h,
+      cell: layout.cell,
+      x0: layout.boardX,
+      y0: layout.boardY,
+      cols,
+      rows,
+      boardW: layout.boardW,
+      boardH: layout.boardH,
+      size: Math.max(cols, rows)
+    };
   }
   function previewCellFromPoint(clientX, clientY) {
     const rect = previewCanvas.getBoundingClientRect();
@@ -4410,10 +4781,10 @@
     const y = clientY - rect.top;
     const layout = getPreviewLayout();
     if (x < layout.x0 || y < layout.y0) return null;
-    if (x > layout.x0 + layout.cell * layout.size || y > layout.y0 + layout.cell * layout.size) return null;
+    if (x > layout.x0 + layout.boardW || y > layout.y0 + layout.boardH) return null;
     return {
-      x: clamp(Math.floor((x - layout.x0) / layout.cell), 0, layout.size - 1),
-      y: clamp(Math.floor((y - layout.y0) / layout.cell), 0, layout.size - 1)
+      x: clamp(Math.floor((x - layout.x0) / layout.cell), 0, layout.cols - 1),
+      y: clamp(Math.floor((y - layout.y0) / layout.cell), 0, layout.rows - 1)
     };
   }
   function updateInspectAssistCanvases() {
@@ -4427,23 +4798,20 @@
   function inspectFocusCell() {
     const pointerCell = boardCellFromPoint(state.pointer.x, state.pointer.y);
     if (pointerCell) return pointerCell;
+    const cols = boardCols();
     if (state.spill) {
-      const index2 = state.spill.index;
-      const size = state.selectedPattern.size;
-      return { x: index2 % size, y: Math.floor(index2 / size) };
+      const index3 = state.spill.index;
+      return { x: index3 % cols, y: Math.floor(index3 / cols) };
     }
     if (state.errors.length) {
-      const index2 = state.errors[0].index;
-      const size = state.selectedPattern.size;
-      return { x: index2 % size, y: Math.floor(index2 / size) };
+      const index3 = state.errors[0].index;
+      return { x: index3 % cols, y: Math.floor(index3 / cols) };
     }
-    const index = state.placed.findIndex(Boolean);
-    if (index >= 0) {
-      const size = state.selectedPattern.size;
-      return { x: index % size, y: Math.floor(index / size) };
+    const index2 = state.placed.findIndex(Boolean);
+    if (index2 >= 0) {
+      return { x: index2 % cols, y: Math.floor(index2 / cols) };
     }
-    const center = Math.floor((state.selectedPattern.size - 1) / 2);
-    return { x: center, y: center };
+    return { x: Math.floor((cols - 1) / 2), y: Math.floor((boardRows() - 1) / 2) };
   }
   function drawInspectZoomCanvas(canvas) {
     const ctx = canvas.getContext("2d");
@@ -4454,7 +4822,8 @@
     const h = Math.max(1, rect.height);
     ctx.clearRect(0, 0, w, h);
     const focus = inspectFocusCell();
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     const radius = 3;
     const gridCount = radius * 2 + 1;
     const padding = 10;
@@ -4482,10 +4851,10 @@
         const by = focus.y + gy - radius;
         const px = x0 + gx * cell;
         const py = y0 + gy * cell;
-        const inRange = bx >= 0 && by >= 0 && bx < size && by < size;
+        const inRange = bx >= 0 && by >= 0 && bx < cols && by < rows;
         if (!inRange) continue;
-        const index = indexFor(bx, by);
-        const placed = state.placed[index];
+        const index2 = indexFor(bx, by);
+        const placed = state.placed[index2];
         const target = targetAt(bx, by);
         const cx = px + cell / 2;
         const cy = py + cell / 2;
@@ -4526,8 +4895,8 @@
           ctx.arc(cx, cy, beadR * 0.24, 0, Math.PI * 2);
           ctx.fill();
         }
-        if (state.showHints && errorMap.has(index)) {
-          const type = errorMap.get(index);
+        if (state.showHints && errorMap.has(index2)) {
+          const type = errorMap.get(index2);
           ctx.strokeStyle = type === "wrong" ? "rgba(220, 68, 76, 0.9)" : "rgba(217, 143, 48, 0.92)";
           ctx.lineWidth = 2;
           ctx.strokeRect(px + 1.5, py + 1.5, cell - 3, cell - 3);
@@ -4557,18 +4926,19 @@
     ctx.strokeStyle = "rgba(101, 115, 130, 0.28)";
     ctx.lineWidth = 1;
     ctx.stroke();
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     const cells = [];
-    let minX = size;
-    let minY = size;
+    let minX = cols;
+    let minY = rows;
     let maxX = -1;
     let maxY = -1;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const index = indexFor(x, y);
-        const code = state.placed[index];
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const index2 = indexFor(x, y);
+        const code = state.placed[index2];
         if (!code) continue;
-        cells.push({ x, y, index, code });
+        cells.push({ x, y, index: index2, code });
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x);
@@ -4600,9 +4970,9 @@
       });
     });
     cells.forEach((cellData) => {
-      const { x, y, code, index } = cellData;
+      const { x, y, code, index: index2 } = cellData;
       const centerA = centerMap.get(`${x}:${y}`);
-      const heatA = clamp((state.heat[index] || 0) + 68, 0, 138);
+      const heatA = clamp((state.heat[index2] || 0) + 68, 0, 138);
       const colorA = fusedColor(code, heatA);
       const drawBridge = (nx, ny) => {
         if (!has(nx, ny)) return;
@@ -4623,9 +4993,9 @@
       drawBridge(x, y + 1);
     });
     cells.forEach((cellData) => {
-      const { x, y, code, index } = cellData;
+      const { x, y, code, index: index2 } = cellData;
       const center = centerMap.get(`${x}:${y}`);
-      const heat = clamp((state.heat[index] || 0) + 68, 0, 138);
+      const heat = clamp((state.heat[index2] || 0) + 68, 0, 138);
       const color = fusedColor(code, heat);
       const edge = mixColor(color, "#ffffff", 0.18);
       const shape = boardFusionShapeProfile(x, y);
@@ -4689,14 +5059,16 @@
     const view = boardViewTransform(layout);
     const ux = (x - (view.cx + view.panX)) / view.scale + view.cx;
     const uy = (y - (view.cy + view.panY)) / view.scale + view.cy;
-    const { boardX, boardY, boardSize, cell } = layout;
+    const { boardX, boardY, cell } = layout;
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
     const pad = Math.max(5, cell * 0.24);
-    if (ux < boardX - pad || uy < boardY - pad || ux > boardX + boardSize + pad || uy > boardY + boardSize + pad) return null;
-    const clampedX = clamp(ux, boardX, boardX + boardSize - 0.01);
-    const clampedY = clamp(uy, boardY, boardY + boardSize - 0.01);
+    if (ux < boardX - pad || uy < boardY - pad || ux > boardX + boardW + pad || uy > boardY + boardH + pad) return null;
+    const clampedX = clamp(ux, boardX, boardX + boardW - 0.01);
+    const clampedY = clamp(uy, boardY, boardY + boardH - 0.01);
     return {
-      x: clamp(Math.floor((clampedX - boardX) / cell), 0, state.selectedPattern.size - 1),
-      y: clamp(Math.floor((clampedY - boardY) / cell), 0, state.selectedPattern.size - 1)
+      x: clamp(Math.floor((clampedX - boardX) / cell), 0, boardCols() - 1),
+      y: clamp(Math.floor((clampedY - boardY) / cell), 0, boardRows() - 1)
     };
   }
   function pointInTray(x, y) {
@@ -4727,9 +5099,10 @@
     const total = getTargetTotal();
     if (!total) return 1;
     let correct = 0;
-    const size = state.selectedPattern.size;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
+    const cols = boardCols();
+    const rows = boardRows();
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
         const target = targetAt(x, y);
         if (target && state.placed[indexFor(x, y)] === target) correct += 1;
       }
@@ -4742,8 +5115,8 @@
     let ideal = 0;
     let over = 0;
     let heated = 0;
-    state.heat.forEach((heat, index) => {
-      if (!state.placed[index]) return;
+    state.heat.forEach((heat, index2) => {
+      if (!state.placed[index2]) return;
       if (heat > 8) heated += 1;
       if (heat >= 38) bonded += 1;
       if (heat >= 52 && heat <= 96) ideal += 1;
@@ -4822,21 +5195,25 @@
     roundedPath(ctx, x, y, size, size, 16);
     ctx.fill();
     const pattern = state.selectedPattern;
-    const cell = size / pattern.size;
+    const cols = boardCols(pattern);
+    const rows = boardRows(pattern);
+    const cell = size / Math.max(cols, rows);
+    const gx = x + (size - cell * cols) / 2;
+    const gy = y + (size - cell * rows) / 2;
     const hasPlaced = placedCount2() > 0;
-    for (let py = 0; py < pattern.size; py += 1) {
-      for (let px = 0; px < pattern.size; px += 1) {
-        const index = indexFor(px, py);
-        const code = hasPlaced ? state.placed[index] : targetAt(px, py);
-        const cx = x + px * cell + cell / 2;
-        const cy = y + py * cell + cell / 2;
+    for (let py = 0; py < rows; py += 1) {
+      for (let px = 0; px < cols; px += 1) {
+        const index2 = indexFor(px, py);
+        const code = hasPlaced ? state.placed[index2] : targetAt(px, py);
+        const cx = gx + px * cell + cell / 2;
+        const cy = gy + py * cell + cell / 2;
         ctx.strokeStyle = "rgba(117, 126, 139, 0.12)";
-        ctx.strokeRect(x + px * cell, y + py * cell, cell, cell);
+        ctx.strokeRect(gx + px * cell, gy + py * cell, cell, cell);
         if (!code) continue;
-        const heat = state.heat[index] || (state.phase === "finish" ? 66 : 0);
+        const heat = state.heat[index2] || (state.phase === "finish" ? 66 : 0);
         if (heat > 34 || state.phase === "finish") {
           ctx.fillStyle = fusedColor(code, Math.max(heat, 58));
-          roundedPath(ctx, x + px * cell + cell * 0.04, y + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.12);
+          roundedPath(ctx, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.12);
           ctx.fill();
         } else {
           drawBead(ctx, cx, cy, cell * 0.39, code, heat, false);
@@ -4952,9 +5329,9 @@
   }
   function onModalOpened(modalEl) {
     if (!modalEl) return;
-    const active = document.activeElement;
-    if (active && active !== document.body && !active.closest(".remap-modal")) {
-      state.modalReturnFocus = active;
+    const active2 = document.activeElement;
+    if (active2 && active2 !== document.body && !active2.closest(".remap-modal")) {
+      state.modalReturnFocus = active2;
     }
     document.body.classList.add("modal-open");
     const focusables = focusablesIn(modalEl);
@@ -4966,11 +5343,11 @@
     const el = state.modalReturnFocus;
     state.modalReturnFocus = null;
     if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
-    const active = document.activeElement;
-    if (active && active.closest && active.closest(".remap-modal")) {
+    const active2 = document.activeElement;
+    if (active2 && active2.closest && active2.closest(".remap-modal")) {
       const anchor = [...document.querySelectorAll(".topbar button:not([disabled])")].find((b) => b.offsetParent !== null);
       if (anchor && typeof anchor.focus === "function") anchor.focus();
-      else if (typeof active.blur === "function") active.blur();
+      else if (typeof active2.blur === "function") active2.blur();
     }
   }
   var confirmResolve = null;
@@ -5109,7 +5486,9 @@
   var PATHS = {
     // —— Navigation / topbar ——
     "arrow-left": '<path d="m12 19l-7-7l7-7m7 7H5"/>',
+    "arrow-right": '<path d="m12 5l7 7l-7 7m-7-7h14"/>',
     "chevron-right": '<path d="m9 18l6-6l-6-6"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21l-4.3-4.3"/>',
     settings: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
     "refresh-cw": '<path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
@@ -5191,12 +5570,12 @@
 
   // src/workflow.js
   function workflowSummary(phases2, phaseId) {
-    const index = Math.max(0, phases2.findIndex((phase) => phase.id === phaseId));
+    const index2 = Math.max(0, phases2.findIndex((phase) => phase.id === phaseId));
     return {
-      index,
+      index: index2,
       total: phases2.length,
-      current: phases2[index]?.name || "",
-      next: phases2[index + 1]?.name || ""
+      current: phases2[index2]?.name || "",
+      next: phases2[index2 + 1]?.name || ""
     };
   }
 
@@ -5298,7 +5677,8 @@
       return;
     }
     const pattern = state.selectedPattern;
-    const size = pattern.size;
+    const cols = boardCols(pattern);
+    const rowCount = boardRows(pattern);
     const ctx = sideReferenceCtx;
     const rect = sideReferenceCanvas.getBoundingClientRect();
     const cssW = Math.max(1, Math.round(rect.width || 300));
@@ -5319,31 +5699,20 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const w = cssW;
     const h = cssH;
-    const cell = Math.max(2, Math.floor(Math.min((w - 24) / size, (h - 24) / size)));
-    const gridSize = cell * size;
-    const x0 = Math.floor((w - gridSize) / 2);
-    const y0 = Math.floor((h - gridSize) / 2);
     const rows = effective.rows;
-    ctx.fillStyle = "#f7f9fc";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x0 - 6, y0 - 6, gridSize + 12, gridSize + 12);
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        ctx.strokeStyle = "rgba(100, 109, 126, 0.16)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x0 + x * cell, y0 + y * cell, cell, cell);
-        const code = rows[y]?.[x] || ".";
-        if (code === ".") continue;
-        ctx.fillStyle = palette[code];
-        ctx.fillRect(x0 + x * cell + 0.5, y0 + y * cell + 0.5, Math.max(1, cell - 1), Math.max(1, cell - 1));
-      }
-    }
-    ctx.strokeStyle = "rgba(79, 92, 116, 0.32)";
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(x0 - 6, y0 - 6, gridSize + 12, gridSize + 12);
+    const theme = currentBackgroundTheme();
+    drawPixelPatternPreview(ctx, {
+      width: w,
+      height: h,
+      cols,
+      rows: rowCount,
+      pixels: rows,
+      colors: palette,
+      brand: theme.brand,
+      table: theme.table
+    });
     if (els.sideReferenceMeta) {
-      els.sideReferenceMeta.textContent = `${pattern.name} \xB7 ${size}x${size}`;
+      els.sideReferenceMeta.textContent = `${pattern.name} \xB7 ${cols}x${rowCount}`;
     }
     if (els.sideReferenceLegend) {
       const counts = getTargetCounts(pattern);
@@ -5407,21 +5776,22 @@
       canvas.height = dim;
     }
     const ctx = canvas.getContext("2d");
-    const cell = dim / pattern.size;
+    const cols = boardCols(pattern);
+    const rowCount = boardRows(pattern);
     const rows = pattern.rows || [];
     ctx.clearRect(0, 0, dim, dim);
-    ctx.fillStyle = "#f4f6f8";
-    ctx.fillRect(0, 0, dim, dim);
-    rows.forEach((row, y) => {
-      [...row].forEach((code, x) => {
-        if (code === ".") return;
-        const px = Math.round(x * cell);
-        const py = Math.round(y * cell);
-        const pw = Math.round((x + 1) * cell) - px;
-        const ph = Math.round((y + 1) * cell) - py;
-        ctx.fillStyle = palette[code];
-        ctx.fillRect(px, py, pw, ph);
-      });
+    const theme = currentBackgroundTheme();
+    drawPixelPatternPreview(ctx, {
+      width: dim,
+      height: dim,
+      cols,
+      rows: rowCount,
+      pixels: rows,
+      colors: palette,
+      brand: theme.brand,
+      table: theme.table,
+      compact: true,
+      shadow: false
     });
   }
   function resetPhaseViewport() {
@@ -5439,8 +5809,8 @@
     if (!els.workflowProgress) return;
     const activeIndex = phases.findIndex((phase) => phase.id === state.phase);
     els.workflowProgress.innerHTML = "";
-    phases.forEach((phase, index) => {
-      if (index > 0) {
+    phases.forEach((phase, index2) => {
+      if (index2 > 0) {
         const sep = document.createElement("span");
         sep.className = "workflow-sep";
         sep.setAttribute("aria-hidden", "true");
@@ -5448,12 +5818,12 @@
       }
       const item = document.createElement("button");
       item.type = "button";
-      item.className = `workflow-step${index === activeIndex ? " active" : ""}${index < activeIndex ? " done" : ""}`;
-      item.setAttribute("aria-label", `${index + 1} ${phase.name}`);
-      item.innerHTML = `<span class="step-dot">${index + 1}</span><span>${phase.name}</span>`;
-      item.disabled = index >= activeIndex;
+      item.className = `workflow-step${index2 === activeIndex ? " active" : ""}${index2 < activeIndex ? " done" : ""}`;
+      item.setAttribute("aria-label", `${index2 + 1} ${phase.name}`);
+      item.innerHTML = `<span class="step-dot">${index2 + 1}</span><span>${phase.name}</span>`;
+      item.disabled = index2 >= activeIndex;
       item.addEventListener("click", async () => {
-        if (index >= activeIndex) return;
+        if (index2 >= activeIndex) return;
         const target = phase.id;
         if (target === "choose") {
           if ((placedCount2() > 0 || state.fusedPieces.length > 0) && !await confirmModal({ message: "\u56DE\u5230\u9009\u56FE\u4F1A\u79BB\u5F00\u5F53\u524D\u4F5C\u54C1\u7684\u8FDB\u5EA6\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u56DE\u5230\u9009\u56FE", danger: true })) {
@@ -5499,7 +5869,7 @@
     if (els.currentPatternMeta) {
       const counts = getTargetCounts();
       const colorCount = Object.keys(counts).length;
-      els.currentPatternMeta.textContent = `${state.selectedPattern.size}\xD7${state.selectedPattern.size} \xB7 ${getTargetTotal()}\u9897 \xB7 ${colorCount}\u8272`;
+      els.currentPatternMeta.textContent = `${boardCols()}\xD7${boardRows()} \xB7 ${getTargetTotal()}\u9897 \xB7 ${colorCount}\u8272`;
     }
     if (els.currentPatternThumb) {
       drawPatternThumb(els.currentPatternThumb, state.selectedPattern);
@@ -5528,7 +5898,7 @@
     const counts = getTargetCounts();
     if (els.mobileSelectionName) els.mobileSelectionName.textContent = state.selectedPattern.name;
     if (els.mobileSelectionMeta) {
-      els.mobileSelectionMeta.textContent = `${state.selectedPattern.size}\xD7${state.selectedPattern.size} \xB7 ${getTargetTotal()}\u9897 \xB7 ${Object.keys(counts).length}\u8272`;
+      els.mobileSelectionMeta.textContent = `${boardCols()}\xD7${boardRows()} \xB7 ${getTargetTotal()}\u9897 \xB7 ${Object.keys(counts).length}\u8272`;
     }
     if (els.mobileSelectionThumb) drawPatternThumb(els.mobileSelectionThumb, state.selectedPattern);
   }
@@ -5748,7 +6118,13 @@
     const counts = getTargetCounts();
     const placedCounts = getPlacedCounts();
     const allCodes = allColorCodes();
-    const codes = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes;
+    const neededCodes = isMobile ? [] : allCodes.filter((code) => (counts[code] || 0) > 0);
+    const neededSet = new Set(neededCodes);
+    const rest = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes.filter((code) => !neededSet.has(code));
+    const codes = isMobile ? rest : [...neededCodes, ...rest];
+    const hasNeededGroup = !isMobile && neededCodes.length > 0;
+    const neededHeaderAt = hasNeededGroup ? 0 : -1;
+    const restHeaderAt = hasNeededGroup ? neededCodes.length : -1;
     const key = [
       "place",
       isMobile ? "m" : "d",
@@ -5761,7 +6137,16 @@
     if (key === paletteRenderKey) return;
     paletteRenderKey = key;
     els.colorPalette.innerHTML = "";
-    codes.forEach((code) => {
+    const addHeader = (text) => {
+      const h = document.createElement("div");
+      h.className = "palette-group-head";
+      h.setAttribute("aria-hidden", "true");
+      h.textContent = text;
+      els.colorPalette.appendChild(h);
+    };
+    codes.forEach((code, idx) => {
+      if (idx === neededHeaderAt) addHeader(`\u672C\u56FE\u7528\u8272 \xB7 ${neededCodes.length}`);
+      if (idx === restHeaderAt) addHeader("\u5168\u90E8\u989C\u8272");
       const placed = placedCounts[code] || 0;
       const needed = counts[code] || 0;
       const inPattern = needed > 0;
@@ -5970,18 +6355,20 @@
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "#f3f5f8";
     ctx.fillRect(0, 0, w, h);
-    const size = item.size || state.selectedPattern.size || 16;
+    const cols = item.width || item.size || 30;
+    const rowCount = item.height || item.size || 30;
     const placed = item.placed || [];
     const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
     const pad = 10;
-    const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
-    const gridSize = cell * size;
-    const x0 = Math.floor((w - gridSize) / 2);
-    const y0 = Math.floor((h - gridSize) / 2);
+    const cell = Math.floor(Math.min((w - pad * 2) / cols, (h - pad * 2) / rowCount));
+    const gridW = cell * cols;
+    const gridH = cell * rowCount;
+    const x0 = Math.floor((w - gridW) / 2);
+    const y0 = Math.floor((h - gridH) / 2);
     const cellCode = (x, y) => {
-      if (x < 0 || y < 0 || x >= size || y >= size) return null;
+      if (x < 0 || y < 0 || x >= cols || y >= rowCount) return null;
       if (placed.length) {
-        const c = placed[y * size + x];
+        const c = placed[y * cols + x];
         return c && c !== "." ? c : null;
       }
       if (fallback) {
@@ -5990,8 +6377,8 @@
       }
       return null;
     };
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
+    for (let y = 0; y < rowCount; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
         const code = cellCode(x, y);
         if (!code) continue;
         const px = x0 + x * cell;
@@ -6100,7 +6487,7 @@
     const collection2 = uiActions.getCollection?.() || [];
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
-    if (els.patternMeta) els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
+    if (els.patternMeta) els.patternMeta.textContent = `${boardCols()}x${boardRows()}`;
     if (els.targetCount) els.targetCount.textContent = `${getTargetTotal()} \u9897 / ${colorCount} \u8272`;
     if (els.collectionCount) els.collectionCount.textContent = String(collection2.length);
     if (els.settingsDot) els.settingsDot.hidden = collection2.length === 0;
@@ -6118,17 +6505,30 @@
     if (els.customImageControls) {
       els.customImageControls.hidden = !state.selectedPattern?.sourceImageDataUrl;
     }
-    if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
-    if (els.topToolStyleSelect) {
-      if (!els.topToolStyleSelect.options.length) {
-        const options = Object.entries(toolStyles).map(([id, style]) => `<option value="${id}">${style.name}</option>`).join("");
-        els.topToolStyleSelect.innerHTML = options;
+    if (els.bgThemeChips) {
+      if (!els.bgThemeChips.children.length) {
+        els.bgThemeChips.innerHTML = Object.entries(backgroundThemes).map(([id, t]) => `<button type="button" role="radio" class="swatch-pick" data-theme="${id}" aria-checked="${id === state.bgTheme}" aria-label="${t.name}\u4E3B\u9898" title="${t.name}">
+          <span class="swatch-pick-chip" style="--a:${t.pageBase};--b:${t.brand}"></span>
+          <span class="swatch-pick-name">${t.name}</span>
+        </button>`).join("");
       }
-      els.topToolStyleSelect.value = state.toolStyle;
+      for (const b of els.bgThemeChips.children) {
+        b.setAttribute("aria-checked", b.dataset.theme === state.bgTheme ? "true" : "false");
+      }
     }
-    const toolStyleField = els.topToolStyleSelect?.closest(".tool-style-picker");
-    if (toolStyleField) {
-      toolStyleField.style.display = state.appMode === "gallery" || useMobileDirectPlacement() ? "none" : "";
+    if (els.toolStyleChips) {
+      if (!els.toolStyleChips.children.length) {
+        els.toolStyleChips.innerHTML = Object.entries(toolStyles).map(([id, s]) => `<button type="button" role="radio" class="swatch-pick tool-pick" data-tool="${id}" aria-checked="${id === state.toolStyle}" aria-label="${s.name}\u6B3E\u5DE5\u5177" title="${s.name}">
+          <span class="swatch-pick-chip" style="--a:${s.secondary};--b:${s.primary};--c:${s.accent}"></span>
+          <span class="swatch-pick-name">${s.name}</span>
+        </button>`).join("");
+      }
+      for (const b of els.toolStyleChips.children) {
+        b.setAttribute("aria-checked", b.dataset.tool === state.toolStyle ? "true" : "false");
+      }
+    }
+    if (els.toolStyleField) {
+      els.toolStyleField.style.display = state.appMode === "gallery" || useMobileDirectPlacement() ? "none" : "";
     }
     if (els.statusLine) {
       const phaseObj = phases.find((p) => p.id === state.phase);
@@ -6145,6 +6545,102 @@
     if (els.colorPalette) els.colorPalette.style.display = showRightPanelUi ? "" : "none";
     if (els.colorMeta) els.colorMeta.style.display = showRightPanelUi ? "" : "none";
     if (els.toolMeta) els.toolMeta.style.display = showToolUi ? "" : "none";
+  }
+
+  // src/start-showcase.js
+  var FEATURED_IDS = ["berry-cat", "strawberry", "panda", "boba", "moon"];
+  var ROTATE_MS = 4200;
+  var featured = [];
+  var index = 0;
+  var timer = null;
+  var active = false;
+  var onPick = null;
+  function resolveFeatured() {
+    const byId = new Map(patterns.map((p) => [p.id, p]));
+    const picked = FEATURED_IDS.map((id) => byId.get(id)).filter(Boolean);
+    return picked.length ? picked : patterns.slice(0, 5);
+  }
+  function buildDots() {
+    const host = els.startShowcaseDots;
+    if (!host) return;
+    host.textContent = "";
+    featured.forEach((_, i) => {
+      const dot = document.createElement("span");
+      dot.className = "start-showcase-dot";
+      host.appendChild(dot);
+    });
+  }
+  function paint() {
+    const pattern = featured[index];
+    if (!pattern || !els.startShowcaseCanvas) return;
+    drawPatternThumb(els.startShowcaseCanvas, pattern);
+    if (els.startShowcaseName) els.startShowcaseName.textContent = pattern.name;
+    if (els.startShowcaseCraft) {
+      const craft = pattern.craft ? `${pattern.craft} \xB7 ` : "";
+      els.startShowcaseCraft.textContent = `${craft}${pattern.width}\xD7${pattern.height}`;
+    }
+    if (els.startShowcaseDots) {
+      const dots = els.startShowcaseDots.children;
+      for (let i = 0; i < dots.length; i += 1) {
+        dots[i].classList.toggle("is-active", i === index);
+      }
+    }
+  }
+  function show(next, { animate = true } = {}) {
+    index = (next + featured.length) % featured.length;
+    const canvas = els.startShowcaseCanvas;
+    if (!canvas || !animate || prefersReducedMotion()) {
+      paint();
+      return;
+    }
+    canvas.classList.add("is-swapping");
+    window.setTimeout(() => {
+      paint();
+      canvas.classList.remove("is-swapping");
+    }, 160);
+  }
+  function stopTimer() {
+    if (timer) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+  }
+  function startTimer() {
+    stopTimer();
+    if (!active || prefersReducedMotion() || featured.length < 2) return;
+    timer = window.setInterval(() => show(index + 1), ROTATE_MS);
+  }
+  function initStartShowcase(options = {}) {
+    onPick = typeof options.onPick === "function" ? options.onPick : null;
+    featured = resolveFeatured();
+    if (!featured.length) return;
+    buildDots();
+    els.startShowcaseDots?.addEventListener("click", (e) => {
+      const dots = Array.from(els.startShowcaseDots.children);
+      const i = dots.indexOf(e.target.closest(".start-showcase-dot"));
+      if (i >= 0) {
+        e.stopPropagation();
+        show(i);
+        startTimer();
+      }
+    });
+    els.startShowcaseButton?.addEventListener("click", () => {
+      const pattern = featured[index];
+      if (pattern && onPick) onPick(pattern);
+    });
+    paint();
+  }
+  function refreshShowcaseTheme() {
+    if (featured.length) paint();
+  }
+  function setShowcaseActive(isActive) {
+    active = !!isActive;
+    if (active) {
+      paint();
+      startTimer();
+    } else {
+      stopTimer();
+    }
   }
 
   // src/pattern-code.js
@@ -6198,7 +6694,6 @@
     const width = normalizeDimension(pattern?.width, normalizeDimension(pattern?.size, firstRowWidth));
     const height = normalizeDimension(pattern?.height, normalizeDimension(pattern?.size, rows.length));
     if (!width || !height || !rows.length) throw new Error("Pattern code needs a non-empty pattern.");
-    if (width !== height) throw new Error("Pattern code currently supports square patterns only.");
     if (rows.length !== height) throw new Error("Pattern row count does not match pattern height.");
     rows.forEach((row) => {
       if (rowToCells(row).length !== width) {
@@ -6304,9 +6799,7 @@
     if (!sizeMatch) throw new Error("Pattern code has an invalid size.");
     const width = Number.parseInt(sizeMatch[1], 10);
     const height = Number.parseInt(sizeMatch[2], 10);
-    if (!width || !height || width !== height) {
-      throw new Error("Pattern code currently supports square patterns only.");
-    }
+    if (!width || !height) throw new Error("Pattern code has invalid dimensions.");
     const paletteCodes = parts[2] === EMPTY_PALETTE ? [] : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);
     const values = decodeRuns(parts[3], paletteCodes.length, width * height);
     const rows = [];
@@ -6321,7 +6814,7 @@
     return {
       id: options.id || "shared-pattern",
       name: options.name || "\u5206\u4EAB\u56FE\u7EB8",
-      size: width,
+      size: Math.max(width, height),
       width,
       height,
       craft: options.craft || "\u94A5\u5319\u6263",
@@ -6399,12 +6892,22 @@
     if (!els.galleryGrid || !els.galleryEmpty) return;
     els.galleryGrid.innerHTML = "";
     const items = Array.isArray(galleryItems) ? galleryItems : [];
+    if (items.length === 0 && !galleryLoaded) {
+      els.galleryEmpty.hidden = true;
+      els.galleryGrid.innerHTML = Array.from({ length: 8 }, () => `
+      <article class="gallery-card gallery-card-skeleton" aria-hidden="true">
+        <div class="gallery-skeleton-thumb"></div>
+        <div class="gallery-skeleton-meta">
+          <span class="gallery-skeleton-line"></span>
+          <span class="gallery-skeleton-line short"></span>
+        </div>
+      </article>`).join("");
+      return;
+    }
     els.galleryEmpty.hidden = items.length > 0;
     if (items.length === 0) {
       const galleryIcon = icon("image", { size: 40, strokeWidth: 1.8, class: "gallery-empty-icon" });
-      if (!galleryLoaded) {
-        els.galleryEmpty.innerHTML = `<p class="gallery-empty-text">\u6B63\u5728\u8BFB\u53D6\u753B\u5ECA\u2026</p>`;
-      } else if (galleryError) {
+      if (galleryError) {
         els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">\u753B\u5ECA\u8BFB\u53D6\u5931\u8D25</p><button type="button" class="ghost-button" data-gallery-retry>\u70B9\u6B64\u91CD\u8BD5</button>`;
         els.galleryEmpty.querySelector("[data-gallery-retry]")?.addEventListener("click", () => {
           void loadGallery();
@@ -6425,7 +6928,7 @@
       card.className = "gallery-card";
       const safeName = escapeHtml(item.name || pattern.name || "\u753B\u5ECA\u56FE\u7EB8");
       const safeAuthor = escapeHtml(item.author || "\u533F\u540D\u6295\u7A3F");
-      const safeSize = escapeHtml(`${pattern.size}x${pattern.size}`);
+      const safeSize = escapeHtml(`${pattern.width || pattern.size}x${pattern.height || pattern.size}`);
       card.innerHTML = `
       <button type="button" class="gallery-card-body" aria-label="\u6253\u5F00 ${safeName}">
         <canvas class="gallery-thumb" width="180" height="180" aria-hidden="true"></canvas>
@@ -6577,12 +7080,20 @@
     return false;
   }
   function applyImportedPattern(decoded, name = "\u5BFC\u5165\u56FE\u7EB8") {
-    const seedText = `${name}|${decoded.size}|${(decoded.rows || []).join("")}`;
+    const width = decoded.width || decoded.size;
+    const height = decoded.height || decoded.size;
+    const seedText = `${name}|${width}x${height}|${(decoded.rows || []).join("")}`;
     const imported = {
       id: `custom-${Date.now()}`,
       name,
       size: decoded.size,
+      width,
+      height,
       rows: decoded.rows,
+      sourceRows: decoded.rows,
+      sourceSize: decoded.size,
+      sourceWidth: width,
+      sourceHeight: height,
       craft: decoded.craft || state.craft,
       note: pickCustomPatternNote("imported", decoded.size, seedText)
     };
@@ -6593,7 +7104,7 @@
     galleryActions.loadPattern(imported, false);
     state.patternsDirty = true;
     galleryActions.uiRenderUI();
-    showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
+    showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${width}x${height}\u3002`);
     return imported;
   }
   async function requestCloudShareForPattern(pattern, options = {}) {
@@ -6657,976 +7168,28 @@
     }
   }
 
-  // src/draw.js
-  var drawActions = {
-    loadPattern: () => {
-    },
-    setAppMode: () => {
-    },
-    openSettingsModal: () => {
-    },
-    openGallerySubmitModal: () => {
-    },
-    importPatternCode: async () => false,
-    autoCopyText: async () => false,
-    requestCloudShareForPattern: async () => null
-  };
-  function setDrawActions(actions) {
-    Object.assign(drawActions, actions);
+  // src/board-layout.js
+  function tileKey(tx, ty) {
+    return `${tx},${ty}`;
   }
-  function getDrawKeyboardNav() {
-    return drawKbdNav;
-  }
-  var drawState = {
-    size: 24,
-    width: 24,
-    height: 24,
-    tool: "brush",
-    shapeMode: "rect",
-    selectedColor: "K",
-    grid: [],
-    drawing: false,
-    lastCellKey: "",
-    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
-    recentColors: [],
-    undoStack: [],
-    undoStrokeSnapshotTaken: false,
-    shapeDrag: null,
-    shapeDragEnd: null
-  };
-  var drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
-  var drawPointers = {};
-  var drawGesture = null;
-  var drawRenderKey = "";
-  var minDrawDimension = 3;
-  var maxDrawDimension = 100;
-  function normalizeDrawDimension(value, fallback = 24) {
-    const parsed = Number.parseInt(value, 10);
-    const fallbackValue = Number.parseInt(fallback, 10);
-    if (!Number.isFinite(parsed)) {
-      return clamp(Number.isFinite(fallbackValue) ? fallbackValue : 24, minDrawDimension, maxDrawDimension);
-    }
-    return clamp(parsed, minDrawDimension, maxDrawDimension);
-  }
-  function normalizeDrawSizeValues(widthValue, heightValue, fallbackWidth = drawWidth(), fallbackHeight = drawHeight()) {
-    return {
-      width: normalizeDrawDimension(widthValue, fallbackWidth),
-      height: normalizeDrawDimension(heightValue, fallbackHeight)
-    };
-  }
-  function drawWidth() {
-    return drawState.width || drawState.size || 24;
-  }
-  function drawHeight() {
-    return drawState.height || drawState.size || 24;
-  }
-  function drawSquareSize() {
-    return Math.max(drawWidth(), drawHeight());
-  }
-  function createDrawGrid(width, height = width, fill = ".") {
-    return Array(width * height).fill(fill);
-  }
-  function drawIndex(x, y, width = drawWidth()) {
-    return y * width + x;
-  }
-  function recordRecentColor(code) {
-    if (!code || code === ".") return false;
-    const arr = drawState.recentColors;
-    const i = arr.indexOf(code);
-    if (i === 0) return false;
-    if (i !== -1) arr.splice(i, 1);
-    arr.unshift(code);
-    if (arr.length > 5) arr.length = 5;
-    return true;
-  }
-  function ensureDrawPaletteColor() {
-    const codes = allColorCodes();
-    if (!codes.length) return;
-    if (!codes.includes(drawState.selectedColor)) {
-      drawState.selectedColor = codes[0];
-    }
-  }
-  function ensureDrawGrid() {
-    const width = drawWidth();
-    const height = drawHeight();
-    drawState.size = drawSquareSize();
-    if (drawState.grid.length !== width * height) {
-      drawState.grid = createDrawGrid(width, height);
-    }
-  }
-  function getDrawGeometry() {
-    const canvas = els.drawCanvas;
-    if (!canvas) return null;
-    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
-    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
-    const width = drawWidth();
-    const height = drawHeight();
-    const cell = Math.floor(Math.min(cssW / width, cssH / height));
-    const gridW = cell * width;
-    const gridH = cell * height;
-    const gridSize = Math.max(gridW, gridH);
-    const x0 = Math.floor((cssW - gridW) / 2);
-    const y0 = Math.floor((cssH - gridH) / 2);
-    const cx = x0 + gridW / 2;
-    const cy = y0 + gridH / 2;
-    return { cssW, cssH, width, height, size: Math.max(width, height), cell, gridW, gridH, gridSize, x0, y0, cx, cy };
-  }
-  function clampDrawView() {
-    const v = drawState.view;
-    const g = getDrawGeometry();
-    if (g) v.scale = clamp(v.scale, 1, maxBoardScale(g));
-    if (v.scale <= 1.001) {
-      v.scale = 1;
-      v.panX = 0;
-      v.panY = 0;
-      return;
-    }
-    if (!g) return;
-    const maxPan = g.gridSize * (v.scale - 1) / 2 + 32;
-    v.panX = clamp(v.panX, -maxPan, maxPan);
-    v.panY = clamp(v.panY, -maxPan, maxPan);
-  }
-  function setDrawZoom(nextScale, nextPanX, nextPanY) {
-    const v = drawState.view;
-    const g = getDrawGeometry();
-    v.scale = clamp(nextScale, 1, maxBoardScale(g));
-    v.panX = nextPanX ?? v.panX;
-    v.panY = nextPanY ?? v.panY;
-    clampDrawView();
-    paintDrawCanvas();
-  }
-  function tickDrawKbdNav(dtSec) {
-    if (state.appMode !== "draw") return;
-    const nav = drawKbdNav;
-    const v = drawState.view;
-    const PAN_ACCEL = 2200;
-    const PAN_DECEL = 5e3;
-    const PAN_MAX = 560;
-    const ZOOM_ACCEL = 4.5;
-    const ZOOM_DECEL = 10;
-    const ZOOM_MAX = maxBoardScale(getDrawGeometry()) - 1;
-    const wantLeft = nav.left && !nav.right;
-    const wantRight = nav.right && !nav.left;
-    if (wantLeft) v.velX = Math.min(PAN_MAX, v.velX + PAN_ACCEL * dtSec);
-    else if (wantRight) v.velX = Math.max(-PAN_MAX, v.velX - PAN_ACCEL * dtSec);
-    else if (v.velX > 0) v.velX = Math.max(0, v.velX - PAN_DECEL * dtSec);
-    else if (v.velX < 0) v.velX = Math.min(0, v.velX + PAN_DECEL * dtSec);
-    const wantUp = nav.up && !nav.down;
-    const wantDown = nav.down && !nav.up;
-    if (wantUp) v.velY = Math.min(PAN_MAX, v.velY + PAN_ACCEL * dtSec);
-    else if (wantDown) v.velY = Math.max(-PAN_MAX, v.velY - PAN_ACCEL * dtSec);
-    else if (v.velY > 0) v.velY = Math.max(0, v.velY - PAN_DECEL * dtSec);
-    else if (v.velY < 0) v.velY = Math.min(0, v.velY + PAN_DECEL * dtSec);
-    const wantIn = nav.zoomIn && !nav.zoomOut;
-    const wantOut = nav.zoomOut && !nav.zoomIn;
-    if (wantIn) v.velScale = Math.min(ZOOM_MAX, v.velScale + ZOOM_ACCEL * dtSec);
-    else if (wantOut) v.velScale = Math.max(-ZOOM_MAX, v.velScale - ZOOM_ACCEL * dtSec);
-    else if (v.velScale > 0) v.velScale = Math.max(0, v.velScale - ZOOM_DECEL * dtSec);
-    else if (v.velScale < 0) v.velScale = Math.min(0, v.velScale + ZOOM_DECEL * dtSec);
-    const movingPan = Math.abs(v.velX) > 0.5 || Math.abs(v.velY) > 0.5;
-    const movingZoom = Math.abs(v.velScale) > 1e-3;
-    if (movingPan || movingZoom) {
-      const prevX = v.panX;
-      const prevY = v.panY;
-      setDrawZoom(v.scale + v.velScale * dtSec, v.panX + v.velX * dtSec, v.panY + v.velY * dtSec);
-      if (v.panX === prevX) v.velX = 0;
-      if (v.panY === prevY) v.velY = 0;
-    }
-  }
-  function startDrawGesture() {
-    const ids = Object.keys(drawPointers);
-    if (ids.length < 2) return;
-    const p1 = drawPointers[ids[0]];
-    const p2 = drawPointers[ids[1]];
-    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-    drawGesture = {
-      active: true,
-      startDist: Math.max(16, dist),
-      startScale: drawState.view.scale,
-      startPanX: drawState.view.panX,
-      startPanY: drawState.view.panY,
-      startMidX: mid.x,
-      startMidY: mid.y
-    };
-  }
-  function updateDrawGesture() {
-    if (!drawGesture?.active) return;
-    const ids = Object.keys(drawPointers);
-    if (ids.length < 2) return;
-    const p1 = drawPointers[ids[0]];
-    const p2 = drawPointers[ids[1]];
-    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-    const dist = Math.max(16, Math.hypot(p1.x - p2.x, p1.y - p2.y));
-    const g = getDrawGeometry();
-    if (!g) return;
-    const nextScale = clamp(drawGesture.startScale * (dist / drawGesture.startDist), 1, maxBoardScale(g));
-    const { cx, cy } = g;
-    const startScale = Math.max(1e-4, drawGesture.startScale);
-    const anchorX = (drawGesture.startMidX - cx - drawGesture.startPanX) / startScale + cx;
-    const anchorY = (drawGesture.startMidY - cy - drawGesture.startPanY) / startScale + cy;
-    drawState.view.panX = mid.x - cx - (anchorX - cx) * nextScale;
-    drawState.view.panY = mid.y - cy - (anchorY - cy) * nextScale;
-    drawState.view.scale = nextScale;
-    clampDrawView();
-    paintDrawCanvas();
-  }
-  function resetDrawView() {
-    drawState.view.scale = 1;
-    drawState.view.panX = 0;
-    drawState.view.panY = 0;
-  }
-  function setDrawSizeControlValue(width = drawWidth(), height = drawHeight()) {
-    const { width: normalizedWidth, height: normalizedHeight } = normalizeDrawSizeValues(width, height);
-    if (els.drawSizeValue) els.drawSizeValue.textContent = `${normalizedWidth}\xD7${normalizedHeight}`;
-    if (els.drawWidthInput) els.drawWidthInput.value = String(normalizedWidth);
-    if (els.drawHeightInput) els.drawHeightInput.value = String(normalizedHeight);
-  }
-  function resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol) {
-    const offsetX = Math.round(anchorCol / 2 * (newWidth - oldWidth));
-    const offsetY = Math.round(anchorRow / 2 * (newHeight - oldHeight));
-    const newGrid = [];
-    for (let ny = 0; ny < newHeight; ny += 1) {
-      for (let nx = 0; nx < newWidth; nx += 1) {
-        const ox = nx - offsetX;
-        const oy = ny - offsetY;
-        newGrid.push(
-          ox >= 0 && ox < oldWidth && oy >= 0 && oy < oldHeight ? oldGrid[oy * oldWidth + ox] : "."
-        );
-      }
-    }
-    return newGrid;
-  }
-  var drawResizePending = { width: 0, height: 0, anchorRow: 1, anchorCol: 1 };
-  function openDrawResizeModal(newWidth, newHeight) {
-    drawResizePending.width = newWidth;
-    drawResizePending.height = newHeight;
-    drawResizePending.anchorRow = 1;
-    drawResizePending.anchorCol = 1;
-    if (els.drawAnchorGrid) {
-      els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
-        const r = Number(btn.dataset.row);
-        const c = Number(btn.dataset.col);
-        btn.setAttribute("aria-pressed", r === 1 && c === 1 ? "true" : "false");
-      });
-    }
-    if (els.drawResizeModal) {
-      els.drawResizeModal.classList.add("show");
-      els.drawResizeModal.setAttribute("aria-hidden", "false");
-    }
-  }
-  function closeDrawResizeModal(restoreSelectValue) {
-    if (els.drawResizeModal) {
-      els.drawResizeModal.classList.remove("show");
-      els.drawResizeModal.setAttribute("aria-hidden", "true");
-    }
-    if (restoreSelectValue) setDrawSizeControlValue(drawWidth(), drawHeight());
-  }
-  var drawCodeMode = "import";
-  function openDrawCodeModal(mode, value = "") {
-    if (!els.drawCodeModal) return;
-    drawCodeMode = mode;
-    const isExport = mode === "export";
-    const isBead = mode === "import-bead";
-    if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "\u5BFC\u51FA\u56FE\u7EB8" : "\u5BFC\u5165\u56FE\u7EB8";
-    if (els.drawCodeHint) {
-      els.drawCodeHint.textContent = isExport ? "\u5DF2\u751F\u6210\u56FE\u7EB8\u77ED\u7801\u6216\u56FE\u7EB8\u7801\uFF0C\u53EF\u76F4\u63A5\u590D\u5236\u5206\u4EAB\u3002" : isBead ? "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u5BFC\u5165\u5230\u62FC\u8C46\u53F0\u3002" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u7136\u540E\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0\u3002";
-    }
-    if (els.drawCodeInput) {
-      els.drawCodeInput.value = value;
-      els.drawCodeInput.readOnly = isExport;
-      els.drawCodeInput.placeholder = isExport ? "\u8FD9\u91CC\u4F1A\u663E\u793A\u5BFC\u51FA\u7684\u56FE\u7EB8\u7801\u6216\u77ED\u7801" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801";
-    }
-    if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = !isExport;
-    if (els.drawCodeImportConfirmBtn) els.drawCodeImportConfirmBtn.hidden = isExport;
-    els.drawCodeModal.classList.add("show");
-    els.drawCodeModal.setAttribute("aria-hidden", "false");
-    requestAnimationFrame(() => {
-      if (isExport) els.drawCodeCopyBtn?.focus();
-      else els.drawCodeInput?.focus();
-    });
-  }
-  function closeDrawCodeModal() {
-    if (!els.drawCodeModal) return;
-    els.drawCodeModal.classList.remove("show");
-    els.drawCodeModal.setAttribute("aria-hidden", "true");
-  }
-  function drawRowsFromGrid() {
-    const width = drawWidth();
-    const height = drawHeight();
-    const rows = [];
-    for (let y = 0; y < height; y += 1) {
-      rows.push(drawState.grid.slice(y * width, (y + 1) * width).join(""));
-    }
-    return rows;
-  }
-  function squareDrawRowsFromGrid() {
-    const rows = drawRowsFromGrid();
-    const width = drawWidth();
-    const height = drawHeight();
-    const size = Math.max(width, height);
-    return Array.from({ length: size }, (_, y) => {
-      const row = y < height ? rows[y] : "";
-      return row.padEnd(size, ".");
-    });
-  }
-  function makeDrawPattern(name = "\u7ED8\u5236\u56FE\u7EB8") {
-    ensureDrawGrid();
-    const rows = squareDrawRowsFromGrid();
-    const width = drawWidth();
-    const height = drawHeight();
-    const size = Math.max(width, height);
-    return {
-      id: "draw-export",
-      name,
-      size,
-      width: size,
-      height: size,
-      sourceWidth: width,
-      sourceHeight: height,
-      rows,
-      craft: "\u539F\u7248"
-    };
-  }
-  function showDrawCodeOutput(value) {
-    openDrawCodeModal("export", value);
-  }
-  async function exportDrawPatternCode(pattern, successMessage = "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002") {
-    const code = encodePatternCode(pattern);
-    showDrawCodeOutput(code);
-    await drawActions.autoCopyText(code, successMessage, "\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09\u3002");
-  }
-  function loadDrawRows(rows) {
-    const height = rows.length;
-    const width = Math.max(1, ...rows.map((row) => String(row || "").length));
-    const normalizedSize = normalizeDrawSizeValues(width, height, 24, 24);
-    drawState.width = normalizedSize.width;
-    drawState.height = normalizedSize.height;
-    drawState.size = Math.max(drawState.width, drawState.height);
-    drawState.grid = [];
-    for (let y = 0; y < drawState.height; y += 1) {
-      const row = rows[y] || "";
-      for (let x = 0; x < drawState.width; x += 1) {
-        const code = row[x] || ".";
-        drawState.grid.push(code === "." || palette[code] ? code : ".");
-      }
-    }
-    setDrawSizeControlValue(drawState.width, drawState.height);
-    drawState.lastCellKey = "";
-    drawState.undoStack = [];
-    drawState.undoStrokeSnapshotTaken = false;
-    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-    resetDrawView();
-    ensureDrawPaletteColor();
-    renderDrawStudio();
-  }
-  function drawCellFromPointer(event) {
-    if (!els.drawCanvas) return null;
-    const rect = els.drawCanvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return null;
-    const g = getDrawGeometry();
-    if (!g) return null;
-    const { x0, y0, cell, width, height, cx, cy } = g;
-    const v = drawState.view;
-    const rawX = event.clientX - rect.left;
-    const rawY = event.clientY - rect.top;
-    const logX = (rawX - cx - v.panX) / v.scale + cx;
-    const logY = (rawY - cy - v.panY) / v.scale + cy;
-    const x = clamp(Math.floor((logX - x0) / cell), 0, width - 1);
-    const y = clamp(Math.floor((logY - y0) / cell), 0, height - 1);
-    return { x, y };
-  }
-  function paintDrawCell(x, y, code) {
-    const idx = drawIndex(x, y);
-    if (drawState.grid[idx] === code) return false;
-    drawState.grid[idx] = code;
-    return true;
-  }
-  function floodFillDraw(x, y, fillCode) {
-    const width = drawWidth();
-    const height = drawHeight();
-    const start = drawState.grid[drawIndex(x, y, width)];
-    if (start === fillCode) return false;
-    const queue = [[x, y]];
-    const seen = /* @__PURE__ */ new Set();
-    let changed = false;
-    while (queue.length) {
-      const [cx, cy] = queue.pop();
-      const key = `${cx},${cy}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const idx = drawIndex(cx, cy, width);
-      if (drawState.grid[idx] !== start) continue;
-      drawState.grid[idx] = fillCode;
-      changed = true;
-      if (cx > 0) queue.push([cx - 1, cy]);
-      if (cx < width - 1) queue.push([cx + 1, cy]);
-      if (cy > 0) queue.push([cx, cy - 1]);
-      if (cy < height - 1) queue.push([cx, cy + 1]);
-    }
-    return changed;
-  }
-  var DRAW_UNDO_LIMIT = 40;
-  function updateUndoButton() {
-    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
-  }
-  function saveUndoSnapshot() {
-    drawState.undoStack.push([...drawState.grid]);
-    if (drawState.undoStack.length > DRAW_UNDO_LIMIT) drawState.undoStack.shift();
-    updateUndoButton();
-  }
-  function doUndo() {
-    if (!drawState.undoStack.length) return;
-    drawState.grid = drawState.undoStack.pop();
-    drawState.lastCellKey = "";
-    drawState.undoStrokeSnapshotTaken = false;
-    paintDrawCanvas();
-    updateUndoButton();
-  }
-  function getShapeCells(sx, sy, ex, ey) {
-    const width = drawWidth();
-    const height = drawHeight();
-    const cells = [];
-    if (drawState.shapeMode === "circle") {
-      const r = Math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2);
-      const minX = Math.max(0, Math.floor(sx - r));
-      const maxX = Math.min(width - 1, Math.ceil(sx + r));
-      const minY = Math.max(0, Math.floor(sy - r));
-      const maxY = Math.min(height - 1, Math.ceil(sy + r));
-      for (let cy = minY; cy <= maxY; cy++) {
-        for (let cx = minX; cx <= maxX; cx++) {
-          if (Math.sqrt((cx - sx) ** 2 + (cy - sy) ** 2) <= r + 0.5) cells.push([cx, cy]);
-        }
-      }
-    } else {
-      const x0 = Math.max(0, Math.min(sx, ex));
-      const x1 = Math.min(width - 1, Math.max(sx, ex));
-      const y0 = Math.max(0, Math.min(sy, ey));
-      const y1 = Math.min(height - 1, Math.max(sy, ey));
-      for (let cy = y0; cy <= y1; cy++) {
-        for (let cx = x0; cx <= x1; cx++) cells.push([cx, cy]);
-      }
-    }
-    return cells;
-  }
-  function applyDrawToolAt(x, y) {
-    const key = `${x},${y}`;
-    if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
-    drawState.lastCellKey = key;
-    if (drawState.tool === "eraser") {
-      if (drawState.grid[drawIndex(x, y)] === ".") return false;
-      if (!drawState.undoStrokeSnapshotTaken) {
-        saveUndoSnapshot();
-        drawState.undoStrokeSnapshotTaken = true;
-      }
-      return paintDrawCell(x, y, ".");
-    }
-    if (drawState.tool === "picker") {
-      const pick = drawState.grid[drawIndex(x, y)];
-      if (pick && pick !== "." && pick !== drawState.selectedColor) {
-        drawState.selectedColor = pick;
-        recordRecentColor(pick);
-        renderDrawStudio();
-      }
-      return false;
-    }
-    if (drawState.tool === "fill") {
-      const start = drawState.grid[drawIndex(x, y)];
-      if (start === drawState.selectedColor) return false;
-      saveUndoSnapshot();
-      drawState.undoStrokeSnapshotTaken = true;
-      const result2 = floodFillDraw(x, y, drawState.selectedColor);
-      if (result2 && recordRecentColor(drawState.selectedColor)) {
-        drawRenderKey = "";
-        renderDrawPalette();
-      }
-      return result2;
-    }
-    if (drawState.grid[drawIndex(x, y)] === drawState.selectedColor) return false;
-    if (!drawState.undoStrokeSnapshotTaken) {
-      saveUndoSnapshot();
-      drawState.undoStrokeSnapshotTaken = true;
-    }
-    const result = paintDrawCell(x, y, drawState.selectedColor);
-    if (result && recordRecentColor(drawState.selectedColor)) {
-      drawRenderKey = "";
-      renderDrawPalette();
-    }
-    return result;
-  }
-  function paintDrawCanvas() {
-    if (!els.drawCanvas) return;
-    ensureDrawGrid();
-    const canvas = els.drawCanvas;
-    const ctx = canvas.getContext("2d");
-    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
-    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
-    const pxW = Math.round(cssW * dpr);
-    const pxH = Math.round(cssH * dpr);
-    if (canvas.width !== pxW || canvas.height !== pxH) {
-      canvas.width = pxW;
-      canvas.height = pxH;
-    }
-    const width = drawWidth();
-    const height = drawHeight();
-    const cell = Math.floor(Math.min(cssW / width, cssH / height));
-    const gridW = cell * width;
-    const gridH = cell * height;
-    const x0 = Math.floor((cssW - gridW) / 2);
-    const y0 = Math.floor((cssH - gridH) / 2);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, pxW, pxH);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#f5f8fb";
-    ctx.fillRect(0, 0, cssW, cssH);
-    const v = drawState.view;
-    const cx = x0 + gridW / 2;
-    const cy = y0 + gridH / 2;
-    ctx.save();
-    ctx.translate(cx + v.panX, cy + v.panY);
-    ctx.scale(v.scale, v.scale);
-    ctx.translate(-cx, -cy);
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const code = drawState.grid[drawIndex(x, y, width)];
-        if (code && code !== ".") {
-          ctx.fillStyle = palette[code] || "#9aa4b3";
-          ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
-        } else {
-          ctx.fillStyle = (x + y) % 2 ? "#f0f4f9" : "#ffffff";
-          ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
-        }
-      }
-    }
-    ctx.strokeStyle = "rgba(116, 126, 147, 0.26)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= width; i += 1) {
-      const offset = i * cell;
-      ctx.beginPath();
-      ctx.moveTo(x0 + offset + 0.5, y0 + 0.5);
-      ctx.lineTo(x0 + offset + 0.5, y0 + gridH + 0.5);
-      ctx.stroke();
-    }
-    for (let i = 0; i <= height; i += 1) {
-      const offset = i * cell;
-      ctx.beginPath();
-      ctx.moveTo(x0 + 0.5, y0 + offset + 0.5);
-      ctx.lineTo(x0 + gridW + 0.5, y0 + offset + 0.5);
-      ctx.stroke();
-    }
-    ctx.strokeStyle = "rgba(69, 93, 122, 0.38)";
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(x0 + 0.5, y0 + 0.5, gridW, gridH);
-    if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
-      const previewCells = getShapeCells(
-        drawState.shapeDrag.x,
-        drawState.shapeDrag.y,
-        drawState.shapeDragEnd.x,
-        drawState.shapeDragEnd.y
-      );
-      ctx.save();
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = palette[drawState.selectedColor] || "#9aa4b3";
-      for (const [px, py] of previewCells) {
-        ctx.fillRect(x0 + px * cell, y0 + py * cell, cell, cell);
-      }
-      ctx.restore();
-    }
-    ctx.restore();
-  }
-  function renderDrawPalette() {
-    if (!els.drawPalette) return;
-    ensureDrawPaletteColor();
-    const codes = allColorCodes();
-    const key = `${drawState.selectedColor}:${drawState.recentColors.join(",")}:${codes.join(",")}`;
-    if (key === drawRenderKey) return;
-    drawRenderKey = key;
-    if (els.drawPaletteMeta) {
-      els.drawPaletteMeta.textContent = `221\u8272\u677F`;
-    }
-    if (els.drawRecentColors) {
-      els.drawRecentColors.innerHTML = drawState.recentColors.map((code) => {
-        const selected = drawState.selectedColor === code;
-        const label = beadIds[code] || code;
-        const isTransparent = beadIds[code] === "H1";
-        return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
-        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
-        <span class="chip-label">${label}</span>
-      </button>`;
+  function fitGridToBoardTiles(rows, sourceWidth, sourceHeight, tileSize, maxDimension) {
+    const tile = Number.parseInt(tileSize, 10);
+    const max = Number.parseInt(maxDimension, 10);
+    const rawWidth = Math.max(1, Number.parseInt(sourceWidth, 10) || 1);
+    const rawHeight = Math.max(1, Number.parseInt(sourceHeight, 10) || 1);
+    const width = Math.min(max, Math.max(tile, Math.ceil(rawWidth / tile) * tile));
+    const height = Math.min(max, Math.max(tile, Math.ceil(rawHeight / tile) * tile));
+    const offsetX = Math.floor((width - rawWidth) / 2);
+    const offsetY = Math.floor((height - rawHeight) / 2);
+    const fittedRows = Array.from({ length: height }, (_, y) => {
+      const sourceY = y - offsetY;
+      const sourceRow = sourceY >= 0 && sourceY < rawHeight ? String(rows?.[sourceY] || "") : "";
+      return Array.from({ length: width }, (_2, x) => {
+        const sourceX = x - offsetX;
+        return sourceX >= 0 && sourceX < rawWidth ? sourceRow[sourceX] || "." : ".";
       }).join("");
-    }
-    els.drawPalette.innerHTML = codes.map((code) => {
-      const selected = drawState.selectedColor === code;
-      const label = beadIds[code] || code;
-      const isTransparent = beadIds[code] === "H1";
-      return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
-      <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
-      <span class="chip-label">${label}</span>
-    </button>`;
-    }).join("");
-  }
-  function renderDrawToolButtons() {
-    if (!els.drawingStudio) return;
-    els.drawingStudio.querySelectorAll("[data-draw-tool]").forEach((button) => {
-      const active = button.dataset.drawTool === drawState.tool;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
     });
-    const shapeBtn = els.drawingStudio.querySelector("[data-draw-tool='shape']");
-    if (shapeBtn) {
-      const isCircle = drawState.shapeMode === "circle";
-      shapeBtn.setAttribute("aria-label", isCircle ? "\u5706\u5F62" : "\u77E9\u5F62");
-      shapeBtn.innerHTML = icon(isCircle ? "circle" : "square", { size: 16 });
-    }
-    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
-  }
-  function renderDrawStudio() {
-    if (state.appMode !== "draw") return;
-    ensureDrawGrid();
-    renderDrawPalette();
-    renderDrawToolButtons();
-    paintDrawCanvas();
-  }
-  function enterDrawMode() {
-    ensureDrawPaletteColor();
-    renderDrawStudio();
-  }
-  function useDrawPattern() {
-    ensureDrawGrid();
-    const rows = squareDrawRowsFromGrid();
-    const beadCount = rows.join("").replace(/\./g, "").length;
-    if (!beadCount) {
-      showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
-      return;
-    }
-    const sourceWidth = drawWidth();
-    const sourceHeight = drawHeight();
-    const size = Math.max(sourceWidth, sourceHeight);
-    const pattern = {
-      id: "custom-draw",
-      name: "\u7ED8\u5236\u56FE\u7EB8",
-      size,
-      width: size,
-      height: size,
-      craft: "\u539F\u7248",
-      rows,
-      sourceRows: rows,
-      sourceSize: size,
-      sourceWidth,
-      sourceHeight,
-      note: pickCustomPatternNote("draw", size, rows.join(""))
-    };
-    for (let i = patterns.length - 1; i >= 0; i -= 1) {
-      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-    }
-    patterns.unshift(pattern);
-    drawActions.loadPattern(pattern, false);
-    drawActions.setAppMode("bead");
-    showToast("\u7ED8\u56FE\u5DF2\u751F\u6210\u56FE\u7EB8\uFF0C\u5F00\u59CB\u62FC\u8C46\u3002");
-  }
-  function initDrawingStudioEvents() {
-    els.drawingBackButton?.addEventListener("click", () => {
-      drawActions.setAppMode("home");
-    });
-    els.drawSettingsButton?.addEventListener("click", () => drawActions.openSettingsModal());
-    els.drawResetButton?.addEventListener("click", async () => {
-      ensureDrawGrid();
-      const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
-      if (hasContent && !await confirmModal({ message: "\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u6E05\u7A7A", danger: true })) return;
-      drawState.grid = createDrawGrid(drawWidth(), drawHeight());
-      drawState.lastCellKey = "";
-      paintDrawCanvas();
-      showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
-    });
-    function commitDrawSizeControlValue(widthValue = els.drawWidthInput?.value, heightValue = els.drawHeightInput?.value) {
-      const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(widthValue, heightValue);
-      if (newWidth === drawWidth() && newHeight === drawHeight()) {
-        setDrawSizeControlValue(drawWidth(), drawHeight());
-        return;
-      }
-      setDrawSizeControlValue(newWidth, newHeight);
-      openDrawResizeModal(newWidth, newHeight);
-    }
-    [els.drawWidthInput, els.drawHeightInput].forEach((input) => {
-      input?.addEventListener("input", () => {
-        const { width, height } = normalizeDrawSizeValues(
-          els.drawWidthInput?.value,
-          els.drawHeightInput?.value
-        );
-        if (els.drawSizeValue) els.drawSizeValue.textContent = `${width}\xD7${height}`;
-      });
-      input?.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") commitDrawSizeControlValue();
-      });
-    });
-    els.drawSizeApplyButton?.addEventListener("click", () => {
-      commitDrawSizeControlValue();
-    });
-    els.drawAnchorGrid?.addEventListener("click", (event) => {
-      const cell = event.target.closest(".anchor-cell");
-      if (!cell) return;
-      drawResizePending.anchorRow = Number(cell.dataset.row);
-      drawResizePending.anchorCol = Number(cell.dataset.col);
-      els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
-        btn.setAttribute("aria-pressed", btn === cell ? "true" : "false");
-      });
-    });
-    els.drawResizeConfirmBtn?.addEventListener("click", () => {
-      const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(
-        drawResizePending.width,
-        drawResizePending.height
-      );
-      const { anchorRow, anchorCol } = drawResizePending;
-      const oldGrid = drawState.grid.slice();
-      const oldWidth = drawWidth();
-      const oldHeight = drawHeight();
-      drawState.width = newWidth;
-      drawState.height = newHeight;
-      drawState.size = Math.max(newWidth, newHeight);
-      drawState.grid = resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol);
-      drawState.lastCellKey = "";
-      drawState.undoStack = [];
-      drawState.undoStrokeSnapshotTaken = false;
-      if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-      setDrawSizeControlValue(newWidth, newHeight);
-      closeDrawResizeModal(false);
-      renderDrawStudio();
-      showToast(`\u753B\u5E03\u5DF2\u8C03\u6574\u4E3A ${newWidth}x${newHeight}\u3002`);
-    });
-    [els.drawResizeCancelBtn, els.drawResizeCloseBtn].forEach((btn) => {
-      btn?.addEventListener("click", () => closeDrawResizeModal(true));
-    });
-    els.drawingStudio?.addEventListener("click", (event) => {
-      const actionBtn = event.target.closest("[data-draw-action]");
-      if (actionBtn?.dataset.drawAction === "undo") {
-        doUndo();
-        return;
-      }
-      const toolBtn = event.target.closest("[data-draw-tool]");
-      if (toolBtn) {
-        const tool = toolBtn.dataset.drawTool || "brush";
-        if (tool === "shape" && drawState.tool === "shape") {
-          drawState.shapeMode = drawState.shapeMode === "rect" ? "circle" : "rect";
-        } else {
-          drawState.tool = tool;
-          drawState.lastCellKey = "";
-        }
-        renderDrawToolButtons();
-        return;
-      }
-      const colorBtn = event.target.closest("[data-draw-code]");
-      if (colorBtn) {
-        const code = colorBtn.dataset.drawCode;
-        if (code && palette[code]) {
-          drawState.selectedColor = code;
-          drawRenderKey = "";
-          renderDrawPalette();
-        }
-      }
-    });
-    els.drawClearButton?.addEventListener("click", () => {
-      ensureDrawGrid();
-      drawState.grid = createDrawGrid(drawWidth(), drawHeight());
-      drawState.lastCellKey = "";
-      drawState.undoStack = [];
-      drawState.undoStrokeSnapshotTaken = false;
-      if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-      paintDrawCanvas();
-      showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
-    });
-    els.drawUsePatternButton?.addEventListener("click", () => {
-      useDrawPattern();
-    });
-    els.drawShortCodeButton?.addEventListener("click", async () => {
-      const button = els.drawShortCodeButton;
-      const pattern = makeDrawPattern();
-      if (button) {
-        button.disabled = true;
-        button.textContent = "\u5BFC\u51FA\u4E2D";
-      }
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 5e3);
-      try {
-        const share = await drawActions.requestCloudShareForPattern(pattern, { signal: controller.signal });
-        window.clearTimeout(timeout);
-        if (share?.shortId) {
-          showDrawCodeOutput(share.shortId);
-          await drawActions.autoCopyText(
-            share.shortId,
-            `\u77ED\u7801\u5DF2\u590D\u5236\uFF1A${share.shortId}`,
-            `\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
-          );
-        } else {
-          await exportDrawPatternCode(pattern, "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
-        }
-      } catch {
-        window.clearTimeout(timeout);
-        await exportDrawPatternCode(pattern, "\u77ED\u7801\u8FDE\u63A5\u5931\u8D25\uFF0C\u5DF2\u6539\u4E3A\u590D\u5236\u56FE\u7EB8\u7801\u3002");
-      }
-      if (button) {
-        button.disabled = false;
-        button.textContent = "\u5BFC\u51FA\u56FE\u7EB8";
-      }
-    });
-    els.drawSubmitGalleryButton?.addEventListener("click", () => {
-      const pattern = makeDrawPattern("\u7ED8\u5236\u56FE\u7EB8");
-      const beadCount = pattern.rows.join("").replace(/\./g, "").length;
-      if (!beadCount) {
-        showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
-        return;
-      }
-      try {
-        drawActions.openGallerySubmitModal({
-          name: pattern.name,
-          patternCode: encodePatternCode(pattern)
-        });
-      } catch {
-        showToast("\u5F53\u524D\u56FE\u7EB8\u65E0\u6CD5\u6295\u7A3F\u3002");
-      }
-    });
-    els.drawImportButton?.addEventListener("click", async () => {
-      openDrawCodeModal("import");
-    });
-    els.drawCodeImportConfirmBtn?.addEventListener("click", async () => {
-      const raw = els.drawCodeInput?.value || "";
-      if (drawCodeMode === "import-bead") {
-        const ok = await drawActions.importPatternCode(raw);
-        if (ok) closeDrawCodeModal();
-        return;
-      }
-      const extracted = extractPatternCode(raw);
-      const shortId = extractCloudShortId(raw);
-      if (!extracted && !shortId) {
-        showToast("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
-        return;
-      }
-      try {
-        const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
-        const decoded = decodePatternCode(code);
-        loadDrawRows(decoded.rows);
-        closeDrawCodeModal();
-        showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.size}x${decoded.size}\u3002`);
-      } catch (error) {
-        showToast("\u56FE\u7EB8\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
-      }
-    });
-    els.drawCodeCopyBtn?.addEventListener("click", async () => {
-      await drawActions.autoCopyText(els.drawCodeInput?.value || "", "\u5DF2\u590D\u5236\u3002", "\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u3002");
-    });
-    [els.drawCodeCancelBtn, els.drawCodeCloseBtn].forEach((btn) => {
-      btn?.addEventListener("click", closeDrawCodeModal);
-    });
-    const handleDrawPointer = (event) => {
-      const cell = drawCellFromPointer(event);
-      if (!cell) return;
-      const changed = applyDrawToolAt(cell.x, cell.y);
-      if (changed || drawState.tool === "fill") paintDrawCanvas();
-    };
-    if (els.drawCanvas) {
-      els.drawCanvas.addEventListener("pointerdown", (event) => {
-        els.drawCanvas.setPointerCapture(event.pointerId);
-        const rect = els.drawCanvas.getBoundingClientRect();
-        drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        if (Object.keys(drawPointers).length >= 2) {
-          drawState.drawing = false;
-          drawState.lastCellKey = "";
-          drawState.shapeDrag = null;
-          startDrawGesture();
-        } else if (drawState.tool === "shape") {
-          const cell = drawCellFromPointer(event);
-          if (cell) {
-            drawState.undoStrokeSnapshotTaken = false;
-            drawState.shapeDrag = { x: cell.x, y: cell.y };
-            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
-            drawState.drawing = true;
-          }
-        } else {
-          drawState.undoStrokeSnapshotTaken = false;
-          drawState.drawing = true;
-          drawState.lastCellKey = "";
-          handleDrawPointer(event);
-        }
-      });
-      els.drawCanvas.addEventListener("pointermove", (event) => {
-        const rect = els.drawCanvas.getBoundingClientRect();
-        if (drawPointers[event.pointerId]) {
-          drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-        }
-        if (Object.keys(drawPointers).length >= 2 && drawGesture?.active) {
-          updateDrawGesture();
-          return;
-        }
-        if (!drawState.drawing) return;
-        if (drawState.tool === "shape") {
-          const cell = drawCellFromPointer(event);
-          if (cell && drawState.shapeDrag) {
-            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
-            paintDrawCanvas();
-          }
-          return;
-        }
-        if (drawState.tool === "fill" || drawState.tool === "picker") return;
-        handleDrawPointer(event);
-      });
-      const endDrawPointer = (event) => {
-        delete drawPointers[event.pointerId];
-        if (Object.keys(drawPointers).length < 2 && drawGesture) {
-          drawGesture.active = false;
-        }
-        if (Object.keys(drawPointers).length === 0) {
-          if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
-            const cells = getShapeCells(
-              drawState.shapeDrag.x,
-              drawState.shapeDrag.y,
-              drawState.shapeDragEnd.x,
-              drawState.shapeDragEnd.y
-            );
-            const code = drawState.selectedColor;
-            const shouldSaveUndo = cells.some(([cx, cy]) => drawState.grid[drawIndex(cx, cy)] !== code);
-            if (shouldSaveUndo) saveUndoSnapshot();
-            let painted = false;
-            for (const [cx, cy] of cells) painted = paintDrawCell(cx, cy, code) || painted;
-            if (painted) {
-              recordRecentColor(code);
-              drawRenderKey = "";
-              renderDrawPalette();
-            }
-            drawState.shapeDrag = null;
-            drawState.shapeDragEnd = null;
-            paintDrawCanvas();
-          }
-          drawState.drawing = false;
-          drawState.lastCellKey = "";
-          drawState.undoStrokeSnapshotTaken = false;
-        }
-      };
-      els.drawCanvas.addEventListener("pointerup", endDrawPointer);
-      els.drawCanvas.addEventListener("pointerleave", (event) => {
-        endDrawPointer(event);
-      });
-      els.drawCanvas.addEventListener("pointercancel", endDrawPointer);
-      els.drawCanvas.addEventListener("wheel", (event) => {
-        event.preventDefault();
-        const rect = els.drawCanvas.getBoundingClientRect();
-        const mx = event.clientX - rect.left;
-        const my = event.clientY - rect.top;
-        const g = getDrawGeometry();
-        if (!g) return;
-        const { cx, cy } = g;
-        const v = drawState.view;
-        const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
-        const nextScale = clamp(v.scale * factor, 1, maxBoardScale(g));
-        const ratio = nextScale / v.scale;
-        const nextPanX = mx - cx - (mx - cx - v.panX) * ratio;
-        const nextPanY = my - cy - (my - cy - v.panY) * ratio;
-        setDrawZoom(nextScale, nextPanX, nextPanY);
-      }, { passive: false });
-      els.drawCanvas.addEventListener("dblclick", () => {
-        resetDrawView();
-        paintDrawCanvas();
-      });
-    }
+    return { width, height, rows: fittedRows };
   }
 
   // src/image-convert.js
@@ -7637,6 +7200,54 @@
       image.onerror = reject;
       image.src = dataUrl;
     });
+  }
+  function convertImageToRectRows(image, targetW, targetH, options = {}) {
+    const w = Math.max(1, Math.round(targetW));
+    const h = Math.max(1, Math.round(targetH));
+    const removeWhite = options.removeWhite === true;
+    const codes = allColorCodes();
+    if (!codes.length) return Array.from({ length: h }, () => ".".repeat(w));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    const targetAspect = w / h;
+    const iw = image.naturalWidth || image.width || 1;
+    const ih = image.naturalHeight || image.height || 1;
+    const imgAspect = iw / ih;
+    let sw = iw;
+    let sh = ih;
+    let sx = 0;
+    let sy = 0;
+    if (imgAspect > targetAspect) {
+      sw = ih * targetAspect;
+      sx = (iw - sw) / 2;
+    } else {
+      sh = iw / targetAspect;
+      sy = (ih - sh) / 2;
+    }
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const rows = [];
+    for (let y = 0; y < h; y += 1) {
+      let row = "";
+      for (let x = 0; x < w; x += 1) {
+        const o = (y * w + x) * 4;
+        const a = data[o + 3];
+        const r = data[o];
+        const g = data[o + 1];
+        const b = data[o + 2];
+        if (a < 32 || removeWhite && isWhiteLike(r, g, b, a)) {
+          row += ".";
+          continue;
+        }
+        row += nearestCodeFromSet2(rgbToOklab(r, g, b), codes) || ".";
+      }
+      rows.push(row);
+    }
+    return rows;
   }
   function convertImageToPattern(image, options = {}) {
     const targetSize = normalizePatternSize(options.size || state.patternSize);
@@ -7766,13 +7377,13 @@
     for (let y = startY; y < endY; y += 1) {
       for (let x = startX; x < endX; x += 1) {
         const offset = (y * width + x) * 4;
-        const index = y * width + x;
+        const index2 = y * width + x;
         const r2 = data[offset];
         const g2 = data[offset + 1];
         const b2 = data[offset + 2];
         const a = data[offset + 3];
         if (a < 64) continue;
-        if (removeWhite && externalWhiteMask?.[index]) continue;
+        if (removeWhite && externalWhiteMask?.[index2]) continue;
         nonExternalCount += 1;
         const key = `${r2 >> 3}:${g2 >> 3}:${b2 >> 3}`;
         const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
@@ -7810,6 +7421,16 @@
     ctx.drawImage(image, sx, sy, crop, crop, 0, 0, targetSize, targetSize);
     return Array.from(ctx.getImageData(0, 0, targetSize, targetSize).data);
   }
+  function isWhiteLike(r, g, b, a) {
+    if (a < 72) return true;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const chroma = max - min;
+    const luma = r * 0.299 + g * 0.587 + b * 0.114;
+    const brightNeutral = luma >= 236 && chroma <= 26;
+    const nearPaper = max >= 224 && min >= 206 && chroma <= 20;
+    return brightNeutral || nearPaper;
+  }
   function isBackgroundLike(r, g, b, a) {
     if (a < 96) return true;
     const max = Math.max(r, g, b);
@@ -7834,16 +7455,16 @@
     const stack = [];
     function pushIfEdgeWhite(x, y) {
       if (x < 0 || y < 0 || x >= side || y >= side) return;
-      const index = y * side + x;
-      if (visited[index]) return;
-      const offset = index * 4;
+      const index2 = y * side + x;
+      if (visited[index2]) return;
+      const offset = index2 * 4;
       const r = data[offset];
       const g = data[offset + 1];
       const b = data[offset + 2];
       const a = data[offset + 3];
       if (!isBackgroundLike(r, g, b, a)) return;
-      visited[index] = true;
-      stack.push(index);
+      visited[index2] = true;
+      stack.push(index2);
     }
     for (let x = 0; x < side; x += 1) {
       pushIfEdgeWhite(x, 0);
@@ -7854,10 +7475,10 @@
       pushIfEdgeWhite(side - 1, y);
     }
     while (stack.length) {
-      const index = stack.pop();
-      external[index] = true;
-      const x = index % side;
-      const y = Math.floor(index / side);
+      const index2 = stack.pop();
+      external[index2] = true;
+      const x = index2 % side;
+      const y = Math.floor(index2 / side);
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
         const nx = x + dx;
         const ny = y + dy;
@@ -7890,7 +7511,7 @@
     return mask;
   }
   function estimateSourceProfile(data, mask) {
-    const activeCount = mask.reduce((sum, active) => sum + (active ? 1 : 0), 0);
+    const activeCount = mask.reduce((sum, active2) => sum + (active2 ? 1 : 0), 0);
     if (!activeCount) {
       return {
         activeCount: 0,
@@ -8016,11 +7637,11 @@
       pixels.forEach((pixel) => {
         let best = 0;
         let bestDistance = Infinity;
-        clusters.forEach((cluster, index) => {
+        clusters.forEach((cluster, index2) => {
           const distance = oklabDistance(pixel.lab, cluster.lab);
           if (distance < bestDistance) {
             bestDistance = distance;
-            best = index;
+            best = index2;
           }
         });
         const sum = sums[best];
@@ -8032,8 +7653,8 @@
         sum.blue += pixel.b;
         sum.count += 1;
       });
-      clusters = clusters.map((cluster, index) => {
-        const sum = sums[index];
+      clusters = clusters.map((cluster, index2) => {
+        const sum = sums[index2];
         if (!sum.count) return cluster;
         const lab = { l: sum.l / sum.count, a: sum.a / sum.count, b: sum.b / sum.count };
         return { lab, r: Math.round(sum.r / sum.count), g: Math.round(sum.g / sum.count), b: Math.round(sum.blue / sum.count), count: sum.count };
@@ -8082,8 +7703,8 @@
       const next = current.slice();
       for (let y = 0; y < size; y += 1) {
         for (let x = 0; x < size; x += 1) {
-          const index = y * size + x;
-          const code = current[index];
+          const index2 = y * size + x;
+          const code = current[index2];
           const neighbors = neighborCodes(current, size, x, y, true);
           const majority = majorityCode(neighbors);
           if (!majority) continue;
@@ -8095,9 +7716,9 @@
             continue;
           }
           if (code === "." && majority !== "." && majorityCount >= 7) {
-            next[index] = majority;
+            next[index2] = majority;
           } else if (code !== "." && same8 <= 1 && same4 === 0 && majorityCount >= (strict ? 6 : 5)) {
-            next[index] = majority;
+            next[index2] = majority;
           }
         }
       }
@@ -8115,9 +7736,9 @@
     let threshold = size <= 24 ? 1 : size <= 36 ? 2 : 3;
     if (sourceProfile?.likelyPixelArt) threshold = Math.max(1, threshold - 1);
     if (paletteHint <= 3) threshold = 1;
-    for (let index = 0; index < out.length; index += 1) {
-      if (visited[index] || out[index] === ".") continue;
-      const component = collectComponent(out, size, index, visited);
+    for (let index2 = 0; index2 < out.length; index2 += 1) {
+      if (visited[index2] || out[index2] === ".") continue;
+      const component = collectComponent(out, size, index2, visited);
       if (component.cells.length > threshold) continue;
       if (shouldPreserveSmallDetail(out, size, component, sourceProfile)) continue;
       const boundary = [];
@@ -8141,8 +7762,8 @@
       const next = out.slice();
       for (let y = 1; y < size - 1; y += 1) {
         for (let x = 1; x < size - 1; x += 1) {
-          const index = y * size + x;
-          const code = out[index];
+          const index2 = y * size + x;
+          const code = out[index2];
           if (code === ".") continue;
           const neighbors = neighborCodes(out, size, x, y, true).filter((item) => item !== ".");
           if (neighbors.length < 5) continue;
@@ -8156,7 +7777,7 @@
           if (support < (sourceProfile?.logoLike ? 7 : 6)) continue;
           const dist = oklabDistance(beadOklab(candidate), beadOklab(code));
           if (dist <= softThreshold || support >= 8) {
-            next[index] = candidate;
+            next[index2] = candidate;
           }
         }
       }
@@ -8169,8 +7790,8 @@
     const out = grid.slice();
     for (let y = 1; y < size - 1; y += 1) {
       for (let x = 1; x < size - 1; x += 1) {
-        const index = y * size + x;
-        if (out[index] !== ".") continue;
+        const index2 = y * size + x;
+        if (out[index2] !== ".") continue;
         const left = out[y * size + (x - 1)];
         const right = out[y * size + (x + 1)];
         const up = out[(y - 1) * size + x];
@@ -8180,19 +7801,19 @@
         const dl = out[(y + 1) * size + (x - 1)];
         const dr = out[(y + 1) * size + (x + 1)];
         if (left !== "." && left === right) {
-          out[index] = left;
+          out[index2] = left;
           continue;
         }
         if (up !== "." && up === down) {
-          out[index] = up;
+          out[index2] = up;
           continue;
         }
         if (ul !== "." && ul === dr) {
-          out[index] = ul;
+          out[index2] = ul;
           continue;
         }
         if (ur !== "." && ur === dl) {
-          out[index] = ur;
+          out[index2] = ur;
         }
       }
     }
@@ -8204,10 +7825,10 @@
     const stack = [start];
     visited[start] = true;
     while (stack.length) {
-      const index = stack.pop();
-      cells.push(index);
-      const x = index % size;
-      const y = Math.floor(index / size);
+      const index2 = stack.pop();
+      cells.push(index2);
+      const x = index2 % size;
+      const y = Math.floor(index2 / size);
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
         const nx = x + dx;
         const ny = y + dy;
@@ -8224,8 +7845,8 @@
   function shouldPreserveSmallDetail(grid, size, component, sourceProfile = null) {
     const darkDetail = /* @__PURE__ */ new Set(["K", "k", "D", "d", "N", "n", "b"]);
     const lowPalette = getPaletteLimitHint(sourceProfile || { significantCount: 99, topTwoRatio: 0, likelyPixelArt: false }) <= 3;
-    const xs = component.cells.map((index) => index % size);
-    const ys = component.cells.map((index) => Math.floor(index / size));
+    const xs = component.cells.map((index2) => index2 % size);
+    const ys = component.cells.map((index2) => Math.floor(index2 / size));
     const lineLike = component.cells.length >= 2 && (new Set(xs).size > 1 || new Set(ys).size > 1);
     let nonDotBoundary = 0;
     let boundary = 0;
@@ -8371,6 +7992,1277 @@
     return nearestColorCodeByLab(lab, excludedCodes);
   }
 
+  // src/draw.js
+  var drawActions = {
+    loadPattern: () => {
+    },
+    setAppMode: () => {
+    },
+    openSettingsModal: () => {
+    },
+    openGallerySubmitModal: () => {
+    },
+    importPatternCode: async () => false,
+    autoCopyText: async () => false,
+    requestCloudShareForPattern: async () => null
+  };
+  function setDrawActions(actions) {
+    Object.assign(drawActions, actions);
+  }
+  function getDrawKeyboardNav() {
+    return drawKbdNav;
+  }
+  var drawState = {
+    size: BOARD_SIZE,
+    width: BOARD_SIZE,
+    height: BOARD_SIZE,
+    tiles: /* @__PURE__ */ new Set([tileKey(0, 0)]),
+    tileOriginX: 0,
+    tileOriginY: 0,
+    tool: "brush",
+    shapeMode: "rect",
+    selectedColor: "K",
+    grid: [],
+    drawing: false,
+    lastCellKey: "",
+    view: { scale: 1, panX: 0, panY: 0, velX: 0, velY: 0, velScale: 0 },
+    recentColors: [],
+    undoStack: [],
+    undoStrokeSnapshotTaken: false,
+    shapeDrag: null,
+    shapeDragEnd: null,
+    stampImage: null,
+    paletteQuery: ""
+  };
+  var drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
+  var drawPointers = {};
+  var drawGesture = null;
+  var drawRenderKey = "";
+  var MAX_DRAW_DIMENSION = BOARD_SIZE * 3;
+  function drawWidth() {
+    return drawState.width || drawState.size || BOARD_SIZE;
+  }
+  function drawHeight() {
+    return drawState.height || drawState.size || BOARD_SIZE;
+  }
+  function drawSquareSize() {
+    return Math.max(drawWidth(), drawHeight());
+  }
+  function createDrawGrid(width, height = width, fill = ".") {
+    return Array(width * height).fill(fill);
+  }
+  function drawIndex(x, y, width = drawWidth()) {
+    return y * width + x;
+  }
+  function recordRecentColor(code) {
+    if (!code || code === ".") return false;
+    const arr = drawState.recentColors;
+    const i = arr.indexOf(code);
+    if (i === 0) return false;
+    if (i !== -1) arr.splice(i, 1);
+    arr.unshift(code);
+    if (arr.length > 5) arr.length = 5;
+    return true;
+  }
+  function ensureDrawPaletteColor() {
+    const codes = allColorCodes();
+    if (!codes.length) return;
+    if (!codes.includes(drawState.selectedColor)) {
+      drawState.selectedColor = codes[0];
+    }
+  }
+  function ensureDrawGrid() {
+    const width = drawWidth();
+    const height = drawHeight();
+    drawState.size = drawSquareSize();
+    if (drawState.grid.length !== width * height) {
+      drawState.grid = createDrawGrid(width, height);
+    }
+  }
+  function getDrawGeometry() {
+    const canvas = els.drawCanvas;
+    if (!canvas) return null;
+    const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
+    const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
+    const width = drawWidth();
+    const height = drawHeight();
+    const tabSpace = 44;
+    const cell = Math.max(1, Math.floor(Math.min((cssW - tabSpace * 2) / width, (cssH - tabSpace * 2) / height)));
+    const gridW = cell * width;
+    const gridH = cell * height;
+    const gridSize = Math.max(gridW, gridH);
+    const x0 = Math.floor((cssW - gridW) / 2);
+    const y0 = Math.floor((cssH - gridH) / 2);
+    const cx = x0 + gridW / 2;
+    const cy = y0 + gridH / 2;
+    return { cssW, cssH, width, height, size: Math.max(width, height), cell, gridW, gridH, gridSize, x0, y0, cx, cy };
+  }
+  function isCellActive(x, y) {
+    const tx = Math.floor(x / BOARD_SIZE) + drawState.tileOriginX;
+    const ty = Math.floor(y / BOARD_SIZE) + drawState.tileOriginY;
+    return drawState.tiles.has(tileKey(tx, ty));
+  }
+  function addTileAt(tx, ty) {
+    const T = BOARD_SIZE;
+    const oldMinTx = drawState.tileOriginX;
+    const oldMinTy = drawState.tileOriginY;
+    const oldWidth = drawWidth();
+    const oldHeight = drawHeight();
+    const newMinTx = Math.min(oldMinTx, tx);
+    const newMinTy = Math.min(oldMinTy, ty);
+    const newMaxTx = Math.max(oldMinTx + oldWidth / T - 1, tx);
+    const newMaxTy = Math.max(oldMinTy + oldHeight / T - 1, ty);
+    const newWidth = (newMaxTx - newMinTx + 1) * T;
+    const newHeight = (newMaxTy - newMinTy + 1) * T;
+    const offsetX = (oldMinTx - newMinTx) * T;
+    const offsetY = (oldMinTy - newMinTy) * T;
+    const newGrid = Array(newWidth * newHeight).fill(".");
+    for (let oy = 0; oy < oldHeight; oy++) {
+      for (let ox = 0; ox < oldWidth; ox++) {
+        const val = drawState.grid[oy * oldWidth + ox];
+        if (val && val !== ".") {
+          newGrid[(oy + offsetY) * newWidth + (ox + offsetX)] = val;
+        }
+      }
+    }
+    drawState.tiles.add(tileKey(tx, ty));
+    drawState.tileOriginX = newMinTx;
+    drawState.tileOriginY = newMinTy;
+    drawState.width = newWidth;
+    drawState.height = newHeight;
+    drawState.size = Math.max(newWidth, newHeight);
+    drawState.grid = newGrid;
+    drawState.lastCellKey = "";
+  }
+  function drawBoardTabRects(geometry = getDrawGeometry()) {
+    if (!geometry) return [];
+    const { x0, y0, cell } = geometry;
+    const T = BOARD_SIZE;
+    const tileW = T * cell;
+    const tileH = T * cell;
+    const long = Math.max(30, Math.min(56, cell * 3));
+    const short = Math.max(16, Math.min(24, cell * 1.1));
+    const tabs = [];
+    const curMaxTx = drawState.tileOriginX + drawWidth() / T - 1;
+    const curMaxTy = drawState.tileOriginY + drawHeight() / T - 1;
+    for (const key of drawState.tiles) {
+      const [tx, ty] = key.split(",").map(Number);
+      const bx = x0 + (tx - drawState.tileOriginX) * tileW;
+      const by = y0 + (ty - drawState.tileOriginY) * tileH;
+      const candidates = [
+        {
+          targetTx: tx,
+          targetTy: ty - 1,
+          rect: { x: bx + tileW / 2 - long / 2, y: by - short, w: long, h: short + 4 }
+        },
+        {
+          targetTx: tx + 1,
+          targetTy: ty,
+          rect: { x: bx + tileW - 4, y: by + tileH / 2 - long / 2, w: short + 4, h: long }
+        },
+        {
+          targetTx: tx,
+          targetTy: ty + 1,
+          rect: { x: bx + tileW / 2 - long / 2, y: by + tileH - 4, w: long, h: short + 4 }
+        },
+        {
+          targetTx: tx - 1,
+          targetTy: ty,
+          rect: { x: bx - short, y: by + tileH / 2 - long / 2, w: short + 4, h: long }
+        }
+      ];
+      for (const { targetTx, targetTy, rect } of candidates) {
+        if (drawState.tiles.has(tileKey(targetTx, targetTy))) continue;
+        const newMinTx = Math.min(drawState.tileOriginX, targetTx);
+        const newMinTy = Math.min(drawState.tileOriginY, targetTy);
+        const nextWidth = (Math.max(curMaxTx, targetTx) - newMinTx + 1) * T;
+        const nextHeight = (Math.max(curMaxTy, targetTy) - newMinTy + 1) * T;
+        if (nextWidth <= MAX_DRAW_DIMENSION && nextHeight <= MAX_DRAW_DIMENSION) {
+          tabs.push({ targetTx, targetTy, ...rect });
+        }
+      }
+    }
+    return tabs;
+  }
+  function drawBoardTabAtPointer(event) {
+    if (!els.drawCanvas) return null;
+    const rect = els.drawCanvas.getBoundingClientRect();
+    const geometry = getDrawGeometry();
+    if (!rect.width || !rect.height || !geometry) return null;
+    const rawX = event.clientX - rect.left;
+    const rawY = event.clientY - rect.top;
+    const { cx, cy } = geometry;
+    const view = drawState.view;
+    const x = (rawX - cx - view.panX) / view.scale + cx;
+    const y = (rawY - cy - view.panY) / view.scale + cy;
+    const hitPadding = 10;
+    const tabs = drawBoardTabRects(geometry);
+    const hit = tabs.find(
+      (tab) => x >= tab.x - hitPadding && x <= tab.x + tab.w + hitPadding && y >= tab.y - hitPadding && y <= tab.y + tab.h + hitPadding
+    );
+    return hit ? { tx: hit.targetTx, ty: hit.targetTy } : null;
+  }
+  function clampDrawView() {
+    const v = drawState.view;
+    const g = getDrawGeometry();
+    if (g) v.scale = clamp(v.scale, 1, maxBoardScale(g));
+    if (v.scale <= 1.001) {
+      v.scale = 1;
+      v.panX = 0;
+      v.panY = 0;
+      return;
+    }
+    if (!g) return;
+    const maxPan = g.gridSize * (v.scale - 1) / 2 + 32;
+    v.panX = clamp(v.panX, -maxPan, maxPan);
+    v.panY = clamp(v.panY, -maxPan, maxPan);
+  }
+  function setDrawZoom(nextScale, nextPanX, nextPanY) {
+    const v = drawState.view;
+    const g = getDrawGeometry();
+    v.scale = clamp(nextScale, 1, maxBoardScale(g));
+    v.panX = nextPanX ?? v.panX;
+    v.panY = nextPanY ?? v.panY;
+    clampDrawView();
+    paintDrawCanvas();
+  }
+  function tickDrawKbdNav(dtSec) {
+    if (state.appMode !== "draw") return;
+    const nav = drawKbdNav;
+    const v = drawState.view;
+    const PAN_ACCEL = 2200;
+    const PAN_DECEL = 5e3;
+    const PAN_MAX = 560;
+    const ZOOM_ACCEL = 4.5;
+    const ZOOM_DECEL = 10;
+    const ZOOM_MAX = maxBoardScale(getDrawGeometry()) - 1;
+    const wantLeft = nav.left && !nav.right;
+    const wantRight = nav.right && !nav.left;
+    if (wantLeft) v.velX = Math.min(PAN_MAX, v.velX + PAN_ACCEL * dtSec);
+    else if (wantRight) v.velX = Math.max(-PAN_MAX, v.velX - PAN_ACCEL * dtSec);
+    else if (v.velX > 0) v.velX = Math.max(0, v.velX - PAN_DECEL * dtSec);
+    else if (v.velX < 0) v.velX = Math.min(0, v.velX + PAN_DECEL * dtSec);
+    const wantUp = nav.up && !nav.down;
+    const wantDown = nav.down && !nav.up;
+    if (wantUp) v.velY = Math.min(PAN_MAX, v.velY + PAN_ACCEL * dtSec);
+    else if (wantDown) v.velY = Math.max(-PAN_MAX, v.velY - PAN_ACCEL * dtSec);
+    else if (v.velY > 0) v.velY = Math.max(0, v.velY - PAN_DECEL * dtSec);
+    else if (v.velY < 0) v.velY = Math.min(0, v.velY + PAN_DECEL * dtSec);
+    const wantIn = nav.zoomIn && !nav.zoomOut;
+    const wantOut = nav.zoomOut && !nav.zoomIn;
+    if (wantIn) v.velScale = Math.min(ZOOM_MAX, v.velScale + ZOOM_ACCEL * dtSec);
+    else if (wantOut) v.velScale = Math.max(-ZOOM_MAX, v.velScale - ZOOM_ACCEL * dtSec);
+    else if (v.velScale > 0) v.velScale = Math.max(0, v.velScale - ZOOM_DECEL * dtSec);
+    else if (v.velScale < 0) v.velScale = Math.min(0, v.velScale + ZOOM_DECEL * dtSec);
+    const movingPan = Math.abs(v.velX) > 0.5 || Math.abs(v.velY) > 0.5;
+    const movingZoom = Math.abs(v.velScale) > 1e-3;
+    if (movingPan || movingZoom) {
+      const prevX = v.panX;
+      const prevY = v.panY;
+      setDrawZoom(v.scale + v.velScale * dtSec, v.panX + v.velX * dtSec, v.panY + v.velY * dtSec);
+      if (v.panX === prevX) v.velX = 0;
+      if (v.panY === prevY) v.velY = 0;
+    }
+  }
+  function startDrawGesture() {
+    const ids = Object.keys(drawPointers);
+    if (ids.length < 2) return;
+    const p1 = drawPointers[ids[0]];
+    const p2 = drawPointers[ids[1]];
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    drawGesture = {
+      active: true,
+      startDist: Math.max(16, dist),
+      startScale: drawState.view.scale,
+      startPanX: drawState.view.panX,
+      startPanY: drawState.view.panY,
+      startMidX: mid.x,
+      startMidY: mid.y
+    };
+  }
+  function updateDrawGesture() {
+    if (!drawGesture?.active) return;
+    const ids = Object.keys(drawPointers);
+    if (ids.length < 2) return;
+    const p1 = drawPointers[ids[0]];
+    const p2 = drawPointers[ids[1]];
+    const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    const dist = Math.max(16, Math.hypot(p1.x - p2.x, p1.y - p2.y));
+    const g = getDrawGeometry();
+    if (!g) return;
+    const nextScale = clamp(drawGesture.startScale * (dist / drawGesture.startDist), 1, maxBoardScale(g));
+    const { cx, cy } = g;
+    const startScale = Math.max(1e-4, drawGesture.startScale);
+    const anchorX = (drawGesture.startMidX - cx - drawGesture.startPanX) / startScale + cx;
+    const anchorY = (drawGesture.startMidY - cy - drawGesture.startPanY) / startScale + cy;
+    drawState.view.panX = mid.x - cx - (anchorX - cx) * nextScale;
+    drawState.view.panY = mid.y - cy - (anchorY - cy) * nextScale;
+    drawState.view.scale = nextScale;
+    clampDrawView();
+    paintDrawCanvas();
+  }
+  function resetDrawView() {
+    drawState.view.scale = 1;
+    drawState.view.panX = 0;
+    drawState.view.panY = 0;
+  }
+  var drawCodeMode = "import";
+  function openDrawCodeModal(mode, value = "") {
+    if (!els.drawCodeModal) return;
+    drawCodeMode = mode;
+    const isExport = mode === "export";
+    const isBead = mode === "import-bead";
+    if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "\u5BFC\u51FA\u56FE\u7EB8" : "\u5BFC\u5165\u56FE\u7EB8";
+    if (els.drawCodeHint) {
+      els.drawCodeHint.textContent = isExport ? "\u5DF2\u751F\u6210\u56FE\u7EB8\u77ED\u7801\u6216\u56FE\u7EB8\u7801\uFF0C\u53EF\u76F4\u63A5\u590D\u5236\u5206\u4EAB\u3002" : isBead ? "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u5BFC\u5165\u5230\u62FC\u8C46\u53F0\u3002" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u7136\u540E\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0\u3002";
+    }
+    if (els.drawCodeInput) {
+      els.drawCodeInput.value = value;
+      els.drawCodeInput.readOnly = isExport;
+      els.drawCodeInput.placeholder = isExport ? "\u8FD9\u91CC\u4F1A\u663E\u793A\u5BFC\u51FA\u7684\u56FE\u7EB8\u7801\u6216\u77ED\u7801" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801";
+    }
+    if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = !isExport;
+    if (els.drawCodeImportConfirmBtn) els.drawCodeImportConfirmBtn.hidden = isExport;
+    els.drawCodeModal.classList.add("show");
+    els.drawCodeModal.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => {
+      if (isExport) els.drawCodeCopyBtn?.focus();
+      else els.drawCodeInput?.focus();
+    });
+  }
+  function closeDrawCodeModal() {
+    if (!els.drawCodeModal) return;
+    els.drawCodeModal.classList.remove("show");
+    els.drawCodeModal.setAttribute("aria-hidden", "true");
+  }
+  function drawRowsFromGrid() {
+    const width = drawWidth();
+    const height = drawHeight();
+    const rows = [];
+    for (let y = 0; y < height; y += 1) {
+      rows.push(drawState.grid.slice(y * width, (y + 1) * width).join(""));
+    }
+    return rows;
+  }
+  function makeDrawPattern(name = "\u7ED8\u5236\u56FE\u7EB8") {
+    ensureDrawGrid();
+    const rows = drawRowsFromGrid();
+    const width = drawWidth();
+    const height = drawHeight();
+    const size = Math.max(width, height);
+    return {
+      id: "draw-export",
+      name,
+      size,
+      width,
+      height,
+      sourceWidth: width,
+      sourceHeight: height,
+      rows,
+      craft: "\u539F\u7248",
+      tiles: [...drawState.tiles],
+      tileOriginX: drawState.tileOriginX,
+      tileOriginY: drawState.tileOriginY
+    };
+  }
+  function showDrawCodeOutput(value) {
+    openDrawCodeModal("export", value);
+  }
+  async function exportDrawPatternCode(pattern, successMessage = "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002") {
+    const code = encodePatternCode(pattern);
+    showDrawCodeOutput(code);
+    await drawActions.autoCopyText(code, successMessage, "\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09\u3002");
+  }
+  function loadDrawPattern(pattern) {
+    const rows = Array.isArray(pattern?.rows) ? pattern.rows : [];
+    const srcHeight = Number.parseInt(pattern?.height, 10) || rows.length;
+    const srcWidth = Number.parseInt(pattern?.width, 10) || Math.max(1, ...rows.map((row) => String(row || "").length));
+    const fitted = fitGridToBoardTiles(rows, srcWidth, srcHeight, BOARD_SIZE, MAX_DRAW_DIMENSION);
+    drawState.width = fitted.width;
+    drawState.height = fitted.height;
+    drawState.size = Math.max(fitted.width, fitted.height);
+    drawState.grid = fitted.rows.join("").split("").map((code) => code === "." || palette[code] ? code : ".");
+    const tilesX = fitted.width / BOARD_SIZE;
+    const tilesY = fitted.height / BOARD_SIZE;
+    drawState.tiles = /* @__PURE__ */ new Set();
+    for (let ty = 0; ty < tilesY; ty++) {
+      for (let tx = 0; tx < tilesX; tx++) {
+        drawState.tiles.add(tileKey(tx, ty));
+      }
+    }
+    drawState.tileOriginX = 0;
+    drawState.tileOriginY = 0;
+    drawState.lastCellKey = "";
+    drawState.undoStack = [];
+    drawState.undoStrokeSnapshotTaken = false;
+    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
+    resetDrawView();
+    ensureDrawPaletteColor();
+    renderDrawStudio();
+  }
+  function drawCellFromPointer(event) {
+    if (!els.drawCanvas) return null;
+    const rect = els.drawCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const g = getDrawGeometry();
+    if (!g) return null;
+    const { x0, y0, cell, width, height, cx, cy } = g;
+    const v = drawState.view;
+    const rawX = event.clientX - rect.left;
+    const rawY = event.clientY - rect.top;
+    const logX = (rawX - cx - v.panX) / v.scale + cx;
+    const logY = (rawY - cy - v.panY) / v.scale + cy;
+    const x = clamp(Math.floor((logX - x0) / cell), 0, width - 1);
+    const y = clamp(Math.floor((logY - y0) / cell), 0, height - 1);
+    return { x, y };
+  }
+  function paintDrawCell(x, y, code) {
+    const idx = drawIndex(x, y);
+    if (drawState.grid[idx] === code) return false;
+    drawState.grid[idx] = code;
+    return true;
+  }
+  function floodFillDraw(x, y, fillCode) {
+    const width = drawWidth();
+    const height = drawHeight();
+    const start = drawState.grid[drawIndex(x, y, width)];
+    if (start === fillCode) return false;
+    const queue = [[x, y]];
+    const seen = /* @__PURE__ */ new Set();
+    let changed = false;
+    while (queue.length) {
+      const [cx, cy] = queue.pop();
+      const key = `${cx},${cy}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!isCellActive(cx, cy)) continue;
+      const idx = drawIndex(cx, cy, width);
+      if (drawState.grid[idx] !== start) continue;
+      drawState.grid[idx] = fillCode;
+      changed = true;
+      if (cx > 0) queue.push([cx - 1, cy]);
+      if (cx < width - 1) queue.push([cx + 1, cy]);
+      if (cy > 0) queue.push([cx, cy - 1]);
+      if (cy < height - 1) queue.push([cx, cy + 1]);
+    }
+    return changed;
+  }
+  var DRAW_UNDO_LIMIT = 40;
+  function updateUndoButton() {
+    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
+  }
+  function saveUndoSnapshot() {
+    drawState.undoStack.push({
+      grid: [...drawState.grid],
+      width: drawWidth(),
+      height: drawHeight(),
+      tiles: new Set(drawState.tiles),
+      tileOriginX: drawState.tileOriginX,
+      tileOriginY: drawState.tileOriginY
+    });
+    if (drawState.undoStack.length > DRAW_UNDO_LIMIT) drawState.undoStack.shift();
+    updateUndoButton();
+  }
+  function doUndo() {
+    if (!drawState.undoStack.length) return;
+    const snapshot = drawState.undoStack.pop();
+    drawState.grid = [...snapshot.grid];
+    drawState.width = snapshot.width;
+    drawState.height = snapshot.height;
+    drawState.size = Math.max(snapshot.width, snapshot.height);
+    if (snapshot.tiles) {
+      drawState.tiles = new Set(snapshot.tiles);
+      drawState.tileOriginX = snapshot.tileOriginX ?? 0;
+      drawState.tileOriginY = snapshot.tileOriginY ?? 0;
+    }
+    drawState.lastCellKey = "";
+    drawState.undoStrokeSnapshotTaken = false;
+    paintDrawCanvas();
+    updateUndoButton();
+  }
+  function getShapeCells(sx, sy, ex, ey) {
+    const width = drawWidth();
+    const height = drawHeight();
+    const cells = [];
+    if (drawState.shapeMode === "circle") {
+      const r = Math.sqrt((ex - sx) ** 2 + (ey - sy) ** 2);
+      const minX = Math.max(0, Math.floor(sx - r));
+      const maxX = Math.min(width - 1, Math.ceil(sx + r));
+      const minY = Math.max(0, Math.floor(sy - r));
+      const maxY = Math.min(height - 1, Math.ceil(sy + r));
+      for (let cy = minY; cy <= maxY; cy++) {
+        for (let cx = minX; cx <= maxX; cx++) {
+          if (Math.sqrt((cx - sx) ** 2 + (cy - sy) ** 2) <= r + 0.5) cells.push([cx, cy]);
+        }
+      }
+    } else {
+      const x0 = Math.max(0, Math.min(sx, ex));
+      const x1 = Math.min(width - 1, Math.max(sx, ex));
+      const y0 = Math.max(0, Math.min(sy, ey));
+      const y1 = Math.min(height - 1, Math.max(sy, ey));
+      for (let cy = y0; cy <= y1; cy++) {
+        for (let cx = x0; cx <= x1; cx++) cells.push([cx, cy]);
+      }
+    }
+    return cells.filter(([cx, cy]) => isCellActive(cx, cy));
+  }
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  function imageStampBox(sx, sy, ex, ey) {
+    const img = drawState.stampImage;
+    if (!img) return null;
+    const boardW = drawWidth();
+    const boardH = drawHeight();
+    const aspect = (img.naturalWidth || img.width || 1) / (img.naturalHeight || img.height || 1);
+    const dirX = ex >= sx ? 1 : -1;
+    const dirY = ey >= sy ? 1 : -1;
+    const dragW = Math.abs(ex - sx) + 1;
+    const dragH = Math.abs(ey - sy) + 1;
+    let w;
+    let h;
+    if (dragW / dragH >= aspect) {
+      w = dragW;
+      h = Math.max(1, Math.round(w / aspect));
+    } else {
+      h = dragH;
+      w = Math.max(1, Math.round(h * aspect));
+    }
+    if (w > boardW || h > boardH) {
+      const s = Math.min(boardW / w, boardH / h);
+      w = Math.max(1, Math.floor(w * s));
+      h = Math.max(1, Math.floor(h * s));
+    }
+    let x0 = dirX > 0 ? sx : sx - (w - 1);
+    let y0 = dirY > 0 ? sy : sy - (h - 1);
+    x0 = clamp(x0, 0, boardW - w);
+    y0 = clamp(y0, 0, boardH - h);
+    return { x0, y0, w, h };
+  }
+  function commitImageStamp() {
+    const drag = drawState.shapeDrag;
+    const end = drawState.shapeDragEnd;
+    drawState.shapeDrag = null;
+    drawState.shapeDragEnd = null;
+    if (!drag || !end || !drawState.stampImage) {
+      paintDrawCanvas();
+      return;
+    }
+    const box = imageStampBox(drag.x, drag.y, end.x, end.y);
+    if (!box || box.w < 1 || box.h < 1) {
+      paintDrawCanvas();
+      return;
+    }
+    const rows = convertImageToRectRows(drawState.stampImage, box.w, box.h, { removeWhite: false });
+    const width = drawWidth();
+    let painted = false;
+    saveUndoSnapshot();
+    for (let ry = 0; ry < box.h; ry += 1) {
+      const row = rows[ry] || "";
+      for (let rx = 0; rx < box.w; rx += 1) {
+        const code = row[rx] || ".";
+        if (code === ".") continue;
+        drawState.grid[drawIndex(box.x0 + rx, box.y0 + ry, width)] = code;
+        painted = true;
+      }
+    }
+    if (!painted) {
+      drawState.undoStack.pop();
+      updateUndoButton();
+    }
+    drawState.lastCellKey = "";
+    paintDrawCanvas();
+    if (painted) showToast(`\u5DF2\u653E\u5165\u56FE\u7247\uFF1A${box.w}\xD7${box.h} \u8C46\u3002`);
+  }
+  function applyDrawToolAt(x, y) {
+    if (!isCellActive(x, y)) return false;
+    const key = `${x},${y}`;
+    if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
+    drawState.lastCellKey = key;
+    if (drawState.tool === "eraser") {
+      if (drawState.grid[drawIndex(x, y)] === ".") return false;
+      if (!drawState.undoStrokeSnapshotTaken) {
+        saveUndoSnapshot();
+        drawState.undoStrokeSnapshotTaken = true;
+      }
+      return paintDrawCell(x, y, ".");
+    }
+    if (drawState.tool === "picker") {
+      const pick = drawState.grid[drawIndex(x, y)];
+      if (pick && pick !== "." && pick !== drawState.selectedColor) {
+        drawState.selectedColor = pick;
+        recordRecentColor(pick);
+        renderDrawStudio();
+      }
+      return false;
+    }
+    if (drawState.tool === "fill") {
+      const start = drawState.grid[drawIndex(x, y)];
+      if (start === drawState.selectedColor) return false;
+      saveUndoSnapshot();
+      drawState.undoStrokeSnapshotTaken = true;
+      const result2 = floodFillDraw(x, y, drawState.selectedColor);
+      if (result2 && recordRecentColor(drawState.selectedColor)) {
+        drawRenderKey = "";
+        renderDrawPalette();
+      }
+      return result2;
+    }
+    if (drawState.grid[drawIndex(x, y)] === drawState.selectedColor) return false;
+    if (!drawState.undoStrokeSnapshotTaken) {
+      saveUndoSnapshot();
+      drawState.undoStrokeSnapshotTaken = true;
+    }
+    const result = paintDrawCell(x, y, drawState.selectedColor);
+    if (result && recordRecentColor(drawState.selectedColor)) {
+      drawRenderKey = "";
+      renderDrawPalette();
+    }
+    return result;
+  }
+  function paintDrawCanvas() {
+    if (!els.drawCanvas) return;
+    ensureDrawGrid();
+    const canvas = els.drawCanvas;
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const geometry = getDrawGeometry();
+    if (!geometry) return;
+    const { cssW, cssH, width, height, cell, gridW, gridH, x0, y0, cx, cy } = geometry;
+    const pxW = Math.round(cssW * dpr);
+    const pxH = Math.round(cssH * dpr);
+    if (canvas.width !== pxW || canvas.height !== pxH) {
+      canvas.width = pxW;
+      canvas.height = pxH;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pxW, pxH);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const theme = currentBackgroundTheme();
+    const workbenchGradient = ctx.createLinearGradient(0, 0, cssW, cssH);
+    workbenchGradient.addColorStop(0, theme.table[0]);
+    workbenchGradient.addColorStop(0.48, theme.table[1]);
+    workbenchGradient.addColorStop(1, theme.table[2]);
+    ctx.fillStyle = workbenchGradient;
+    ctx.fillRect(0, 0, cssW, cssH);
+    const v = drawState.view;
+    ctx.save();
+    ctx.translate(cx + v.panX, cy + v.panY);
+    ctx.scale(v.scale, v.scale);
+    ctx.translate(-cx, -cy);
+    const T = BOARD_SIZE;
+    const tileW = T * cell;
+    const tileH = T * cell;
+    const tintLight = mixColor("#ffffff", theme.brand, 0.06);
+    const tintDark = mixColor("#ffffff", theme.brand, 0.15);
+    const blocksPerTile = T / 10;
+    for (const key of drawState.tiles) {
+      const [tx, ty] = key.split(",").map(Number);
+      const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+      const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+      ctx.fillStyle = "#fbfcfd";
+      ctx.fillRect(tileBoardX, tileBoardY, tileW, tileH);
+      const tileBlockX = (tx - drawState.tileOriginX) * blocksPerTile;
+      const tileBlockY = (ty - drawState.tileOriginY) * blocksPerTile;
+      for (let by = 0; by < blocksPerTile; by++) {
+        for (let bx = 0; bx < blocksPerTile; bx++) {
+          ctx.fillStyle = (tileBlockX + bx + tileBlockY + by) % 2 ? tintDark : tintLight;
+          ctx.fillRect(tileBoardX + bx * 10 * cell, tileBoardY + by * 10 * cell, 10 * cell, 10 * cell);
+        }
+      }
+    }
+    const pegR = Math.max(0.6, cell * 0.138);
+    const pegCenters = [];
+    for (const key of drawState.tiles) {
+      const [tx, ty] = key.split(",").map(Number);
+      const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+      const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+      const startX = (tx - drawState.tileOriginX) * T;
+      const startY = (ty - drawState.tileOriginY) * T;
+      for (let ly = 0; ly < T; ly++) {
+        for (let lx = 0; lx < T; lx++) {
+          const code = drawState.grid[drawIndex(startX + lx, startY + ly, width)];
+          if (code && code !== ".") continue;
+          pegCenters.push([tileBoardX + lx * cell + cell / 2, tileBoardY + ly * cell + cell / 2]);
+        }
+      }
+    }
+    if (pegCenters.length) {
+      ctx.beginPath();
+      for (const [pcx, pcy] of pegCenters) {
+        ctx.moveTo(pcx + pegR, pcy);
+        ctx.arc(pcx, pcy, pegR, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = "rgba(91, 104, 118, 0.30)";
+      ctx.fill();
+      const hlR = pegR * 0.36;
+      const hlOff = pegR * 0.22;
+      ctx.beginPath();
+      for (const [pcx, pcy] of pegCenters) {
+        ctx.moveTo(pcx - hlOff + hlR, pcy - hlOff);
+        ctx.arc(pcx - hlOff, pcy - hlOff, hlR, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+      ctx.fill();
+    }
+    for (const key of drawState.tiles) {
+      const [tx, ty] = key.split(",").map(Number);
+      const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+      const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+      const tileLayout = { boardX: tileBoardX, boardY: tileBoardY, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell };
+      const startX = (tx - drawState.tileOriginX) * T;
+      const startY = (ty - drawState.tileOriginY) * T;
+      for (let ly = 0; ly < T; ly++) {
+        for (let lx = 0; lx < T; lx++) {
+          const code = drawState.grid[drawIndex(startX + lx, startY + ly, width)];
+          if (code && code !== ".") {
+            ctx.fillStyle = palette[code] || "#9aa4b3";
+            ctx.fillRect(tileBoardX + lx * cell, tileBoardY + ly * cell, cell, cell);
+          }
+        }
+      }
+      ctx.strokeStyle = "rgba(70, 84, 96, 0.08)";
+      ctx.lineWidth = 1 / v.scale;
+      for (let i = 0; i <= T; i++) {
+        const offset = i * cell;
+        ctx.beginPath();
+        ctx.moveTo(tileBoardX + offset + 0.5, tileBoardY + 0.5);
+        ctx.lineTo(tileBoardX + offset + 0.5, tileBoardY + tileH + 0.5);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= T; i++) {
+        const offset = i * cell;
+        ctx.beginPath();
+        ctx.moveTo(tileBoardX + 0.5, tileBoardY + offset + 0.5);
+        ctx.lineTo(tileBoardX + tileW + 0.5, tileBoardY + offset + 0.5);
+        ctx.stroke();
+      }
+      drawBoardGuides(ctx, tileLayout, T, T, v.scale);
+    }
+    ctx.save();
+    ctx.strokeStyle = "rgba(70, 84, 96, 0.16)";
+    ctx.lineWidth = 1 / v.scale;
+    ctx.lineJoin = "round";
+    const tabLen = cell * 0.9;
+    const tabDepth = cell * 0.5;
+    for (const key of drawState.tiles) {
+      const [tx, ty] = key.split(",").map(Number);
+      const bx = x0 + (tx - drawState.tileOriginX) * tileW;
+      const by = y0 + (ty - drawState.tileOriginY) * tileH;
+      if (drawState.tiles.has(tileKey(tx + 1, ty))) {
+        const sx = bx + tileW;
+        const c1 = by + tileH / 3;
+        const c2 = by + tileH * 2 / 3;
+        ctx.beginPath();
+        ctx.moveTo(sx, by);
+        ctx.lineTo(sx, c1 - tabLen);
+        ctx.lineTo(sx + tabDepth, c1 - tabLen);
+        ctx.lineTo(sx + tabDepth, c1 + tabLen);
+        ctx.lineTo(sx, c1 + tabLen);
+        ctx.lineTo(sx, c2 - tabLen);
+        ctx.lineTo(sx - tabDepth, c2 - tabLen);
+        ctx.lineTo(sx - tabDepth, c2 + tabLen);
+        ctx.lineTo(sx, c2 + tabLen);
+        ctx.lineTo(sx, by + tileH);
+        ctx.stroke();
+      }
+      if (drawState.tiles.has(tileKey(tx, ty + 1))) {
+        const sy = by + tileH;
+        const c1 = bx + tileW / 3;
+        const c2 = bx + tileW * 2 / 3;
+        ctx.beginPath();
+        ctx.moveTo(bx, sy);
+        ctx.lineTo(c1 - tabLen, sy);
+        ctx.lineTo(c1 - tabLen, sy + tabDepth);
+        ctx.lineTo(c1 + tabLen, sy + tabDepth);
+        ctx.lineTo(c1 + tabLen, sy);
+        ctx.lineTo(c2 - tabLen, sy);
+        ctx.lineTo(c2 - tabLen, sy - tabDepth);
+        ctx.lineTo(c2 + tabLen, sy - tabDepth);
+        ctx.lineTo(c2 + tabLen, sy);
+        ctx.lineTo(bx + tileW, sy);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    ctx.strokeStyle = "rgba(70, 84, 96, 0.35)";
+    ctx.lineWidth = 1.5 / v.scale;
+    for (const key of drawState.tiles) {
+      const [tx, ty] = key.split(",").map(Number);
+      const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+      const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+      if (!drawState.tiles.has(tileKey(tx, ty - 1))) {
+        ctx.beginPath();
+        ctx.moveTo(tileBoardX, tileBoardY);
+        ctx.lineTo(tileBoardX + tileW, tileBoardY);
+        ctx.stroke();
+      }
+      if (!drawState.tiles.has(tileKey(tx + 1, ty))) {
+        ctx.beginPath();
+        ctx.moveTo(tileBoardX + tileW, tileBoardY);
+        ctx.lineTo(tileBoardX + tileW, tileBoardY + tileH);
+        ctx.stroke();
+      }
+      if (!drawState.tiles.has(tileKey(tx, ty + 1))) {
+        ctx.beginPath();
+        ctx.moveTo(tileBoardX, tileBoardY + tileH);
+        ctx.lineTo(tileBoardX + tileW, tileBoardY + tileH);
+        ctx.stroke();
+      }
+      if (!drawState.tiles.has(tileKey(tx - 1, ty))) {
+        ctx.beginPath();
+        ctx.moveTo(tileBoardX, tileBoardY);
+        ctx.lineTo(tileBoardX, tileBoardY + tileH);
+        ctx.stroke();
+      }
+    }
+    const tabs = drawBoardTabRects(geometry);
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "rgba(69, 93, 122, 0.38)";
+    ctx.lineWidth = 1.2 / v.scale;
+    tabs.forEach((tab) => {
+      ctx.beginPath();
+      ctx.roundRect(tab.x, tab.y, tab.w, tab.h, Math.min(tab.w, tab.h) * 0.35);
+      ctx.fill();
+      ctx.stroke();
+      const tabCx = tab.x + tab.w / 2;
+      const tabCy = tab.y + tab.h / 2;
+      const arm = Math.min(tab.w, tab.h) * 0.24;
+      ctx.beginPath();
+      ctx.moveTo(tabCx - arm, tabCy);
+      ctx.lineTo(tabCx + arm, tabCy);
+      ctx.moveTo(tabCx, tabCy - arm);
+      ctx.lineTo(tabCx, tabCy + arm);
+      ctx.stroke();
+    });
+    if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
+      const previewCells = getShapeCells(
+        drawState.shapeDrag.x,
+        drawState.shapeDrag.y,
+        drawState.shapeDragEnd.x,
+        drawState.shapeDragEnd.y
+      );
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = palette[drawState.selectedColor] || "#9aa4b3";
+      for (const [px, py] of previewCells) {
+        ctx.fillRect(x0 + px * cell, y0 + py * cell, cell, cell);
+      }
+      ctx.restore();
+    }
+    if (drawState.tool === "image" && drawState.stampImage && drawState.shapeDrag && drawState.shapeDragEnd) {
+      const box = imageStampBox(drawState.shapeDrag.x, drawState.shapeDrag.y, drawState.shapeDragEnd.x, drawState.shapeDragEnd.y);
+      if (box) {
+        const px = x0 + box.x0 * cell;
+        const py = y0 + box.y0 * cell;
+        const pw = box.w * cell;
+        const ph = box.h * cell;
+        ctx.save();
+        ctx.globalAlpha = 0.88;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(drawState.stampImage, px, py, pw, ph);
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = theme.brand || "#57b8a7";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+  function renderDrawPalette() {
+    if (!els.drawPalette) return;
+    ensureDrawPaletteColor();
+    const allCodes = allColorCodes();
+    const query = (drawState.paletteQuery || "").trim().toUpperCase().replace(/\s+/g, "");
+    const codes = query ? allCodes.filter((code) => (beadIds[code] || code).toUpperCase().includes(query)) : allCodes;
+    const key = `${drawState.selectedColor}:${drawState.recentColors.join(",")}:${query}:${allCodes.join(",")}`;
+    if (key === drawRenderKey) return;
+    drawRenderKey = key;
+    if (els.drawPaletteMeta) {
+      els.drawPaletteMeta.textContent = query ? `${codes.length} / ${allCodes.length} \u8272` : `221\u8272\u677F`;
+    }
+    if (els.drawRecentColors) {
+      els.drawRecentColors.innerHTML = drawState.recentColors.map((code) => {
+        const selected = drawState.selectedColor === code;
+        const label = beadIds[code] || code;
+        const isTransparent = beadIds[code] === "H1";
+        return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
+        <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+        <span class="chip-label">${label}</span>
+      </button>`;
+      }).join("");
+    }
+    if (!codes.length) {
+      els.drawPalette.innerHTML = `<p class="palette-empty">\u6CA1\u6709\u5339\u914D\u300C${escapeHtml(drawState.paletteQuery || "")}\u300D\u7684\u8272\u53F7</p>`;
+      return;
+    }
+    els.drawPalette.innerHTML = codes.map((code) => {
+      const selected = drawState.selectedColor === code;
+      const label = beadIds[code] || code;
+      const isTransparent = beadIds[code] === "H1";
+      return `<button type="button" class="color-chip${selected ? " active" : ""}" data-draw-code="${code}" aria-label="\u9009\u62E9 ${label}" title="${label}">
+      <span class="swatch${isTransparent ? " is-transparent" : ""}" style="${isTransparent ? "" : `background:${palette[code]}`}"></span>
+      <span class="chip-label">${label}</span>
+    </button>`;
+    }).join("");
+  }
+  function renderDrawToolButtons() {
+    if (!els.drawingStudio) return;
+    els.drawingStudio.querySelectorAll("[data-draw-tool]").forEach((button) => {
+      const active2 = button.dataset.drawTool === drawState.tool;
+      button.classList.toggle("active", active2);
+      button.setAttribute("aria-pressed", active2 ? "true" : "false");
+    });
+    const shapeBtn = els.drawingStudio.querySelector("[data-draw-tool='shape']");
+    if (shapeBtn) {
+      const isCircle = drawState.shapeMode === "circle";
+      shapeBtn.setAttribute("aria-label", isCircle ? "\u5706\u5F62" : "\u77E9\u5F62");
+      shapeBtn.innerHTML = icon(isCircle ? "circle" : "square", { size: 16 });
+    }
+    if (els.drawImageStampButton) {
+      els.drawImageStampButton.classList.toggle("active", drawState.tool === "image");
+    }
+    if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
+  }
+  function renderDrawStudio() {
+    if (state.appMode !== "draw") return;
+    ensureDrawGrid();
+    renderDrawPalette();
+    renderDrawToolButtons();
+    paintDrawCanvas();
+  }
+  function enterDrawMode() {
+    ensureDrawPaletteColor();
+    renderDrawStudio();
+  }
+  function useDrawPattern() {
+    ensureDrawGrid();
+    const rows = drawRowsFromGrid();
+    const beadCount = rows.join("").replace(/\./g, "").length;
+    if (!beadCount) {
+      showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
+      return;
+    }
+    const sourceWidth = drawWidth();
+    const sourceHeight = drawHeight();
+    const size = Math.max(sourceWidth, sourceHeight);
+    const pattern = {
+      id: "custom-draw",
+      name: "\u7ED8\u5236\u56FE\u7EB8",
+      size,
+      width: sourceWidth,
+      height: sourceHeight,
+      craft: "\u539F\u7248",
+      rows,
+      sourceRows: rows,
+      sourceSize: size,
+      sourceWidth,
+      sourceHeight,
+      note: pickCustomPatternNote("draw", size, rows.join("")),
+      tiles: [...drawState.tiles],
+      tileOriginX: drawState.tileOriginX,
+      tileOriginY: drawState.tileOriginY
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(pattern);
+    drawActions.loadPattern(pattern, false);
+    drawActions.setAppMode("bead");
+    showToast("\u7ED8\u56FE\u5DF2\u751F\u6210\u56FE\u7EB8\uFF0C\u5F00\u59CB\u62FC\u8C46\u3002");
+  }
+  function initDrawingStudioEvents() {
+    els.drawingBackButton?.addEventListener("click", () => {
+      drawActions.setAppMode("home");
+    });
+    els.drawSettingsButton?.addEventListener("click", () => drawActions.openSettingsModal());
+    els.drawResetButton?.addEventListener("click", async () => {
+      ensureDrawGrid();
+      const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+      if (hasContent && !await confirmModal({ message: "\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u6E05\u7A7A", danger: true })) return;
+      drawState.grid = createDrawGrid(drawWidth(), drawHeight());
+      drawState.lastCellKey = "";
+      paintDrawCanvas();
+      showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
+    });
+    els.drawingStudio?.addEventListener("click", (event) => {
+      const actionBtn = event.target.closest("[data-draw-action]");
+      if (actionBtn?.dataset.drawAction === "undo") {
+        doUndo();
+        return;
+      }
+      const toolBtn = event.target.closest("[data-draw-tool]");
+      if (toolBtn) {
+        const tool = toolBtn.dataset.drawTool || "brush";
+        if (tool === "shape" && drawState.tool === "shape") {
+          drawState.shapeMode = drawState.shapeMode === "rect" ? "circle" : "rect";
+        } else {
+          drawState.tool = tool;
+          drawState.lastCellKey = "";
+        }
+        renderDrawToolButtons();
+        return;
+      }
+      const colorBtn = event.target.closest("[data-draw-code]");
+      if (colorBtn) {
+        const code = colorBtn.dataset.drawCode;
+        if (code && palette[code]) {
+          drawState.selectedColor = code;
+          drawRenderKey = "";
+          renderDrawPalette();
+        }
+      }
+    });
+    els.drawPaletteSearch?.addEventListener("input", (event) => {
+      drawState.paletteQuery = event.target.value || "";
+      drawRenderKey = "";
+      renderDrawPalette();
+    });
+    els.drawClearButton?.addEventListener("click", () => {
+      ensureDrawGrid();
+      drawState.grid = createDrawGrid(drawWidth(), drawHeight());
+      drawState.lastCellKey = "";
+      drawState.undoStack = [];
+      drawState.undoStrokeSnapshotTaken = false;
+      if (els.drawUndoButton) els.drawUndoButton.disabled = true;
+      paintDrawCanvas();
+      showToast("\u7ED8\u56FE\u5DF2\u6E05\u7A7A\u3002");
+    });
+    els.drawUsePatternButton?.addEventListener("click", () => {
+      useDrawPattern();
+    });
+    els.drawImageStampButton?.addEventListener("click", () => {
+      els.drawImageInput?.click();
+    });
+    els.drawImageInput?.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const image = await loadImageFromDataUrl(dataUrl);
+        drawState.stampImage = image;
+        drawState.tool = "image";
+        drawState.lastCellKey = "";
+        drawState.shapeDrag = null;
+        drawState.shapeDragEnd = null;
+        renderDrawToolButtons();
+        showToast("\u5728\u7248\u9762\u4E0A\u62D6\u4E00\u4E2A\u6846\u653E\u56FE\u7247\uFF08\u81EA\u52A8\u9501\u5B9A\u539F\u56FE\u6BD4\u4F8B\uFF09\u3002");
+      } catch {
+        showToast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\uFF0C\u6362\u4E00\u5F20\u8BD5\u8BD5\u3002");
+      }
+    });
+    els.drawShortCodeButton?.addEventListener("click", async () => {
+      const button = els.drawShortCodeButton;
+      const pattern = makeDrawPattern();
+      if (button) {
+        button.disabled = true;
+        button.textContent = "\u5BFC\u51FA\u4E2D";
+      }
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 5e3);
+      try {
+        const share = await drawActions.requestCloudShareForPattern(pattern, { signal: controller.signal });
+        window.clearTimeout(timeout);
+        if (share?.shortId) {
+          showDrawCodeOutput(share.shortId);
+          await drawActions.autoCopyText(
+            share.shortId,
+            `\u77ED\u7801\u5DF2\u590D\u5236\uFF1A${share.shortId}`,
+            `\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
+          );
+        } else {
+          await exportDrawPatternCode(pattern, "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
+        }
+      } catch {
+        window.clearTimeout(timeout);
+        await exportDrawPatternCode(pattern, "\u77ED\u7801\u8FDE\u63A5\u5931\u8D25\uFF0C\u5DF2\u6539\u4E3A\u590D\u5236\u56FE\u7EB8\u7801\u3002");
+      }
+      if (button) {
+        button.disabled = false;
+        button.textContent = "\u5BFC\u51FA\u56FE\u7EB8";
+      }
+    });
+    els.drawSubmitGalleryButton?.addEventListener("click", () => {
+      const pattern = makeDrawPattern("\u7ED8\u5236\u56FE\u7EB8");
+      const beadCount = pattern.rows.join("").replace(/\./g, "").length;
+      if (!beadCount) {
+        showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
+        return;
+      }
+      try {
+        drawActions.openGallerySubmitModal({
+          name: pattern.name,
+          patternCode: encodePatternCode(pattern)
+        });
+      } catch {
+        showToast("\u5F53\u524D\u56FE\u7EB8\u65E0\u6CD5\u6295\u7A3F\u3002");
+      }
+    });
+    els.drawImportButton?.addEventListener("click", async () => {
+      openDrawCodeModal("import");
+    });
+    els.drawCodeImportConfirmBtn?.addEventListener("click", async () => {
+      const raw = els.drawCodeInput?.value || "";
+      if (drawCodeMode === "import-bead") {
+        const ok = await drawActions.importPatternCode(raw);
+        if (ok) closeDrawCodeModal();
+        return;
+      }
+      const extracted = extractPatternCode(raw);
+      const shortId = extractCloudShortId(raw);
+      if (!extracted && !shortId) {
+        showToast("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
+        return;
+      }
+      try {
+        const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
+        const decoded = decodePatternCode(code);
+        loadDrawPattern(decoded);
+        closeDrawCodeModal();
+        showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.width}x${decoded.height}\u3002`);
+      } catch (error) {
+        showToast("\u56FE\u7EB8\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
+      }
+    });
+    els.drawCodeCopyBtn?.addEventListener("click", async () => {
+      await drawActions.autoCopyText(els.drawCodeInput?.value || "", "\u5DF2\u590D\u5236\u3002", "\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\u3002");
+    });
+    [els.drawCodeCancelBtn, els.drawCodeCloseBtn].forEach((btn) => {
+      btn?.addEventListener("click", closeDrawCodeModal);
+    });
+    const handleDrawPointer = (event) => {
+      const cell = drawCellFromPointer(event);
+      if (!cell) return;
+      const changed = applyDrawToolAt(cell.x, cell.y);
+      if (changed || drawState.tool === "fill") paintDrawCanvas();
+    };
+    if (els.drawCanvas) {
+      els.drawCanvas.addEventListener("pointerdown", (event) => {
+        els.drawCanvas.setPointerCapture(event.pointerId);
+        const tileToAdd = drawBoardTabAtPointer(event);
+        if (tileToAdd) {
+          const { tx, ty } = tileToAdd;
+          saveUndoSnapshot();
+          addTileAt(tx, ty);
+          resetDrawView();
+          paintDrawCanvas();
+          showToast("\u5DF2\u6DFB\u52A0\u4E00\u5757\u677F\u3002");
+          return;
+        }
+        const rect = els.drawCanvas.getBoundingClientRect();
+        drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        if (Object.keys(drawPointers).length >= 2) {
+          drawState.drawing = false;
+          drawState.lastCellKey = "";
+          drawState.shapeDrag = null;
+          startDrawGesture();
+        } else if (drawState.tool === "shape" || drawState.tool === "image") {
+          const cell = drawCellFromPointer(event);
+          if (cell) {
+            drawState.undoStrokeSnapshotTaken = false;
+            drawState.shapeDrag = { x: cell.x, y: cell.y };
+            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
+            drawState.drawing = true;
+          }
+        } else {
+          drawState.undoStrokeSnapshotTaken = false;
+          drawState.drawing = true;
+          drawState.lastCellKey = "";
+          handleDrawPointer(event);
+        }
+      });
+      els.drawCanvas.addEventListener("pointermove", (event) => {
+        const rect = els.drawCanvas.getBoundingClientRect();
+        if (drawPointers[event.pointerId]) {
+          drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        }
+        if (Object.keys(drawPointers).length >= 2 && drawGesture?.active) {
+          updateDrawGesture();
+          return;
+        }
+        if (!drawState.drawing) return;
+        if (drawState.tool === "shape" || drawState.tool === "image") {
+          const cell = drawCellFromPointer(event);
+          if (cell && drawState.shapeDrag) {
+            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
+            paintDrawCanvas();
+          }
+          return;
+        }
+        if (drawState.tool === "fill" || drawState.tool === "picker") return;
+        handleDrawPointer(event);
+      });
+      const endDrawPointer = (event) => {
+        delete drawPointers[event.pointerId];
+        if (Object.keys(drawPointers).length < 2 && drawGesture) {
+          drawGesture.active = false;
+        }
+        if (Object.keys(drawPointers).length === 0) {
+          if (drawState.tool === "image" && drawState.shapeDrag && drawState.shapeDragEnd) {
+            commitImageStamp();
+          } else if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
+            const cells = getShapeCells(
+              drawState.shapeDrag.x,
+              drawState.shapeDrag.y,
+              drawState.shapeDragEnd.x,
+              drawState.shapeDragEnd.y
+            );
+            const code = drawState.selectedColor;
+            const shouldSaveUndo = cells.some(([cx, cy]) => drawState.grid[drawIndex(cx, cy)] !== code);
+            if (shouldSaveUndo) saveUndoSnapshot();
+            let painted = false;
+            for (const [cx, cy] of cells) painted = paintDrawCell(cx, cy, code) || painted;
+            if (painted) {
+              recordRecentColor(code);
+              drawRenderKey = "";
+              renderDrawPalette();
+            }
+            drawState.shapeDrag = null;
+            drawState.shapeDragEnd = null;
+            paintDrawCanvas();
+          }
+          drawState.drawing = false;
+          drawState.lastCellKey = "";
+          drawState.undoStrokeSnapshotTaken = false;
+        }
+      };
+      els.drawCanvas.addEventListener("pointerup", endDrawPointer);
+      els.drawCanvas.addEventListener("pointerleave", (event) => {
+        endDrawPointer(event);
+      });
+      els.drawCanvas.addEventListener("pointercancel", endDrawPointer);
+      els.drawCanvas.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const rect = els.drawCanvas.getBoundingClientRect();
+        const mx = event.clientX - rect.left;
+        const my = event.clientY - rect.top;
+        const g = getDrawGeometry();
+        if (!g) return;
+        const { cx, cy } = g;
+        const v = drawState.view;
+        const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+        const nextScale = clamp(v.scale * factor, 1, maxBoardScale(g));
+        const ratio = nextScale / v.scale;
+        const nextPanX = mx - cx - (mx - cx - v.panX) * ratio;
+        const nextPanY = my - cy - (my - cy - v.panY) * ratio;
+        setDrawZoom(nextScale, nextPanX, nextPanY);
+      }, { passive: false });
+      els.drawCanvas.addEventListener("dblclick", () => {
+        resetDrawView();
+        paintDrawCanvas();
+      });
+    }
+  }
+
   // src/custom-pattern.js
   var customPatternActions = {
     loadPattern: () => {
@@ -8388,26 +9280,6 @@
     if (els.customDenoiseSlider) els.customDenoiseSlider.value = String(normalized);
     if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
     return normalized;
-  }
-  function setPatternSizePreview(size) {
-    const normalized = normalizePatternSize(size);
-    state.patternSize = normalized;
-    setSizeControls(normalized);
-  }
-  function applyPatternSize(size) {
-    const normalized = normalizePatternSize(size);
-    if (normalized === state.selectedPattern.size) {
-      setSizeControls(normalized);
-      return;
-    }
-    setSizeControls(normalized);
-    const base = findBasePattern();
-    if (baseIdFor(base).startsWith("custom-") && base.sourceImageDataUrl) {
-      reconvertCustomPatternAtSize(base, normalized, state.phase !== "choose");
-      return;
-    }
-    customPatternActions.loadPattern(resizePattern(base, normalized), state.phase !== "choose");
-    showToast(`\u56FE\u7EB8\u5DF2\u8C03\u6574\u4E3A ${normalized}x${normalized}\u3002`);
   }
   async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
     try {
@@ -8453,7 +9325,7 @@
       try {
         const sourceImageDataUrl = String(reader.result || "");
         const image = await loadImageFromDataUrl(sourceImageDataUrl);
-        const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
+        const size = normalizePatternSize();
         const removeWhite = els.customWhiteToggle.checked;
         const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
         setSizeControls(size);
@@ -8504,18 +9376,6 @@
     reader.readAsDataURL(file);
   }
   function initCustomPatternEvents() {
-    let sizeSliderTimer = null;
-    els.patternSizeSlider?.addEventListener("input", () => {
-      const size = normalizePatternSize(els.patternSizeSlider.value);
-      setPatternSizePreview(size);
-      if (sizeSliderTimer) window.clearTimeout(sizeSliderTimer);
-      sizeSliderTimer = window.setTimeout(() => applyPatternSize(size), 110);
-    });
-    els.patternSizeSlider?.addEventListener("change", () => {
-      const size = normalizePatternSize(els.patternSizeSlider.value);
-      setPatternSizePreview(size);
-      applyPatternSize(size);
-    });
     let customDenoiseTimer = null;
     els.customDenoiseSlider?.addEventListener("input", () => {
       const level = setCustomDenoiseControls(els.customDenoiseSlider.value);
@@ -8568,14 +9428,75 @@
   }
   function normalizePlaced(placed, total) {
     if (!Array.isArray(placed)) return Array(total).fill(null);
-    return Array.from({ length: total }, (_, index) => {
-      const code = placed[index];
+    return Array.from({ length: total }, (_, index2) => {
+      const code = placed[index2];
       return code && palette[code] ? code : null;
     });
   }
   function normalizeHeat(heat, total) {
     if (!Array.isArray(heat)) return Array(total).fill(0);
-    return Array.from({ length: total }, (_, index) => Number(heat[index]) || 0);
+    return Array.from({ length: total }, (_, index2) => Number(heat[index2]) || 0);
+  }
+  function regridRows(rows, fromSize, toSize) {
+    if (!Array.isArray(rows)) return null;
+    const offset = Math.floor((toSize - fromSize) / 2);
+    const out = [];
+    for (let ty = 0; ty < toSize; ty += 1) {
+      const sy = ty - offset;
+      let line = "";
+      for (let tx = 0; tx < toSize; tx += 1) {
+        const sx = tx - offset;
+        const code = sy >= 0 && sy < fromSize && sx >= 0 && sx < fromSize ? rows[sy]?.[sx] : ".";
+        line += code && code !== "." ? code : ".";
+      }
+      out.push(line);
+    }
+    return out;
+  }
+  function padGridTo(oldRows, oldW, oldH, newW, newH) {
+    const out = [];
+    for (let y = 0; y < newH; y += 1) {
+      let line = "";
+      for (let x = 0; x < newW; x += 1) {
+        line += y < oldH && x < oldW ? oldRows[y]?.[x] || "." : ".";
+      }
+      out.push(line);
+    }
+    return out;
+  }
+  function applyBoardGeometry(pattern, session) {
+    const bw = Number.parseInt(session.boardWidth, 10);
+    const bh = Number.parseInt(session.boardHeight, 10);
+    if (!Number.isFinite(bw) || !Number.isFinite(bh) || bw <= 0 || bh <= 0) return;
+    if (bw === boardCols(pattern) && bh === boardRows(pattern)) return;
+    let rows = null;
+    if (Array.isArray(session.boardRows) && session.boardRows.length === bh) {
+      const candidate = session.boardRows.map((r) => String(r || "").slice(0, bw).padEnd(bw, "."));
+      if (candidate.every((r) => [...r].every((c) => c === "." || palette[c]))) rows = candidate;
+    }
+    if (!rows) rows = padGridTo(pattern.rows || [], boardCols(pattern), boardRows(pattern), bw, bh);
+    pattern.rows = rows;
+    pattern.sourceRows = rows;
+    pattern.width = bw;
+    pattern.height = bh;
+    pattern.size = Math.max(bw, bh);
+    pattern.sourceSize = pattern.size;
+    invalidatePatternDataCaches(pattern);
+  }
+  function regridSquare(arr, fromSize, toSize, fill) {
+    const out = Array(toSize * toSize).fill(fill);
+    if (!Array.isArray(arr)) return out;
+    const offset = Math.floor((toSize - fromSize) / 2);
+    for (let y = 0; y < fromSize; y += 1) {
+      const ty = y + offset;
+      if (ty < 0 || ty >= toSize) continue;
+      for (let x = 0; x < fromSize; x += 1) {
+        const tx = x + offset;
+        if (tx < 0 || tx >= toSize) continue;
+        out[ty * toSize + tx] = arr[y * fromSize + x];
+      }
+    }
+    return out;
   }
   function normalizePatternSizeFromSession(value, fallback) {
     if (value === void 0 || value === null) return normalizePatternSize(fallback);
@@ -8585,13 +9506,13 @@
   }
   function normalizeSpill(spill, total = Number.MAX_SAFE_INTEGER) {
     if (!spill || typeof spill !== "object") return null;
-    const index = Number(spill.index);
+    const index2 = Number(spill.index);
     const code = spill.code;
-    if (!Number.isInteger(index) || index < 0 || index >= total) return null;
+    if (!Number.isInteger(index2) || index2 < 0 || index2 >= total) return null;
     if (!code || !palette[code]) return null;
     return {
       ...spill,
-      index,
+      index: index2,
       code
     };
   }
@@ -8653,22 +9574,66 @@
     const valid = normalized.every((row) => row.length === size && [...row].every((code) => code === "." || palette[code]));
     return valid ? normalized : null;
   }
+  function normalizeRectRows(rows, width, height) {
+    if (!Array.isArray(rows) || rows.length !== height) return null;
+    const normalized = rows.map((row) => String(row || "").slice(0, width).padEnd(width, "."));
+    const valid = normalized.every((row) => row.length === width && [...row].every((code) => code === "." || palette[code]));
+    return valid ? normalized : null;
+  }
   function restoreCustomPattern(snapshot) {
     if (!snapshot || !snapshot.size) return null;
-    const size = normalizePatternSize(snapshot.size);
-    const rows = normalizeRows(snapshot.rows, size);
+    const savedWidth = Number.parseInt(snapshot.width, 10);
+    const savedHeight = Number.parseInt(snapshot.height, 10);
+    const isBoardLayout = Number.isFinite(savedWidth) && Number.isFinite(savedHeight) && savedWidth >= BOARD_SIZE && savedHeight >= BOARD_SIZE && savedWidth % BOARD_SIZE === 0 && savedHeight % BOARD_SIZE === 0;
+    if (isBoardLayout) {
+      const rows2 = normalizeRectRows(snapshot.rows, savedWidth, savedHeight);
+      if (!rows2) return null;
+      const pattern2 = {
+        ...snapshot,
+        id: snapshot.id || "custom-session",
+        name: snapshot.name || "\u81EA\u5B9A\u4E49\u56FE\u7EB8",
+        craft: snapshot.craft || "\u539F\u7248",
+        size: Math.max(savedWidth, savedHeight),
+        width: savedWidth,
+        height: savedHeight,
+        rows: rows2,
+        sourceRows: rows2,
+        sourceSize: Math.max(savedWidth, savedHeight),
+        sourceWidth: savedWidth,
+        sourceHeight: savedHeight
+      };
+      for (let i = patterns.length - 1; i >= 0; i -= 1) {
+        if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+      }
+      patterns.unshift(pattern2);
+      state.patternsDirty = true;
+      return pattern2;
+    }
+    const size = normalizePatternSize();
+    const fitRows = (src, fromValue) => {
+      if (!Array.isArray(src)) return null;
+      const direct = normalizeRows(src, size);
+      if (direct) return direct;
+      const fromSize = Number.parseInt(fromValue, 10);
+      if (Number.isFinite(fromSize) && fromSize > 0 && fromSize !== size) {
+        return normalizeRows(regridRows(src, fromSize, size), size);
+      }
+      return null;
+    };
+    const rows = fitRows(snapshot.rows, snapshot.size);
     if (!rows) return null;
-    const sourceSize = normalizePatternSize(snapshot.sourceSize || size);
-    const sourceRows = normalizeRows(snapshot.sourceRows || rows, sourceSize) || rows;
+    const sourceRows = fitRows(snapshot.sourceRows || snapshot.rows, snapshot.sourceSize || snapshot.size) || rows;
     const pattern = {
       ...snapshot,
       id: snapshot.id || "custom-session",
       name: snapshot.name || "\u81EA\u5B9A\u4E49\u56FE\u7EB8",
       craft: snapshot.craft || "\u539F\u7248",
       size,
+      width: size,
+      height: size,
       rows,
       sourceRows,
-      sourceSize
+      sourceSize: size
     };
     for (let i = patterns.length - 1; i >= 0; i -= 1) {
       if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
@@ -8697,6 +9662,10 @@
       customPattern: snapshotCustomPattern(state.selectedPattern),
       patternColorMaps: state.patternColorMaps,
       patternSize,
+      boardWidth: boardCols(state.selectedPattern),
+      boardHeight: boardRows(state.selectedPattern),
+      // Stored only for grown multi-tile boards so they restore exactly.
+      boardRows: boardCols(state.selectedPattern) !== boardRows(state.selectedPattern) || boardCols(state.selectedPattern) > BOARD_SIZE || boardRows(state.selectedPattern) > BOARD_SIZE ? state.selectedPattern?.rows : void 0,
       placed: state.placed,
       heat: state.heat,
       tool: state.tool,
@@ -8766,16 +9735,24 @@
       }
       state.patternSize = restoredSize;
       const restoredPattern = resizePattern(pattern, state.patternSize);
+      applyBoardGeometry(restoredPattern, session);
       sessionActions.loadPattern(restoredPattern, true);
       state.phase = session.phase;
       state.sandboxMode = Boolean(session.sandboxMode);
       state.lampOn = Boolean(session.lampOn);
       state.patternSize = restoredPattern.size;
-      const total = restoredPattern.size * restoredPattern.size;
-      state.placed = normalizePlaced(session.placed, total);
+      const cols = boardCols(restoredPattern);
+      const rows = boardRows(restoredPattern);
+      const total = cols * rows;
+      const savedSize = Number.parseInt(session.patternSize, 10);
+      const isGrown = cols !== rows || cols > BOARD_SIZE || rows > BOARD_SIZE;
+      const needRegrid = !isGrown && Number.isFinite(savedSize) && savedSize > 0 && savedSize !== cols;
+      const placedSource = needRegrid ? regridSquare(session.placed, savedSize, cols, null) : session.placed;
+      const heatSource = needRegrid ? regridSquare(session.heat, savedSize, cols, 0) : session.heat;
+      state.placed = normalizePlaced(placedSource, total);
       invalidatePlacedCounts();
-      state.heat = normalizeHeat(session.heat, total);
-      const spill = normalizeSpill(session.spill, total);
+      state.heat = normalizeHeat(heatSource, total);
+      const spill = needRegrid ? null : normalizeSpill(session.spill, total);
       state.tool = session.tool === "tweezers" ? "tweezers" : "needle";
       state.selectedColor = session.selectedColor && palette[session.selectedColor] ? session.selectedColor : state.selectedColor;
       state.trayColor = session.trayColor && palette[session.trayColor] ? session.trayColor : null;
@@ -8788,7 +9765,7 @@
       state.needleLoaded = Math.max(0, Number(session.needleLoaded) || 0);
       state.toolPose = normalizeToolPose(session.toolPose);
       state.lastMoveDir = normalizeMoveDir(session.lastMoveDir);
-      state.errors = session.errors || [];
+      state.errors = needRegrid ? [] : session.errors || [];
       state.warp = session.warp || 18;
       state.cooling = session.cooling || 0;
       state.spill = spill;
@@ -8805,20 +9782,21 @@
   }
 
   // src/keyboard-grid.js
-  function normalizeGridCursor(cursor, size) {
-    const max = Math.max(0, Number(size) - 1);
+  function normalizeGridCursor(cursor, cols, rows = cols) {
+    const maxX = Math.max(0, Number(cols) - 1);
+    const maxY = Math.max(0, Number(rows) - 1);
     return {
-      x: clamp(Math.round(Number(cursor?.x) || 0), 0, max),
-      y: clamp(Math.round(Number(cursor?.y) || 0), 0, max)
+      x: clamp(Math.round(Number(cursor?.x) || 0), 0, maxX),
+      y: clamp(Math.round(Number(cursor?.y) || 0), 0, maxY)
     };
   }
-  function moveGridCursor(cursor, key, size) {
-    const next = normalizeGridCursor(cursor, size);
+  function moveGridCursor(cursor, key, cols, rows = cols) {
+    const next = normalizeGridCursor(cursor, cols, rows);
     if (key === "ArrowLeft") next.x -= 1;
     if (key === "ArrowRight") next.x += 1;
     if (key === "ArrowUp") next.y -= 1;
     if (key === "ArrowDown") next.y += 1;
-    return normalizeGridCursor(next, size);
+    return normalizeGridCursor(next, cols, rows);
   }
   function keyboardGridAction(key) {
     if (key === " " || key === "Enter") return "place";
@@ -8833,6 +9811,24 @@
   var lastFrame = performance.now();
   var IRON_DEFAULT_TEMPERATURE = 62;
   var IRON_DEFAULT_PRESSURE = 56;
+  function syncChipGroup(container, attr, value) {
+    if (!container) return;
+    for (const b of container.querySelectorAll('[role="radio"]')) {
+      b.setAttribute("aria-checked", b.dataset[attr] === value ? "true" : "false");
+    }
+  }
+  function chipRoving(event, container) {
+    const radios = Array.from(container.querySelectorAll('[role="radio"]'));
+    const i = radios.indexOf(document.activeElement);
+    if (i < 0) return;
+    let ni = -1;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") ni = (i + 1) % radios.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") ni = (i - 1 + radios.length) % radios.length;
+    if (ni < 0) return;
+    event.preventDefault();
+    radios[ni].focus();
+    radios[ni].click();
+  }
   function applyBackgroundTheme(themeId = state.bgTheme) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
     const theme = currentBackgroundTheme();
@@ -8850,7 +9846,8 @@
     root.style.setProperty("--brand-cta", theme.cta?.[0] || "#3D9C8C");
     root.style.setProperty("--brand-cta-strong", theme.cta?.[1] || "#389586");
     root.style.setProperty("--bg-scrim", theme.scrim || "rgba(255, 255, 255, 0.16)");
-    if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
+    syncChipGroup(els.bgThemeChips, "theme", state.bgTheme);
+    refreshShowcaseTheme();
     markDirty();
   }
   function applyScreenAria() {
@@ -8863,8 +9860,8 @@
       [els.drawingStudio, mode === "draw"],
       [document.querySelector(".bead-topbar"), beadActive],
       [els.studioGrid, beadActive]
-    ].forEach(([el, active]) => {
-      if (el) el.setAttribute("aria-hidden", active ? "false" : "true");
+    ].forEach(([el, active2]) => {
+      if (el) el.setAttribute("aria-hidden", active2 ? "false" : "true");
     });
   }
   var PHASE_BG = {
@@ -8911,6 +9908,7 @@
     document.body.dataset.appMode = state.appMode;
     applyScreenAria();
     updateFullBg();
+    setShowcaseActive(state.appMode === "home");
     if (state.appMode === "bead") {
       state.uiDirty = true;
       state.previewDirty = true;
@@ -8943,7 +9941,7 @@
     invalidateEffectiveMap(pattern);
     state.patternColorMap = normalizedMap;
     setSizeControls(pattern.size);
-    const total = pattern.size * pattern.size;
+    const total = boardCols(pattern) * boardRows(pattern);
     state.placed = Array(total).fill(null);
     invalidatePlacedCounts();
     state.heat = Array(total).fill(0);
@@ -9680,24 +10678,25 @@
     useNeedle(x, y);
   }
   function placeSelectedBead(x, y, initial = true) {
-    const index = indexFor(x, y);
-    if (state.spill && state.spill.index === index) {
+    if (!isActiveTileCell(x, y)) return;
+    const index2 = indexFor(x, y);
+    if (state.spill && state.spill.index === index2) {
       state.spill = null;
     }
-    const current = state.placed[index];
+    const current = state.placed[index2];
     const removing = current === state.selectedColor && initial;
     if (current === state.selectedColor && initial) {
-      state.placed[index] = null;
-      state.heat[index] = 0;
+      state.placed[index2] = null;
+      state.heat[index2] = 0;
     } else if (current === state.selectedColor) {
       return;
     } else {
-      state.placed[index] = state.selectedColor;
-      state.heat[index] = 0;
+      state.placed[index2] = state.selectedColor;
+      state.heat[index2] = 0;
     }
     if (useMobileDirectPlacement()) {
       triggerHaptic("light");
-      state.mobileBeadSettle = !removing && !prefersReducedMotion() ? { index, startedAt: performance.now(), duration: 180 } : null;
+      state.mobileBeadSettle = !removing && !prefersReducedMotion() ? { index: index2, startedAt: performance.now(), duration: 180 } : null;
     }
     invalidatePlacedCounts();
     state.savedCurrent = false;
@@ -9710,7 +10709,7 @@
   function showKeyboardGrid() {
     if (state.phase !== "place") return;
     if (!sceneCanvas.matches(":focus-visible")) return;
-    const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+    const cursor = normalizeGridCursor(state.keyboardGrid, boardCols(), boardRows());
     state.keyboardGrid = { ...cursor, visible: true };
     announceKeyboardGrid(
       `\u952E\u76D8\u683C\u70B9\uFF1A\u7B2C ${cursor.y + 1} \u884C\uFF0C\u7B2C ${cursor.x + 1} \u5217\uFF0C\u5F53\u524D\u989C\u8272 ${beadLabel(state.selectedColor)}\u3002`
@@ -9733,7 +10732,7 @@
     }
     if (event.key.startsWith("Arrow")) {
       event.preventDefault();
-      const cursor = moveGridCursor(state.keyboardGrid, event.key, state.selectedPattern.size);
+      const cursor = moveGridCursor(state.keyboardGrid, event.key, boardCols(), boardRows());
       state.keyboardGrid = { ...cursor, visible: true };
       announceKeyboardGrid(
         `\u7B2C ${cursor.y + 1} \u884C\uFF0C\u7B2C ${cursor.x + 1} \u5217\uFF0C\u5F53\u524D\u989C\u8272 ${beadLabel(state.selectedColor)}\u3002`
@@ -9743,9 +10742,9 @@
     }
     if (action === "place") {
       event.preventDefault();
-      const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
-      const index = indexFor(cursor.x, cursor.y);
-      const removed = state.placed[index] === state.selectedColor;
+      const cursor = normalizeGridCursor(state.keyboardGrid, boardCols(), boardRows());
+      const index2 = indexFor(cursor.x, cursor.y);
+      const removed = state.placed[index2] === state.selectedColor;
       placeSelectedBead(cursor.x, cursor.y, true);
       announceKeyboardGrid(
         `${removed ? "\u5DF2\u53D6\u4E0B" : "\u5DF2\u653E\u7F6E"} ${beadLabel(state.selectedColor)}\uFF0C\u7B2C ${cursor.y + 1} \u884C\uFF0C\u7B2C ${cursor.x + 1} \u5217\u3002`
@@ -9755,38 +10754,39 @@
     return false;
   }
   function useTweezers(x, y) {
-    const index = indexFor(x, y);
-    if (state.spill && state.spill.index === index) {
+    const index2 = indexFor(x, y);
+    if (state.spill && state.spill.index === index2) {
       if (state.tweezerBead) {
         showToast("\u954A\u5B50\u4E0A\u5DF2\u7ECF\u5939\u7740\u4E00\u9897\uFF0C\u5148\u653E\u4E0B\u6216\u653E\u56DE\u8C46\u76D2\u3002");
         return;
       }
       state.tweezerBead = state.spill.code;
-      state.placed[index] = null;
+      state.placed[index2] = null;
       invalidatePlacedCounts();
-      state.heat[index] = 0;
+      state.heat[index2] = 0;
       state.spill = null;
       state.savedCurrent = false;
       showToast("\u5361\u4F4F\u7684\u8C46\u5B50\u5DF2\u7ECF\u5939\u8D77\uFF0C\u53EF\u4EE5\u7EE7\u7EED\u6446\u653E\u3002");
       markDirty();
       return;
     }
-    if (state.placed[index]) {
+    if (state.placed[index2]) {
       if (state.tweezerBead) {
         showToast("\u954A\u5B50\u4E0A\u5DF2\u7ECF\u5939\u7740\u4E00\u9897\uFF0C\u5148\u653E\u4E0B\u6216\u653E\u56DE\u8C46\u76D2\u3002");
         return;
       }
-      state.tweezerBead = state.placed[index];
-      state.placed[index] = null;
+      state.tweezerBead = state.placed[index2];
+      state.placed[index2] = null;
       invalidatePlacedCounts();
-      state.heat[index] = 0;
+      state.heat[index2] = 0;
       showToast("\u954A\u5B50\u53D6\u4E0B\u4E00\u9897\u8C46\u5B50\u3002");
     } else {
       if (!state.tweezerBead) {
         showToast("\u5148\u4ECE\u8C46\u76D2\u5939\u4E00\u9897\u8C46\u5B50\u3002");
         return;
       }
-      state.placed[index] = state.tweezerBead;
+      if (!isActiveTileCell(x, y)) return;
+      state.placed[index2] = state.tweezerBead;
       invalidatePlacedCounts();
       state.tweezerBead = null;
     }
@@ -9834,10 +10834,11 @@
     let used = 0;
     cells.forEach(([cx, cy]) => {
       if (used >= state.needleLoaded) return;
-      if (cx < 0 || cy < 0 || cx >= state.selectedPattern.size || cy >= state.selectedPattern.size) return;
-      const index = indexFor(cx, cy);
-      if (state.placed[index]) return;
-      state.placed[index] = state.trayColor;
+      if (cx < 0 || cy < 0 || cx >= boardCols() || cy >= boardRows()) return;
+      if (!isActiveTileCell(cx, cy)) return;
+      const index2 = indexFor(cx, cy);
+      if (state.placed[index2]) return;
+      state.placed[index2] = state.trayColor;
       invalidatePlacedCounts();
       placedAny = true;
       used += 1;
@@ -9852,7 +10853,8 @@
     }
   }
   function createSpillAt(x, y, code) {
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     const spots = [
       [x, y],
       [x + 1, y],
@@ -9866,12 +10868,13 @@
     ];
     for (let i = 0; i < spots.length; i += 1) {
       const [sx, sy] = spots[i];
-      if (sx < 0 || sy < 0 || sx >= size || sy >= size) continue;
-      const index = indexFor(sx, sy);
-      if (state.placed[index]) continue;
-      const jitterSeed = pseudoRandom(`${state.selectedPattern.id}-${index}-${Date.now()}`);
+      if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) continue;
+      if (!isActiveTileCell(sx, sy)) continue;
+      const index2 = indexFor(sx, sy);
+      if (state.placed[index2]) continue;
+      const jitterSeed = pseudoRandom(`${state.selectedPattern.id}-${index2}-${Date.now()}`);
       const orientation = Math.random() < 0.5 ? "h" : "v";
-      return { index, code, jitterSeed, orientation };
+      return { index: index2, code, jitterSeed, orientation };
     }
     return null;
   }
@@ -9885,33 +10888,35 @@
     const temp = state.temperature / 62;
     const base = dt / 16 * pressure * temp * speedFactor * 0.6;
     const radius = layout.cell * 1.65;
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     for (let cy = cell.y - 2; cy <= cell.y + 2; cy += 1) {
       for (let cx = cell.x - 2; cx <= cell.x + 2; cx += 1) {
-        if (cx < 0 || cy < 0 || cx >= size || cy >= size) continue;
-        const index = indexFor(cx, cy);
-        if (!state.placed[index]) continue;
+        if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) continue;
+        const index2 = indexFor(cx, cy);
+        if (!state.placed[index2]) continue;
         const centerX = layout.boardX + cx * layout.cell + layout.cell / 2;
         const centerY = layout.boardY + cy * layout.cell + layout.cell / 2;
         const falloff = clamp(1 - Math.hypot(centerX - x, centerY - y) / radius, 0, 1);
         const add = base * (0.35 + falloff * 0.9);
-        state.heat[index] = clamp((state.heat[index] || 0) + add, 0, 138);
-        if (state.heat[index] > 108) state.warp = clamp(state.warp + add * 0.022, 0, 80);
+        state.heat[index2] = clamp((state.heat[index2] || 0) + add, 0, 138);
+        if (state.heat[index2] > 108) state.warp = clamp(state.warp + add * 0.022, 0, 80);
       }
     }
   }
   function runInspection() {
     state.errors = [];
     if (state.sandboxMode) return;
-    const size = state.selectedPattern.size;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const index = indexFor(x, y);
+    const cols = boardCols();
+    const rows = boardRows();
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const index2 = indexFor(x, y);
         const target = targetAt(x, y);
-        const placed = state.placed[index];
-        if (target && !placed) state.errors.push({ index, type: "missing" });
-        if (target && placed && target !== placed) state.errors.push({ index, type: "wrong" });
-        if (!target && placed) state.errors.push({ index, type: "extra" });
+        const placed = state.placed[index2];
+        if (target && !placed) state.errors.push({ index: index2, type: "missing" });
+        if (target && placed && target !== placed) state.errors.push({ index: index2, type: "wrong" });
+        if (!target && placed) state.errors.push({ index: index2, type: "extra" });
       }
     }
   }
@@ -9975,6 +10980,8 @@
       grade: finalGrade(),
       date: (/* @__PURE__ */ new Date()).toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }),
       size: state.selectedPattern.size,
+      width: boardCols(),
+      height: boardRows(),
       placed: state.placed.slice()
     };
     if (!state.savedCurrent) {
@@ -10139,6 +11146,12 @@
   els.startBeadButton?.addEventListener("click", () => {
     setAppMode("bead");
   });
+  initStartShowcase({
+    onPick: (pattern) => {
+      loadPattern(pattern);
+      setAppMode("bead");
+    }
+  });
   els.startDrawButton?.addEventListener("click", () => {
     setAppMode("draw");
   });
@@ -10215,17 +11228,24 @@
   els.chooseStartButton?.addEventListener("click", startSelectedPattern);
   els.mobileSelectionStartButton?.addEventListener("click", startSelectedPattern);
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
-  els.bgThemeSelect?.addEventListener("change", () => {
-    applyBackgroundTheme(els.bgThemeSelect.value);
+  els.bgThemeChips?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-theme]");
+    if (!btn || state.bgTheme === btn.dataset.theme) return;
+    applyBackgroundTheme(btn.dataset.theme);
     showToast(`\u80CC\u666F\u5DF2\u5207\u6362\u4E3A ${currentBackgroundTheme().name}\u3002`);
   });
-  els.topToolStyleSelect?.addEventListener("change", (event) => {
-    const next = event.target.value;
+  els.toolStyleChips?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-tool]");
+    if (!btn) return;
+    const next = btn.dataset.tool;
     if (!toolStyles[next] || state.toolStyle === next) return;
     state.toolStyle = next;
+    syncChipGroup(els.toolStyleChips, "tool", next);
     showToast(`\u5DE5\u5177\u6362\u6210${currentToolStyle().name}\u6B3E\u3002`);
     markDirty();
   });
+  els.bgThemeChips?.addEventListener("keydown", (e) => chipRoving(e, els.bgThemeChips));
+  els.toolStyleChips?.addEventListener("keydown", (e) => chipRoving(e, els.toolStyleChips));
   els.confirmModalOk?.addEventListener("click", () => resolveConfirm(true));
   els.confirmModalCancel?.addEventListener("click", () => resolveConfirm(false));
   els.confirmModal?.addEventListener("click", (event) => {
@@ -10371,10 +11391,6 @@
     }
     if (els.drawCodeModal?.classList.contains("show")) {
       closeDrawCodeModal();
-      return;
-    }
-    if (els.drawResizeModal?.classList.contains("show")) {
-      closeDrawResizeModal(true);
       return;
     }
     if (state.onboardingModalOpen) {

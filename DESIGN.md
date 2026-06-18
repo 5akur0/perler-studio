@@ -215,7 +215,7 @@ components:
 
 ### Chips（色号 chip）
 - **Style:** `.color-chip` 白底、`--r-xs`(8px)、1px `--line` 描边、`min-height 48px`、无投影。
-- **State:** `.active` 用**内嵌双环**（inset 白色间隙 + `--ink` 环）标记选中——**不要用 outer `outline`+offset**，否则边缘 chip 的选中环会被 `.color-palette` 的 `overflow:auto` 裁掉。`.needed`（当前图纸所需色号）给品牌色辉光 + `needed-chip-glow/-aura` 呼吸动画（环境型循环，受 reduced-motion 覆盖）。
+- **State:** `.active` 用 `2px --ink` 外描边并向外偏移 `2px`，保留低透明度外晕圈；选中态不得侵占色样面积。`.color-palette` 必须保留至少 `4px` 内边距，避免边缘 chip 被 `overflow:auto` 裁切。`.needed`（当前图纸所需色号）保留品牌色辉光 + `needed-chip-glow/-aura` 呼吸动画（环境型循环，受 reduced-motion 覆盖）。
 
 ### Cards / Containers
 - **Corner Style:** `--r-md`(16px)（大容器 `--r-lg` 20px）。同心圆角：内 = 外 − 间隙。

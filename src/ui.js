@@ -1,12 +1,12 @@
 import { state } from './state.js';
 import { palette, beadIds } from './palette.js';
-import { phases, toolStyles, craftOptions } from './constants.js';
+import { phases, toolStyles, craftOptions, backgroundThemes } from './constants.js';
 import { patterns } from './patterns-data.js';
 import {
   allColorCodes, beadLabel, getTargetCounts, getTargetTotal, getSourceCounts,
   getPatternColors, getPatternAnalysis, getPlacedCounts, getSourcePatternColors,
   getEffectivePatternResult, normalizeCraft, findCustomPattern, resizePattern,
-  baseIdFor,
+  baseIdFor, boardCols, boardRows,
 } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint } from './notify.js';
 import { confirmModal } from './modal-controller.js';
@@ -20,6 +20,8 @@ import { els, sideReferenceCanvas, sideReferenceCtx, previewCanvas } from './dom
 import { escapeHtml, prefersReducedMotion } from './utils.js';
 import { icon } from './icons.js';
 import { workflowSummary } from './workflow.js';
+import { currentBackgroundTheme } from './theme.js';
+import { drawPixelPatternPreview } from './board-skin.js';
 
 let uiActions = {
   getCollection: () => [],
@@ -107,7 +109,8 @@ export function renderSidebarReference() {
   }
 
   const pattern = state.selectedPattern;
-  const size = pattern.size;
+  const cols = boardCols(pattern);
+  const rowCount = boardRows(pattern);
   const ctx = sideReferenceCtx;
   const rect = sideReferenceCanvas.getBoundingClientRect();
   const cssW = Math.max(1, Math.round(rect.width || 300));
@@ -128,33 +131,21 @@ export function renderSidebarReference() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const w = cssW;
   const h = cssH;
-  const cell = Math.max(2, Math.floor(Math.min((w - 24) / size, (h - 24) / size)));
-  const gridSize = cell * size;
-  const x0 = Math.floor((w - gridSize) / 2);
-  const y0 = Math.floor((h - gridSize) / 2);
   const rows = effective.rows;
-
-  ctx.fillStyle = "#f7f9fc";
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x0 - 6, y0 - 6, gridSize + 12, gridSize + 12);
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      ctx.strokeStyle = "rgba(100, 109, 126, 0.16)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x0 + x * cell, y0 + y * cell, cell, cell);
-      const code = rows[y]?.[x] || ".";
-      if (code === ".") continue;
-      ctx.fillStyle = palette[code];
-      ctx.fillRect(x0 + x * cell + 0.5, y0 + y * cell + 0.5, Math.max(1, cell - 1), Math.max(1, cell - 1));
-    }
-  }
-  ctx.strokeStyle = "rgba(79, 92, 116, 0.32)";
-  ctx.lineWidth = 1.2;
-  ctx.strokeRect(x0 - 6, y0 - 6, gridSize + 12, gridSize + 12);
+  const theme = currentBackgroundTheme();
+  drawPixelPatternPreview(ctx, {
+    width: w,
+    height: h,
+    cols,
+    rows: rowCount,
+    pixels: rows,
+    colors: palette,
+    brand: theme.brand,
+    table: theme.table,
+  });
 
   if (els.sideReferenceMeta) {
-    els.sideReferenceMeta.textContent = `${pattern.name} · ${size}x${size}`;
+    els.sideReferenceMeta.textContent = `${pattern.name} · ${cols}x${rowCount}`;
   }
   if (els.sideReferenceLegend) {
     const counts = getTargetCounts(pattern);
@@ -227,21 +218,22 @@ export function drawPatternThumb(canvas, pattern) {
     canvas.height = dim;
   }
   const ctx = canvas.getContext("2d");
-  const cell = dim / pattern.size;
+  const cols = boardCols(pattern);
+  const rowCount = boardRows(pattern);
   const rows = pattern.rows || [];
   ctx.clearRect(0, 0, dim, dim);
-  ctx.fillStyle = "#f4f6f8";
-  ctx.fillRect(0, 0, dim, dim);
-  rows.forEach((row, y) => {
-    [...row].forEach((code, x) => {
-      if (code === ".") return;
-      const px = Math.round(x * cell);
-      const py = Math.round(y * cell);
-      const pw = Math.round((x + 1) * cell) - px;
-      const ph = Math.round((y + 1) * cell) - py;
-      ctx.fillStyle = palette[code];
-      ctx.fillRect(px, py, pw, ph);
-    });
+  const theme = currentBackgroundTheme();
+  drawPixelPatternPreview(ctx, {
+    width: dim,
+    height: dim,
+    cols,
+    rows: rowCount,
+    pixels: rows,
+    colors: palette,
+    brand: theme.brand,
+    table: theme.table,
+    compact: true,
+    shadow: false,
   });
 }
 
@@ -350,7 +342,7 @@ export function renderCurrentPatternChip() {
   if (els.currentPatternMeta) {
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
-    els.currentPatternMeta.textContent = `${state.selectedPattern.size}×${state.selectedPattern.size} · ${getTargetTotal()}颗 · ${colorCount}色`;
+    els.currentPatternMeta.textContent = `${boardCols()}×${boardRows()} · ${getTargetTotal()}颗 · ${colorCount}色`;
   }
   if (els.currentPatternThumb) {
     drawPatternThumb(els.currentPatternThumb, state.selectedPattern);
@@ -382,7 +374,7 @@ export function renderMobileSelectionSummary() {
   if (els.mobileSelectionName) els.mobileSelectionName.textContent = state.selectedPattern.name;
   if (els.mobileSelectionMeta) {
     els.mobileSelectionMeta.textContent =
-      `${state.selectedPattern.size}×${state.selectedPattern.size} · ${getTargetTotal()}颗 · ${Object.keys(counts).length}色`;
+      `${boardCols()}×${boardRows()} · ${getTargetTotal()}颗 · ${Object.keys(counts).length}色`;
   }
   if (els.mobileSelectionThumb) drawPatternThumb(els.mobileSelectionThumb, state.selectedPattern);
 }
@@ -673,7 +665,19 @@ export function renderPalette() {
   const counts = getTargetCounts();
   const placedCounts = getPlacedCounts();
   const allCodes = allColorCodes();
-  const codes = isMobile ? allCodes.filter((code) => (counts[code] || 0) > 0) : allCodes;
+  // Desktop: float the pattern's own colors ("本图用色") to the top of the wall so
+  // they're not buried among 221 swatches, then the rest in MARD order. Mobile already
+  // only shows needed colors.
+  const neededCodes = isMobile ? [] : allCodes.filter((code) => (counts[code] || 0) > 0);
+  const neededSet = new Set(neededCodes);
+  const rest = isMobile
+    ? allCodes.filter((code) => (counts[code] || 0) > 0)
+    : allCodes.filter((code) => !neededSet.has(code));
+  const codes = isMobile ? rest : [...neededCodes, ...rest];
+  const hasNeededGroup = !isMobile && neededCodes.length > 0;
+  // Full-width group headers inserted before these indices (only when the pattern has colors).
+  const neededHeaderAt = hasNeededGroup ? 0 : -1;
+  const restHeaderAt = hasNeededGroup ? neededCodes.length : -1;
   const key = [
     "place",
     isMobile ? "m" : "d",
@@ -686,7 +690,16 @@ export function renderPalette() {
   if (key === paletteRenderKey) return;
   paletteRenderKey = key;
   els.colorPalette.innerHTML = "";
-  codes.forEach((code) => {
+  const addHeader = (text) => {
+    const h = document.createElement("div");
+    h.className = "palette-group-head";
+    h.setAttribute("aria-hidden", "true");
+    h.textContent = text;
+    els.colorPalette.appendChild(h);
+  };
+  codes.forEach((code, idx) => {
+    if (idx === neededHeaderAt) addHeader(`本图用色 · ${neededCodes.length}`);
+    if (idx === restHeaderAt) addHeader("全部颜色");
     const placed = placedCounts[code] || 0;
     const needed = counts[code] || 0;
     const inPattern = needed > 0;
@@ -906,19 +919,21 @@ export function drawCollectionThumb(canvas, item) {
   ctx.fillStyle = "#f3f5f8";
   ctx.fillRect(0, 0, w, h);
 
-  const size = item.size || state.selectedPattern.size || 16;
+  const cols = item.width || item.size || 30;
+  const rowCount = item.height || item.size || 30;
   const placed = item.placed || [];
   const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
   const pad = 10;
-  const cell = Math.floor(Math.min((w - pad * 2) / size, (h - pad * 2) / size));
-  const gridSize = cell * size;
-  const x0 = Math.floor((w - gridSize) / 2);
-  const y0 = Math.floor((h - gridSize) / 2);
+  const cell = Math.floor(Math.min((w - pad * 2) / cols, (h - pad * 2) / rowCount));
+  const gridW = cell * cols;
+  const gridH = cell * rowCount;
+  const x0 = Math.floor((w - gridW) / 2);
+  const y0 = Math.floor((h - gridH) / 2);
 
   const cellCode = (x, y) => {
-    if (x < 0 || y < 0 || x >= size || y >= size) return null;
+    if (x < 0 || y < 0 || x >= cols || y >= rowCount) return null;
     if (placed.length) {
-      const c = placed[y * size + x];
+      const c = placed[y * cols + x];
       return c && c !== "." ? c : null;
     }
     if (fallback) {
@@ -928,8 +943,8 @@ export function drawCollectionThumb(canvas, item) {
     return null;
   };
 
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
+  for (let y = 0; y < rowCount; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
       const code = cellCode(x, y);
       if (!code) continue;
       const px = x0 + x * cell;
@@ -1046,7 +1061,7 @@ export function renderUI() {
   const collection = uiActions.getCollection?.() || [];
   const counts = getTargetCounts();
   const colorCount = Object.keys(counts).length;
-  if (els.patternMeta) els.patternMeta.textContent = `${state.selectedPattern.size}x${state.selectedPattern.size}`;
+  if (els.patternMeta) els.patternMeta.textContent = `${boardCols()}x${boardRows()}`;
   if (els.targetCount) els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
   if (els.collectionCount) els.collectionCount.textContent = String(collection.length);
   if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
@@ -1065,19 +1080,32 @@ export function renderUI() {
   if (els.customImageControls) {
     els.customImageControls.hidden = !state.selectedPattern?.sourceImageDataUrl;
   }
-  if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
-  if (els.topToolStyleSelect) {
-    if (!els.topToolStyleSelect.options.length) {
-      const options = Object.entries(toolStyles)
-        .map(([id, style]) => `<option value="${id}">${style.name}</option>`)
-        .join("");
-      els.topToolStyleSelect.innerHTML = options;
+  if (els.bgThemeChips) {
+    if (!els.bgThemeChips.children.length) {
+      els.bgThemeChips.innerHTML = Object.entries(backgroundThemes).map(([id, t]) =>
+        `<button type="button" role="radio" class="swatch-pick" data-theme="${id}" aria-checked="${id === state.bgTheme}" aria-label="${t.name}主题" title="${t.name}">
+          <span class="swatch-pick-chip" style="--a:${t.pageBase};--b:${t.brand}"></span>
+          <span class="swatch-pick-name">${t.name}</span>
+        </button>`).join("");
     }
-    els.topToolStyleSelect.value = state.toolStyle;
+    for (const b of els.bgThemeChips.children) {
+      b.setAttribute("aria-checked", b.dataset.theme === state.bgTheme ? "true" : "false");
+    }
   }
-  const toolStyleField = els.topToolStyleSelect?.closest(".tool-style-picker");
-  if (toolStyleField) {
-    toolStyleField.style.display = (state.appMode === "gallery" || useMobileDirectPlacement()) ? "none" : "";
+  if (els.toolStyleChips) {
+    if (!els.toolStyleChips.children.length) {
+      els.toolStyleChips.innerHTML = Object.entries(toolStyles).map(([id, s]) =>
+        `<button type="button" role="radio" class="swatch-pick tool-pick" data-tool="${id}" aria-checked="${id === state.toolStyle}" aria-label="${s.name}款工具" title="${s.name}">
+          <span class="swatch-pick-chip" style="--a:${s.secondary};--b:${s.primary};--c:${s.accent}"></span>
+          <span class="swatch-pick-name">${s.name}</span>
+        </button>`).join("");
+    }
+    for (const b of els.toolStyleChips.children) {
+      b.setAttribute("aria-checked", b.dataset.tool === state.toolStyle ? "true" : "false");
+    }
+  }
+  if (els.toolStyleField) {
+    els.toolStyleField.style.display = (state.appMode === "gallery" || useMobileDirectPlacement()) ? "none" : "";
   }
   if (els.statusLine) {
     const phaseObj = phases.find(p => p.id === state.phase);

@@ -95,12 +95,25 @@ export function renderGallery() {
   if (!els.galleryGrid || !els.galleryEmpty) return;
   els.galleryGrid.innerHTML = "";
   const items = Array.isArray(galleryItems) ? galleryItems : [];
+  // While loading, fill the grid with glass skeleton tiles so the wait reads as
+  // "content arriving" rather than a bare status line (product register: skeletons,
+  // not spinners/text).
+  if (items.length === 0 && !galleryLoaded) {
+    els.galleryEmpty.hidden = true;
+    els.galleryGrid.innerHTML = Array.from({ length: 8 }, () => `
+      <article class="gallery-card gallery-card-skeleton" aria-hidden="true">
+        <div class="gallery-skeleton-thumb"></div>
+        <div class="gallery-skeleton-meta">
+          <span class="gallery-skeleton-line"></span>
+          <span class="gallery-skeleton-line short"></span>
+        </div>
+      </article>`).join("");
+    return;
+  }
   els.galleryEmpty.hidden = items.length > 0;
   if (items.length === 0) {
     const galleryIcon = icon("image", { size: 40, strokeWidth: 1.8, class: "gallery-empty-icon" });
-    if (!galleryLoaded) {
-      els.galleryEmpty.innerHTML = `<p class="gallery-empty-text">正在读取画廊…</p>`;
-    } else if (galleryError) {
+    if (galleryError) {
       els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">画廊读取失败</p><button type="button" class="ghost-button" data-gallery-retry>点此重试</button>`;
       els.galleryEmpty.querySelector("[data-gallery-retry]")?.addEventListener("click", () => { void loadGallery(); });
     } else {
@@ -119,7 +132,7 @@ export function renderGallery() {
     card.className = "gallery-card";
     const safeName = escapeHtml(item.name || pattern.name || "画廊图纸");
     const safeAuthor = escapeHtml(item.author || "匿名投稿");
-    const safeSize = escapeHtml(`${pattern.size}x${pattern.size}`);
+    const safeSize = escapeHtml(`${pattern.width || pattern.size}x${pattern.height || pattern.size}`);
     card.innerHTML = `
       <button type="button" class="gallery-card-body" aria-label="打开 ${safeName}">
         <canvas class="gallery-thumb" width="180" height="180" aria-hidden="true"></canvas>
@@ -273,12 +286,20 @@ export async function autoCopyText(text, successMessage, failureMessage) {
 // ─── Pattern import / share ───────────────────────────────────────────────────
 
 export function applyImportedPattern(decoded, name = "导入图纸") {
-  const seedText = `${name}|${decoded.size}|${(decoded.rows || []).join("")}`;
+  const width = decoded.width || decoded.size;
+  const height = decoded.height || decoded.size;
+  const seedText = `${name}|${width}x${height}|${(decoded.rows || []).join("")}`;
   const imported = {
     id: `custom-${Date.now()}`,
     name,
     size: decoded.size,
+    width,
+    height,
     rows: decoded.rows,
+    sourceRows: decoded.rows,
+    sourceSize: decoded.size,
+    sourceWidth: width,
+    sourceHeight: height,
     craft: decoded.craft || state.craft,
     note: pickCustomPatternNote("imported", decoded.size, seedText),
   };
@@ -289,7 +310,7 @@ export function applyImportedPattern(decoded, name = "导入图纸") {
   galleryActions.loadPattern(imported, false);
   state.patternsDirty = true;
   galleryActions.uiRenderUI();
-  showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
+  showToast(`已导入图纸：${width}x${height}。`);
   return imported;
 }
 

@@ -3,14 +3,19 @@ import { patterns } from './patterns-data.js';
 import { allColorCodes } from './pattern.js';
 import { encodePatternCode, decodePatternCode, extractPatternCode } from './pattern-code.js';
 import { els } from './dom.js';
-import { clamp } from './color-utils.js';
+import { clamp, mixColor } from './color-utils.js';
 import { maxBoardScale } from './render.js';
 import { showToast } from './notify.js';
 import { confirmModal } from './modal-controller.js';
-import { pickCustomPatternNote } from './utils.js';
+import { pickCustomPatternNote, escapeHtml } from './utils.js';
 import { state } from './state.js';
 import { extractCloudShortId, requestShareApi } from './gallery.js';
 import { icon } from './icons.js';
+import { BOARD_SIZE } from './constants.js';
+import { fitGridToBoardTiles, tileKey } from './board-layout.js';
+import { loadImageFromDataUrl, convertImageToRectRows } from './image-convert.js';
+import { currentBackgroundTheme } from './theme.js';
+import { drawBoardGuides, drawBoardSkin, traceBoardPath } from './board-skin.js';
 
 const drawActions = {
   loadPattern: () => {},
@@ -31,9 +36,12 @@ export function getDrawKeyboardNav() {
 }
 
 const drawState = {
-  size: 24,
-  width: 24,
-  height: 24,
+  size: BOARD_SIZE,
+  width: BOARD_SIZE,
+  height: BOARD_SIZE,
+  tiles: new Set([tileKey(0, 0)]),
+  tileOriginX: 0,
+  tileOriginY: 0,
   tool: "brush",
   shapeMode: "rect",
   selectedColor: "K",
@@ -46,41 +54,25 @@ const drawState = {
   undoStrokeSnapshotTaken: false,
   shapeDrag: null,
   shapeDragEnd: null,
+  stampImage: null,
+  paletteQuery: "",
 };
 const drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
 const drawPointers = {};
 let drawGesture = null;
 let drawRenderKey = "";
-const minDrawDimension = 3;
-const maxDrawDimension = 100;
-
-function normalizeDrawDimension(value, fallback = 24) {
-  const parsed = Number.parseInt(value, 10);
-  const fallbackValue = Number.parseInt(fallback, 10);
-  if (!Number.isFinite(parsed)) {
-    return clamp(Number.isFinite(fallbackValue) ? fallbackValue : 24, minDrawDimension, maxDrawDimension);
-  }
-  return clamp(parsed, minDrawDimension, maxDrawDimension);
-}
-
-function normalizeDrawSizeValues(
-  widthValue,
-  heightValue,
-  fallbackWidth = drawWidth(),
-  fallbackHeight = drawHeight()
-) {
-  return {
-    width: normalizeDrawDimension(widthValue, fallbackWidth),
-    height: normalizeDrawDimension(heightValue, fallbackHeight),
-  };
+const MAX_DRAW_DIMENSION = BOARD_SIZE * 3;
+function normalizeDrawDimension() {
+  // Drawing board matches the fixed 30×30 pegboard tile.
+  return BOARD_SIZE;
 }
 
 function drawWidth() {
-  return drawState.width || drawState.size || 24;
+  return drawState.width || drawState.size || BOARD_SIZE;
 }
 
 function drawHeight() {
-  return drawState.height || drawState.size || 24;
+  return drawState.height || drawState.size || BOARD_SIZE;
 }
 
 function drawSquareSize() {
@@ -130,7 +122,8 @@ function getDrawGeometry() {
   const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
   const width = drawWidth();
   const height = drawHeight();
-  const cell = Math.floor(Math.min(cssW / width, cssH / height));
+  const tabSpace = 44;
+  const cell = Math.max(1, Math.floor(Math.min((cssW - tabSpace * 2) / width, (cssH - tabSpace * 2) / height)));
   const gridW = cell * width;
   const gridH = cell * height;
   const gridSize = Math.max(gridW, gridH);
@@ -139,6 +132,104 @@ function getDrawGeometry() {
   const cx = x0 + gridW / 2;
   const cy = y0 + gridH / 2;
   return { cssW, cssH, width, height, size: Math.max(width, height), cell, gridW, gridH, gridSize, x0, y0, cx, cy };
+}
+
+function isCellActive(x, y) {
+  const tx = Math.floor(x / BOARD_SIZE) + drawState.tileOriginX;
+  const ty = Math.floor(y / BOARD_SIZE) + drawState.tileOriginY;
+  return drawState.tiles.has(tileKey(tx, ty));
+}
+
+function addTileAt(tx, ty) {
+  const T = BOARD_SIZE;
+  const oldMinTx = drawState.tileOriginX;
+  const oldMinTy = drawState.tileOriginY;
+  const oldWidth = drawWidth();
+  const oldHeight = drawHeight();
+  const newMinTx = Math.min(oldMinTx, tx);
+  const newMinTy = Math.min(oldMinTy, ty);
+  const newMaxTx = Math.max(oldMinTx + oldWidth / T - 1, tx);
+  const newMaxTy = Math.max(oldMinTy + oldHeight / T - 1, ty);
+  const newWidth = (newMaxTx - newMinTx + 1) * T;
+  const newHeight = (newMaxTy - newMinTy + 1) * T;
+  const offsetX = (oldMinTx - newMinTx) * T;
+  const offsetY = (oldMinTy - newMinTy) * T;
+  const newGrid = Array(newWidth * newHeight).fill(".");
+  for (let oy = 0; oy < oldHeight; oy++) {
+    for (let ox = 0; ox < oldWidth; ox++) {
+      const val = drawState.grid[oy * oldWidth + ox];
+      if (val && val !== ".") {
+        newGrid[(oy + offsetY) * newWidth + (ox + offsetX)] = val;
+      }
+    }
+  }
+  drawState.tiles.add(tileKey(tx, ty));
+  drawState.tileOriginX = newMinTx;
+  drawState.tileOriginY = newMinTy;
+  drawState.width = newWidth;
+  drawState.height = newHeight;
+  drawState.size = Math.max(newWidth, newHeight);
+  drawState.grid = newGrid;
+  drawState.lastCellKey = "";
+}
+
+function drawBoardTabRects(geometry = getDrawGeometry()) {
+  if (!geometry) return [];
+  const { x0, y0, cell } = geometry;
+  const T = BOARD_SIZE;
+  const tileW = T * cell;
+  const tileH = T * cell;
+  const long = Math.max(30, Math.min(56, cell * 3));
+  const short = Math.max(16, Math.min(24, cell * 1.1));
+  const tabs = [];
+  const curMaxTx = drawState.tileOriginX + drawWidth() / T - 1;
+  const curMaxTy = drawState.tileOriginY + drawHeight() / T - 1;
+  for (const key of drawState.tiles) {
+    const [tx, ty] = key.split(",").map(Number);
+    const bx = x0 + (tx - drawState.tileOriginX) * tileW;
+    const by = y0 + (ty - drawState.tileOriginY) * tileH;
+    const candidates = [
+      { targetTx: tx, targetTy: ty - 1,
+        rect: { x: bx + tileW / 2 - long / 2, y: by - short, w: long, h: short + 4 } },
+      { targetTx: tx + 1, targetTy: ty,
+        rect: { x: bx + tileW - 4, y: by + tileH / 2 - long / 2, w: short + 4, h: long } },
+      { targetTx: tx, targetTy: ty + 1,
+        rect: { x: bx + tileW / 2 - long / 2, y: by + tileH - 4, w: long, h: short + 4 } },
+      { targetTx: tx - 1, targetTy: ty,
+        rect: { x: bx - short, y: by + tileH / 2 - long / 2, w: short + 4, h: long } },
+    ];
+    for (const { targetTx, targetTy, rect } of candidates) {
+      if (drawState.tiles.has(tileKey(targetTx, targetTy))) continue;
+      const newMinTx = Math.min(drawState.tileOriginX, targetTx);
+      const newMinTy = Math.min(drawState.tileOriginY, targetTy);
+      const nextWidth = (Math.max(curMaxTx, targetTx) - newMinTx + 1) * T;
+      const nextHeight = (Math.max(curMaxTy, targetTy) - newMinTy + 1) * T;
+      if (nextWidth <= MAX_DRAW_DIMENSION && nextHeight <= MAX_DRAW_DIMENSION) {
+        tabs.push({ targetTx, targetTy, ...rect });
+      }
+    }
+  }
+  return tabs;
+}
+
+function drawBoardTabAtPointer(event) {
+  if (!els.drawCanvas) return null;
+  const rect = els.drawCanvas.getBoundingClientRect();
+  const geometry = getDrawGeometry();
+  if (!rect.width || !rect.height || !geometry) return null;
+  const rawX = event.clientX - rect.left;
+  const rawY = event.clientY - rect.top;
+  const { cx, cy } = geometry;
+  const view = drawState.view;
+  const x = (rawX - cx - view.panX) / view.scale + cx;
+  const y = (rawY - cy - view.panY) / view.scale + cy;
+  const hitPadding = 10;
+  const tabs = drawBoardTabRects(geometry);
+  const hit = tabs.find((tab) =>
+    x >= tab.x - hitPadding && x <= tab.x + tab.w + hitPadding
+    && y >= tab.y - hitPadding && y <= tab.y + tab.h + hitPadding
+  );
+  return hit ? { tx: hit.targetTx, ty: hit.targetTy } : null;
 }
 
 function clampDrawView() {
@@ -258,74 +349,6 @@ function resetDrawView() {
   drawState.view.panY = 0;
 }
 
-function setDrawSize(nextWidth, nextHeight = nextWidth) {
-  const { width, height } = normalizeDrawSizeValues(nextWidth, nextHeight);
-  drawState.width = width;
-  drawState.height = height;
-  drawState.size = Math.max(width, height);
-  drawState.grid = createDrawGrid(width, height);
-  drawState.undoStack = [];
-  drawState.undoStrokeSnapshotTaken = false;
-  if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-  resetDrawView();
-  setDrawSizeControlValue(width, height);
-  drawState.lastCellKey = "";
-  renderDrawStudio();
-}
-
-function setDrawSizeControlValue(width = drawWidth(), height = drawHeight()) {
-  const { width: normalizedWidth, height: normalizedHeight } = normalizeDrawSizeValues(width, height);
-  if (els.drawSizeValue) els.drawSizeValue.textContent = `${normalizedWidth}×${normalizedHeight}`;
-  if (els.drawWidthInput) els.drawWidthInput.value = String(normalizedWidth);
-  if (els.drawHeightInput) els.drawHeightInput.value = String(normalizedHeight);
-}
-
-function resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol) {
-  const offsetX = Math.round((anchorCol / 2) * (newWidth - oldWidth));
-  const offsetY = Math.round((anchorRow / 2) * (newHeight - oldHeight));
-  const newGrid = [];
-  for (let ny = 0; ny < newHeight; ny += 1) {
-    for (let nx = 0; nx < newWidth; nx += 1) {
-      const ox = nx - offsetX;
-      const oy = ny - offsetY;
-      newGrid.push(
-        ox >= 0 && ox < oldWidth && oy >= 0 && oy < oldHeight
-          ? oldGrid[oy * oldWidth + ox]
-          : "."
-      );
-    }
-  }
-  return newGrid;
-}
-
-let drawResizePending = { width: 0, height: 0, anchorRow: 1, anchorCol: 1 };
-
-function openDrawResizeModal(newWidth, newHeight) {
-  drawResizePending.width = newWidth;
-  drawResizePending.height = newHeight;
-  drawResizePending.anchorRow = 1;
-  drawResizePending.anchorCol = 1;
-  if (els.drawAnchorGrid) {
-    els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
-      const r = Number(btn.dataset.row);
-      const c = Number(btn.dataset.col);
-      btn.setAttribute("aria-pressed", r === 1 && c === 1 ? "true" : "false");
-    });
-  }
-  if (els.drawResizeModal) {
-    els.drawResizeModal.classList.add("show");
-    els.drawResizeModal.setAttribute("aria-hidden", "false");
-  }
-}
-
-export function closeDrawResizeModal(restoreSelectValue) {
-  if (els.drawResizeModal) {
-    els.drawResizeModal.classList.remove("show");
-    els.drawResizeModal.setAttribute("aria-hidden", "true");
-  }
-  if (restoreSelectValue) setDrawSizeControlValue(drawWidth(), drawHeight());
-}
-
 let drawCodeMode = "import";
 export function openDrawCodeModal(mode, value = "") {
   if (!els.drawCodeModal) return;
@@ -369,20 +392,9 @@ function drawRowsFromGrid() {
   return rows;
 }
 
-function squareDrawRowsFromGrid() {
-  const rows = drawRowsFromGrid();
-  const width = drawWidth();
-  const height = drawHeight();
-  const size = Math.max(width, height);
-  return Array.from({ length: size }, (_, y) => {
-    const row = y < height ? rows[y] : "";
-    return row.padEnd(size, ".");
-  });
-}
-
 function makeDrawPattern(name = "绘制图纸") {
   ensureDrawGrid();
-  const rows = squareDrawRowsFromGrid();
+  const rows = drawRowsFromGrid();
   const width = drawWidth();
   const height = drawHeight();
   const size = Math.max(width, height);
@@ -390,12 +402,15 @@ function makeDrawPattern(name = "绘制图纸") {
     id: "draw-export",
     name,
     size,
-    width: size,
-    height: size,
+    width,
+    height,
     sourceWidth: width,
     sourceHeight: height,
     rows,
     craft: "原版",
+    tiles: [...drawState.tiles],
+    tileOriginX: drawState.tileOriginX,
+    tileOriginY: drawState.tileOriginY,
   };
 }
 
@@ -409,22 +424,27 @@ async function exportDrawPatternCode(pattern, successMessage = "图纸码已复�
   await drawActions.autoCopyText(code, successMessage, "图纸码已生成（复制失败，请手动复制）。");
 }
 
-function loadDrawRows(rows) {
-  const height = rows.length;
-  const width = Math.max(1, ...rows.map((row) => String(row || "").length));
-  const normalizedSize = normalizeDrawSizeValues(width, height, 24, 24);
-  drawState.width = normalizedSize.width;
-  drawState.height = normalizedSize.height;
-  drawState.size = Math.max(drawState.width, drawState.height);
-  drawState.grid = [];
-  for (let y = 0; y < drawState.height; y += 1) {
-    const row = rows[y] || "";
-    for (let x = 0; x < drawState.width; x += 1) {
-      const code = row[x] || ".";
-      drawState.grid.push(code === "." || palette[code] ? code : ".");
+function loadDrawPattern(pattern) {
+  const rows = Array.isArray(pattern?.rows) ? pattern.rows : [];
+  const srcHeight = Number.parseInt(pattern?.height, 10) || rows.length;
+  const srcWidth = Number.parseInt(pattern?.width, 10)
+    || Math.max(1, ...rows.map((row) => String(row || "").length));
+  const fitted = fitGridToBoardTiles(rows, srcWidth, srcHeight, BOARD_SIZE, MAX_DRAW_DIMENSION);
+  drawState.width = fitted.width;
+  drawState.height = fitted.height;
+  drawState.size = Math.max(fitted.width, fitted.height);
+  drawState.grid = fitted.rows.join("").split("").map((code) => (code === "." || palette[code] ? code : "."));
+  // Initialize tile set as full rectangle matching fitted dimensions
+  const tilesX = fitted.width / BOARD_SIZE;
+  const tilesY = fitted.height / BOARD_SIZE;
+  drawState.tiles = new Set();
+  for (let ty = 0; ty < tilesY; ty++) {
+    for (let tx = 0; tx < tilesX; tx++) {
+      drawState.tiles.add(tileKey(tx, ty));
     }
   }
-  setDrawSizeControlValue(drawState.width, drawState.height);
+  drawState.tileOriginX = 0;
+  drawState.tileOriginY = 0;
   drawState.lastCellKey = "";
   drawState.undoStack = [];
   drawState.undoStrokeSnapshotTaken = false;
@@ -472,6 +492,7 @@ function floodFillDraw(x, y, fillCode) {
     const key = `${cx},${cy}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    if (!isCellActive(cx, cy)) continue;
     const idx = drawIndex(cx, cy, width);
     if (drawState.grid[idx] !== start) continue;
     drawState.grid[idx] = fillCode;
@@ -492,14 +513,30 @@ function updateUndoButton() {
 
 // Push the pre-edit grid onto the undo stack once an action is confirmed to change state.
 function saveUndoSnapshot() {
-  drawState.undoStack.push([...drawState.grid]);
+  drawState.undoStack.push({
+    grid: [...drawState.grid],
+    width: drawWidth(),
+    height: drawHeight(),
+    tiles: new Set(drawState.tiles),
+    tileOriginX: drawState.tileOriginX,
+    tileOriginY: drawState.tileOriginY,
+  });
   if (drawState.undoStack.length > DRAW_UNDO_LIMIT) drawState.undoStack.shift();
   updateUndoButton();
 }
 
 function doUndo() {
   if (!drawState.undoStack.length) return;
-  drawState.grid = drawState.undoStack.pop();
+  const snapshot = drawState.undoStack.pop();
+  drawState.grid = [...snapshot.grid];
+  drawState.width = snapshot.width;
+  drawState.height = snapshot.height;
+  drawState.size = Math.max(snapshot.width, snapshot.height);
+  if (snapshot.tiles) {
+    drawState.tiles = new Set(snapshot.tiles);
+    drawState.tileOriginX = snapshot.tileOriginX ?? 0;
+    drawState.tileOriginY = snapshot.tileOriginY ?? 0;
+  }
   drawState.lastCellKey = "";
   drawState.undoStrokeSnapshotTaken = false;
   paintDrawCanvas();
@@ -530,10 +567,94 @@ function getShapeCells(sx, sy, ex, ey) {
       for (let cx = x0; cx <= x1; cx++) cells.push([cx, cy]);
     }
   }
-  return cells;
+  return cells.filter(([cx, cy]) => isCellActive(cx, cy));
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Given the drag start cell and the current cell, return the integer board rectangle
+// that keeps the loaded stamp image's aspect ratio, anchored at the start corner and
+// clamped inside the board. The box binds to whichever axis the user dragged further
+// (relative to aspect) so it hugs the pointer. Returns null when no image is loaded.
+function imageStampBox(sx, sy, ex, ey) {
+  const img = drawState.stampImage;
+  if (!img) return null;
+  const boardW = drawWidth();
+  const boardH = drawHeight();
+  const aspect = (img.naturalWidth || img.width || 1) / (img.naturalHeight || img.height || 1);
+  const dirX = ex >= sx ? 1 : -1;
+  const dirY = ey >= sy ? 1 : -1;
+  const dragW = Math.abs(ex - sx) + 1;
+  const dragH = Math.abs(ey - sy) + 1;
+  let w;
+  let h;
+  if (dragW / dragH >= aspect) {
+    w = dragW;
+    h = Math.max(1, Math.round(w / aspect));
+  } else {
+    h = dragH;
+    w = Math.max(1, Math.round(h * aspect));
+  }
+  // Shrink (keeping aspect) if the box can't fit the board.
+  if (w > boardW || h > boardH) {
+    const s = Math.min(boardW / w, boardH / h);
+    w = Math.max(1, Math.floor(w * s));
+    h = Math.max(1, Math.floor(h * s));
+  }
+  let x0 = dirX > 0 ? sx : sx - (w - 1);
+  let y0 = dirY > 0 ? sy : sy - (h - 1);
+  x0 = clamp(x0, 0, boardW - w);
+  y0 = clamp(y0, 0, boardH - h);
+  return { x0, y0, w, h };
+}
+
+// On pointer-up of an image-stamp drag: convert the loaded image into the locked-aspect
+// rectangle and write the beads into the grid (transparent cells leave existing beads).
+function commitImageStamp() {
+  const drag = drawState.shapeDrag;
+  const end = drawState.shapeDragEnd;
+  drawState.shapeDrag = null;
+  drawState.shapeDragEnd = null;
+  if (!drag || !end || !drawState.stampImage) {
+    paintDrawCanvas();
+    return;
+  }
+  const box = imageStampBox(drag.x, drag.y, end.x, end.y);
+  if (!box || box.w < 1 || box.h < 1) {
+    paintDrawCanvas();
+    return;
+  }
+  const rows = convertImageToRectRows(drawState.stampImage, box.w, box.h, { removeWhite: false });
+  const width = drawWidth();
+  let painted = false;
+  saveUndoSnapshot();
+  for (let ry = 0; ry < box.h; ry += 1) {
+    const row = rows[ry] || "";
+    for (let rx = 0; rx < box.w; rx += 1) {
+      const code = row[rx] || ".";
+      if (code === ".") continue;
+      drawState.grid[drawIndex(box.x0 + rx, box.y0 + ry, width)] = code;
+      painted = true;
+    }
+  }
+  if (!painted) {
+    drawState.undoStack.pop();
+    updateUndoButton();
+  }
+  drawState.lastCellKey = "";
+  paintDrawCanvas();
+  if (painted) showToast(`已放入图片：${box.w}×${box.h} 豆。`);
 }
 
 function applyDrawToolAt(x, y) {
+  if (!isCellActive(x, y)) return false;
   const key = `${x},${y}`;
   if (drawState.tool !== "fill" && drawState.tool !== "picker" && drawState.lastCellKey === key) return false;
   drawState.lastCellKey = key;
@@ -579,67 +700,222 @@ export function paintDrawCanvas() {
   const canvas = els.drawCanvas;
   const ctx = canvas.getContext("2d");
   const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-  const cssW = Math.max(220, Math.round(canvas.clientWidth || 640));
-  const cssH = Math.max(220, Math.round(canvas.clientHeight || 640));
+  const geometry = getDrawGeometry();
+  if (!geometry) return;
+  const { cssW, cssH, width, height, cell, gridW, gridH, x0, y0, cx, cy } = geometry;
   const pxW = Math.round(cssW * dpr);
   const pxH = Math.round(cssH * dpr);
   if (canvas.width !== pxW || canvas.height !== pxH) {
     canvas.width = pxW;
     canvas.height = pxH;
   }
-  const width = drawWidth();
-  const height = drawHeight();
-  const cell = Math.floor(Math.min(cssW / width, cssH / height));
-  const gridW = cell * width;
-  const gridH = cell * height;
-  const x0 = Math.floor((cssW - gridW) / 2);
-  const y0 = Math.floor((cssH - gridH) / 2);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, pxW, pxH);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#f5f8fb";
+  const theme = currentBackgroundTheme();
+  const workbenchGradient = ctx.createLinearGradient(0, 0, cssW, cssH);
+  workbenchGradient.addColorStop(0, theme.table[0]);
+  workbenchGradient.addColorStop(0.48, theme.table[1]);
+  workbenchGradient.addColorStop(1, theme.table[2]);
+  ctx.fillStyle = workbenchGradient;
   ctx.fillRect(0, 0, cssW, cssH);
 
   // Apply zoom/pan transform anchored to grid center
   const v = drawState.view;
-  const cx = x0 + gridW / 2;
-  const cy = y0 + gridH / 2;
   ctx.save();
   ctx.translate(cx + v.panX, cy + v.panY);
   ctx.scale(v.scale, v.scale);
   ctx.translate(-cx, -cy);
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const code = drawState.grid[drawIndex(x, y, width)];
-      if (code && code !== ".") {
-        ctx.fillStyle = palette[code] || "#9aa4b3";
-        ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
-      } else {
-        ctx.fillStyle = (x + y) % 2 ? "#f0f4f9" : "#ffffff";
-        ctx.fillRect(x0 + x * cell, y0 + y * cell, cell, cell);
+  const T = BOARD_SIZE;
+  const tileW = T * cell;
+  const tileH = T * cell;
+
+  // Per-tile: background fill + 10×10 checkerboard tint (no frame, strict rectangles)
+  const tintLight = mixColor("#ffffff", theme.brand, 0.06);
+  const tintDark = mixColor("#ffffff", theme.brand, 0.15);
+  const blocksPerTile = T / 10;
+  for (const key of drawState.tiles) {
+    const [tx, ty] = key.split(",").map(Number);
+    const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+    const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+    ctx.fillStyle = "#fbfcfd";
+    ctx.fillRect(tileBoardX, tileBoardY, tileW, tileH);
+    // Global block coords so the 10×10 tint reads as one continuous surface across
+    // joined tiles (per-tile parity made seams look like separate plates).
+    const tileBlockX = (tx - drawState.tileOriginX) * blocksPerTile;
+    const tileBlockY = (ty - drawState.tileOriginY) * blocksPerTile;
+    for (let by = 0; by < blocksPerTile; by++) {
+      for (let bx = 0; bx < blocksPerTile; bx++) {
+        ctx.fillStyle = (tileBlockX + bx + tileBlockY + by) % 2 ? tintDark : tintLight;
+        ctx.fillRect(tileBoardX + bx * 10 * cell, tileBoardY + by * 10 * cell, 10 * cell, 10 * cell);
       }
     }
   }
-  ctx.strokeStyle = "rgba(116, 126, 147, 0.26)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= width; i += 1) {
-    const offset = i * cell;
-    ctx.beginPath();
-    ctx.moveTo(x0 + offset + 0.5, y0 + 0.5);
-    ctx.lineTo(x0 + offset + 0.5, y0 + gridH + 0.5);
-    ctx.stroke();
+
+  // Pegboard texture: a soft nub on every empty cell (matches the placing board),
+  // batched into two fills so cost stays flat regardless of tile count.
+  const pegR = Math.max(0.6, cell * 0.138);
+  const pegCenters = [];
+  for (const key of drawState.tiles) {
+    const [tx, ty] = key.split(",").map(Number);
+    const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+    const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+    const startX = (tx - drawState.tileOriginX) * T;
+    const startY = (ty - drawState.tileOriginY) * T;
+    for (let ly = 0; ly < T; ly++) {
+      for (let lx = 0; lx < T; lx++) {
+        const code = drawState.grid[drawIndex(startX + lx, startY + ly, width)];
+        if (code && code !== ".") continue;
+        pegCenters.push([tileBoardX + lx * cell + cell / 2, tileBoardY + ly * cell + cell / 2]);
+      }
+    }
   }
-  for (let i = 0; i <= height; i += 1) {
-    const offset = i * cell;
+  if (pegCenters.length) {
     ctx.beginPath();
-    ctx.moveTo(x0 + 0.5, y0 + offset + 0.5);
-    ctx.lineTo(x0 + gridW + 0.5, y0 + offset + 0.5);
-    ctx.stroke();
+    for (const [pcx, pcy] of pegCenters) {
+      ctx.moveTo(pcx + pegR, pcy);
+      ctx.arc(pcx, pcy, pegR, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = "rgba(91, 104, 118, 0.30)";
+    ctx.fill();
+    const hlR = pegR * 0.36;
+    const hlOff = pegR * 0.22;
+    ctx.beginPath();
+    for (const [pcx, pcy] of pegCenters) {
+      ctx.moveTo(pcx - hlOff + hlR, pcy - hlOff);
+      ctx.arc(pcx - hlOff, pcy - hlOff, hlR, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.fill();
   }
+
+  // Per-tile: cells + cell grid
+  for (const key of drawState.tiles) {
+    const [tx, ty] = key.split(",").map(Number);
+    const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+    const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+    const tileLayout = { boardX: tileBoardX, boardY: tileBoardY, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell };
+    const startX = (tx - drawState.tileOriginX) * T;
+    const startY = (ty - drawState.tileOriginY) * T;
+    for (let ly = 0; ly < T; ly++) {
+      for (let lx = 0; lx < T; lx++) {
+        const code = drawState.grid[drawIndex(startX + lx, startY + ly, width)];
+        if (code && code !== ".") {
+          ctx.fillStyle = palette[code] || "#9aa4b3";
+          ctx.fillRect(tileBoardX + lx * cell, tileBoardY + ly * cell, cell, cell);
+        }
+      }
+    }
+    ctx.strokeStyle = "rgba(70, 84, 96, 0.08)";
+    ctx.lineWidth = 1 / v.scale;
+    for (let i = 0; i <= T; i++) {
+      const offset = i * cell;
+      ctx.beginPath();
+      ctx.moveTo(tileBoardX + offset + 0.5, tileBoardY + 0.5);
+      ctx.lineTo(tileBoardX + offset + 0.5, tileBoardY + tileH + 0.5);
+      ctx.stroke();
+    }
+    for (let i = 0; i <= T; i++) {
+      const offset = i * cell;
+      ctx.beginPath();
+      ctx.moveTo(tileBoardX + 0.5, tileBoardY + offset + 0.5);
+      ctx.lineTo(tileBoardX + tileW + 0.5, tileBoardY + offset + 0.5);
+      ctx.stroke();
+    }
+    drawBoardGuides(ctx, tileLayout, T, T, v.scale);
+  }
+
+  // Internal seams: a restrained snap-fit hint where two tiles meet — the seam
+  // hairline detours into two small interlocking tabs (alternating sides), so joined
+  // boards read as "clicked together" without becoming busy.
+  ctx.save();
+  ctx.strokeStyle = "rgba(70, 84, 96, 0.16)";
+  ctx.lineWidth = 1 / v.scale;
+  ctx.lineJoin = "round";
+  const tabLen = cell * 0.9;
+  const tabDepth = cell * 0.5;
+  for (const key of drawState.tiles) {
+    const [tx, ty] = key.split(",").map(Number);
+    const bx = x0 + (tx - drawState.tileOriginX) * tileW;
+    const by = y0 + (ty - drawState.tileOriginY) * tileH;
+    if (drawState.tiles.has(tileKey(tx + 1, ty))) {
+      const sx = bx + tileW;
+      const c1 = by + tileH / 3;
+      const c2 = by + (tileH * 2) / 3;
+      ctx.beginPath();
+      ctx.moveTo(sx, by);
+      ctx.lineTo(sx, c1 - tabLen);
+      ctx.lineTo(sx + tabDepth, c1 - tabLen);
+      ctx.lineTo(sx + tabDepth, c1 + tabLen);
+      ctx.lineTo(sx, c1 + tabLen);
+      ctx.lineTo(sx, c2 - tabLen);
+      ctx.lineTo(sx - tabDepth, c2 - tabLen);
+      ctx.lineTo(sx - tabDepth, c2 + tabLen);
+      ctx.lineTo(sx, c2 + tabLen);
+      ctx.lineTo(sx, by + tileH);
+      ctx.stroke();
+    }
+    if (drawState.tiles.has(tileKey(tx, ty + 1))) {
+      const sy = by + tileH;
+      const c1 = bx + tileW / 3;
+      const c2 = bx + (tileW * 2) / 3;
+      ctx.beginPath();
+      ctx.moveTo(bx, sy);
+      ctx.lineTo(c1 - tabLen, sy);
+      ctx.lineTo(c1 - tabLen, sy + tabDepth);
+      ctx.lineTo(c1 + tabLen, sy + tabDepth);
+      ctx.lineTo(c1 + tabLen, sy);
+      ctx.lineTo(c2 - tabLen, sy);
+      ctx.lineTo(c2 - tabLen, sy - tabDepth);
+      ctx.lineTo(c2 + tabLen, sy - tabDepth);
+      ctx.lineTo(c2 + tabLen, sy);
+      ctx.lineTo(bx + tileW, sy);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // Outer perimeter: clean flat border on edges that face empty space.
+  ctx.strokeStyle = "rgba(70, 84, 96, 0.35)";
+  ctx.lineWidth = 1.5 / v.scale;
+  for (const key of drawState.tiles) {
+    const [tx, ty] = key.split(",").map(Number);
+    const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
+    const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
+    if (!drawState.tiles.has(tileKey(tx, ty - 1))) {
+      ctx.beginPath(); ctx.moveTo(tileBoardX, tileBoardY); ctx.lineTo(tileBoardX + tileW, tileBoardY); ctx.stroke();
+    }
+    if (!drawState.tiles.has(tileKey(tx + 1, ty))) {
+      ctx.beginPath(); ctx.moveTo(tileBoardX + tileW, tileBoardY); ctx.lineTo(tileBoardX + tileW, tileBoardY + tileH); ctx.stroke();
+    }
+    if (!drawState.tiles.has(tileKey(tx, ty + 1))) {
+      ctx.beginPath(); ctx.moveTo(tileBoardX, tileBoardY + tileH); ctx.lineTo(tileBoardX + tileW, tileBoardY + tileH); ctx.stroke();
+    }
+    if (!drawState.tiles.has(tileKey(tx - 1, ty))) {
+      ctx.beginPath(); ctx.moveTo(tileBoardX, tileBoardY); ctx.lineTo(tileBoardX, tileBoardY + tileH); ctx.stroke();
+    }
+  }
+
+  const tabs = drawBoardTabRects(geometry);
+  ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "rgba(69, 93, 122, 0.38)";
-  ctx.lineWidth = 1.2;
-  ctx.strokeRect(x0 + 0.5, y0 + 0.5, gridW, gridH);
+  ctx.lineWidth = 1.2 / v.scale;
+  tabs.forEach((tab) => {
+    ctx.beginPath();
+    ctx.roundRect(tab.x, tab.y, tab.w, tab.h, Math.min(tab.w, tab.h) * 0.35);
+    ctx.fill();
+    ctx.stroke();
+    const tabCx = tab.x + tab.w / 2;
+    const tabCy = tab.y + tab.h / 2;
+    const arm = Math.min(tab.w, tab.h) * 0.24;
+    ctx.beginPath();
+    ctx.moveTo(tabCx - arm, tabCy);
+    ctx.lineTo(tabCx + arm, tabCy);
+    ctx.moveTo(tabCx, tabCy - arm);
+    ctx.lineTo(tabCx, tabCy + arm);
+    ctx.stroke();
+  });
   if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
     const previewCells = getShapeCells(
       drawState.shapeDrag.x, drawState.shapeDrag.y,
@@ -653,18 +929,42 @@ export function paintDrawCanvas() {
     }
     ctx.restore();
   }
+  if (drawState.tool === "image" && drawState.stampImage && drawState.shapeDrag && drawState.shapeDragEnd) {
+    const box = imageStampBox(drawState.shapeDrag.x, drawState.shapeDrag.y, drawState.shapeDragEnd.x, drawState.shapeDragEnd.y);
+    if (box) {
+      const px = x0 + box.x0 * cell;
+      const py = y0 + box.y0 * cell;
+      const pw = box.w * cell;
+      const ph = box.h * cell;
+      ctx.save();
+      ctx.globalAlpha = 0.88;
+      ctx.imageSmoothingEnabled = true;
+      // Aspect is locked to the image, so a straight stretch into the box ≈ cover.
+      ctx.drawImage(drawState.stampImage, px, py, pw, ph);
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = theme.brand || "#57b8a7";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+      ctx.restore();
+    }
+  }
   ctx.restore();
 }
 
 function renderDrawPalette() {
   if (!els.drawPalette) return;
   ensureDrawPaletteColor();
-  const codes = allColorCodes();
-  const key = `${drawState.selectedColor}:${drawState.recentColors.join(",")}:${codes.join(",")}`;
+  const allCodes = allColorCodes();
+  const query = (drawState.paletteQuery || "").trim().toUpperCase().replace(/\s+/g, "");
+  const codes = query
+    ? allCodes.filter((code) => (beadIds[code] || code).toUpperCase().includes(query))
+    : allCodes;
+  const key = `${drawState.selectedColor}:${drawState.recentColors.join(",")}:${query}:${allCodes.join(",")}`;
   if (key === drawRenderKey) return;
   drawRenderKey = key;
   if (els.drawPaletteMeta) {
-    els.drawPaletteMeta.textContent = `221色板`;
+    els.drawPaletteMeta.textContent = query ? `${codes.length} / ${allCodes.length} 色` : `221色板`;
   }
   if (els.drawRecentColors) {
     els.drawRecentColors.innerHTML = drawState.recentColors.map((code) => {
@@ -676,6 +976,10 @@ function renderDrawPalette() {
         <span class="chip-label">${label}</span>
       </button>`;
     }).join("");
+  }
+  if (!codes.length) {
+    els.drawPalette.innerHTML = `<p class="palette-empty">没有匹配「${escapeHtml(drawState.paletteQuery || "")}」的色号</p>`;
+    return;
   }
   els.drawPalette.innerHTML = codes.map((code) => {
     const selected = drawState.selectedColor === code;
@@ -701,6 +1005,9 @@ function renderDrawToolButtons() {
     shapeBtn.setAttribute("aria-label", isCircle ? "圆形" : "矩形");
     shapeBtn.innerHTML = icon(isCircle ? "circle" : "square", { size: 16 });
   }
+  if (els.drawImageStampButton) {
+    els.drawImageStampButton.classList.toggle("active", drawState.tool === "image");
+  }
   if (els.drawUndoButton) els.drawUndoButton.disabled = drawState.undoStack.length === 0;
 }
 
@@ -719,7 +1026,7 @@ export function enterDrawMode() {
 
 function useDrawPattern() {
   ensureDrawGrid();
-  const rows = squareDrawRowsFromGrid();
+  const rows = drawRowsFromGrid();
   const beadCount = rows.join("").replace(/\./g, "").length;
   if (!beadCount) {
     showToast("请先在绘图台放一些颜色。");
@@ -732,8 +1039,8 @@ function useDrawPattern() {
     id: "custom-draw",
     name: "绘制图纸",
     size,
-    width: size,
-    height: size,
+    width: sourceWidth,
+    height: sourceHeight,
     craft: "原版",
     rows,
     sourceRows: rows,
@@ -741,6 +1048,9 @@ function useDrawPattern() {
     sourceWidth,
     sourceHeight,
     note: pickCustomPatternNote("draw", size, rows.join("")),
+    tiles: [...drawState.tiles],
+    tileOriginX: drawState.tileOriginX,
+    tileOriginY: drawState.tileOriginY,
   };
   for (let i = patterns.length - 1; i >= 0; i -= 1) {
     if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
@@ -764,65 +1074,6 @@ export function initDrawingStudioEvents() {
     drawState.lastCellKey = "";
     paintDrawCanvas();
     showToast("绘图已清空。");
-  });
-  function commitDrawSizeControlValue(widthValue = els.drawWidthInput?.value, heightValue = els.drawHeightInput?.value) {
-    const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(widthValue, heightValue);
-    if (newWidth === drawWidth() && newHeight === drawHeight()) {
-      setDrawSizeControlValue(drawWidth(), drawHeight());
-      return;
-    }
-    setDrawSizeControlValue(newWidth, newHeight);
-    openDrawResizeModal(newWidth, newHeight);
-  }
-
-  [els.drawWidthInput, els.drawHeightInput].forEach((input) => {
-    input?.addEventListener("input", () => {
-      const { width, height } = normalizeDrawSizeValues(
-        els.drawWidthInput?.value,
-        els.drawHeightInput?.value
-      );
-      if (els.drawSizeValue) els.drawSizeValue.textContent = `${width}×${height}`;
-    });
-    input?.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") commitDrawSizeControlValue();
-    });
-  });
-  els.drawSizeApplyButton?.addEventListener("click", () => {
-    commitDrawSizeControlValue();
-  });
-  els.drawAnchorGrid?.addEventListener("click", (event) => {
-    const cell = event.target.closest(".anchor-cell");
-    if (!cell) return;
-    drawResizePending.anchorRow = Number(cell.dataset.row);
-    drawResizePending.anchorCol = Number(cell.dataset.col);
-    els.drawAnchorGrid.querySelectorAll(".anchor-cell").forEach((btn) => {
-      btn.setAttribute("aria-pressed", btn === cell ? "true" : "false");
-    });
-  });
-  els.drawResizeConfirmBtn?.addEventListener("click", () => {
-    const { width: newWidth, height: newHeight } = normalizeDrawSizeValues(
-      drawResizePending.width,
-      drawResizePending.height
-    );
-    const { anchorRow, anchorCol } = drawResizePending;
-    const oldGrid = drawState.grid.slice();
-    const oldWidth = drawWidth();
-    const oldHeight = drawHeight();
-    drawState.width = newWidth;
-    drawState.height = newHeight;
-    drawState.size = Math.max(newWidth, newHeight);
-    drawState.grid = resizeDrawGrid(oldGrid, oldWidth, oldHeight, newWidth, newHeight, anchorRow, anchorCol);
-    drawState.lastCellKey = "";
-    drawState.undoStack = [];
-    drawState.undoStrokeSnapshotTaken = false;
-    if (els.drawUndoButton) els.drawUndoButton.disabled = true;
-    setDrawSizeControlValue(newWidth, newHeight);
-    closeDrawResizeModal(false);
-    renderDrawStudio();
-    showToast(`画布已调整为 ${newWidth}x${newHeight}。`);
-  });
-  [els.drawResizeCancelBtn, els.drawResizeCloseBtn].forEach((btn) => {
-    btn?.addEventListener("click", () => closeDrawResizeModal(true));
   });
   els.drawingStudio?.addEventListener("click", (event) => {
     const actionBtn = event.target.closest("[data-draw-action]");
@@ -849,6 +1100,11 @@ export function initDrawingStudioEvents() {
       }
     }
   });
+  els.drawPaletteSearch?.addEventListener("input", (event) => {
+    drawState.paletteQuery = event.target.value || "";
+    drawRenderKey = "";
+    renderDrawPalette();
+  });
   els.drawClearButton?.addEventListener("click", () => {
     ensureDrawGrid();
     drawState.grid = createDrawGrid(drawWidth(), drawHeight());
@@ -861,6 +1117,27 @@ export function initDrawingStudioEvents() {
   });
   els.drawUsePatternButton?.addEventListener("click", () => {
     useDrawPattern();
+  });
+  els.drawImageStampButton?.addEventListener("click", () => {
+    els.drawImageInput?.click();
+  });
+  els.drawImageInput?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const image = await loadImageFromDataUrl(dataUrl);
+      drawState.stampImage = image;
+      drawState.tool = "image";
+      drawState.lastCellKey = "";
+      drawState.shapeDrag = null;
+      drawState.shapeDragEnd = null;
+      renderDrawToolButtons();
+      showToast("在版面上拖一个框放图片（自动锁定原图比例）。");
+    } catch {
+      showToast("图片读取失败，换一张试试。");
+    }
   });
   els.drawShortCodeButton?.addEventListener("click", async () => {
     const button = els.drawShortCodeButton;
@@ -928,9 +1205,9 @@ export function initDrawingStudioEvents() {
     try {
       const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
       const decoded = decodePatternCode(code);
-      loadDrawRows(decoded.rows);
+      loadDrawPattern(decoded);
       closeDrawCodeModal();
-      showToast(`已导入图纸：${decoded.size}x${decoded.size}。`);
+      showToast(`已导入图纸：${decoded.width}x${decoded.height}。`);
     } catch (error) {
       showToast("图纸码无效或已过期。");
     }
@@ -950,6 +1227,16 @@ export function initDrawingStudioEvents() {
   if (els.drawCanvas) {
     els.drawCanvas.addEventListener("pointerdown", (event) => {
       els.drawCanvas.setPointerCapture(event.pointerId);
+      const tileToAdd = drawBoardTabAtPointer(event);
+      if (tileToAdd) {
+        const { tx, ty } = tileToAdd;
+        saveUndoSnapshot();
+        addTileAt(tx, ty);
+        resetDrawView();
+        paintDrawCanvas();
+        showToast("已添加一块板。");
+        return;
+      }
       const rect = els.drawCanvas.getBoundingClientRect();
       drawPointers[event.pointerId] = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       if (Object.keys(drawPointers).length >= 2) {
@@ -957,7 +1244,7 @@ export function initDrawingStudioEvents() {
         drawState.lastCellKey = "";
         drawState.shapeDrag = null;
         startDrawGesture();
-      } else if (drawState.tool === "shape") {
+      } else if (drawState.tool === "shape" || drawState.tool === "image") {
         const cell = drawCellFromPointer(event);
         if (cell) {
           drawState.undoStrokeSnapshotTaken = false;
@@ -982,7 +1269,7 @@ export function initDrawingStudioEvents() {
         return;
       }
       if (!drawState.drawing) return;
-      if (drawState.tool === "shape") {
+      if (drawState.tool === "shape" || drawState.tool === "image") {
         const cell = drawCellFromPointer(event);
         if (cell && drawState.shapeDrag) {
           drawState.shapeDragEnd = { x: cell.x, y: cell.y };
@@ -999,7 +1286,9 @@ export function initDrawingStudioEvents() {
         drawGesture.active = false;
       }
       if (Object.keys(drawPointers).length === 0) {
-        if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
+        if (drawState.tool === "image" && drawState.shapeDrag && drawState.shapeDragEnd) {
+          commitImageStamp();
+        } else if (drawState.tool === "shape" && drawState.shapeDrag && drawState.shapeDragEnd) {
           const cells = getShapeCells(
             drawState.shapeDrag.x, drawState.shapeDrag.y,
             drawState.shapeDragEnd.x, drawState.shapeDragEnd.y

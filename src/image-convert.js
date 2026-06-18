@@ -16,6 +16,62 @@ export function imageToPatternRows(image, removeWhite, size = state.patternSize)
   return convertImageToPattern(image, { removeWhite, size }).rows;
 }
 
+// Convert an image into an exact W×H bead grid for "image stamp" placement on the
+// draw board. Unlike convertImageToPattern (square center-crop + dominant-region
+// pipeline), this does a straight cover-resample to the target rectangle and maps
+// each cell to its nearest palette bead by OkLab distance — used when the placement
+// rectangle is already locked to the image's aspect ratio, so the cover crop is
+// negligible and there is no distortion. Returns rows[] (transparent/whites → ".").
+export function convertImageToRectRows(image, targetW, targetH, options = {}) {
+  const w = Math.max(1, Math.round(targetW));
+  const h = Math.max(1, Math.round(targetH));
+  const removeWhite = options.removeWhite === true; // default: keep whites (photos)
+  const codes = allColorCodes();
+  if (!codes.length) return Array.from({ length: h }, () => ".".repeat(w));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  // Cover-fit: crop source to the target aspect (normally ~equal → tiny crop).
+  const targetAspect = w / h;
+  const iw = image.naturalWidth || image.width || 1;
+  const ih = image.naturalHeight || image.height || 1;
+  const imgAspect = iw / ih;
+  let sw = iw;
+  let sh = ih;
+  let sx = 0;
+  let sy = 0;
+  if (imgAspect > targetAspect) {
+    sw = ih * targetAspect;
+    sx = (iw - sw) / 2;
+  } else {
+    sh = iw / targetAspect;
+    sy = (ih - sh) / 2;
+  }
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const rows = [];
+  for (let y = 0; y < h; y += 1) {
+    let row = "";
+    for (let x = 0; x < w; x += 1) {
+      const o = (y * w + x) * 4;
+      const a = data[o + 3];
+      const r = data[o];
+      const g = data[o + 1];
+      const b = data[o + 2];
+      if (a < 32 || (removeWhite && isWhiteLike(r, g, b, a))) {
+        row += ".";
+        continue;
+      }
+      row += nearestCodeFromSet(rgbToOklab(r, g, b), codes) || ".";
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
 export function convertImageToPattern(image, options = {}) {
   const targetSize = normalizePatternSize(options.size || state.patternSize);
   const removeWhite = options.removeWhite !== false;

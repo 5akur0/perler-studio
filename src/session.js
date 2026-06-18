@@ -1,8 +1,8 @@
 import { patterns } from './patterns-data.js';
 import { state } from './state.js';
-import { sessionKey } from './constants.js';
+import { sessionKey, BOARD_SIZE } from './constants.js';
 import { palette } from './palette.js';
-import { baseIdFor, invalidatePlacedCounts, normalizePatternSize, resizePattern } from './pattern.js';
+import { baseIdFor, boardCols, boardRows, invalidatePatternDataCaches, invalidatePlacedCounts, normalizePatternSize, resizePattern } from './pattern.js';
 
 const sessionVersion = 2;
 const restorablePhases = new Set(["place", "inspect", "iron", "cool", "finish"]);
@@ -42,6 +42,80 @@ function normalizePlaced(placed, total) {
 function normalizeHeat(heat, total) {
   if (!Array.isArray(heat)) return Array(total).fill(0);
   return Array.from({ length: total }, (_, index) => Number(heat[index]) || 0);
+}
+
+// Center a square grid of row strings onto a board of `toSize`, padding or
+// cropping the margin with empty pegs ('.'). Used to fit a legacy custom
+// pattern (authored at a different stride) onto the fixed board.
+function regridRows(rows, fromSize, toSize) {
+  if (!Array.isArray(rows)) return null;
+  const offset = Math.floor((toSize - fromSize) / 2);
+  const out = [];
+  for (let ty = 0; ty < toSize; ty += 1) {
+    const sy = ty - offset;
+    let line = "";
+    for (let tx = 0; tx < toSize; tx += 1) {
+      const sx = tx - offset;
+      const code = sy >= 0 && sy < fromSize && sx >= 0 && sx < fromSize ? rows[sy]?.[sx] : ".";
+      line += code && code !== "." ? code : ".";
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+// Top-left pad/crop a square grid of row strings to new board dimensions.
+function padGridTo(oldRows, oldW, oldH, newW, newH) {
+  const out = [];
+  for (let y = 0; y < newH; y += 1) {
+    let line = "";
+    for (let x = 0; x < newW; x += 1) {
+      line += y < oldH && x < oldW ? (oldRows[y]?.[x] || ".") : ".";
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+// Re-apply a saved board's exact dimensions (and rows, if stored) to a resolved
+// pattern, so a grown multi-tile board survives save/restore.
+function applyBoardGeometry(pattern, session) {
+  const bw = Number.parseInt(session.boardWidth, 10);
+  const bh = Number.parseInt(session.boardHeight, 10);
+  if (!Number.isFinite(bw) || !Number.isFinite(bh) || bw <= 0 || bh <= 0) return;
+  if (bw === boardCols(pattern) && bh === boardRows(pattern)) return;
+  let rows = null;
+  if (Array.isArray(session.boardRows) && session.boardRows.length === bh) {
+    const candidate = session.boardRows.map((r) => String(r || "").slice(0, bw).padEnd(bw, "."));
+    if (candidate.every((r) => [...r].every((c) => c === "." || palette[c]))) rows = candidate;
+  }
+  if (!rows) rows = padGridTo(pattern.rows || [], boardCols(pattern), boardRows(pattern), bw, bh);
+  pattern.rows = rows;
+  pattern.sourceRows = rows;
+  pattern.width = bw;
+  pattern.height = bh;
+  pattern.size = Math.max(bw, bh);
+  pattern.sourceSize = pattern.size;
+  invalidatePatternDataCaches(pattern);
+}
+
+// Re-grid a square cell array from one board stride to another, centering the
+// old content (mirrors how seeds are center-padded to the fixed board). Lets a
+// legacy in-progress work survive the move to the fixed 30×30 board aligned.
+function regridSquare(arr, fromSize, toSize, fill) {
+  const out = Array(toSize * toSize).fill(fill);
+  if (!Array.isArray(arr)) return out;
+  const offset = Math.floor((toSize - fromSize) / 2);
+  for (let y = 0; y < fromSize; y += 1) {
+    const ty = y + offset;
+    if (ty < 0 || ty >= toSize) continue;
+    for (let x = 0; x < fromSize; x += 1) {
+      const tx = x + offset;
+      if (tx < 0 || tx >= toSize) continue;
+      out[ty * toSize + tx] = arr[y * fromSize + x];
+    }
+  }
+  return out;
 }
 
 function normalizePatternSizeFromSession(value, fallback) {
@@ -130,22 +204,73 @@ function normalizeRows(rows, size) {
   return valid ? normalized : null;
 }
 
+function normalizeRectRows(rows, width, height) {
+  if (!Array.isArray(rows) || rows.length !== height) return null;
+  const normalized = rows.map((row) => String(row || "").slice(0, width).padEnd(width, "."));
+  const valid = normalized.every((row) => row.length === width && [...row].every((code) => code === "." || palette[code]));
+  return valid ? normalized : null;
+}
+
 function restoreCustomPattern(snapshot) {
   if (!snapshot || !snapshot.size) return null;
-  const size = normalizePatternSize(snapshot.size);
-  const rows = normalizeRows(snapshot.rows, size);
+  const savedWidth = Number.parseInt(snapshot.width, 10);
+  const savedHeight = Number.parseInt(snapshot.height, 10);
+  const isBoardLayout = Number.isFinite(savedWidth)
+    && Number.isFinite(savedHeight)
+    && savedWidth >= BOARD_SIZE
+    && savedHeight >= BOARD_SIZE
+    && savedWidth % BOARD_SIZE === 0
+    && savedHeight % BOARD_SIZE === 0;
+  if (isBoardLayout) {
+    const rows = normalizeRectRows(snapshot.rows, savedWidth, savedHeight);
+    if (!rows) return null;
+    const pattern = {
+      ...snapshot,
+      id: snapshot.id || "custom-session",
+      name: snapshot.name || "自定义图纸",
+      craft: snapshot.craft || "原版",
+      size: Math.max(savedWidth, savedHeight),
+      width: savedWidth,
+      height: savedHeight,
+      rows,
+      sourceRows: rows,
+      sourceSize: Math.max(savedWidth, savedHeight),
+      sourceWidth: savedWidth,
+      sourceHeight: savedHeight,
+    };
+    for (let i = patterns.length - 1; i >= 0; i -= 1) {
+      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
+    }
+    patterns.unshift(pattern);
+    state.patternsDirty = true;
+    return pattern;
+  }
+  const size = normalizePatternSize(); // fixed board
+  // Fit saved rows onto the fixed board, center-remapping a legacy stride.
+  const fitRows = (src, fromValue) => {
+    if (!Array.isArray(src)) return null;
+    const direct = normalizeRows(src, size);
+    if (direct) return direct;
+    const fromSize = Number.parseInt(fromValue, 10);
+    if (Number.isFinite(fromSize) && fromSize > 0 && fromSize !== size) {
+      return normalizeRows(regridRows(src, fromSize, size), size);
+    }
+    return null;
+  };
+  const rows = fitRows(snapshot.rows, snapshot.size);
   if (!rows) return null;
-  const sourceSize = normalizePatternSize(snapshot.sourceSize || size);
-  const sourceRows = normalizeRows(snapshot.sourceRows || rows, sourceSize) || rows;
+  const sourceRows = fitRows(snapshot.sourceRows || snapshot.rows, snapshot.sourceSize || snapshot.size) || rows;
   const pattern = {
     ...snapshot,
     id: snapshot.id || "custom-session",
     name: snapshot.name || "自定义图纸",
     craft: snapshot.craft || "原版",
     size,
+    width: size,
+    height: size,
     rows,
     sourceRows,
-    sourceSize,
+    sourceSize: size,
   };
   for (let i = patterns.length - 1; i >= 0; i -= 1) {
     if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
@@ -177,6 +302,14 @@ function captureSession() {
     customPattern: snapshotCustomPattern(state.selectedPattern),
     patternColorMaps: state.patternColorMaps,
     patternSize,
+    boardWidth: boardCols(state.selectedPattern),
+    boardHeight: boardRows(state.selectedPattern),
+    // Stored only for grown multi-tile boards so they restore exactly.
+    boardRows: (boardCols(state.selectedPattern) !== boardRows(state.selectedPattern)
+      || boardCols(state.selectedPattern) > BOARD_SIZE
+      || boardRows(state.selectedPattern) > BOARD_SIZE)
+      ? state.selectedPattern?.rows
+      : undefined,
     placed: state.placed,
     heat: state.heat,
     tool: state.tool,
@@ -257,6 +390,8 @@ export function loadAutoSave() {
     }
     state.patternSize = restoredSize;
     const restoredPattern = resizePattern(pattern, state.patternSize);
+    // Restore a grown (multi-tile) board: re-apply its exact dimensions and rows.
+    applyBoardGeometry(restoredPattern, session);
 
     sessionActions.loadPattern(restoredPattern, true);
 
@@ -264,11 +399,20 @@ export function loadAutoSave() {
     state.sandboxMode = Boolean(session.sandboxMode);
     state.lampOn = Boolean(session.lampOn);
     state.patternSize = restoredPattern.size;
-    const total = restoredPattern.size * restoredPattern.size;
-    state.placed = normalizePlaced(session.placed, total);
+    const cols = boardCols(restoredPattern);
+    const rows = boardRows(restoredPattern);
+    const total = cols * rows;
+    // A legacy square save from a different stride is center-remapped; a grown
+    // board restores exactly via geometry above. Transient errors/spill drop.
+    const savedSize = Number.parseInt(session.patternSize, 10);
+    const isGrown = cols !== rows || cols > BOARD_SIZE || rows > BOARD_SIZE;
+    const needRegrid = !isGrown && Number.isFinite(savedSize) && savedSize > 0 && savedSize !== cols;
+    const placedSource = needRegrid ? regridSquare(session.placed, savedSize, cols, null) : session.placed;
+    const heatSource = needRegrid ? regridSquare(session.heat, savedSize, cols, 0) : session.heat;
+    state.placed = normalizePlaced(placedSource, total);
     invalidatePlacedCounts();
-    state.heat = normalizeHeat(session.heat, total);
-    const spill = normalizeSpill(session.spill, total);
+    state.heat = normalizeHeat(heatSource, total);
+    const spill = needRegrid ? null : normalizeSpill(session.spill, total);
     state.tool = session.tool === "tweezers" ? "tweezers" : "needle";
     state.selectedColor = session.selectedColor && palette[session.selectedColor] ? session.selectedColor : state.selectedColor;
     state.trayColor = session.trayColor && palette[session.trayColor] ? session.trayColor : null;
@@ -281,7 +425,7 @@ export function loadAutoSave() {
     state.needleLoaded = Math.max(0, Number(session.needleLoaded) || 0);
     state.toolPose = normalizeToolPose(session.toolPose);
     state.lastMoveDir = normalizeMoveDir(session.lastMoveDir);
-    state.errors = session.errors || [];
+    state.errors = needRegrid ? [] : (session.errors || []);
     state.warp = session.warp || 18;
     state.cooling = session.cooling || 0;
     state.spill = spill;

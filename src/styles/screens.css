@@ -6,7 +6,7 @@
 }
 
 .start-screen-inner {
-  width: min(520px, calc(100% - 48px));
+  width: min(920px, calc(100% - 48px));
   max-width: 100%;
   min-width: 0;
   border: 1px solid rgba(139, 148, 166, 0.36);
@@ -18,16 +18,136 @@
 }
 
 .start-screen-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: stretch;
+  gap: clamp(24px, 3vw, 40px);
+  padding: clamp(28px, 4vw, 44px);
+}
+
+.start-aside {
   display: flex;
   flex-direction: column;
   gap: var(--sp-6);
-  padding: clamp(28px, 5vw, 48px);
+  min-width: 0;
 }
 
 .start-brand {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+}
+
+.start-tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+}
+
+/* Showcase: a finished bead board (theme-tinted) as the home hero. */
+.start-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.start-showcase:hover {
+  border-color: color-mix(in srgb, var(--brand) 50%, var(--line));
+  box-shadow: var(--sh-2);
+}
+
+.start-showcase-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--table) 55%, white);
+  overflow: hidden;
+}
+
+.start-showcase-canvas {
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.18s ease;
+}
+
+.start-showcase-canvas.is-swapping {
+  opacity: 0;
+}
+
+.start-showcase-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.start-showcase-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.start-showcase-text strong {
+  font-family: var(--font-cute);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: var(--lh-heading);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.start-showcase-text small {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  line-height: var(--lh-body);
+}
+
+.start-showcase-cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-cute);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--brand-ink);
+  transition: transform 0.16s ease;
+}
+
+.start-showcase:hover .start-showcase-cta {
+  transform: translateX(2px);
+}
+
+.start-showcase-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+.start-showcase-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  cursor: pointer;
+  transition: width 0.18s ease, background 0.18s ease;
+}
+
+.start-showcase-dot.is-active {
+  width: 18px;
+  background: var(--brand);
 }
 
 .start-kicker {
@@ -273,6 +393,51 @@
   border-radius: 0;
   background: transparent;
   text-align: left;
+}
+
+/* Loading skeleton tiles */
+.gallery-card-skeleton {
+  padding: var(--sp-2);
+  display: grid;
+  gap: var(--sp-2);
+}
+.gallery-skeleton-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-xs);
+}
+.gallery-skeleton-meta {
+  display: grid;
+  gap: 6px;
+}
+.gallery-skeleton-line {
+  height: 11px;
+  border-radius: var(--r-pill);
+}
+.gallery-skeleton-line.short {
+  width: 60%;
+}
+.gallery-skeleton-thumb,
+.gallery-skeleton-line {
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 30%,
+    color-mix(in srgb, var(--brand) 10%, var(--surface-3)) 50%,
+    var(--surface-2) 70%
+  );
+  background-size: 220% 100%;
+  animation: gallery-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes gallery-shimmer {
+  from { background-position: 180% 0; }
+  to { background-position: -80% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gallery-skeleton-thumb,
+  .gallery-skeleton-line {
+    animation: none;
+    background: var(--surface-3);
+  }
 }
 
 .gallery-card-body:hover {

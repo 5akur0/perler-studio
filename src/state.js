@@ -3,7 +3,7 @@ import { patterns } from './patterns-data.js';
 export const state = {
   appMode: "home",
   phase: "choose",
-  patternSize: 24,
+  patternSize: 30,
   customDenoiseLevel: 25,
   paletteSize: 221,
   selectedPattern: patterns[0],

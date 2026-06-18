@@ -57,7 +57,6 @@ function patternDimensions(pattern) {
   const width = normalizeDimension(pattern?.width, normalizeDimension(pattern?.size, firstRowWidth));
   const height = normalizeDimension(pattern?.height, normalizeDimension(pattern?.size, rows.length));
   if (!width || !height || !rows.length) throw new Error("Pattern code needs a non-empty pattern.");
-  if (width !== height) throw new Error("Pattern code currently supports square patterns only.");
   if (rows.length !== height) throw new Error("Pattern row count does not match pattern height.");
   rows.forEach((row) => {
     if (rowToCells(row).length !== width) {
@@ -170,9 +169,7 @@ export function decodePatternCode(input, options = {}) {
   if (!sizeMatch) throw new Error("Pattern code has an invalid size.");
   const width = Number.parseInt(sizeMatch[1], 10);
   const height = Number.parseInt(sizeMatch[2], 10);
-  if (!width || !height || width !== height) {
-    throw new Error("Pattern code currently supports square patterns only.");
-  }
+  if (!width || !height) throw new Error("Pattern code has invalid dimensions.");
   const paletteCodes = parts[2] === EMPTY_PALETTE
     ? []
     : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);
@@ -189,7 +186,7 @@ export function decodePatternCode(input, options = {}) {
   return {
     id: options.id || "shared-pattern",
     name: options.name || "分享图纸",
-    size: width,
+    size: Math.max(width, height),
     width,
     height,
     craft: options.craft || "钥匙扣",
@@ -199,4 +196,3 @@ export function decodePatternCode(input, options = {}) {
     mardPalette: paletteCodes,
   };
 }
-

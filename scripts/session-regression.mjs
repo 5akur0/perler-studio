@@ -64,7 +64,7 @@ function resetState() {
   clearStore();
   globalThis.localStorage.throwOnSet = false;
   state.phase = "choose";
-  state.patternSize = 24;
+  state.patternSize = 30;
   state.selectedPattern = basePattern;
   state.patternColorMaps = {};
   state.patternHiddenSources = {};
@@ -123,15 +123,15 @@ run("bad JSON is cleared", () => {
 });
 
 run("restore throw clears session", () => {
-  const placed = Array(24 * 24).fill(null);
+  const placed = Array(30 * 30).fill(null);
   placed[0] = "K";
   writeSession({
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
+    patternSize: 30,
     placed,
-    heat: Array(24 * 24).fill(0),
+    heat: Array(30 * 30).fill(0),
   });
   setSessionActions({
     loadPattern: () => {
@@ -145,9 +145,9 @@ run("restore throw clears session", () => {
 run("phase choose does not save and clears session", () => {
   localStorage.setItem(sessionKey, "{}");
   state.phase = "choose";
-  state.selectedPattern = resizePattern(basePattern, 24);
-  state.placed = Array(24 * 24).fill(null);
-  state.heat = Array(24 * 24).fill(0);
+  state.selectedPattern = resizePattern(basePattern, 30);
+  state.placed = Array(30 * 30).fill(null);
+  state.heat = Array(30 * 30).fill(0);
   assert(autoSave() === false, "choose phase should not save");
   assert(readSession() === null, "choose phase should clear stored session");
 });
@@ -155,10 +155,10 @@ run("phase choose does not save and clears session", () => {
 run("autosave write failure clears old session", () => {
   localStorage.setItem(sessionKey, JSON.stringify({ phase: "place", selectedPatternId: "stale" }));
   state.phase = "place";
-  state.selectedPattern = resizePattern(basePattern, 24);
-  state.patternSize = 24;
-  state.placed = Array(24 * 24).fill(null);
-  state.heat = Array(24 * 24).fill(0);
+  state.selectedPattern = resizePattern(basePattern, 30);
+  state.patternSize = 30;
+  state.placed = Array(30 * 30).fill(null);
+  state.heat = Array(30 * 30).fill(0);
   localStorage.throwOnSet = true;
   assert(autoSave() === false, "autosave should return false when setItem throws");
   localStorage.throwOnSet = false;
@@ -167,17 +167,17 @@ run("autosave write failure clears old session", () => {
 
 run("empty place session autosaves and restores", () => {
   state.phase = "place";
-  state.selectedPattern = resizePattern(basePattern, 24);
-  state.patternSize = 24;
-  state.placed = Array(24 * 24).fill(null);
-  state.heat = Array(24 * 24).fill(0);
+  state.selectedPattern = resizePattern(basePattern, 30);
+  state.patternSize = 30;
+  state.placed = Array(30 * 30).fill(null);
+  state.heat = Array(30 * 30).fill(0);
   state.trayColor = null;
   state.trayBeans = 0;
   state.trayMatrix = [];
   assert(autoSave() === true, "empty place phase should save");
   assert(restoreSavedSession() === true, "empty place session should restore");
   assert(state.phase === "place", "empty place session should restore phase");
-  assert(state.placed.length === 24 * 24, "empty place session should restore board size");
+  assert(state.placed.length === 30 * 30, "empty place session should restore board size");
   assert(state.placed.every((cell) => cell === null), "empty place board should remain empty");
 });
 
@@ -190,9 +190,9 @@ run("tray-only session restores tray state", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     trayColor: "K",
     trayBeans: 3,
     trayMatrix: matrix,
@@ -204,15 +204,15 @@ run("tray-only session restores tray state", () => {
 });
 
 run("unknown future version is cleared", () => {
-  const placed = Array(24 * 24).fill(null);
+  const placed = Array(30 * 30).fill(null);
   placed[0] = "K";
   writeSession({
     version: 999,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
+    patternSize: 30,
     placed,
-    heat: Array(24 * 24).fill(0),
+    heat: Array(30 * 30).fill(0),
   });
   assert(loadAutoSave() === false, "future session version should not restore");
   assert(readSession() === null, "future session version should be cleared");
@@ -222,19 +222,59 @@ run("missing version legacy session restores", () => {
   writeSession({
     phase: "place",
     selectedPatternId: "berry-cat-24",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
   });
   assert(loadAutoSave() === true, "legacy missing-version session should restore");
-  assert(state.selectedPattern.size === 24, "legacy session should keep saved size");
-  assert(state.placed.length === 24 * 24, "legacy empty board should restore");
+  assert(state.selectedPattern.size === 30, "session restores onto the fixed 30 board");
+  assert(state.placed.length === 30 * 30, "legacy empty board should restore");
   assert(state.sandboxMode === false, "legacy missing sandboxMode should restore as false");
 });
 
-run("built-in resized session restores", () => {
-  const placed = Array(24 * 24).fill(null);
+run("built-in session restores", () => {
+  const placed = Array(30 * 30).fill(null);
   placed[0] = "K";
+  writeSession({
+    phase: "place",
+    selectedPatternId: "berry-cat",
+    patternSize: 30,
+    placed,
+    heat: Array(30 * 30).fill(0),
+  });
+  assert(loadAutoSave() === true, "built-in session should restore");
+  assert(state.selectedPattern.size === 30, "restored pattern uses the fixed 30 board");
+  assert(state.placed.length === 30 * 30, "placed length should match the fixed board");
+  assert(state.placed[0] === "K", "placed bead should survive restore");
+});
+
+run("grown multi-tile board restores its exact dimensions and beads", () => {
+  // A 60×30 board (one tile snapped onto the right) with a bead at (45,10).
+  const cols = 60;
+  const rows = 30;
+  const placed = Array(cols * rows).fill(null);
+  placed[10 * cols + 45] = "K";
+  const boardRows = Array.from({ length: rows }, () => ".".repeat(cols));
+  writeSession({
+    phase: "place",
+    selectedPatternId: "berry-cat",
+    patternSize: 60,
+    boardWidth: cols,
+    boardHeight: rows,
+    boardRows,
+    placed,
+    heat: Array(cols * rows).fill(0),
+  });
+  assert(loadAutoSave() === true, "grown board session should restore");
+  assert(state.selectedPattern.width === 60, "grown board restores width 60");
+  assert(state.selectedPattern.height === 30, "grown board restores height 30");
+  assert(state.placed.length === 60 * 30, "grown board placed length matches dimensions");
+  assert(state.placed[10 * 60 + 45] === "K", "grown board bead survives at its exact index");
+});
+
+run("legacy 24-board session re-grids onto the fixed 30 board", () => {
+  const placed = Array(24 * 24).fill(null);
+  placed[0] = "K"; // top-left of the old 24-wide board
   writeSession({
     phase: "place",
     selectedPatternId: "berry-cat-24",
@@ -242,10 +282,12 @@ run("built-in resized session restores", () => {
     placed,
     heat: Array(24 * 24).fill(0),
   });
-  assert(loadAutoSave() === true, "built-in session should restore");
-  assert(state.selectedPattern.size === 24, "restored pattern should keep saved size");
-  assert(state.placed.length === 24 * 24, "placed length should match restored size");
-  assert(state.placed[0] === "K", "placed bead should survive restore");
+  assert(loadAutoSave() === true, "legacy 24 session should restore");
+  assert(state.selectedPattern.size === 30, "legacy session re-grids to the fixed 30 board");
+  assert(state.placed.length === 30 * 30, "placed length should match the fixed board");
+  // 24→30 centers with a 3-cell margin, so old (0,0) lands at (3,3).
+  assert(state.placed[3 * 30 + 3] === "K", "legacy bead is center-remapped onto the fixed board");
+  assert(state.placed[0] === null, "old corner index no longer holds the bead after re-grid");
 });
 
 run("selected color and tool restore", () => {
@@ -253,9 +295,9 @@ run("selected color and tool restore", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     selectedColor: "P",
     tool: "tweezers",
   });
@@ -269,9 +311,9 @@ run("needleLoaded restores", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     trayColor: "K",
     needleLoaded: 5,
   });
@@ -285,9 +327,9 @@ run("tweezerBead restores", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     tool: "tweezers",
     tweezerBead: "K",
   });
@@ -301,9 +343,9 @@ run("board view restores", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     boardView: { scale: 2.2, panX: 12, panY: -8 },
   });
   assert(loadAutoSave() === true, "board view session should restore");
@@ -317,9 +359,9 @@ run("board view invalid values normalize", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     boardView: { scale: -2, panX: Number.NaN, panY: Number.POSITIVE_INFINITY },
   });
   assert(loadAutoSave() === true, "invalid board view session should restore");
@@ -333,9 +375,9 @@ run("board view zero infinity and huge scale normalize", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     boardView: { scale: 0, panX: 4, panY: -5 },
   });
   assert(loadAutoSave() === true, "zero board scale session should restore");
@@ -345,9 +387,9 @@ run("board view zero infinity and huge scale normalize", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     boardView: { scale: Number.POSITIVE_INFINITY, panX: 1, panY: 2 },
   });
   assert(loadAutoSave() === true, "infinite board scale session should restore");
@@ -357,9 +399,9 @@ run("board view zero infinity and huge scale normalize", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     boardView: { scale: 99, panX: 1, panY: 2 },
   });
   assert(loadAutoSave() === true, "huge board scale session should restore");
@@ -377,9 +419,9 @@ run("lamp tray tool pose and needle direction restore", () => {
     sandboxMode: true,
     lampOn: true,
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     selectedColor: "P",
     tool: "tweezers",
     trayColor: "K",
@@ -415,9 +457,9 @@ run("invalid spill normalizes to null without blocking restore", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     spill: { index: -1, code: "K" },
   });
   assert(loadAutoSave() === true, "invalid spill should not block session restore");
@@ -429,9 +471,9 @@ run("valid spill restores", () => {
     version: 2,
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
-    placed: Array(24 * 24).fill(null),
-    heat: Array(24 * 24).fill(0),
+    patternSize: 30,
+    placed: Array(30 * 30).fill(null),
+    heat: Array(30 * 30).fill(0),
     spill: { index: 4, code: "K", x: 10 },
   });
   assert(loadAutoSave() === true, "valid spill should count as progress");
@@ -461,19 +503,60 @@ run("custom pattern session restores", () => {
   });
   assert(loadAutoSave() === true, "custom session should restore");
   assert(state.selectedPattern.id === "custom-user", "custom pattern should be reinserted");
-  assert(state.selectedPattern.size === 12, "custom pattern size should restore");
-  assert(state.placed[0] === "K", "custom placed bead should survive restore");
+  assert(state.selectedPattern.size === 30, "custom pattern re-grids onto the fixed 30 board");
+  assert(state.placed.length === 30 * 30, "custom placed length should match the fixed board");
+  // 12→30 centers with a 9-cell margin, so the old (0,0) bead lands at (9,9).
+  assert(state.placed[9 * 30 + 9] === "K", "custom placed bead is center-remapped onto the fixed board");
+});
+
+run("custom multi-board session preserves authored layout", () => {
+  const width = 60;
+  const height = 30;
+  const rows = Array.from({ length: height }, (_, y) => (
+    Array.from({ length: width }, (_, x) => (x === 45 && y === 10 ? "K" : ".")).join("")
+  ));
+  const placed = Array(width * height).fill(null);
+  placed[10 * width + 45] = "K";
+  writeSession({
+    version: 2,
+    phase: "place",
+    selectedPatternId: "custom-draw",
+    patternSize: width,
+    boardWidth: width,
+    boardHeight: height,
+    boardRows: rows,
+    customPattern: {
+      id: "custom-draw",
+      name: "绘制图纸",
+      size: width,
+      width,
+      height,
+      rows,
+      sourceRows: rows,
+      sourceSize: width,
+      sourceWidth: width,
+      sourceHeight: height,
+      craft: "原版",
+    },
+    placed,
+    heat: Array(width * height).fill(0),
+  });
+  assert(loadAutoSave() === true, "custom multi-board session should restore");
+  assert(state.selectedPattern.width === width, "custom board width should survive restore");
+  assert(state.selectedPattern.height === height, "custom board height should survive restore");
+  assert(state.selectedPattern.rows[10][45] === "K", "custom drawing should keep its authored position");
+  assert(state.placed[10 * width + 45] === "K", "placed bead should keep its multi-board index");
 });
 
 run("invalid placed data normalizes to empty cells", () => {
-  const placed = Array(24 * 24).fill(null);
+  const placed = Array(30 * 30).fill(null);
   placed[0] = "NOPE";
   writeSession({
     phase: "place",
     selectedPatternId: "berry-cat",
-    patternSize: 24,
+    patternSize: 30,
     placed,
-    heat: Array(24 * 24).fill(0),
+    heat: Array(30 * 30).fill(0),
   });
   assert(loadAutoSave() === true, "invalid placed cells should not block restore");
   assert(state.placed[0] === null, "invalid placed color should normalize to null");
@@ -481,10 +564,10 @@ run("invalid placed data normalizes to empty cells", () => {
 
 run("autosave writes base id for built-in pattern", () => {
   state.phase = "place";
-  state.selectedPattern = resizePattern(basePattern, 24);
-  state.patternSize = 24;
-  state.placed = Array(24 * 24).fill(null);
-  state.heat = Array(24 * 24).fill(0);
+  state.selectedPattern = resizePattern(basePattern, 30);
+  state.patternSize = 30;
+  state.placed = Array(30 * 30).fill(null);
+  state.heat = Array(30 * 30).fill(0);
   assert(autoSave() === true, "autosave should write active workbench session");
   const saved = readSession();
   assert(saved.version === 2, "saved session should use version 2");
@@ -544,10 +627,10 @@ run("restored image snapshot cannot pretend to re-read original image", () => {
 
 run("flushAutoSave writes scheduled progress", () => {
   state.phase = "place";
-  state.selectedPattern = resizePattern(basePattern, 24);
-  state.patternSize = 24;
-  state.placed = Array(24 * 24).fill(null);
-  state.heat = Array(24 * 24).fill(0);
+  state.selectedPattern = resizePattern(basePattern, 30);
+  state.patternSize = 30;
+  state.placed = Array(30 * 30).fill(null);
+  state.heat = Array(30 * 30).fill(0);
   state.selectedColor = "P";
   scheduleAutoSave(10000);
   assert(flushAutoSave() === true, "flushAutoSave should write active workbench immediately");

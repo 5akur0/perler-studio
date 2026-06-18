@@ -5,7 +5,7 @@ import { clamp } from './color-utils.js';
 import { loadImageFromDataUrl, convertImageToPattern } from './image-convert.js';
 import {
   baseIdFor, findBasePattern, invalidatePatternDataCaches,
-  isCustomFromImagePattern, normalizePatternSize, resizePattern,
+  isCustomFromImagePattern, normalizePatternSize,
 } from './pattern.js';
 import { setSizeControls as uiSetSizeControls } from './ui.js';
 import { showToast } from './notify.js';
@@ -29,28 +29,6 @@ export function setCustomDenoiseControls(level) {
   if (els.customDenoiseSlider) els.customDenoiseSlider.value = String(normalized);
   if (els.customDenoiseValue) els.customDenoiseValue.textContent = `${normalized}%`;
   return normalized;
-}
-
-function setPatternSizePreview(size) {
-  const normalized = normalizePatternSize(size);
-  state.patternSize = normalized;
-  uiSetSizeControls(normalized);
-}
-
-function applyPatternSize(size) {
-  const normalized = normalizePatternSize(size);
-  if (normalized === state.selectedPattern.size) {
-    uiSetSizeControls(normalized);
-    return;
-  }
-  uiSetSizeControls(normalized);
-  const base = findBasePattern();
-  if (baseIdFor(base).startsWith("custom-") && base.sourceImageDataUrl) {
-    reconvertCustomPatternAtSize(base, normalized, state.phase !== "choose");
-    return;
-  }
-  customPatternActions.loadPattern(resizePattern(base, normalized), state.phase !== "choose");
-  showToast(`图纸已调整为 ${normalized}x${normalized}。`);
 }
 
 async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false) {
@@ -98,7 +76,7 @@ function handleCustomImage(event) {
     try {
       const sourceImageDataUrl = String(reader.result || "");
       const image = await loadImageFromDataUrl(sourceImageDataUrl);
-      const size = normalizePatternSize(els.patternSizeSlider?.value || state.patternSize);
+      const size = normalizePatternSize();
       const removeWhite = els.customWhiteToggle.checked;
       const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
       uiSetSizeControls(size);
@@ -152,19 +130,6 @@ function handleCustomImage(event) {
 }
 
 export function initCustomPatternEvents() {
-  let sizeSliderTimer = null;
-  els.patternSizeSlider?.addEventListener("input", () => {
-    const size = normalizePatternSize(els.patternSizeSlider.value);
-    setPatternSizePreview(size);
-    if (sizeSliderTimer) window.clearTimeout(sizeSliderTimer);
-    sizeSliderTimer = window.setTimeout(() => applyPatternSize(size), 110);
-  });
-  els.patternSizeSlider?.addEventListener("change", () => {
-    const size = normalizePatternSize(els.patternSizeSlider.value);
-    setPatternSizePreview(size);
-    applyPatternSize(size);
-  });
-
   let customDenoiseTimer = null;
   els.customDenoiseSlider?.addEventListener("input", () => {
     const level = setCustomDenoiseControls(els.customDenoiseSlider.value);

@@ -147,6 +147,22 @@
   background: color-mix(in srgb, var(--coral) 10%, transparent);
 }
 
+.drawing-image-stamp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap-min);
+}
+.drawing-image-stamp .btn-glyph {
+  display: inline-flex;
+}
+.drawing-image-stamp.active {
+  border-color: var(--brand-edge);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+}
+
 .drawing-secondary-actions {
   display: flex;
   flex-direction: column;
@@ -1540,11 +1556,72 @@
   color: var(--ink);
 }
 
-.settings-modal-body .bg-picker select,
-.settings-modal-body .tool-style-picker select {
-  flex: 1 1 auto;
-  min-height: 36px;
-  text-align: right;
+.settings-modal-body .settings-field-stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--r-sm);
+}
+.settings-modal-body .settings-field-stacked > span {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.swatch-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.tool-pick-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.swatch-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: var(--sp-2) 2px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+.swatch-pick:hover {
+  box-shadow: var(--sh-1);
+}
+.swatch-pick[aria-checked="true"] {
+  border-color: var(--brand-edge);
+  background: var(--brand-tint);
+}
+.swatch-pick-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--a), var(--b));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), var(--sh-1);
+}
+.tool-pick .swatch-pick-chip {
+  background: linear-gradient(135deg, var(--a) 0%, var(--b) 55%, var(--c) 100%);
+}
+.swatch-pick[aria-checked="true"] .swatch-pick-chip {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--brand-edge);
+}
+.swatch-pick-name {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+}
+.swatch-pick:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand) 72%, transparent);
+  outline-offset: 2px;
 }
 
 .settings-link {
@@ -2287,6 +2364,64 @@
   letter-spacing: 0;
 }
 
+.palette-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+.palette-search-icon {
+  position: absolute;
+  left: 10px;
+  display: inline-flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+.palette-search-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.palette-search-input::placeholder {
+  color: var(--muted);
+}
+.palette-search-input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand) 72%, transparent);
+  outline-offset: 1px;
+  border-color: var(--brand-edge);
+}
+.palette-empty {
+  grid-column: 1 / -1;
+  margin: var(--sp-4) 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.palette-group-head {
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--scroll-pad, 4px));
+  padding: 5px var(--scroll-pad, 4px) 5px;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--brand-ink);
+  background: linear-gradient(var(--surface-2), color-mix(in srgb, var(--surface-2) 80%, transparent));
+  backdrop-filter: blur(2px);
+}
+.palette-group-head ~ .palette-group-head {
+  color: var(--muted);
+}
+
 .color-palette {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2359,14 +2494,15 @@
   box-shadow: none;
 }
 
-/* Selection ring is fully contained inside the chip (inset white gap + ink ring)
-   so it never spills past the palette's overflow:auto edge — fixes edge chips
-   getting their ring clipped. Softer than a hard black outline, fits the cozy look. */
+/* The selected ring expands outside the chip so the swatch keeps its full area.
+   Palette padding reserves space at scroll edges for the outline and soft halo. */
 .color-chip.active {
   border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
   box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.92),
-    inset 0 0 0 3.5px var(--ink);
+    inset 0 0 0 2px rgba(38, 36, 43, 0.08),
+    0 0 0 4px rgba(38, 36, 43, 0.06);
 }
 
 .color-chip.needed {
@@ -2392,9 +2528,10 @@
 
 .color-chip.active.needed {
   border-color: var(--ink);
+  outline-color: rgba(20, 20, 26, 0.8);
   box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.92),
-    inset 0 0 0 3.5px var(--ink),
+    inset 0 0 0 2px rgba(38, 36, 43, 0.08),
+    0 0 0 4px rgba(38, 36, 43, 0.06),
     0 0 16px var(--brand-tint),
     0 0 24px color-mix(in srgb, var(--brand) 30%, transparent);
   animation: none;

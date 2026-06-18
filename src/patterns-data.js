@@ -423,10 +423,30 @@ export function detailedRowsFromSeed(seed, targetSize = 24) {
   return grid.map((row) => row.join(""));
 }
 
+// Center a square grid of `rows` inside a larger `target`×`target` board,
+// padding the margin with empty pegs ('.'). Keeps pixel art crisp (no scaling).
+export function padRowsTo(rows, target) {
+  const src = rows.length;
+  if (src >= target) return rows;
+  const padTop = Math.floor((target - src) / 2);
+  const blankRow = ".".repeat(target);
+  const out = [];
+  for (let i = 0; i < padTop; i += 1) out.push(blankRow);
+  for (const row of rows) {
+    const left = ".".repeat(padTop);
+    const right = ".".repeat(target - src - padTop);
+    out.push(left + row + right);
+  }
+  while (out.length < target) out.push(blankRow);
+  return out;
+}
+
 export const patterns = patternSeeds.map((seed) => ({
   ...seed,
-  size: 24,
-  rows: detailedRowsFromSeed(seed, 24),
+  size: 30,
+  width: 30,
+  height: 30,
+  rows: padRowsTo(detailedRowsFromSeed(seed, 24), 30),
   note: seed.note || "",
 }));
 

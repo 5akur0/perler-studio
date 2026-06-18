@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { palette, beadIds, palettePresetMardCodes, workshopCodeForMard } from './palette.js';
 import { patterns, resamplePatternRows } from './patterns-data.js';
 import { clamp, beadOklab, nearestCodeFromSet } from './color-utils.js';
-import { craftOptions } from './constants.js';
+import { craftOptions, BOARD_SIZE } from './constants.js';
 
 const transparentWhiteCode = workshopCodeForMard("H1");
 const opaqueWhiteCode = workshopCodeForMard("H2");
@@ -16,8 +16,31 @@ export function targetAt(x, y) {
   return code === "." ? null : code;
 }
 
+// Board dimensions in cells. The board is a grid of 30×30 tiles, so width/height
+// are multiples of BOARD_SIZE; they fall back to the square `size` for legacy data.
+export function boardCols(pattern = state.selectedPattern) {
+  return pattern?.width || pattern?.size || BOARD_SIZE;
+}
+
+export function boardRows(pattern = state.selectedPattern) {
+  return pattern?.height || pattern?.size || BOARD_SIZE;
+}
+
 export function indexFor(x, y) {
-  return y * state.selectedPattern.size + x;
+  return y * boardCols() + x;
+}
+
+// Returns true when the cell (x,y) falls inside an active tile of the pattern.
+// Patterns without tile info (legacy rectangles) are considered fully active.
+export function isActiveTileCell(x, y, pattern = state.selectedPattern) {
+  const tiles = pattern?.tiles;
+  if (!tiles || tiles.length === 0) return true;
+  const originX = pattern.tileOriginX ?? 0;
+  const originY = pattern.tileOriginY ?? 0;
+  const tx = Math.floor(x / BOARD_SIZE) + originX;
+  const ty = Math.floor(y / BOARD_SIZE) + originY;
+  const key = `${tx},${ty}`;
+  return Array.isArray(tiles) ? tiles.includes(key) : tiles.has(key);
 }
 
 export function sourceTargetAt(x, y, pattern = state.selectedPattern) {
@@ -82,18 +105,21 @@ export function getEffectivePatternResult(pattern = state.selectedPattern) {
     const mapped = map[code];
     baseMap[code] = mapped && activeCodes.has(mapped) ? mapped : code;
   });
-  const size = pattern.size;
-  const sourceRows = pattern.rows;
-  const grid = Array(size * size).fill(".");
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const sourceCode = sourceRows[y][x];
-      const index = y * size + x;
+  const cols = boardCols(pattern);
+  const rowsCount = boardRows(pattern);
+  const sourceRows = pattern.rows || [];
+  const grid = Array(cols * rowsCount).fill(".");
+  for (let y = 0; y < rowsCount; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const sourceCode = sourceRows[y]?.[x] || ".";
+      const index = y * cols + x;
       grid[index] = sourceCode === "." ? "." : (baseMap[sourceCode] || sourceCode);
     }
   }
   const rows = [];
-  for (let y = 0; y < size; y += 1) rows.push(grid.slice(y * size, y * size + size).map((code) => code || ".").join(""));
+  for (let y = 0; y < rowsCount; y += 1) {
+    rows.push(grid.slice(y * cols, y * cols + cols).map((code) => code || ".").join(""));
+  }
 
   const result = { key: cacheKey, map: { ...baseMap }, rows };
   state.patternEffectiveMapCache[id] = result;
@@ -229,10 +255,9 @@ export function placedCount() {
   return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
 }
 
-export function normalizePatternSize(value) {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return 48;
-  return clamp(parsed, 12, 100);
+export function normalizePatternSize() {
+  // Board is fixed at a single 30×30 tile; every resize path collapses here.
+  return BOARD_SIZE;
 }
 
 export function baseIdFor(pattern) {
@@ -252,7 +277,7 @@ export function patternFingerprint(pattern) {
     hash ^= 124;
     hash = Math.imul(hash, 16777619);
   }
-  pattern.__gridFingerprint = `${pattern.size}:${rows.length}:${(hash >>> 0).toString(36)}`;
+  pattern.__gridFingerprint = `${boardCols(pattern)}x${boardRows(pattern)}:${(hash >>> 0).toString(36)}`;
   return pattern.__gridFingerprint;
 }
 
@@ -262,6 +287,19 @@ export function normalizeCraft(craft) {
 }
 
 export function resizePattern(pattern, targetSize) {
+  const width = boardCols(pattern);
+  const height = boardRows(pattern);
+  if (width > BOARD_SIZE || height > BOARD_SIZE || width !== height) {
+    return {
+      ...pattern,
+      sourceId: baseIdFor(pattern),
+      size: Math.max(width, height),
+      width,
+      height,
+      sourceRows: pattern.sourceRows || pattern.rows,
+      sourceSize: pattern.sourceSize || Math.max(width, height),
+    };
+  }
   const size = normalizePatternSize(targetSize);
   const sourceRows = pattern.sourceRows || pattern.rows;
   const sourceSize = pattern.sourceSize || pattern.size;
@@ -282,6 +320,8 @@ export function resizePattern(pattern, targetSize) {
     sourceSize,
     sourceRows,
     size,
+    width: size,
+    height: size,
     rows,
     note: pattern.note || "",
   };

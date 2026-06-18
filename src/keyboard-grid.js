@@ -1,20 +1,21 @@
 import { clamp } from "./color-utils.js";
 
-export function normalizeGridCursor(cursor, size) {
-  const max = Math.max(0, Number(size) - 1);
+export function normalizeGridCursor(cursor, cols, rows = cols) {
+  const maxX = Math.max(0, Number(cols) - 1);
+  const maxY = Math.max(0, Number(rows) - 1);
   return {
-    x: clamp(Math.round(Number(cursor?.x) || 0), 0, max),
-    y: clamp(Math.round(Number(cursor?.y) || 0), 0, max),
+    x: clamp(Math.round(Number(cursor?.x) || 0), 0, maxX),
+    y: clamp(Math.round(Number(cursor?.y) || 0), 0, maxY),
   };
 }
 
-export function moveGridCursor(cursor, key, size) {
-  const next = normalizeGridCursor(cursor, size);
+export function moveGridCursor(cursor, key, cols, rows = cols) {
+  const next = normalizeGridCursor(cursor, cols, rows);
   if (key === "ArrowLeft") next.x -= 1;
   if (key === "ArrowRight") next.x += 1;
   if (key === "ArrowUp") next.y -= 1;
   if (key === "ArrowDown") next.y += 1;
-  return normalizeGridCursor(next, size);
+  return normalizeGridCursor(next, cols, rows);
 }
 
 export function keyboardGridAction(key) {

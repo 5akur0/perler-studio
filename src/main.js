@@ -17,6 +17,7 @@ import { readCollection, writeCollection } from './storage.js';
 import { toggleBgm, isBgmPlaying } from './bgm.js';
 import { readAchievements, writeAchievements, hasAchievement, unlockAchievement } from './achievements.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
+import { initStartShowcase, refreshShowcaseTheme, setShowcaseActive } from './start-showcase.js';
 import {
   targetAt, indexFor, sourceTargetAt, isBuiltInPattern, getPatternColorMap,
   invalidateEffectiveMap,
@@ -26,6 +27,7 @@ import {
   getSourceCounts, getSourcePatternColors, getSourcePatternAnalysis,
   invalidatePlacedCounts, getPlacedCounts, baseIdFor,
   patternFingerprint, normalizeCraft, resizePattern,
+  boardCols, boardRows, isActiveTileCell,
 } from './pattern.js';
 import { sceneCanvas, scene, previewCanvas, preview, sideReferenceCanvas, sideReferenceCtx, els } from './dom.js';
 import {
@@ -61,7 +63,7 @@ import {
 } from './gallery.js';
 import {
   setDrawActions, initDrawingStudioEvents, enterDrawMode, tickDrawKbdNav,
-  paintDrawCanvas, openDrawCodeModal, closeDrawCodeModal, closeDrawResizeModal,
+  paintDrawCanvas, openDrawCodeModal, closeDrawCodeModal,
   getDrawKeyboardNav,
 } from './draw.js';
 import {
@@ -89,6 +91,28 @@ import { prefersReducedMotion } from './utils.js';
   const IRON_DEFAULT_TEMPERATURE = 62;
   const IRON_DEFAULT_PRESSURE = 56;
 
+  // Reflect the selected value across a swatch-chip radiogroup (data-<attr> buttons).
+  function syncChipGroup(container, attr, value) {
+    if (!container) return;
+    for (const b of container.querySelectorAll('[role="radio"]')) {
+      b.setAttribute("aria-checked", b.dataset[attr] === value ? "true" : "false");
+    }
+  }
+
+  // Arrow-key roving for the swatch-chip radiogroups (keeps the native-select keyboard UX).
+  function chipRoving(event, container) {
+    const radios = Array.from(container.querySelectorAll('[role="radio"]'));
+    const i = radios.indexOf(document.activeElement);
+    if (i < 0) return;
+    let ni = -1;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") ni = (i + 1) % radios.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") ni = (i - 1 + radios.length) % radios.length;
+    if (ni < 0) return;
+    event.preventDefault();
+    radios[ni].focus();
+    radios[ni].click();
+  }
+
   function applyBackgroundTheme(themeId = state.bgTheme) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
     const theme = currentBackgroundTheme();
@@ -106,7 +130,8 @@ import { prefersReducedMotion } from './utils.js';
     root.style.setProperty("--brand-cta", theme.cta?.[0] || "#3D9C8C");
     root.style.setProperty("--brand-cta-strong", theme.cta?.[1] || "#389586");
     root.style.setProperty("--bg-scrim", theme.scrim || "rgba(255, 255, 255, 0.16)");
-    if (els.bgThemeSelect) els.bgThemeSelect.value = state.bgTheme;
+    syncChipGroup(els.bgThemeChips, "theme", state.bgTheme);
+    refreshShowcaseTheme();
     markDirty();
   }
 
@@ -172,6 +197,7 @@ import { prefersReducedMotion } from './utils.js';
     document.body.dataset.appMode = state.appMode;
     applyScreenAria();
     updateFullBg();
+    setShowcaseActive(state.appMode === "home");
     if (state.appMode === "bead") {
       state.uiDirty = true;
       state.previewDirty = true;
@@ -205,7 +231,7 @@ import { prefersReducedMotion } from './utils.js';
     invalidateEffectiveMap(pattern);
     state.patternColorMap = normalizedMap;
     uiSetSizeControls(pattern.size);
-    const total = pattern.size * pattern.size;
+    const total = boardCols(pattern) * boardRows(pattern);
     state.placed = Array(total).fill(null);
     invalidatePlacedCounts();
     state.heat = Array(total).fill(0);
@@ -433,40 +459,6 @@ import { prefersReducedMotion } from './utils.js';
     if (sourceCode === ".") return;
     openRemapModal(sourceCode);
   }
-
-  function drawPatternThumb(canvas, pattern) {
-    // Render at the real device resolution so the small bitmap is never blurrily
-    // upscaled (which would leave light halos / seams between cells on HiDPI screens).
-    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
-    const cssSize = canvas.clientWidth || Number(canvas.getAttribute("width")) || 58;
-    const dim = Math.round(cssSize * dpr);
-    if (canvas.width !== dim || canvas.height !== dim) {
-      canvas.width = dim;
-      canvas.height = dim;
-    }
-    const ctx = canvas.getContext("2d");
-    const size = pattern.size;
-    const cell = dim / size;
-    const rows = getEffectiveTargetRows(pattern);
-    ctx.clearRect(0, 0, dim, dim);
-    ctx.fillStyle = "#eef2f7";
-    ctx.fillRect(0, 0, dim, dim);
-    for (let y = 0; y < size; y++) {
-      const row = rows[y] || "";
-      for (let x = 0; x < size; x++) {
-        const code = row[x];
-        if (!code || code === ".") continue;
-        const px = Math.round(x * cell);
-        const py = Math.round(y * cell);
-        const pw = Math.round((x + 1) * cell) - px;
-        const ph = Math.round((y + 1) * cell) - py;
-        ctx.fillStyle = palette[code] || "#ccc";
-        ctx.fillRect(px, py, pw, ph);
-      }
-    }
-  }
-
-
 
   function openCollectionPage() {
     if (!els.collectionScreen) return;
@@ -1084,6 +1076,7 @@ import { prefersReducedMotion } from './utils.js';
   }
 
   function placeSelectedBead(x, y, initial = true) {
+    if (!isActiveTileCell(x, y)) return;
     const index = indexFor(x, y);
     if (state.spill && state.spill.index === index) {
       state.spill = null;
@@ -1118,7 +1111,7 @@ import { prefersReducedMotion } from './utils.js';
   function showKeyboardGrid() {
     if (state.phase !== "place") return;
     if (!sceneCanvas.matches(":focus-visible")) return;
-    const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+    const cursor = normalizeGridCursor(state.keyboardGrid, boardCols(), boardRows());
     state.keyboardGrid = { ...cursor, visible: true };
     announceKeyboardGrid(
       `键盘格点：第 ${cursor.y + 1} 行，第 ${cursor.x + 1} 列，当前颜色 ${beadLabel(state.selectedColor)}。`,
@@ -1143,7 +1136,7 @@ import { prefersReducedMotion } from './utils.js';
     }
     if (event.key.startsWith("Arrow")) {
       event.preventDefault();
-      const cursor = moveGridCursor(state.keyboardGrid, event.key, state.selectedPattern.size);
+      const cursor = moveGridCursor(state.keyboardGrid, event.key, boardCols(), boardRows());
       state.keyboardGrid = { ...cursor, visible: true };
       announceKeyboardGrid(
         `第 ${cursor.y + 1} 行，第 ${cursor.x + 1} 列，当前颜色 ${beadLabel(state.selectedColor)}。`,
@@ -1153,7 +1146,7 @@ import { prefersReducedMotion } from './utils.js';
     }
     if (action === "place") {
       event.preventDefault();
-      const cursor = normalizeGridCursor(state.keyboardGrid, state.selectedPattern.size);
+      const cursor = normalizeGridCursor(state.keyboardGrid, boardCols(), boardRows());
       const index = indexFor(cursor.x, cursor.y);
       const removed = state.placed[index] === state.selectedColor;
       placeSelectedBead(cursor.x, cursor.y, true);
@@ -1197,6 +1190,7 @@ import { prefersReducedMotion } from './utils.js';
         showToast("先从豆盒夹一颗豆子。");
         return;
       }
+      if (!isActiveTileCell(x, y)) return;
       state.placed[index] = state.tweezerBead;
       invalidatePlacedCounts();
       state.tweezerBead = null;
@@ -1246,7 +1240,8 @@ import { prefersReducedMotion } from './utils.js';
     let used = 0;
     cells.forEach(([cx, cy]) => {
       if (used >= state.needleLoaded) return;
-      if (cx < 0 || cy < 0 || cx >= state.selectedPattern.size || cy >= state.selectedPattern.size) return;
+      if (cx < 0 || cy < 0 || cx >= boardCols() || cy >= boardRows()) return;
+      if (!isActiveTileCell(cx, cy)) return;
       const index = indexFor(cx, cy);
       if (state.placed[index]) return;
       state.placed[index] = state.trayColor;
@@ -1265,7 +1260,8 @@ import { prefersReducedMotion } from './utils.js';
   }
 
   function createSpillAt(x, y, code) {
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
     const spots = [
       [x, y],
       [x + 1, y],
@@ -1279,7 +1275,8 @@ import { prefersReducedMotion } from './utils.js';
     ];
     for (let i = 0; i < spots.length; i += 1) {
       const [sx, sy] = spots[i];
-      if (sx < 0 || sy < 0 || sx >= size || sy >= size) continue;
+      if (sx < 0 || sy < 0 || sx >= cols || sy >= rows) continue;
+      if (!isActiveTileCell(sx, sy)) continue;
       const index = indexFor(sx, sy);
       if (state.placed[index]) continue;
       const jitterSeed = pseudoRandom(`${state.selectedPattern.id}-${index}-${Date.now()}`);
@@ -1299,11 +1296,12 @@ import { prefersReducedMotion } from './utils.js';
     const temp = state.temperature / 62;
     const base = (dt / 16) * pressure * temp * speedFactor * 0.6;
     const radius = layout.cell * 1.65;
-    const size = state.selectedPattern.size;
+    const cols = boardCols();
+    const rows = boardRows();
 
     for (let cy = cell.y - 2; cy <= cell.y + 2; cy += 1) {
       for (let cx = cell.x - 2; cx <= cell.x + 2; cx += 1) {
-        if (cx < 0 || cy < 0 || cx >= size || cy >= size) continue;
+        if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) continue;
         const index = indexFor(cx, cy);
         if (!state.placed[index]) continue;
         const centerX = layout.boardX + cx * layout.cell + layout.cell / 2;
@@ -1319,9 +1317,10 @@ import { prefersReducedMotion } from './utils.js';
   function runInspection() {
     state.errors = [];
     if (state.sandboxMode) return;
-    const size = state.selectedPattern.size;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
+    const cols = boardCols();
+    const rows = boardRows();
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
         const index = indexFor(x, y);
         const target = targetAt(x, y);
         const placed = state.placed[index];
@@ -1397,6 +1396,8 @@ import { prefersReducedMotion } from './utils.js';
       grade: finalGrade(),
       date: new Date().toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }),
       size: state.selectedPattern.size,
+      width: boardCols(),
+      height: boardRows(),
       placed: state.placed.slice(),
     };
     if (!state.savedCurrent) {
@@ -1587,6 +1588,12 @@ import { prefersReducedMotion } from './utils.js';
   els.startBeadButton?.addEventListener("click", () => {
     setAppMode("bead");
   });
+  initStartShowcase({
+    onPick: (pattern) => {
+      loadPattern(pattern);
+      setAppMode("bead");
+    },
+  });
   els.startDrawButton?.addEventListener("click", () => {
     setAppMode("draw");
   });
@@ -1659,17 +1666,24 @@ import { prefersReducedMotion } from './utils.js';
   els.chooseStartButton?.addEventListener("click", startSelectedPattern);
   els.mobileSelectionStartButton?.addEventListener("click", startSelectedPattern);
   previewCanvas.addEventListener("click", handlePreviewPickRemap);
-  els.bgThemeSelect?.addEventListener("change", () => {
-    applyBackgroundTheme(els.bgThemeSelect.value);
+  els.bgThemeChips?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-theme]");
+    if (!btn || state.bgTheme === btn.dataset.theme) return;
+    applyBackgroundTheme(btn.dataset.theme);
     showToast(`背景已切换为 ${currentBackgroundTheme().name}。`);
   });
-  els.topToolStyleSelect?.addEventListener("change", (event) => {
-    const next = event.target.value;
+  els.toolStyleChips?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-tool]");
+    if (!btn) return;
+    const next = btn.dataset.tool;
     if (!toolStyles[next] || state.toolStyle === next) return;
     state.toolStyle = next;
+    syncChipGroup(els.toolStyleChips, "tool", next);
     showToast(`工具换成${currentToolStyle().name}款。`);
     markDirty();
   });
+  els.bgThemeChips?.addEventListener("keydown", (e) => chipRoving(e, els.bgThemeChips));
+  els.toolStyleChips?.addEventListener("keydown", (e) => chipRoving(e, els.toolStyleChips));
   els.confirmModalOk?.addEventListener("click", () => resolveConfirm(true));
   els.confirmModalCancel?.addEventListener("click", () => resolveConfirm(false));
   els.confirmModal?.addEventListener("click", (event) => {
@@ -1764,7 +1778,6 @@ import { prefersReducedMotion } from './utils.js';
     if (enlarged) { enlarged.classList.remove("show"); return; }
     if (state.gallerySubmitModalOpen) { closeGallerySubmitModal(); return; }
     if (els.drawCodeModal?.classList.contains("show")) { closeDrawCodeModal(); return; }
-    if (els.drawResizeModal?.classList.contains("show")) { closeDrawResizeModal(true); return; }
     if (state.onboardingModalOpen) { closeOnboardingModal(); return; }
     if (state.remapModalOpen) closeRemapModal();
     if (state.collectionPageOpen || state.appMode === "collection") { closeCollectionPage(); return; }

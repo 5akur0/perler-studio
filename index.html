@@ -69,9 +69,11 @@
     <div class="app-shell">
       <section class="start-screen" id="startScreen" aria-labelledby="startScreenTitle">
         <div class="start-screen-inner">
+          <div class="start-aside">
           <div class="start-brand">
             <span class="start-kicker">拼豆工坊</span>
             <h1 id="startScreenTitle">今天想做什么？</h1>
+            <p class="start-tagline">挑一张图纸，慢慢摆一盘属于你的糖豆。</p>
           </div>
           <div class="start-rows" aria-label="工作台选择">
             <button class="start-row start-row-bead" id="startBeadButton" type="button">
@@ -116,6 +118,20 @@
               <span class="start-row-arrow" data-lucide-icon="chevron-right" data-icon-size="18"></span>
             </button>
           </div>
+          </div>
+          <button class="start-showcase" id="startShowcaseButton" type="button" aria-label="用这张图纸开始拼豆">
+            <span class="start-showcase-stage">
+              <canvas id="startShowcaseCanvas" class="start-showcase-canvas" width="340" height="340" aria-hidden="true"></canvas>
+            </span>
+            <span class="start-showcase-meta">
+              <span class="start-showcase-text">
+                <strong id="startShowcaseName">莓果小猫</strong>
+                <small id="startShowcaseCraft">钥匙扣 · 30×30</small>
+              </span>
+              <span class="start-showcase-cta">摆这个<span data-lucide-icon="arrow-right" data-icon-size="16"></span></span>
+            </span>
+            <span class="start-showcase-dots" id="startShowcaseDots" aria-hidden="true"></span>
+          </button>
         </div>
       </section>
 
@@ -216,23 +232,6 @@
           <div class="studio-grid drawing-studio-grid">
             <aside class="side-panel left-panel drawing-tools-panel" aria-label="绘图工具">
               <section>
-                <div class="drawing-size-card" aria-label="画布尺寸">
-                  <div class="drawing-size-card-head">
-                    <span>画布尺寸</span>
-                    <strong id="drawSizeValue">24×24</strong>
-                  </div>
-                  <div class="drawing-size-fields">
-                    <label>
-                      <span>宽</span>
-                      <input id="drawWidthInput" type="number" min="3" max="100" step="1" inputmode="numeric" value="24" aria-label="画布宽度" />
-                    </label>
-                    <label>
-                      <span>高</span>
-                      <input id="drawHeightInput" type="number" min="3" max="100" step="1" inputmode="numeric" value="24" aria-label="画布高度" />
-                    </label>
-                  </div>
-                  <button id="drawSizeApplyButton" class="ghost-button" type="button">调整画布</button>
-                </div>
                 <div class="section-title">
                   <span>工具台</span>
                   <small>尺寸与操作</small>
@@ -263,6 +262,11 @@
                   </div>
                 </div>
                 <div class="drawing-footer-actions">
+                  <button type="button" class="ghost-button drawing-image-stamp" id="drawImageStampButton">
+                    <span class="btn-glyph" aria-hidden="true"><span data-lucide-icon="image" data-icon-size="16"></span></span>
+                    <span class="btn-label">图片转图纸</span>
+                  </button>
+                  <input type="file" id="drawImageInput" accept="image/*" hidden />
                   <div class="drawing-actions drawing-footer-row">
                     <button type="button" class="ghost-button" id="drawImportButton">导入图纸</button>
                     <button type="button" class="ghost-button" id="drawShortCodeButton">导出图纸</button>
@@ -297,6 +301,10 @@
                 <div class="section-title drawing-palette-head">
                   <span>豆盒</span>
                   <small id="drawPaletteMeta"></small>
+                </div>
+                <div class="palette-search">
+                  <span class="palette-search-icon" aria-hidden="true" data-lucide-icon="search" data-icon-size="15"></span>
+                  <input type="text" id="drawPaletteSearch" class="palette-search-input" placeholder="搜色号 例 A14 / H2" aria-label="搜索色号" autocomplete="off" />
                 </div>
                 <div id="drawRecentColors" class="draw-recent-colors" aria-label="最近用色"></div>
                 <div id="drawPalette" class="color-palette"></div>
@@ -415,11 +423,6 @@
                 <div class="preview-canvas-frame">
                   <canvas id="previewCanvas" width="560" height="560" aria-label="当前图纸预览"></canvas>
                 </div>
-                <div class="size-rail" aria-label="图纸尺寸控制">
-                  <span class="size-rail-label">大小</span>
-                  <input id="patternSizeSlider" class="size-slider" type="range" min="12" max="100" step="1" value="24" aria-label="图纸大小竖向滑动条" />
-                  <strong id="patternSizeValue" class="size-rail-value">24</strong>
-                </div>
               </div>
               <aside class="preview-side">
                 <div id="patternColorStats" class="pattern-color-stats"></div>
@@ -477,20 +480,14 @@
           <button id="settingsModalClose" type="button" aria-label="关闭设置窗口"><span data-lucide-icon="x" data-icon-size="18"></span></button>
         </div>
         <div class="remap-modal-body settings-modal-body">
-          <label class="bg-picker settings-field">
+          <div class="settings-field settings-field-stacked">
             <span>背景</span>
-            <select id="bgThemeSelect" aria-label="背景颜色">
-              <option value="mist">雾青</option>
-              <option value="apricot">奶杏</option>
-              <option value="sakura">浅樱</option>
-              <option value="sky">晴蓝</option>
-              <option value="herb">草木</option>
-            </select>
-          </label>
-          <label class="tool-style-picker settings-field">
+            <div class="swatch-pick-grid" id="bgThemeChips" role="radiogroup" aria-label="背景主题"></div>
+          </div>
+          <div class="settings-field settings-field-stacked" id="toolStyleField">
             <span>工具</span>
-            <select id="topToolStyleSelect" aria-label="工具款式"></select>
-          </label>
+            <div class="swatch-pick-grid tool-pick-grid" id="toolStyleChips" role="radiogroup" aria-label="工具款式"></div>
+          </div>
           <div class="settings-field settings-toggle-row">
             <span>背景音乐</span>
             <button class="settings-toggle" id="bgmButton" type="button" role="switch" aria-checked="false" aria-label="背景音乐：关">
@@ -569,33 +566,6 @@
         <div class="remap-modal-foot">
           <button id="gallerySubmitCancelBtn" type="button">取消</button>
           <button id="gallerySubmitConfirmBtn" class="primary-button" type="button">提交审核</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="drawResizeModal" class="remap-modal" aria-hidden="true">
-      <div class="remap-modal-card draw-resize-modal-card" role="dialog" aria-modal="true" aria-labelledby="drawResizeModalTitle">
-        <div class="remap-modal-head">
-          <strong id="drawResizeModalTitle">调整画布尺寸</strong>
-          <button id="drawResizeCloseBtn" type="button" aria-label="取消"><span data-lucide-icon="x" data-icon-size="18"></span></button>
-        </div>
-        <div class="remap-modal-body draw-resize-modal-body">
-          <p class="draw-resize-hint">现有内容保留到新画布的哪个位置？</p>
-          <div class="draw-anchor-grid" id="drawAnchorGrid" role="radiogroup" aria-label="内容锚点">
-            <button type="button" class="anchor-cell" data-row="0" data-col="0" aria-label="左上" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="0" data-col="1" aria-label="上中" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="0" data-col="2" aria-label="右上" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="1" data-col="0" aria-label="左中" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="1" data-col="1" aria-label="居中" aria-pressed="true"></button>
-            <button type="button" class="anchor-cell" data-row="1" data-col="2" aria-label="右中" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="2" data-col="0" aria-label="左下" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="2" data-col="1" aria-label="下中" aria-pressed="false"></button>
-            <button type="button" class="anchor-cell" data-row="2" data-col="2" aria-label="右下" aria-pressed="false"></button>
-          </div>
-        </div>
-        <div class="remap-modal-foot">
-          <button id="drawResizeCancelBtn" type="button">取消</button>
-          <button id="drawResizeConfirmBtn" class="primary-button" type="button">确认</button>
         </div>
       </div>
     </div>
