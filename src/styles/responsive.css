@@ -1,4 +1,6 @@
 @media (max-width: 860px) {
+  --mobile-board-size: min(64vh, calc(100vw - 16px));
+
   /* Mobile uses the same viewport-locked shell as desktop: the app itself never
      page-scrolls, while each active content surface owns its internal scroll. */
   html,
@@ -23,7 +25,11 @@
     flex: 1 1 auto;
     height: calc(100dvh - 2 * var(--shell-pad));
     min-height: 0;
-    overflow: hidden;
+    align-items: start;
+    justify-items: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .gallery-screen,
@@ -1100,8 +1106,8 @@
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    height: min(64vh, calc(100vw - 16px));
-    min-height: min(64vh, calc(100vw - 16px));
+    height: var(--mobile-board-size);
+    min-height: var(--mobile-board-size);
     overflow: hidden;
   }
 
@@ -1252,7 +1258,10 @@
     margin-top: 2px;
   }
 
-  /* P1-1: in the iron/cool stages, the right panel (bead box) takes no height on mobile */
+  /* P1-1: in the iron/cool stages, phase controls live under the board;
+     remove side shells completely so no empty frosted panel remains. */
+  .bead-studio-grid[data-phase="iron"] .left-panel,
+  .bead-studio-grid[data-phase="cool"] .left-panel,
   .bead-studio-grid[data-phase="iron"] .right-panel,
   .bead-studio-grid[data-phase="cool"] .right-panel {
     display: none !important;

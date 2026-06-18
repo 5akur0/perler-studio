@@ -4,7 +4,7 @@ import { palette, beadIds } from './palette.js';
 import {
   phases, backgroundThemes, toolStyles, craftOptions,
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
-  collectionLimit, conceptAchievement, fullBoardAchievement, BOARD_SIZE,
+  collectionLimit, conceptAchievement, fullBoardAchievement, BOARD_SIZE, HEAT_LEVELS,
 } from './constants.js';
 import { clamp, lerp, easeOut, mixColor, hexToRgb } from './color-utils.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
@@ -217,6 +217,58 @@ export function boardViewTransform(layout = currentLayout()) {
   return { scale, panX, panY, cx, cy };
 }
 
+export function withBoardViewTransform(layout = currentLayout(), draw) {
+  const view = boardViewTransform(layout);
+  scene.save();
+  scene.translate(view.cx + view.panX, view.cy + view.panY);
+  scene.scale(view.scale, view.scale);
+  scene.translate(-view.cx, -view.cy);
+  try {
+    return draw?.(view);
+  } finally {
+    scene.restore();
+  }
+}
+export function boardLocalPointFromCanvasPoint(layout = currentLayout(), point = null) {
+  if (!point) return null;
+  const view = boardViewTransform(layout);
+  return {
+    x: (point.x - (view.cx + view.panX)) / view.scale + view.cx,
+    y: (point.y - (view.cy + view.panY)) / view.scale + view.cy,
+  };
+}
+
+export function averageHeatUnderIron(layout = currentLayout(), ironPoint = null) {
+  if (!ironPoint) return 0;
+  const radius = layout.cell * 1.65;
+  const cols = boardCols();
+  const rows = boardRows();
+  let total = 0;
+  let weight = 0;
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const index = indexFor(x, y);
+      if (!state.placed[index]) continue;
+      const cx = layout.boardX + x * layout.cell + layout.cell / 2;
+      const cy = layout.boardY + y * layout.cell + layout.cell / 2;
+      const falloff = clamp(1 - Math.hypot(cx - ironPoint.x, cy - ironPoint.y) / radius, 0, 1);
+      if (falloff <= 0) continue;
+      const cellWeight = 0.35 + falloff * 0.9;
+      total += (state.heat[index] || 0) * cellWeight;
+      weight += cellWeight;
+    }
+  }
+  return weight ? total / weight : 0;
+}
+
+export function ironColorForHeat(heat = 0) {
+  if (heat >= HEAT_LEVELS.scorched) return "#e7645f";
+  if (heat > HEAT_LEVELS.idealMax) return "#d99b3d";
+  if (heat >= HEAT_LEVELS.bonded) return "#57b8a7";
+  return "#4d77b8";
+}
+
+
 export function setBoardZoom(nextScale, nextPanX = state.boardView.panX, nextPanY = state.boardView.panY) {
   const layout = currentLayout();
   state.boardView.scale = clamp(nextScale, 1, maxBoardScale(layout));
@@ -398,7 +450,11 @@ export function render() {
       drawFinishLayer(layout);
     }
   } else {
-    drawBoard(layout);
+    withBoardViewTransform(layout, () => {
+      drawBoard(layout);
+      if (state.phase === "iron") drawIronLayer(layout);
+      if (state.phase === "cool") drawCoolingLayer(layout);
+    });
     // Mobile keeps only the board itself — no taped reference note.
     if (!useMobileDirectPlacement()) drawReferenceSheet(layout);
     if ((state.phase === "place" || state.phase === "inspect") && shouldShowTray(layout)) {
@@ -406,8 +462,6 @@ export function render() {
       drawTray(layout, true);
     }
     if (state.phase === "inspect") updateInspectAssistCanvases();
-    if (state.phase === "iron") drawIronLayer(layout);
-    if (state.phase === "cool") drawCoolingLayer(layout);
   }
   // Mobile removes the desk lamp entirely — board only.
   if (!useMobileDirectPlacement()) drawLampSwitch(layout);
@@ -918,10 +972,6 @@ export function drawBoard(layout) {
   const boardView = boardViewTransform(layout);
   const theme = currentBackgroundTheme();
   const brand = theme.brand || "#57b8a7";
-  ctx.save();
-  ctx.translate(boardView.cx + boardView.panX, boardView.cy + boardView.panY);
-  ctx.scale(boardView.scale, boardView.scale);
-  ctx.translate(-boardView.cx, -boardView.cy);
 
   const patTiles = state.selectedPattern?.tiles
     ? new Set(state.selectedPattern.tiles)
@@ -1065,7 +1115,6 @@ export function drawBoard(layout) {
     ctx.restore();
   }
 
-  ctx.restore();
 }
 
 export function drawProjectedGuide(layout, templateOpacity = 0) {
@@ -2270,7 +2319,6 @@ export function drawReferenceSheet(layout) {
 export function drawIronLayer(layout) {
   const ctx = scene;
   const { boardX, boardY, boardSize, cell } = layout;
-  const stats = heatStats();
   ctx.save();
   ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
   roundedRect(boardX - 2, boardY - 2, boardSize + 4, boardSize + 4, 7);
@@ -2290,11 +2338,10 @@ export function drawIronLayer(layout) {
       const index = indexFor(x, y);
       if (!state.placed[index]) continue;
       const heat = state.heat[index] || 0;
-      if (heat < 8) continue;
-      // Mostly green-tinted (well-melted); amber only when noticeably hot,
-      // red only when truly scorched. Real perler beads tolerate a lot.
+      if (heat < HEAT_LEVELS.visible) continue;
+      // Shared heat levels: green = bonded/ideal, amber = above ideal, red = scorched.
       ctx.globalAlpha = clamp(heat / 140, 0, 0.5);
-      ctx.fillStyle = heat > 124 ? "#e7645f" : heat > 96 ? "#d99b3d" : "#57b8a7";
+      ctx.fillStyle = heat >= HEAT_LEVELS.scorched ? "#e7645f" : heat > HEAT_LEVELS.idealMax ? "#d99b3d" : "#57b8a7";
       ctx.fillRect(boardX + x * cell + 2, boardY + y * cell + 2, cell - 4, cell - 4);
     }
   }
@@ -2316,7 +2363,8 @@ export function drawIronLayer(layout) {
   }
 
   if (state.ironPos) {
-    drawIron(state.ironPos.x, state.ironPos.y, stats.over > 0 ? "#e7645f" : "#4d77b8");
+    const ironPoint = boardLocalPointFromCanvasPoint(layout, state.ironPos);
+    drawIron(ironPoint.x, ironPoint.y, ironColorForHeat(averageHeatUnderIron(layout, ironPoint)));
   } else {
     drawIron(boardX + boardSize + 42, boardY + 64, "#4d77b8");
   }
@@ -3089,10 +3137,10 @@ export function heatStats() {
   let heated = 0;
   state.heat.forEach((heat, index) => {
     if (!state.placed[index]) return;
-    if (heat > 8) heated += 1;
-    if (heat >= 38) bonded += 1;
-    if (heat >= 52 && heat <= 96) ideal += 1;
-    if (heat > 108) over += 1;
+    if (heat > HEAT_LEVELS.visible) heated += 1;
+    if (heat >= HEAT_LEVELS.bonded) bonded += 1;
+    if (heat >= HEAT_LEVELS.idealMin && heat <= HEAT_LEVELS.idealMax) ideal += 1;
+    if (heat > HEAT_LEVELS.over) over += 1;
   });
   return {
     total,

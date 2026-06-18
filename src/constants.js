@@ -110,6 +110,16 @@ export const craftOptions = ["原版", "钥匙扣", "杯垫", "摆件"];
 // Fixed board size: one 30×30 pegboard tile (real perler boards snap together).
 export const BOARD_SIZE = 30;
 
+// Heat model thresholds shared by scoring and the iron overlay.
+export const HEAT_LEVELS = Object.freeze({
+  visible: 8,
+  bonded: 38,
+  idealMin: 52,
+  idealMax: 96,
+  over: 108,
+  scorched: 124,
+});
+
 // Tray grid dimensions
 export const TRAY_DESKTOP_ROWS = 10;
 export const TRAY_DESKTOP_COLS = 12;
