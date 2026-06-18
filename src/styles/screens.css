@@ -11,9 +11,9 @@
   min-width: 0;
   border: 1px solid rgba(139, 148, 166, 0.36);
   border-radius: var(--r-lg);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 249, 0.9)),
-    var(--surface);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(246, 250, 249, 0.78));
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   box-shadow: var(--sh-3);
 }
 
@@ -28,8 +28,68 @@
 .start-aside {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-6);
+  gap: var(--sp-5);
   min-width: 0;
+}
+
+/* Mobile hero strip: hidden on desktop, activated in responsive.css */
+.start-mobile-strip {
+  display: none;
+}
+
+/* Resume row: replaces the 拼豆台 button when a session exists */
+.start-resume-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  min-height: 78px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--brand) 7%, white);
+  border: 1.5px solid color-mix(in srgb, var(--brand) 28%, var(--line));
+  box-shadow: var(--sh-1);
+}
+
+.start-resume-row[hidden] {
+  display: none;
+}
+
+.start-resume-thumb {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  display: block;
+}
+
+.start-resume-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.start-resume-body strong {
+  font-family: var(--font-cute);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.start-resume-body small {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.start-resume-btn {
+  flex-shrink: 0;
+  padding-inline: var(--sp-4);
 }
 
 .start-brand {
@@ -118,15 +178,21 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--brand-tint);
+  border: 1.5px solid var(--brand-tint-strong);
   font-family: var(--font-cute);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--brand-ink);
-  transition: transform 0.16s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
 }
 
 .start-showcase:hover .start-showcase-cta {
+  background: color-mix(in srgb, var(--brand) 18%, white);
+  border-color: var(--brand-edge);
   transform: translateX(2px);
 }
 
@@ -222,8 +288,8 @@
 }
 
 .start-row-bead .start-row-icon {
-  background: #eaf5f2;
-  color: #2f6f62;
+  background: color-mix(in srgb, var(--brand) 14%, white);
+  color: var(--brand-ink);
 }
 
 .start-row-draw .start-row-icon {

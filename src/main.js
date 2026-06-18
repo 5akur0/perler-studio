@@ -53,6 +53,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast, celebrat
 import {
   setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
   renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
+  drawPatternThumb,
 } from './ui.js';
 import {
   setGalleryActions, enterGalleryMode, renderGallery, loadGallery,
@@ -1594,6 +1595,23 @@ import { prefersReducedMotion } from './utils.js';
       setAppMode("bead");
     },
   });
+  // ③ Resume banner: when a session was loaded but user stays on home screen,
+  //   show "继续做" in place of the 拼豆台 button.
+  function initResumeBanner(sessionRestored) {
+    if (!sessionRestored || !state.selectedPattern || state.phase === "choose") return;
+    const phaseName = phases.find((p) => p.id === state.phase)?.name || state.phase;
+    const placed = Array.isArray(state.placed) ? state.placed.filter(Boolean).length : 0;
+    if (els.startResumeRow) els.startResumeRow.hidden = false;
+    if (els.startBeadButton) els.startBeadButton.hidden = true;
+    if (els.startResumeName) els.startResumeName.textContent = state.selectedPattern.name || "上次的作品";
+    if (els.startResumePhase) {
+      els.startResumePhase.textContent = placed
+        ? `${phaseName} · 已摆 ${placed} 颗`
+        : phaseName;
+    }
+    if (els.startResumeThumb) drawPatternThumb(els.startResumeThumb, state.selectedPattern);
+    els.startResumeBtn?.addEventListener("click", () => setAppMode("bead"));
+  }
   els.startDrawButton?.addEventListener("click", () => {
     setAppMode("draw");
   });
@@ -1852,12 +1870,10 @@ import { prefersReducedMotion } from './utils.js';
   loadPattern(resizePattern(patterns[0], state.patternSize));
   setCustomDenoiseControls(state.customDenoiseLevel);
   applyBackgroundTheme(state.bgTheme);
-  if (loadAutoSave()) {
-    setAppMode("bead");
-  } else {
-    setAppMode("home");
-    setPhase("choose");
-  }
+  const sessionRestored = loadAutoSave();
+  setAppMode("home");
+  if (!sessionRestored) setPhase("choose");
+  initResumeBanner(sessionRestored);
   setAutoSaveHook(scheduleAutoSave);
   window.addEventListener("pagehide", () => flushAutoSave());
   document.addEventListener("visibilitychange", () => {

@@ -1531,6 +1531,12 @@
     startShowcaseDots: $("#startShowcaseDots"),
     startShowcaseName: $("#startShowcaseName"),
     startShowcaseCraft: $("#startShowcaseCraft"),
+    startMobileStrip: $("#startMobileStrip"),
+    startResumeRow: $("#startResumeRow"),
+    startResumeThumb: $("#startResumeThumb"),
+    startResumeName: $("#startResumeName"),
+    startResumePhase: $("#startResumePhase"),
+    startResumeBtn: $("#startResumeBtn"),
     galleryScreen: $("#galleryScreen"),
     galleryBackButton: $("#galleryBackButton"),
     gallerySettingsButton: $("#gallerySettingsButton"),
@@ -6570,6 +6576,35 @@
       host.appendChild(dot);
     });
   }
+  function buildMobileStrip() {
+    const host = els.startMobileStrip;
+    if (!host) return;
+    host.textContent = "";
+    featured.forEach((pattern, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "start-mobile-strip-thumb";
+      btn.setAttribute("aria-label", `\u7528 ${pattern.name} \u5F00\u59CB\u62FC\u8C46`);
+      const canvas = document.createElement("canvas");
+      canvas.width = 96;
+      canvas.height = 96;
+      btn.appendChild(canvas);
+      btn.addEventListener("click", () => {
+        if (onPick) onPick(pattern);
+      });
+      host.appendChild(btn);
+    });
+  }
+  function paintMobileStrip() {
+    const host = els.startMobileStrip;
+    if (!host) return;
+    const thumbs = Array.from(host.querySelectorAll(".start-mobile-strip-thumb"));
+    thumbs.forEach((btn, i) => {
+      btn.classList.toggle("is-active", i === index);
+      const canvas = btn.querySelector("canvas");
+      if (canvas) drawPatternThumb(canvas, featured[i]);
+    });
+  }
   function paint() {
     const pattern = featured[index];
     if (!pattern || !els.startShowcaseCanvas) return;
@@ -6585,6 +6620,7 @@
         dots[i].classList.toggle("is-active", i === index);
       }
     }
+    paintMobileStrip();
   }
   function show(next, { animate = true } = {}) {
     index = (next + featured.length) % featured.length;
@@ -6615,6 +6651,7 @@
     featured = resolveFeatured();
     if (!featured.length) return;
     buildDots();
+    buildMobileStrip();
     els.startShowcaseDots?.addEventListener("click", (e) => {
       const dots = Array.from(els.startShowcaseDots.children);
       const i = dots.indexOf(e.target.closest(".start-showcase-dot"));
@@ -11152,6 +11189,19 @@
       setAppMode("bead");
     }
   });
+  function initResumeBanner(sessionRestored2) {
+    if (!sessionRestored2 || !state.selectedPattern || state.phase === "choose") return;
+    const phaseName = phases.find((p) => p.id === state.phase)?.name || state.phase;
+    const placed = Array.isArray(state.placed) ? state.placed.filter(Boolean).length : 0;
+    if (els.startResumeRow) els.startResumeRow.hidden = false;
+    if (els.startBeadButton) els.startBeadButton.hidden = true;
+    if (els.startResumeName) els.startResumeName.textContent = state.selectedPattern.name || "\u4E0A\u6B21\u7684\u4F5C\u54C1";
+    if (els.startResumePhase) {
+      els.startResumePhase.textContent = placed ? `${phaseName} \xB7 \u5DF2\u6446 ${placed} \u9897` : phaseName;
+    }
+    if (els.startResumeThumb) drawPatternThumb(els.startResumeThumb, state.selectedPattern);
+    els.startResumeBtn?.addEventListener("click", () => setAppMode("bead"));
+  }
   els.startDrawButton?.addEventListener("click", () => {
     setAppMode("draw");
   });
@@ -11488,12 +11538,10 @@
   loadPattern(resizePattern(patterns[0], state.patternSize));
   setCustomDenoiseControls(state.customDenoiseLevel);
   applyBackgroundTheme(state.bgTheme);
-  if (loadAutoSave()) {
-    setAppMode("bead");
-  } else {
-    setAppMode("home");
-    setPhase("choose");
-  }
+  var sessionRestored = loadAutoSave();
+  setAppMode("home");
+  if (!sessionRestored) setPhase("choose");
+  initResumeBanner(sessionRestored);
   setAutoSaveHook(scheduleAutoSave);
   window.addEventListener("pagehide", () => flushAutoSave());
   document.addEventListener("visibilitychange", () => {

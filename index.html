@@ -75,7 +75,18 @@
             <h1 id="startScreenTitle">今天想做什么？</h1>
             <p class="start-tagline">挑一张图纸，慢慢摆一盘属于你的糖豆。</p>
           </div>
+          <!-- ① Mobile hero: pattern thumbnail strip (visible only on mobile via CSS) -->
+          <div class="start-mobile-strip" id="startMobileStrip" aria-label="精选图纸"></div>
           <div class="start-rows" aria-label="工作台选择">
+            <!-- ③ Resume banner: replaces 拼豆台 button when a session exists -->
+            <div class="start-resume-row" id="startResumeRow" hidden>
+              <canvas class="start-resume-thumb" id="startResumeThumb" width="46" height="46" aria-hidden="true"></canvas>
+              <div class="start-resume-body">
+                <strong id="startResumeName"></strong>
+                <small id="startResumePhase"></small>
+              </div>
+              <button class="primary-button start-resume-btn" id="startResumeBtn" type="button">继续做</button>
+            </div>
             <button class="start-row start-row-bead" id="startBeadButton" type="button">
               <span class="start-row-icon" aria-hidden="true">
                 <span data-lucide-icon="pegboard" data-icon-size="22"></span>
