@@ -17,7 +17,6 @@ export const els = {
   startShowcaseDots: $("#startShowcaseDots"),
   startShowcaseName: $("#startShowcaseName"),
   startShowcaseCraft: $("#startShowcaseCraft"),
-  startMobileStrip: $("#startMobileStrip"),
   startResumeRow: $("#startResumeRow"),
   startResumeThumb: $("#startResumeThumb"),
   startResumeName: $("#startResumeName"),

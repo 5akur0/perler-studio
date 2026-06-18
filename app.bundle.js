@@ -1531,7 +1531,6 @@
     startShowcaseDots: $("#startShowcaseDots"),
     startShowcaseName: $("#startShowcaseName"),
     startShowcaseCraft: $("#startShowcaseCraft"),
-    startMobileStrip: $("#startMobileStrip"),
     startResumeRow: $("#startResumeRow"),
     startResumeThumb: $("#startResumeThumb"),
     startResumeName: $("#startResumeName"),
@@ -2734,6 +2733,12 @@
     const ctx = scene;
     const theme = currentBackgroundTheme();
     ctx.save();
+    if (useMobileDirectPlacement()) {
+      ctx.fillStyle = theme.table[1];
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      return;
+    }
     const activeBottom = trayH > 0 ? Math.max(boardY + boardSize + 24, trayY + trayH + 10) : Math.max(boardY + boardSize + 24, layout.refY + layout.refH + 14);
     const matBottom = Math.min(h - 90, activeBottom);
     const tableEdgeY = Math.min(h - 18, matBottom + 30);
@@ -3244,7 +3249,7 @@
     } else {
       drawBoardSkin(ctx, layout, { cols, rows, brand, shadow: !useMobileDirectPlacement(), guides: false });
     }
-    const guideVisible = state.lampOn && !useMobileDirectPlacement() && (state.phase === "place" || state.phase === "inspect");
+    const guideVisible = (state.lampOn || useMobileDirectPlacement()) && (state.phase === "place" || state.phase === "inspect");
     const templateOpacity = guideVisible ? state.phase === "place" ? 0.1 : 0.08 : 0;
     if (guideVisible) {
       drawProjectedGuide(layout, templateOpacity);
@@ -3413,14 +3418,9 @@
     const ctx = canvas.getContext("2d");
     if (!ctx) return { key, canvas: null };
     const blur = Math.max(1.45, cell * 0.24);
-    const spotCx = canvasW * 0.5;
-    const spotCy = canvasH * 0.5;
     const projectedBeadRadius = cell * 0.43;
-    const spotRadius = Math.min(canvasW, canvasH) * 0.425;
     ctx.fillStyle = "rgba(255, 248, 218, 0.14)";
-    ctx.beginPath();
-    ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(0, 0, canvasW, canvasH);
     ctx.save();
     ctx.filter = `blur(${blur}px)`;
     for (let y = 0; y < rows; y += 1) {
@@ -3453,13 +3453,6 @@
     }
     ctx.restore();
     drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity);
-    ctx.save();
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
     return { key, canvas };
   }
   function drawFusionBridges(layout) {
@@ -6576,35 +6569,6 @@
       host.appendChild(dot);
     });
   }
-  function buildMobileStrip() {
-    const host = els.startMobileStrip;
-    if (!host) return;
-    host.textContent = "";
-    featured.forEach((pattern, i) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "start-mobile-strip-thumb";
-      btn.setAttribute("aria-label", `\u7528 ${pattern.name} \u5F00\u59CB\u62FC\u8C46`);
-      const canvas = document.createElement("canvas");
-      canvas.width = 96;
-      canvas.height = 96;
-      btn.appendChild(canvas);
-      btn.addEventListener("click", () => {
-        if (onPick) onPick(pattern);
-      });
-      host.appendChild(btn);
-    });
-  }
-  function paintMobileStrip() {
-    const host = els.startMobileStrip;
-    if (!host) return;
-    const thumbs = Array.from(host.querySelectorAll(".start-mobile-strip-thumb"));
-    thumbs.forEach((btn, i) => {
-      btn.classList.toggle("is-active", i === index);
-      const canvas = btn.querySelector("canvas");
-      if (canvas) drawPatternThumb(canvas, featured[i]);
-    });
-  }
   function paint() {
     const pattern = featured[index];
     if (!pattern || !els.startShowcaseCanvas) return;
@@ -6620,7 +6584,6 @@
         dots[i].classList.toggle("is-active", i === index);
       }
     }
-    paintMobileStrip();
   }
   function show(next, { animate = true } = {}) {
     index = (next + featured.length) % featured.length;
@@ -6651,7 +6614,6 @@
     featured = resolveFeatured();
     if (!featured.length) return;
     buildDots();
-    buildMobileStrip();
     els.startShowcaseDots?.addEventListener("click", (e) => {
       const dots = Array.from(els.startShowcaseDots.children);
       const i = dots.indexOf(e.target.closest(".start-showcase-dot"));

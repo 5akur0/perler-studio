@@ -36,36 +36,6 @@ function buildDots() {
   });
 }
 
-function buildMobileStrip() {
-  const host = els.startMobileStrip;
-  if (!host) return;
-  host.textContent = '';
-  featured.forEach((pattern, i) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'start-mobile-strip-thumb';
-    btn.setAttribute('aria-label', `用 ${pattern.name} 开始拼豆`);
-    const canvas = document.createElement('canvas');
-    canvas.width = 96;
-    canvas.height = 96;
-    btn.appendChild(canvas);
-    btn.addEventListener('click', () => {
-      if (onPick) onPick(pattern);
-    });
-    host.appendChild(btn);
-  });
-}
-
-function paintMobileStrip() {
-  const host = els.startMobileStrip;
-  if (!host) return;
-  const thumbs = Array.from(host.querySelectorAll('.start-mobile-strip-thumb'));
-  thumbs.forEach((btn, i) => {
-    btn.classList.toggle('is-active', i === index);
-    const canvas = btn.querySelector('canvas');
-    if (canvas) drawPatternThumb(canvas, featured[i]);
-  });
-}
 
 function paint() {
   const pattern = featured[index];
@@ -82,7 +52,6 @@ function paint() {
       dots[i].classList.toggle('is-active', i === index);
     }
   }
-  paintMobileStrip();
 }
 
 // Soft crossfade on the canvas element (instant under reduced-motion).
@@ -118,7 +87,6 @@ export function initStartShowcase(options = {}) {
   featured = resolveFeatured();
   if (!featured.length) return;
   buildDots();
-  buildMobileStrip();
 
   els.startShowcaseDots?.addEventListener('click', (e) => {
     const dots = Array.from(els.startShowcaseDots.children);

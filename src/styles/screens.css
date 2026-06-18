@@ -32,11 +32,6 @@
   min-width: 0;
 }
 
-/* Mobile hero strip: hidden on desktop, activated in responsive.css */
-.start-mobile-strip {
-  display: none;
-}
-
 /* Resume row: replaces the 拼豆台 button when a session exists */
 .start-resume-row {
   display: flex;
