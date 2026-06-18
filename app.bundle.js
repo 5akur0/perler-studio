@@ -4876,6 +4876,7 @@
     const gridCount = radius * 2 + 1;
     const padding = 10;
     const cell = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
+    if (!Number.isFinite(cell) || cell <= 0) return;
     const gridW = cell * gridCount;
     const gridH = cell * gridCount;
     const x0 = Math.floor((w - gridW) / 2);
@@ -5659,6 +5660,15 @@
   function syncStageControlsPlacement() {
     if (!els.stageControls || !stageControlsHome) return;
     const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
+    if (els.studioGrid) {
+      if (mobileWorking) {
+        els.studioGrid.dataset.mobileControls = "detached";
+        els.studioGrid.dataset.mobilePalette = state.phase === "place" ? "visible" : "hidden";
+      } else {
+        delete els.studioGrid.dataset.mobileControls;
+        delete els.studioGrid.dataset.mobilePalette;
+      }
+    }
     els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
     els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
     if (mobileWorking) {
@@ -6178,6 +6188,14 @@
   var paletteRenderKey = "";
   function renderPalette() {
     if (state.phase === "inspect") {
+      if (useMobileDirectPlacement()) {
+        els.colorPalette.classList.remove("inspect-mode");
+        if (paletteRenderKey !== "inspect:mobile-hidden") {
+          els.colorPalette.innerHTML = "";
+          paletteRenderKey = "inspect:mobile-hidden";
+        }
+        return;
+      }
       els.colorPalette.classList.add("inspect-mode");
       renderInspectAssistPanel();
       paletteRenderKey = "inspect";

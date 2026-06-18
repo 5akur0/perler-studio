@@ -1122,6 +1122,26 @@
     order: 3;
   }
 
+  /* Phone working phases detach the action controls from the desktop left rail.
+     Once detached, the original left rail has no visible phone content (reference
+     sheet/title/tool rack are intentionally hidden), so collapse the whole shell
+     instead of leaving a nameless frosted block below the bean box. The bean box is
+     a placement-only surface on phones; inspection/ironing/cooling keep only the
+     board and the stage actions so buttons stay in one predictable hit-test stack. */
+  .bead-studio-grid[data-mobile-controls="detached"] .left-panel {
+    display: none !important;
+  }
+
+  .bead-studio-grid[data-mobile-controls="detached"][data-mobile-palette="visible"] .right-panel {
+    display: flex;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .bead-studio-grid[data-mobile-controls="detached"][data-mobile-palette="hidden"] .right-panel {
+    display: none !important;
+  }
+
   .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
     flex: 0 0 auto;
     height: auto;

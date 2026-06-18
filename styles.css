@@ -4659,6 +4659,17 @@ body.admin-page {
   .bead-studio-grid:not([data-phase=choose]) .left-panel {
     order: 3;
   }
+  .bead-studio-grid[data-mobile-controls=detached] .left-panel {
+    display: none !important;
+  }
+  .bead-studio-grid[data-mobile-controls=detached][data-mobile-palette=visible] .right-panel {
+    display: flex;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .bead-studio-grid[data-mobile-controls=detached][data-mobile-palette=hidden] .right-panel {
+    display: none !important;
+  }
   .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
     flex: 0 0 auto;
     height: auto;

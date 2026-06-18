@@ -111,11 +111,42 @@ function ironSession() {
     heat,
     tool: "needle",
     selectedColor: "K",
+    sandboxMode: true,
     trayMatrix: [],
     errors: [],
     warp: 18,
     cooling: 0,
     boardView: { scale: 1.6, panX: 72, panY: -48 },
+  };
+}
+
+function sessionForPhase(phase) {
+  const placed = [];
+  const heat = [];
+  for (let y = 0; y < 24; y += 1) {
+    for (let x = 0; x < 24; x += 1) {
+      const code = berryCatRows[y][x];
+      placed.push(code === "." ? null : code);
+      heat.push(code === "." ? 0 : 70);
+    }
+  }
+  return {
+    version: 2,
+    phase,
+    selectedPatternId: "berry-cat",
+    patternSize: 24,
+    boardWidth: 24,
+    boardHeight: 24,
+    placed,
+    heat,
+    tool: "needle",
+    selectedColor: "K",
+    sandboxMode: true,
+    trayMatrix: [],
+    errors: [],
+    warp: 18,
+    cooling: 0,
+    boardView: { scale: 1.3, panX: 0, panY: 0 },
   };
 }
 
@@ -148,6 +179,112 @@ async function assertHomeShowcaseReachable(baseUrl) {
       result.afterBottom <= result.viewportHeight + 1,
       `home showcase must be fully reachable at 320x568; got ${JSON.stringify(result)}`,
     );
+  } finally {
+    await browser.close();
+  }
+}
+
+async function assertMobilePhasePanelsAndControls(baseUrl) {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  try {
+    await page.addInitScript((session) => localStorage.setItem("beadWorkshopSession.v1", JSON.stringify(session)), sessionForPhase("place"));
+    await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.click("#startResumeBtn");
+    await page.waitForTimeout(250);
+
+    async function snapshot(label) {
+      return page.evaluate((snapshotLabel) => {
+        const grid = document.querySelector(".bead-studio-grid");
+        const workbench = document.querySelector(".bead-studio-grid .workbench");
+        const controls = document.querySelector("#stageControls");
+        const leftPanel = document.querySelector(".bead-studio-grid .left-panel");
+        const rightPanel = document.querySelector(".bead-studio-grid .right-panel");
+
+        function boxState(node) {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return {
+            display: style.display,
+            visibility: style.visibility,
+            pointerEvents: style.pointerEvents,
+            width: rect.width,
+            height: rect.height,
+          };
+        }
+
+        function isCollapsed(state) {
+          return state.display === "none" || state.visibility === "hidden" || state.height <= 1 || state.width <= 1;
+        }
+
+        function isVisibleHitTarget(node) {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none" || rect.width < 44 || rect.height < 44) {
+            return false;
+          }
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          const top = document.elementFromPoint(x, y);
+          return top === node || node.contains(top);
+        }
+
+        const left = boxState(leftPanel);
+        const right = boxState(rightPanel);
+        const buttons = [...controls.querySelectorAll("button")].map((button) => ({
+          text: button.textContent.trim(),
+          hitTarget: isVisibleHitTarget(button),
+        }));
+        return {
+          label: snapshotLabel,
+          phase: grid?.dataset.phase,
+          mobileControls: grid?.dataset.mobileControls,
+          controlsParentClass: controls?.parentElement?.className || "",
+          controlsAfterWorkbench: controls?.previousElementSibling === workbench,
+          left,
+          right,
+          leftCollapsed: isCollapsed(left),
+          rightCollapsed: isCollapsed(right),
+          buttons,
+        };
+      }, label);
+    }
+
+    let result = await snapshot("place");
+    assert.equal(result.phase, "place", JSON.stringify(result));
+    assert.equal(result.mobileControls, "detached", JSON.stringify(result));
+    assert.equal(result.controlsAfterWorkbench, true, JSON.stringify(result));
+    assert.equal(result.leftCollapsed, true, `place should not leave the detached left-panel shell below the bean box: ${JSON.stringify(result)}`);
+    assert.equal(result.rightCollapsed, false, `place should keep the bean box visible: ${JSON.stringify(result)}`);
+    assert.ok(result.buttons.some((button) => button.text.includes("检查作品") && button.hitTarget), `place controls must be clickable: ${JSON.stringify(result)}`);
+
+    await page.getByRole("button", { name: "检查作品" }).click();
+    await page.waitForTimeout(150);
+    result = await snapshot("inspect");
+    assert.equal(result.phase, "inspect", JSON.stringify(result));
+    assert.equal(result.leftCollapsed, true, `inspect should not leave an empty side shell: ${JSON.stringify(result)}`);
+    assert.equal(result.rightCollapsed, true, `inspect should not keep the bean box in the action stack: ${JSON.stringify(result)}`);
+    assert.ok(result.buttons.some((button) => button.text.includes("返回修正") && button.hitTarget), `inspect back control must be clickable: ${JSON.stringify(result)}`);
+
+    await page.getByRole("button", { name: "返回修正" }).click();
+    await page.waitForTimeout(150);
+    result = await snapshot("place-after-back");
+    assert.equal(result.phase, "place", JSON.stringify(result));
+    assert.equal(result.rightCollapsed, false, `returning to place should restore the bean box: ${JSON.stringify(result)}`);
+    assert.ok(result.buttons.some((button) => button.text.includes("检查作品") && button.hitTarget), `place controls should stay clickable after returning: ${JSON.stringify(result)}`);
+
+    await page.getByRole("button", { name: "检查作品" }).click();
+    await page.waitForTimeout(100);
+    await page.getByRole("button", { name: "盖纸熨烫" }).click();
+    await page.waitForTimeout(180);
+    result = await snapshot("iron");
+    assert.equal(result.phase, "iron", JSON.stringify(result));
+    assert.equal(result.leftCollapsed, true, `iron should not leave an empty side shell: ${JSON.stringify(result)}`);
+    assert.equal(result.rightCollapsed, true, `iron should not show the bean box: ${JSON.stringify(result)}`);
+    assert.ok(result.buttons.some((button) => button.text.includes("进入冷却") && button.hitTarget), `iron controls must be clickable: ${JSON.stringify(result)}`);
+    assert.deepEqual(pageErrors, [], `mobile phase controls should not throw runtime errors: ${pageErrors.join(" | ")}`);
   } finally {
     await browser.close();
   }
@@ -210,6 +347,7 @@ assertMobileCssDefinesLayoutContract();
 const { server, url } = await startServer();
 try {
   await assertHomeShowcaseReachable(url);
+  await assertMobilePhasePanelsAndControls(url);
   await assertIronHasNoEmptyMobilePanel(url);
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));

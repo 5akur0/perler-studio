@@ -2811,6 +2811,7 @@ export function drawInspectZoomCanvas(canvas) {
   const gridCount = radius * 2 + 1;
   const padding = 10;
   const cell = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
+  if (!Number.isFinite(cell) || cell <= 0) return;
   const gridW = cell * gridCount;
   const gridH = cell * gridCount;
   const x0 = Math.floor((w - gridW) / 2);
