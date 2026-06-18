@@ -1151,7 +1151,9 @@ function projectedGuideLightness(code) {
 }
 
 function projectedGuideColor(code) {
-  return palette[code] || "#bbbbbb";
+  const base = palette[code] || "#bbbbbb";
+  const lightness = projectedGuideLightness(code);
+  return mixColor(base, "#f3c04f", lightness >= 205 ? 0.18 : 0.08);
 }
 
 function projectedGuideAlpha(code, alpha) {
@@ -1195,6 +1197,9 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
 
   const blur = Math.max(1.45, cell * 0.24);
   const projectedBeadRadius = cell * 0.43;
+  const spotCx = canvasW / 2;
+  const spotCy = canvasH / 2;
+  const spotRadius = Math.min(canvasW, canvasH) * 0.425;
 
   // A flat warm wash over the whole board — uniform, no circular spotlight or
   // distance falloff, so every bead's guide reads at the same strength.
@@ -1234,6 +1239,14 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
   ctx.restore();
 
   drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   return { key, canvas };
 }

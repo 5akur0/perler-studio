@@ -2247,7 +2247,9 @@
       guides = true,
       frameInset = 14,
       outerRadius = 8,
-      innerRadius = 6
+      innerRadius = 6,
+      blockOffsetX = 0,
+      blockOffsetY = 0
     } = options;
     const { boardX, boardY, cell } = layout;
     const boardW = layout.boardW || layout.boardSize;
@@ -2289,7 +2291,7 @@
     const tintDark = mixColor("#ffffff", brand, 0.15);
     for (let by = 0; by * 10 < rows; by += 1) {
       for (let bx = 0; bx * 10 < cols; bx += 1) {
-        ctx.fillStyle = (bx + by) % 2 ? tintDark : tintLight;
+        ctx.fillStyle = (blockOffsetX + bx + blockOffsetY + by) % 2 ? tintDark : tintLight;
         const px = boardX + bx * 10 * cell;
         const py = boardY + by * 10 * cell;
         const pw = Math.min(10, cols - bx * 10) * cell;
@@ -3428,7 +3430,9 @@
     return (Math.max(rgb.r, rgb.g, rgb.b) + Math.min(rgb.r, rgb.g, rgb.b)) / 2;
   }
   function projectedGuideColor(code) {
-    return palette[code] || "#bbbbbb";
+    const base = palette[code] || "#bbbbbb";
+    const lightness = projectedGuideLightness(code);
+    return mixColor(base, "#f3c04f", lightness >= 205 ? 0.18 : 0.08);
   }
   function projectedGuideAlpha(code, alpha) {
     const lightness = projectedGuideLightness(code);
@@ -3468,6 +3472,9 @@
     if (!ctx) return { key, canvas: null };
     const blur = Math.max(1.45, cell * 0.24);
     const projectedBeadRadius = cell * 0.43;
+    const spotCx = canvasW / 2;
+    const spotCy = canvasH / 2;
+    const spotRadius = Math.min(canvasW, canvasH) * 0.425;
     ctx.fillStyle = "rgba(255, 248, 218, 0.14)";
     ctx.fillRect(0, 0, canvasW, canvasH);
     ctx.save();
@@ -3502,6 +3509,13 @@
     }
     ctx.restore();
     drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity);
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
     return { key, canvas };
   }
   function drawFusionBridges(layout) {
@@ -5547,7 +5561,6 @@
     "eye-off": '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575a1 1 0 0 1 0 .696a10.8 10.8 0 0 1-1.444 2.49m-6.41-.679a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151a1 1 0 0 1 0-.696a10.75 10.75 0 0 1 4.446-5.143M2 2l20 20"/>',
     reply: '<path d="M20 18v-2a4 4 0 0 0-4-4H4"/><path d="m9 17l-5-5l5-5"/>',
     "flask-conical": '<path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"/>',
-    search: '<path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
     x: '<path d="M18 6L6 18M6 6l12 12"/>',
     "badge-check": '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77a4 4 0 0 1 6.74 0a4 4 0 0 1 4.78 4.78a4 4 0 0 1 0 6.74a4 4 0 0 1-4.77 4.78a4 4 0 0 1-6.75 0a4 4 0 0 1-4.78-4.77a4 4 0 0 1 0-6.76"/><path d="m9 12l2 2l4-4"/>',
     "badge-x": '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77a4 4 0 0 1 6.74 0a4 4 0 0 1 4.78 4.78a4 4 0 0 1 0 6.74a4 4 0 0 1-4.77 4.78a4 4 0 0 1-6.75 0a4 4 0 0 1-4.78-4.77a4 4 0 0 1 0-6.76M15 9l-6 6m0-6l6 6"/>'
@@ -8755,23 +8768,30 @@
     const T = BOARD_SIZE;
     const tileW = T * cell;
     const tileH = T * cell;
-    const tintLight = mixColor("#ffffff", theme.brand, 0.06);
-    const tintDark = mixColor("#ffffff", theme.brand, 0.15);
     const blocksPerTile = T / 10;
     for (const key of drawState.tiles) {
       const [tx, ty] = key.split(",").map(Number);
       const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
       const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
-      ctx.fillStyle = "#fbfcfd";
-      ctx.fillRect(tileBoardX, tileBoardY, tileW, tileH);
-      const tileBlockX = (tx - drawState.tileOriginX) * blocksPerTile;
-      const tileBlockY = (ty - drawState.tileOriginY) * blocksPerTile;
-      for (let by = 0; by < blocksPerTile; by++) {
-        for (let bx = 0; bx < blocksPerTile; bx++) {
-          ctx.fillStyle = (tileBlockX + bx + tileBlockY + by) % 2 ? tintDark : tintLight;
-          ctx.fillRect(tileBoardX + bx * 10 * cell, tileBoardY + by * 10 * cell, 10 * cell, 10 * cell);
-        }
-      }
+      drawBoardSkin(ctx, {
+        boardX: tileBoardX,
+        boardY: tileBoardY,
+        boardW: tileW,
+        boardH: tileH,
+        boardSize: Math.max(tileW, tileH),
+        cell
+      }, {
+        cols: T,
+        rows: T,
+        brand: theme.brand,
+        shadow: false,
+        guides: false,
+        frameInset: 0,
+        outerRadius: 0,
+        innerRadius: 0,
+        blockOffsetX: (tx - drawState.tileOriginX) * blocksPerTile,
+        blockOffsetY: (ty - drawState.tileOriginY) * blocksPerTile
+      });
     }
     const pegR = Math.max(0.6, cell * 0.138);
     const pegCenters = [];

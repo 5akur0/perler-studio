@@ -11,6 +11,11 @@ const adminSource = await readFile(new URL("../admin.js", import.meta.url), "utf
 const iconsModuleUrl = `data:text/javascript;base64,${Buffer.from(iconsSource).toString("base64")}`;
 const { icon, hasIcon, hydrateIcons } = await import(iconsModuleUrl);
 
+const iconKeys = [...iconsSource.matchAll(/^\s*(?:"([^"]+)"|([A-Za-z][\w-]*))\s*:/gm)]
+  .map((match) => match[1] || match[2]);
+const duplicateIconKeys = iconKeys.filter((name, index) => iconKeys.indexOf(name) !== index);
+assert.deepEqual(duplicateIconKeys, [], `Duplicate icon keys: ${duplicateIconKeys.join(", ")}`);
+
 assert.match(icon("settings", { size: 18 }), /width="18"/);
 assert.match(icon("settings", { size: 18 }), /height="18"/);
 assert.match(icon("settings", { size: 18 }), /stroke-width="2"/);

@@ -36,7 +36,13 @@ globalThis.requestAnimationFrame = (callback) => {
 const asset = await stat(new URL("../audio/background.mp3", import.meta.url));
 assert.ok(asset.size > 0, "compressed BGM asset should exist");
 
-const serverSource = await readFile(new URL("../server.js", import.meta.url), "utf8");
+const packageSource = await readFile(new URL("../package.json", import.meta.url), "utf8");
+const packageJson = JSON.parse(packageSource);
+assert.equal(packageJson.type, "module", "root package should declare ESM so src/*.js tests do not reparse with warnings");
+assert.match(packageJson.scripts.dev, /server\.cjs/, "dev server should stay CommonJS under an ESM package");
+assert.match(packageJson.scripts.start, /server\.cjs/, "start server should stay CommonJS under an ESM package");
+
+const serverSource = await readFile(new URL("../server.cjs", import.meta.url), "utf8");
 assert.match(serverSource, /"\.mp3":\s*"audio\/mpeg"/, "server should serve MP3 as audio/mpeg");
 
 const bgmSource = await readFile(new URL("../src/bgm.js", import.meta.url), "utf8");

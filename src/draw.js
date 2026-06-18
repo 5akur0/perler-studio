@@ -3,7 +3,7 @@ import { patterns } from './patterns-data.js';
 import { allColorCodes } from './pattern.js';
 import { encodePatternCode, decodePatternCode, extractPatternCode } from './pattern-code.js';
 import { els } from './dom.js';
-import { clamp, mixColor } from './color-utils.js';
+import { clamp } from './color-utils.js';
 import { maxBoardScale } from './render.js';
 import { showToast } from './notify.js';
 import { confirmModal } from './modal-controller.js';
@@ -15,7 +15,7 @@ import { BOARD_SIZE } from './constants.js';
 import { fitGridToBoardTiles, tileKey } from './board-layout.js';
 import { loadImageFromDataUrl, convertImageToRectRows } from './image-convert.js';
 import { currentBackgroundTheme } from './theme.js';
-import { drawBoardGuides, drawBoardSkin, traceBoardPath } from './board-skin.js';
+import { drawBoardGuides, drawBoardSkin } from './board-skin.js';
 
 const drawActions = {
   loadPattern: () => {},
@@ -731,26 +731,30 @@ export function paintDrawCanvas() {
   const tileW = T * cell;
   const tileH = T * cell;
 
-  // Per-tile: background fill + 10×10 checkerboard tint (no frame, strict rectangles)
-  const tintLight = mixColor("#ffffff", theme.brand, 0.06);
-  const tintDark = mixColor("#ffffff", theme.brand, 0.15);
   const blocksPerTile = T / 10;
   for (const key of drawState.tiles) {
     const [tx, ty] = key.split(",").map(Number);
     const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
     const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
-    ctx.fillStyle = "#fbfcfd";
-    ctx.fillRect(tileBoardX, tileBoardY, tileW, tileH);
-    // Global block coords so the 10×10 tint reads as one continuous surface across
-    // joined tiles (per-tile parity made seams look like separate plates).
-    const tileBlockX = (tx - drawState.tileOriginX) * blocksPerTile;
-    const tileBlockY = (ty - drawState.tileOriginY) * blocksPerTile;
-    for (let by = 0; by < blocksPerTile; by++) {
-      for (let bx = 0; bx < blocksPerTile; bx++) {
-        ctx.fillStyle = (tileBlockX + bx + tileBlockY + by) % 2 ? tintDark : tintLight;
-        ctx.fillRect(tileBoardX + bx * 10 * cell, tileBoardY + by * 10 * cell, 10 * cell, 10 * cell);
-      }
-    }
+    drawBoardSkin(ctx, {
+      boardX: tileBoardX,
+      boardY: tileBoardY,
+      boardW: tileW,
+      boardH: tileH,
+      boardSize: Math.max(tileW, tileH),
+      cell,
+    }, {
+      cols: T,
+      rows: T,
+      brand: theme.brand,
+      shadow: false,
+      guides: false,
+      frameInset: 0,
+      outerRadius: 0,
+      innerRadius: 0,
+      blockOffsetX: (tx - drawState.tileOriginX) * blocksPerTile,
+      blockOffsetY: (ty - drawState.tileOriginY) * blocksPerTile,
+    });
   }
 
   // Pegboard texture: a soft nub on every empty cell (matches the placing board),

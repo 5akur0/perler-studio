@@ -21,7 +21,7 @@
 
 | 命令 | 作用 |
 |------|------|
-| `npm run dev` | 本地起 `server.js`，访问 `http://localhost:5173` |
+| `npm run dev` | 本地起 `server.cjs`，访问 `http://localhost:5173` |
 | `npm run build` | 重建 JS + CSS 产物（改完 `src/` 必跑） |
 | `npm run watch:js` / `npm run watch:css` | 开发时监听重建 |
 | `node scripts/session-regression.mjs`（= `npm run test:session`） | 会话存档/恢复回归测试 |

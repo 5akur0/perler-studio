@@ -55,6 +55,8 @@ export function drawBoardSkin(ctx, layout, options = {}) {
     frameInset = 14,
     outerRadius = 8,
     innerRadius = 6,
+    blockOffsetX = 0,
+    blockOffsetY = 0,
   } = options;
   const { boardX, boardY, cell } = layout;
   const boardW = layout.boardW || layout.boardSize;
@@ -99,7 +101,7 @@ export function drawBoardSkin(ctx, layout, options = {}) {
   const tintDark = mixColor("#ffffff", brand, 0.15);
   for (let by = 0; by * 10 < rows; by += 1) {
     for (let bx = 0; bx * 10 < cols; bx += 1) {
-      ctx.fillStyle = (bx + by) % 2 ? tintDark : tintLight;
+      ctx.fillStyle = (blockOffsetX + bx + blockOffsetY + by) % 2 ? tintDark : tintLight;
       const px = boardX + bx * 10 * cell;
       const py = boardY + by * 10 * cell;
       const pw = Math.min(10, cols - bx * 10) * cell;
