@@ -426,6 +426,14 @@ export function drawWorkbench(layout) {
   const theme = currentBackgroundTheme();
   ctx.save();
 
+  // Mobile: a plain solid backdrop behind the board — no desk/floor/woodgrain texture.
+  if (useMobileDirectPlacement()) {
+    ctx.fillStyle = theme.table[1];
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    return;
+  }
+
   // Table edge: stop the table at this Y; below it is the floor.
   const activeBottom = trayH > 0 ? Math.max(boardY + boardSize + 24, trayY + trayH + 10) : Math.max(boardY + boardSize + 24, layout.refY + layout.refH + 14);
   const matBottom = Math.min(h - 90, activeBottom);
@@ -957,7 +965,9 @@ export function drawBoard(layout) {
     drawBoardSkin(ctx, layout, { cols, rows, brand, shadow: !useMobileDirectPlacement(), guides: false });
   }
 
-  const guideVisible = state.lampOn && !useMobileDirectPlacement() && (state.phase === "place" || state.phase === "inspect");
+  // Mobile has no lamp switch and no reference sheet, so the placement guide is
+  // always on there; desktop keeps it behind the lamp toggle.
+  const guideVisible = (state.lampOn || useMobileDirectPlacement()) && (state.phase === "place" || state.phase === "inspect");
   const templateOpacity = guideVisible ? (state.phase === "place" ? 0.1 : 0.08) : 0;
   if (guideVisible) {
     drawProjectedGuide(layout, templateOpacity);
@@ -1139,17 +1149,12 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
   if (!ctx) return { key, canvas: null };
 
   const blur = Math.max(1.45, cell * 0.24);
-  const spotCx = canvasW * 0.5;
-  const spotCy = canvasH * 0.5;
   const projectedBeadRadius = cell * 0.43;
-  const spotRadius = Math.min(canvasW, canvasH) * 0.425;
 
-  // A flat warm pool keeps the work-light circle visible without fading the
-  // projected beads by distance from the center.
+  // A flat warm wash over the whole board — uniform, no circular spotlight or
+  // distance falloff, so every bead's guide reads at the same strength.
   ctx.fillStyle = "rgba(255, 248, 218, 0.14)";
-  ctx.beginPath();
-  ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillRect(0, 0, canvasW, canvasH);
 
   ctx.save();
   ctx.filter = `blur(${blur}px)`;
@@ -1184,15 +1189,6 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
   ctx.restore();
 
   drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity);
-
-  // Crop all projection layers to a true circle without center-distance falloff.
-  ctx.save();
-  ctx.globalCompositeOperation = "destination-in";
-  ctx.fillStyle = "#000";
-  ctx.beginPath();
-  ctx.arc(spotCx, spotCy, spotRadius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 
   return { key, canvas };
 }

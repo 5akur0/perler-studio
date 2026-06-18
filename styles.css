@@ -244,7 +244,7 @@ button:disabled {
 /* src/styles/layout.css */
 .app-shell {
   width: min(var(--content-max), 100%);
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   padding: var(--shell-pad);
 }
@@ -2886,7 +2886,7 @@ body[data-app-mode=collection] .gallery-screen {
 
 /* src/styles/screens.css */
 .start-screen {
-  min-height: calc(100vh - 2 * var(--shell-pad));
+  min-height: calc(100dvh - 2 * var(--shell-pad));
   display: grid;
   place-items: center;
   min-width: 0;
@@ -3204,7 +3204,7 @@ body[data-app-mode=collection] .gallery-screen {
   display: block;
 }
 .gallery-screen {
-  min-height: calc(100vh - 2 * var(--shell-pad));
+  min-height: calc(100dvh - 2 * var(--shell-pad));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3234,7 +3234,7 @@ body[data-app-mode=collection] .gallery-screen {
   margin-bottom: var(--sp-4);
 }
 .collection-screen {
-  min-height: calc(100vh - 2 * var(--shell-pad));
+  min-height: calc(100dvh - 2 * var(--shell-pad));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3522,9 +3522,13 @@ body.admin-page {
 
 /* src/styles/responsive.css */
 @media (max-width: 860px) {
-  .start-screen,
+  .start-screen {
+    height: calc(100dvh - 2 * var(--shell-pad));
+    min-height: 0;
+    overflow: hidden;
+  }
   .drawing-studio {
-    min-height: calc(100vh - 24px);
+    min-height: calc(100dvh - 24px);
   }
   .start-screen-inner {
     width: min(520px, calc(100vw - 20px));

@@ -1,7 +1,16 @@
 @media (max-width: 860px) {
-  .start-screen,
+  /* Home is locked to the visible viewport (dvh adapts per device + browser chrome)
+     so it never scrolls and fits any phone. Content screens keep their natural
+     scroll but also use dvh below, so the address-bar gap no longer adds phantom
+     scroll. */
+  .start-screen {
+    height: calc(100dvh - 2 * var(--shell-pad));
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .drawing-studio {
-    min-height: calc(100vh - 24px);
+    min-height: calc(100dvh - 24px);
   }
 
   .start-screen-inner {
