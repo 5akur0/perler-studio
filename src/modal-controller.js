@@ -62,15 +62,15 @@ export function restoreModalFocus() {
   }
 }
 
-// —— In-page confirm dialog (replaces the ugly native window.confirm). Returns Promise<boolean>. ——
+// —— In-page confirm dialog. Returns Promise<boolean>. ——
 let confirmResolve = null;
 
 export function confirmModal({ message, okText = "确定", cancelText = "取消", danger = false, title = "确认一下" } = {}) {
   return new Promise((resolve) => {
     const modal = els.confirmModal;
     if (!modal || !els.confirmModalOk) {
-      // Fallback: in extreme cases fall back to the native confirm, so at least the action isn't blocked.
-      resolve(window.confirm(message));
+      console.warn("Confirm dialog is unavailable; cancelling guarded action.");
+      resolve(false);
       return;
     }
     if (els.confirmModalTitle) els.confirmModalTitle.textContent = title;
@@ -176,14 +176,14 @@ export function closeOnboardingModal() {
   restoreModalFocus();
 }
 
-/** Show the onboarding once, the first time the player reaches the place phase (skips sandbox). */
+/** Mark first-run help as handled; placement hints now teach inline without covering the workbench. */
 export function maybeShowOnboarding() {
   if (state.sandboxMode) return;
   if (getOpenModalEl()) return;
   let seen = false;
   try { seen = localStorage.getItem(onboardingKey) === "seen"; } catch { seen = false; }
   if (seen) return;
-  openOnboardingModal();
+  try { localStorage.setItem(onboardingKey, "seen"); } catch { /* ignore quota */ }
 }
 
 export function openRemapModal(focusSource = null) {

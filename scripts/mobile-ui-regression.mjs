@@ -21,10 +21,8 @@ assert.match(uiSource, /workflowSummary\(phases, state\.phase\)/);
 assert.match(uiSource, /drawPatternThumb\(els\.mobilePatternThumb/);
 assert.match(uiSource, /drawPatternThumb\(els\.mobileSelectionThumb/);
 assert.match(uiSource, /sourceImageDataUrl/);
-assert.match(
-  uiSource,
-  /const codes = isMobile \? allCodes\.filter\(\(code\) => \(counts\[code\] \|\| 0\) > 0\) : allCodes;/,
-);
+assert.match(uiSource, /const rest = isMobile\s*\?\s*allCodes\.filter\(\(code\) => \(counts\[code\] \|\| 0\) > 0\)/);
+assert.match(uiSource, /const codes = isMobile \? rest : \[\.\.\.neededCodes, \.\.\.rest\];/);
 assert.match(drawSource, /const codes = allColorCodes\(\);/);
 assert.match(uiSource, /mobileColorPulseId/);
 assert.match(stateSource, /mobileBeadSettle:/);

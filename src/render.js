@@ -1102,11 +1102,7 @@ function projectedGuideLightness(code) {
 }
 
 function projectedGuideColor(code) {
-  const base = palette[code] || "#bbbbbb";
-  const lightness = projectedGuideLightness(code);
-  if (lightness >= 228) return mixColor(base, "#f3c04f", 0.46);
-  if (lightness >= 205) return mixColor(base, "#f3c04f", 0.24);
-  return base;
+  return palette[code] || "#bbbbbb";
 }
 
 function projectedGuideAlpha(code, alpha) {

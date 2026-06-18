@@ -100,22 +100,42 @@
   line-height: var(--lh-body);
 }
 
-/* Showcase: a finished bead board (theme-tinted) as the home hero. */
+/* Showcase: a finished bead board framed like a polaroid pinned to the desk. */
 .start-showcase {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
   padding: var(--sp-4);
   border-radius: var(--r-md);
   text-align: left;
-  background: var(--surface);
-  border: 1.5px solid var(--line);
+  background: linear-gradient(180deg, #fff, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--line) 80%, white);
+  box-shadow: var(--sh-2);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .start-showcase:hover {
   border-color: color-mix(in srgb, var(--brand) 50%, var(--line));
-  box-shadow: var(--sh-2);
+  box-shadow: var(--sh-3);
+}
+
+/* Hand-stuck sticker tag — a small moment of warmth, not a data label. */
+.start-showcase-sticker {
+  position: absolute;
+  top: -11px;
+  left: 18px;
+  z-index: 1;
+  transform: rotate(-3.5deg);
+  padding: 4px 13px 3px;
+  border-radius: var(--r-pill);
+  background: var(--coral);
+  color: #fff;
+  font-family: var(--font-cute);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  box-shadow: 0 5px 12px color-mix(in srgb, var(--coral) 42%, transparent);
 }
 
 .start-showcase-stage {
@@ -148,8 +168,12 @@
 .start-showcase-text {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   min-width: 0;
+  /* Reserve the two-line height so the cute font swapping in over the network
+     can't briefly reflow the meta into a squished column. */
+  min-height: 40px;
 }
 
 .start-showcase-text strong {
@@ -182,13 +206,12 @@
   font-size: var(--fs-md);
   font-weight: 700;
   color: var(--brand-ink);
-  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
 .start-showcase:hover .start-showcase-cta {
   background: color-mix(in srgb, var(--brand) 18%, white);
   border-color: var(--brand-edge);
-  transform: translateX(2px);
 }
 
 .start-showcase-dots {
@@ -238,7 +261,32 @@
   gap: var(--sp-3);
 }
 
+/* Gentle staggered entrance — the desk "sets itself" on arrival. Motion-safe only. */
+@media (prefers-reduced-motion: no-preference) {
+  .start-row,
+  .start-showcase {
+    animation: start-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  .start-row-bead { animation-delay: 0.04s; }
+  .start-row-draw { animation-delay: 0.1s; }
+  .start-row-gallery { animation-delay: 0.16s; }
+  .start-row-collection { animation-delay: 0.22s; }
+  .start-showcase { animation-delay: 0.12s; }
+
+  @keyframes start-rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
 .start-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-4);
@@ -247,14 +295,37 @@
   min-height: 78px;
   border-radius: var(--r-md);
   text-align: left;
-  background: var(--surface);
-  border: 1.5px solid var(--line);
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  background: linear-gradient(180deg, #fff, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--line) 75%, white);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .start-row:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--sh-2);
+  box-shadow: var(--sh-card-hover);
+}
+
+/* Hero entry: 拼豆台 reads as the main object on the desk — a warm bead-tinted tray. */
+.start-row-bead {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 7%, white), color-mix(in srgb, var(--brand) 13%, white));
+  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
+}
+
+/* A quiet scatter of candy beads anchored to the empty right edge of the hero. */
+.start-row-bead::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 150px;
+  pointer-events: none;
+  opacity: 0.85;
+  background-image:
+    radial-gradient(7px 7px at 78% 30%, color-mix(in srgb, var(--coral) 78%, white), transparent 72%),
+    radial-gradient(6px 6px at 90% 58%, color-mix(in srgb, var(--amber) 80%, white), transparent 72%),
+    radial-gradient(6px 6px at 70% 70%, color-mix(in srgb, var(--blue) 72%, white), transparent 72%),
+    radial-gradient(5px 5px at 86% 82%, color-mix(in srgb, var(--violet) 72%, white), transparent 72%),
+    radial-gradient(7px 7px at 64% 46%, color-mix(in srgb, var(--brand) 70%, white), transparent 72%);
 }
 
 .start-row-bead:hover {
@@ -274,35 +345,39 @@
 }
 
 .start-row-icon {
+  position: relative;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  border-radius: var(--r-sm);
+  border-radius: 16px;
+  color: #fff;
+  z-index: 1;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55), 0 5px 12px rgba(49, 54, 68, 0.14);
 }
 
+/* Candy-bead medallions: a glossy bead in each entry's category color (themed --brand for 拼豆,
+   fixed five-accent hues for the rest), white icon riding on top. Decorative — label lives in text. */
 .start-row-bead .start-row-icon {
-  background: color-mix(in srgb, var(--brand) 14%, white);
-  color: var(--brand-ink);
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--brand) 45%, white), var(--brand));
 }
 
 .start-row-draw .start-row-icon {
-  background: color-mix(in srgb, var(--coral) 12%, white);
-  color: #a03330;
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--coral) 45%, white), var(--coral));
 }
 
 .start-row-gallery .start-row-icon {
-  background: color-mix(in srgb, var(--blue) 12%, white);
-  color: #2d5597;
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--blue) 45%, white), var(--blue));
 }
 
 .start-row-collection .start-row-icon {
-  background: color-mix(in srgb, var(--violet) 14%, white);
-  color: #5a4d92;
+  background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--violet) 45%, white), var(--violet));
 }
 
 .start-row-body {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -325,17 +400,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.start-row-arrow {
-  flex-shrink: 0;
-  color: var(--line);
-  transition: color 0.16s ease, transform 0.16s ease;
-}
-
-.start-row:hover .start-row-arrow {
-  color: var(--muted);
-  transform: translateX(2px);
 }
 
 .start-row-count {
@@ -434,13 +498,16 @@
 }
 
 .gallery-card {
-  border-radius: var(--r-xs);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, white);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, #fff, var(--surface-2));
+  box-shadow: var(--sh-1);
   overflow: hidden;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .gallery-card:hover {
-  border-color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--line));
   box-shadow: var(--sh-card-hover);
   transform: translateY(-1px);
 }
@@ -510,7 +577,7 @@
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
-  border: 1px solid #dce1e9;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, white);
   border-radius: var(--r-xs);
   background: var(--surface-2);
 }
@@ -540,11 +607,45 @@
 }
 
 .gallery-empty {
-  min-height: 260px;
+  min-height: min(560px, 62vh);
   display: grid;
-  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-4);
+  border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--line));
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--brand) 12%, transparent) 0 74px, transparent 75px),
+    color-mix(in srgb, var(--surface) 78%, transparent);
   color: var(--muted);
   font-weight: 750;
+  text-align: center;
+}
+
+.gallery-empty-icon {
+  width: 44px;
+  height: 44px;
+  color: color-mix(in srgb, var(--brand-ink) 72%, var(--muted));
+}
+
+.gallery-empty-text,
+.gallery-empty-sub {
+  margin: 0;
+  max-width: 22ch;
+}
+
+.gallery-empty-text {
+  color: var(--ink);
+  font-family: var(--font-cute);
+  font-size: var(--fs-title);
+  font-weight: 800;
+}
+
+.gallery-empty-sub {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
 }
 
 .gallery-empty[hidden] {

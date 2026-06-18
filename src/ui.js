@@ -49,8 +49,32 @@ let uiActions = {
   triggerHaptic: () => {},
 };
 
+const stageControlsHome = els.stageControls?.parentElement || null;
+const stageControlsHomeNext = els.stageControls?.nextSibling || null;
+
 export function setUIActions(nextActions = {}) {
   uiActions = { ...uiActions, ...nextActions };
+}
+
+function syncStageControlsPlacement() {
+  if (!els.stageControls || !stageControlsHome) return;
+  const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
+  els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
+  els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
+  if (mobileWorking) {
+    const workbench = els.studioGrid?.querySelector(":scope > .workbench");
+    if (workbench && els.stageControls.previousElementSibling !== workbench) {
+      workbench.after(els.stageControls);
+    }
+    return;
+  }
+  if (els.stageControls.parentElement !== stageControlsHome) {
+    if (stageControlsHomeNext?.parentElement === stageControlsHome) {
+      stageControlsHome.insertBefore(els.stageControls, stageControlsHomeNext);
+    } else {
+      stageControlsHome.appendChild(els.stageControls);
+    }
+  }
 }
 
 export function setSizeControls(size) {
@@ -380,6 +404,7 @@ export function renderMobileSelectionSummary() {
 }
 
 export function renderControls() {
+  syncStageControlsPlacement();
   els.stageControls.innerHTML = "";
   els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "工具台";
   els.toolMeta.textContent = state.phase === "place" && !useMobileDirectPlacement()
@@ -405,17 +430,25 @@ export function renderControls() {
       : (useMobileDirectPlacement()
         ? `mobile:${state.selectedColor}`
         : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`);
-    showPlaceHint(placeHintText, placeHintKey);
+    if (!useMobileDirectPlacement() || state.spill) {
+      showPlaceHint(placeHintText, placeHintKey);
+    } else {
+      hidePlaceHint();
+    }
     addButton("检查作品", "primary-button", () => uiActions.setPhase("inspect"));
-    addButton("清空板面", "danger-text-button", () => uiActions.clearBoard?.());
+    addButton("清空板面", "danger-text-button", () => uiActions.clearBoard?.(), false, {
+      icon: icon("trash-2", { size: 16 }),
+    });
     return;
   }
 
   if (state.phase === "inspect") {
     const summary = inspectionSummary();
-    addHint(state.sandboxMode
-      ? "沙盒模式不做漏放/错色校验，可直接进入熨烫。"
-      : `漏放 ${summary.missing}，错色 ${summary.wrong}，多放 ${summary.extra}。`);
+    if (state.sandboxMode) {
+      addHint("沙盒模式不做漏放/错色校验，可直接进入熨烫。");
+    } else {
+      addInspectStats(summary);
+    }
     if (state.spill) {
       addHint("还有倒下的豆子没夹起。继续熨烫会把这颗豆糊在板面上。");
     }
@@ -497,11 +530,16 @@ export function renderControls() {
   }
 }
 
-export function addButton(label, className, handler, disabled = false) {
+export function addButton(label, className, handler, disabled = false, options = {}) {
   const button = document.createElement("button");
   button.type = "button";
-  button.textContent = label;
-  button.className = className || "";
+  if (options.icon) {
+    button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${options.icon}</span><span class="btn-label">${escapeHtml(label)}</span>`;
+    button.classList.add("icon-text-button");
+  } else {
+    button.textContent = label;
+  }
+  button.className = `${button.className} ${className || ""}`.trim();
   button.disabled = disabled;
   button.addEventListener("click", handler);
   els.stageControls.appendChild(button);
@@ -539,6 +577,24 @@ export function addHint(text) {
   box.className = "hint-box";
   box.textContent = text;
   els.stageControls.appendChild(box);
+}
+
+/** Inspection result as three semantic status chips (scannable, screenshot-friendly). */
+export function addInspectStats(summary) {
+  const wrap = document.createElement("div");
+  wrap.className = "inspect-stats";
+  wrap.setAttribute("role", "group");
+  wrap.setAttribute("aria-label", "检查结果");
+  const stats = [
+    { key: "missing", label: "漏放", value: summary.missing },
+    { key: "wrong", label: "错色", value: summary.wrong },
+    { key: "extra", label: "多放", value: summary.extra },
+  ];
+  wrap.innerHTML = stats
+    .map(({ key, label, value }) =>
+      `<span class="inspect-stat is-${key}${value > 0 ? "" : " is-zero"}">${label}<b>${value}</b></span>`)
+    .join("");
+  els.stageControls.appendChild(wrap);
 }
 
 export function addToolToggle() {
@@ -854,7 +910,8 @@ export function renderCollection() {
   if (!collection.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "还没有完成品";
+    empty.innerHTML = `${icon("clipboard-list", { size: 44, strokeWidth: 1.8, class: "empty-state-icon" })}<p class="empty-state-text">还没有完成品</p><p class="empty-state-sub">做完第一件，它就会摆在这里。</p><button type="button" class="primary-button" data-collection-start>去拼豆</button>`;
+    empty.querySelector("[data-collection-start]")?.addEventListener("click", () => els.startBeadButton?.click());
     els.collectionPanel.appendChild(empty);
     return;
   }

@@ -1,25 +1,99 @@
 @media (max-width: 860px) {
-  /* Home is locked to the visible viewport (dvh adapts per device + browser chrome)
-     so it never scrolls and fits any phone. Content screens keep their natural
-     scroll but also use dvh below, so the address-bar gap no longer adds phantom
-     scroll. */
+  /* Mobile uses the same viewport-locked shell as desktop: the app itself never
+     page-scrolls, while each active content surface owns its internal scroll. */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    flex: 0 0 auto;
+  }
+
   .start-screen {
+    flex: 1 1 auto;
     height: calc(100dvh - 2 * var(--shell-pad));
     min-height: 0;
     overflow: hidden;
   }
 
+  .gallery-screen,
+  .collection-screen,
   .drawing-studio {
-    min-height: calc(100dvh - 24px);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .gallery-studio-card,
+  .collection-studio-card,
+  .drawing-studio-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .gallery-layout,
+  .collection-layout,
+  .drawing-studio-grid,
+  .bead-studio-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Browse grids: force two columns on phones so each square tile stays a
+     thumbnail (~160px) instead of collapsing to one full-width 340px block. */
+  .gallery-grid,
+  .collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-3);
   }
 
   .start-screen-inner {
     width: min(520px, calc(100vw - 20px));
     grid-template-columns: minmax(0, 1fr);
-    padding: var(--sp-5) var(--sp-4);
+    gap: var(--sp-4);
+    padding: var(--sp-4);
   }
 
   .start-showcase {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+    min-height: 96px;
+  }
+
+  .start-showcase-stage {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--r-xs);
+  }
+
+  .start-showcase-meta {
+    min-width: 0;
+    align-items: center;
+  }
+
+  .start-showcase-cta {
+    padding: 5px 10px;
+    font-size: var(--fs-sm);
+  }
+
+  .start-showcase-dots {
     display: none;
   }
 
@@ -33,10 +107,6 @@
 
   .start-brand h1 {
     font-size: 28px;
-  }
-
-  .drawing-studio {
-    min-height: 0;
   }
 
   .drawing-studio-grid {
@@ -127,9 +197,20 @@
   }
 
   .drawing-tools-panel .tool-toggle button {
-    min-height: var(--tap-min);
-    height: var(--tap-min);
+    min-height: 52px;
+    height: 52px;
     border-radius: var(--r-xs);
+    gap: 2px;
+    font-size: var(--fs-2xs);
+    font-weight: 800;
+  }
+
+  .drawing-tools-panel .tool-toggle button::after {
+    content: attr(aria-label);
+    color: var(--muted);
+    font-family: var(--font-clear);
+    font-size: var(--fs-2xs);
+    line-height: 1;
   }
 
   .drawing-tools-panel .tool-toggle button svg {
@@ -152,6 +233,10 @@
     flex: 0 0 auto;
     margin-top: 0;
     gap: var(--sp-2);
+  }
+
+  #drawUsePatternButton {
+    order: -1;
   }
 
   .drawing-footer-row {
@@ -490,12 +575,42 @@
 }
 
 .empty-state {
-  padding: var(--sp-3);
-  border: 1px dashed #bdc5d0;
-  border-radius: var(--r-sm);
+  min-height: min(520px, 58vh);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6) var(--sp-4);
+  border: 1px dashed color-mix(in srgb, var(--brand) 30%, var(--line));
+  border-radius: var(--r-md);
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 44px;
+  height: 44px;
+  color: color-mix(in srgb, var(--brand-ink) 70%, var(--muted));
+}
+
+.empty-state-text {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-cute);
+  font-size: var(--fs-title);
+  font-weight: 800;
+}
+
+.empty-state-sub {
+  margin: 0;
+  max-width: 22ch;
   color: var(--muted);
   font-size: var(--fs-sm);
-  text-align: center;
+  line-height: var(--lh-body);
+}
+
+.empty-state [data-collection-start] {
+  margin-top: var(--sp-2);
 }
 
 .toast {
@@ -563,7 +678,7 @@
   color: #26242b;
   box-shadow: var(--feedback-shadow);
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateY(-8px);
   pointer-events: none;
   transition: var(--feedback-ease);
   display: grid;
@@ -585,7 +700,7 @@
 
 .achievement-toast.show {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
 }
 
 /* Small save-to-collection celebration: 7 staggered sparkles bloom gently from screen center, then fade out. transform/opacity only. */
@@ -984,11 +1099,25 @@
     padding: var(--sp-2);
   }
 
-  .bead-studio-grid:not([data-phase="choose"]) .left-panel {
+  .bead-studio-grid:not([data-phase="choose"]) .workbench {
+    height: min(64vh, calc(100vw - 16px));
+    min-height: min(64vh, calc(100vw - 16px));
+    overflow: hidden;
+  }
+
+  /* Placing: bean box (color picker, the core tap target) sits right under the
+     action buttons; the reference sheet is secondary and drops to the bottom so
+     the color chips never spill below the fold. */
+  .bead-studio-grid:not([data-phase="choose"]) .right-panel {
     order: 1;
   }
 
+  .bead-studio-grid:not([data-phase="choose"]) .left-panel {
+    order: 3;
+  }
+
   .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
+    flex: 0 0 auto;
     height: auto;
     aspect-ratio: 1 / 1;
     min-height: 0;
@@ -1001,22 +1130,89 @@
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .left-panel section[data-stage="working"] .section-title {
-    order: 0;
+    display: none;
   }
 
   /* P1-6: keep the inspect/clear buttons near the canvas, with higher priority than the reference sheet and sidebar */
-  .bead-studio-grid:not([data-phase="choose"]) #stageControls {
-    order: 1;
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls.mobile-stage-controls {
+    order: 0;
+    align-self: stretch;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls[data-mobile-phase="place"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls[data-mobile-phase="place"] > button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls[data-mobile-phase="place"] .danger-text-button {
+    min-height: var(--tap-min);
+    border: 1px solid color-mix(in srgb, var(--coral) 36%, var(--line));
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--coral) 8%, var(--surface));
+    font-weight: 750;
+    opacity: 1;
   }
 
   .bead-studio-grid:not([data-phase="choose"]) #toolRack {
-    order: 2;
+    display: none;
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .side-reference {
-    order: 3;
-    margin-top: var(--sp-3);
-    margin-bottom: var(--sp-4);
+    order: 1;
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-areas:
+      "canvas head"
+      "canvas legend";
+    align-items: center;
+    column-gap: var(--sp-3);
+    row-gap: var(--sp-1);
+    margin: 0;
+    padding: var(--sp-2);
+    border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) .side-reference-head {
+    grid-area: head;
+    min-width: 0;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) .side-reference-head span,
+  .bead-studio-grid:not([data-phase="choose"]) .side-reference-head small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) #sideReferenceCanvas {
+    grid-area: canvas;
+    width: 72px;
+    height: 72px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) .side-reference-legend {
+    grid-area: legend;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    min-width: 0;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) .side-reference-chip {
+    min-height: 18px;
+    padding: 1px 5px;
+    font-size: var(--fs-2xs);
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) .side-reference-chip:nth-child(n + 5) {
+    display: none;
   }
 
   .color-palette {
@@ -1085,7 +1281,10 @@
 
   /* place-hint — push below topbar on phones incl. notch */
   .place-hint {
-    top: max(96px, calc(env(safe-area-inset-top, 0px) + 88px));
+    top: auto;
+    bottom: max(152px, calc(env(safe-area-inset-bottom, 0px) + 132px));
+    max-width: min(330px, calc(100vw - 40px));
+    padding: var(--sp-2) var(--sp-3);
   }
 
   /* mobile phase indicator via statusLine */
@@ -1129,7 +1328,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--sp-5);
-  background: var(--bg);
+  background: var(--page-base);
   color: var(--ink);
   text-align: center;
   padding: var(--sp-6);

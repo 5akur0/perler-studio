@@ -77,7 +77,7 @@ import {
   setModalActions, getOpenModalEl, focusablesIn, onModalOpened, restoreModalFocus,
   openShareModal, closeShareModal, openSettingsModal, closeSettingsModal,
   openRemapModal, closeRemapModal,
-  openOnboardingModal, closeOnboardingModal, maybeShowOnboarding,
+  closeOnboardingModal, maybeShowOnboarding,
   confirmModal, resolveConfirm,
 } from './modal-controller.js';
 import { hydrateIcons } from './icons.js';
@@ -196,6 +196,10 @@ import { prefersReducedMotion } from './utils.js';
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
+    if (state.appMode !== "bead") {
+      state.lastPlaceHintKey = "";
+      hidePlaceHint();
+    }
     applyScreenAria();
     updateFullBg();
     setShowcaseActive(state.appMode === "home");

@@ -17,6 +17,7 @@
     "test:projection": "node scripts/projection-regression.mjs",
     "test:release": "node scripts/release-regression.mjs",
     "test:session": "node scripts/session-regression.mjs",
+    "test:ui-quality": "node scripts/ui-quality-regression.mjs",
     "watch:js": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js --watch",
     "watch:css": "esbuild src/styles/index.css --bundle --outfile=styles.css --watch"
   },

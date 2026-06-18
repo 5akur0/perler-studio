@@ -3375,11 +3375,7 @@
     return (Math.max(rgb.r, rgb.g, rgb.b) + Math.min(rgb.r, rgb.g, rgb.b)) / 2;
   }
   function projectedGuideColor(code) {
-    const base = palette[code] || "#bbbbbb";
-    const lightness = projectedGuideLightness(code);
-    if (lightness >= 228) return mixColor(base, "#f3c04f", 0.46);
-    if (lightness >= 205) return mixColor(base, "#f3c04f", 0.24);
-    return base;
+    return palette[code] || "#bbbbbb";
   }
   function projectedGuideAlpha(code, alpha) {
     const lightness = projectedGuideLightness(code);
@@ -5354,7 +5350,8 @@
     return new Promise((resolve) => {
       const modal = els.confirmModal;
       if (!modal || !els.confirmModalOk) {
-        resolve(window.confirm(message));
+        console.warn("Confirm dialog is unavailable; cancelling guarded action.");
+        resolve(false);
         return;
       }
       if (els.confirmModalTitle) els.confirmModalTitle.textContent = title;
@@ -5412,32 +5409,6 @@
     els.settingsModal.setAttribute("aria-hidden", "true");
     restoreModalFocus();
   }
-  function onboardingHtml() {
-    const mobile = useMobileDirectPlacement();
-    const steps = mobile ? [
-      ["\u9009\u989C\u8272", "\u70B9\u4E0B\u65B9\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF08\u53EA\u663E\u793A\u672C\u56FE\u7528\u5230\u7684\u8272\uFF09\u3002"],
-      ["\u653E\u8C46", "\u70B9\u62FC\u8C46\u677F\u7684\u683C\u5B50\u653E\u4E0B\uFF1B\u540C\u8272\u518D\u70B9\u4E00\u6B21\u4F1A\u53D6\u4E0B\u3002"],
-      ["\u5BF9\u7167", "\u7167\u7740\u53C2\u8003\u56FE\u7EB8\uFF0C\u628A\u6BCF\u4E2A\u683C\u5B50\u586B\u597D\u3002"],
-      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
-    ] : [
-      ["\u9009\u989C\u8272", "\u70B9\u53F3\u4FA7\u8C46\u76D2\u91CC\u7684\u8272\u53F7\uFF0C\u628A\u8C46\u5B50\u5012\u8FDB\u8C46\u7B5B\u3002"],
-      ["\u53D6\u8C46", "\u70B9\u8C46\u7B5B\u7ED9\u300C\u8C46\u9488\u300D\u4E0A\u8C46\u94FA\u5927\u9762\u79EF\uFF1B\u6216\u7528\u300C\u954A\u5B50\u300D\u4ECE\u8C46\u7B5B/\u677F\u9762\u5939\u5355\u9897\u3002"],
-      ["\u6446\u653E", "\u5728\u62FC\u8C46\u677F\u5BF9\u5E94\u5B54\u4F4D\u653E\u4E0B\u8C46\u5B50\uFF0C\u7167\u7740\u5DE6\u4FA7\u53C2\u8003\u56FE\u7EB8\u62FC\u3002"],
-      ["\u71A8\u70EB\u5B9A\u578B", "\u68C0\u67E5 \u2192 \u76D6\u7EB8\u71A8\u70EB \u2192 \u51B7\u5374\u538B\u5E73 \u2192 \u4FDD\u5B58\u5230\u4F5C\u54C1\u96C6\u3002"]
-    ];
-    const lead = mobile ? "\u5728\u624B\u673A\u4E0A\u62FC\u8C46\u5F88\u7B80\u5355\uFF1A" : "\u5728\u6D4F\u89C8\u5668\u91CC\u5B8C\u6574\u4F53\u9A8C\u62FC\u8C46\u624B\u4F5C\uFF1A";
-    const tip = mobile ? "\u53CC\u6307\u53EF\u7F29\u653E\u677F\u9762\u3002" : "\u6309\u4F4F\u677F\u9762\u53EF\u62D6\u52A8\uFF0C\u6EDA\u8F6E\u7F29\u653E\u3002";
-    const items = steps.map(([t, d], i) => `<li><span class="onboarding-step-no">${i + 1}</span><span><strong>${t}</strong>${d}</span></li>`).join("");
-    return `<p class="onboarding-lead">${lead}</p><ol class="onboarding-steps">${items}</ol><p class="onboarding-tip">${tip}</p>`;
-  }
-  function openOnboardingModal() {
-    if (!els.onboardingModal) return;
-    if (els.onboardingBody) els.onboardingBody.innerHTML = onboardingHtml();
-    state.onboardingModalOpen = true;
-    els.onboardingModal.classList.add("show");
-    els.onboardingModal.setAttribute("aria-hidden", "false");
-    onModalOpened(els.onboardingModal);
-  }
   function closeOnboardingModal() {
     if (!els.onboardingModal) return;
     state.onboardingModalOpen = false;
@@ -5459,7 +5430,10 @@
       seen = false;
     }
     if (seen) return;
-    openOnboardingModal();
+    try {
+      localStorage.setItem(onboardingKey, "seen");
+    } catch {
+    }
   }
   function openRemapModal(focusSource = null) {
     if (state.phase !== "choose") return;
@@ -5624,8 +5598,30 @@
     triggerHaptic: () => {
     }
   };
+  var stageControlsHome = els.stageControls?.parentElement || null;
+  var stageControlsHomeNext = els.stageControls?.nextSibling || null;
   function setUIActions(nextActions = {}) {
     uiActions = { ...uiActions, ...nextActions };
+  }
+  function syncStageControlsPlacement() {
+    if (!els.stageControls || !stageControlsHome) return;
+    const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
+    els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
+    els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
+    if (mobileWorking) {
+      const workbench = els.studioGrid?.querySelector(":scope > .workbench");
+      if (workbench && els.stageControls.previousElementSibling !== workbench) {
+        workbench.after(els.stageControls);
+      }
+      return;
+    }
+    if (els.stageControls.parentElement !== stageControlsHome) {
+      if (stageControlsHomeNext?.parentElement === stageControlsHome) {
+        stageControlsHome.insertBefore(els.stageControls, stageControlsHomeNext);
+      } else {
+        stageControlsHome.appendChild(els.stageControls);
+      }
+    }
   }
   function setSizeControls(size) {
     const normalized = Number(size);
@@ -5902,6 +5898,7 @@
     if (els.mobileSelectionThumb) drawPatternThumb(els.mobileSelectionThumb, state.selectedPattern);
   }
   function renderControls() {
+    syncStageControlsPlacement();
     els.stageControls.innerHTML = "";
     els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "\u5DE5\u5177\u53F0";
     els.toolMeta.textContent = state.phase === "place" && !useMobileDirectPlacement() ? state.tool === "needle" ? "\u8C46\u9488" : `\u954A\u5B50${state.tweezerBead ? ` \xB7 ${beadIds[state.tweezerBead]}` : " \xB7 \u7A7A\u5939"}` : "";
@@ -5911,14 +5908,24 @@
     if (state.phase === "place") {
       const placeHintText = state.spill ? "\u6709\u4E00\u9897\u8C46\u5B50\u5012\u4E0B\u6765\u5361\u4F4F\u4E86\u3002\u4F60\u53EF\u4EE5\u5148\u7EE7\u7EED\u6446\u653E\uFF0C\u71A8\u70EB\u524D\u8BB0\u5F97\u5904\u7406\u3002" : useMobileDirectPlacement() ? "\u4ECE\u8C46\u76D2\u9009\u989C\u8272\uFF0C\u70B9\u683C\u5B50\u653E\u7F6E\u6216\u66FF\u6362\uFF1B\u540C\u8272\u518D\u70B9\u4E00\u6B21\u4F1A\u53D6\u4E0B\u3002" : state.tool === "needle" ? `\u70B9\u51FB\u8C46\u76D2\u5012\u8C46\u8FDB\u7B5B\uFF1B\u70B9\u8C46\u7B5B\u67D0\u6761\u69FD\u7ED9\u8C46\u9488\u4E0A\u8C46\uFF08\u6700\u591A ${needleCapacity()} \u9897\uFF09\u3002` : state.tweezerBead ? `\u954A\u5B50\u6B63\u5939\u7740 ${beadLabel(state.tweezerBead)}\uFF0C\u70B9\u51FB\u7A7A\u683C\u653E\u4E0B\u3002` : "\u954A\u5B50\u53EF\u4ECE\u8C46\u7B5B\u70B9\u53D6\u4E00\u9897\uFF0C\u6216\u4ECE\u677F\u9762\u5939\u8D77\u4E00\u9897\u518D\u653E\u4E0B\u3002";
       const placeHintKey = state.spill ? `spill:${state.spill.index}:${state.spill.code}` : useMobileDirectPlacement() ? `mobile:${state.selectedColor}` : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`;
-      showPlaceHint(placeHintText, placeHintKey);
+      if (!useMobileDirectPlacement() || state.spill) {
+        showPlaceHint(placeHintText, placeHintKey);
+      } else {
+        hidePlaceHint();
+      }
       addButton("\u68C0\u67E5\u4F5C\u54C1", "primary-button", () => uiActions.setPhase("inspect"));
-      addButton("\u6E05\u7A7A\u677F\u9762", "danger-text-button", () => uiActions.clearBoard?.());
+      addButton("\u6E05\u7A7A\u677F\u9762", "danger-text-button", () => uiActions.clearBoard?.(), false, {
+        icon: icon("trash-2", { size: 16 })
+      });
       return;
     }
     if (state.phase === "inspect") {
       const summary = inspectionSummary();
-      addHint(state.sandboxMode ? "\u6C99\u76D2\u6A21\u5F0F\u4E0D\u505A\u6F0F\u653E/\u9519\u8272\u6821\u9A8C\uFF0C\u53EF\u76F4\u63A5\u8FDB\u5165\u71A8\u70EB\u3002" : `\u6F0F\u653E ${summary.missing}\uFF0C\u9519\u8272 ${summary.wrong}\uFF0C\u591A\u653E ${summary.extra}\u3002`);
+      if (state.sandboxMode) {
+        addHint("\u6C99\u76D2\u6A21\u5F0F\u4E0D\u505A\u6F0F\u653E/\u9519\u8272\u6821\u9A8C\uFF0C\u53EF\u76F4\u63A5\u8FDB\u5165\u71A8\u70EB\u3002");
+      } else {
+        addInspectStats(summary);
+      }
       if (state.spill) {
         addHint("\u8FD8\u6709\u5012\u4E0B\u7684\u8C46\u5B50\u6CA1\u5939\u8D77\u3002\u7EE7\u7EED\u71A8\u70EB\u4F1A\u628A\u8FD9\u9897\u8C46\u7CCA\u5728\u677F\u9762\u4E0A\u3002");
       }
@@ -5996,11 +6003,16 @@
       addButton("\u5206\u4EAB\u5C0F\u7EA2\u4E66", "", () => uiActions.openShareModal());
     }
   }
-  function addButton(label, className, handler, disabled = false) {
+  function addButton(label, className, handler, disabled = false, options = {}) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = label;
-    button.className = className || "";
+    if (options.icon) {
+      button.innerHTML = `<span class="btn-glyph" aria-hidden="true">${options.icon}</span><span class="btn-label">${escapeHtml(label)}</span>`;
+      button.classList.add("icon-text-button");
+    } else {
+      button.textContent = label;
+    }
+    button.className = `${button.className} ${className || ""}`.trim();
     button.disabled = disabled;
     button.addEventListener("click", handler);
     els.stageControls.appendChild(button);
@@ -6036,6 +6048,19 @@
     box.className = "hint-box";
     box.textContent = text;
     els.stageControls.appendChild(box);
+  }
+  function addInspectStats(summary) {
+    const wrap = document.createElement("div");
+    wrap.className = "inspect-stats";
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-label", "\u68C0\u67E5\u7ED3\u679C");
+    const stats = [
+      { key: "missing", label: "\u6F0F\u653E", value: summary.missing },
+      { key: "wrong", label: "\u9519\u8272", value: summary.wrong },
+      { key: "extra", label: "\u591A\u653E", value: summary.extra }
+    ];
+    wrap.innerHTML = stats.map(({ key, label, value }) => `<span class="inspect-stat is-${key}${value > 0 ? "" : " is-zero"}">${label}<b>${value}</b></span>`).join("");
+    els.stageControls.appendChild(wrap);
   }
   function addCraftToggle() {
     const wrap = document.createElement("div");
@@ -6293,7 +6318,8 @@
     if (!collection2.length) {
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.textContent = "\u8FD8\u6CA1\u6709\u5B8C\u6210\u54C1";
+      empty.innerHTML = `${icon("clipboard-list", { size: 44, strokeWidth: 1.8, class: "empty-state-icon" })}<p class="empty-state-text">\u8FD8\u6CA1\u6709\u5B8C\u6210\u54C1</p><p class="empty-state-sub">\u505A\u5B8C\u7B2C\u4E00\u4EF6\uFF0C\u5B83\u5C31\u4F1A\u6446\u5728\u8FD9\u91CC\u3002</p><button type="button" class="primary-button" data-collection-start>\u53BB\u62FC\u8C46</button>`;
+      empty.querySelector("[data-collection-start]")?.addEventListener("click", () => els.startBeadButton?.click());
       els.collectionPanel.appendChild(empty);
       return;
     }
@@ -9905,6 +9931,10 @@
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
+    if (state.appMode !== "bead") {
+      state.lastPlaceHintKey = "";
+      hidePlaceHint();
+    }
     applyScreenAria();
     updateFullBg();
     setShowcaseActive(state.appMode === "home");

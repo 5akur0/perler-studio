@@ -93,7 +93,6 @@
                 <strong>拼豆台</strong>
                 <small>选择图纸，开始摆豆和熨烫。</small>
               </span>
-              <span class="start-row-arrow" data-lucide-icon="chevron-right" data-icon-size="18"></span>
             </button>
             <button class="start-row start-row-draw" id="startDrawButton" type="button">
               <span class="start-row-icon" aria-hidden="true">
@@ -103,7 +102,6 @@
                 <strong>绘图台</strong>
                 <small>绘制、导入和整理自己的图纸。</small>
               </span>
-              <span class="start-row-arrow" data-lucide-icon="chevron-right" data-icon-size="18"></span>
             </button>
             <button class="start-row start-row-gallery" id="startGalleryButton" type="button">
               <span class="start-row-icon" aria-hidden="true">
@@ -113,7 +111,6 @@
                 <strong>图纸画廊</strong>
                 <small>浏览已审核图纸，也可以投稿给我审核。</small>
               </span>
-              <span class="start-row-arrow" data-lucide-icon="chevron-right" data-icon-size="18"></span>
             </button>
             <button class="start-row start-row-collection" id="collectionButton" type="button">
               <span class="start-row-icon" aria-hidden="true">
@@ -124,11 +121,11 @@
                 <small>查看已经保存的完成品。</small>
               </span>
               <strong class="start-row-count" id="collectionCount">0</strong>
-              <span class="start-row-arrow" data-lucide-icon="chevron-right" data-icon-size="18"></span>
             </button>
           </div>
           </div>
           <button class="start-showcase" id="startShowcaseButton" type="button" aria-label="用这张图纸开始拼豆">
+            <span class="start-showcase-sticker" aria-hidden="true">今日精选</span>
             <span class="start-showcase-stage">
               <canvas id="startShowcaseCanvas" class="start-showcase-canvas" width="340" height="340" aria-hidden="true"></canvas>
             </span>
@@ -175,7 +172,7 @@
               <button class="ghost-button" id="gallerySubmitButton" type="button">投稿图纸</button>
             </div>
             <div class="gallery-grid" id="galleryGrid"></div>
-            <div class="gallery-empty" id="galleryEmpty">画廊还没有发布图纸。</div>
+            <div class="gallery-empty" id="galleryEmpty" hidden></div>
           </main>
         </div>
       </section>
