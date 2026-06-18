@@ -61,18 +61,18 @@ assert.match(
 
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.left-panel\s*\{[\s\S]*?order:\s*1/,
-  "mobile reference panel should appear before the bean box",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.right-panel\s*\{[\s\S]*?order:\s*1/,
+  "mobile bean box (color picker) should appear right under the action buttons",
 );
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.side-reference\s*\{[\s\S]*?grid-template-columns:\s*72px\s+minmax\(0,\s*1fr\)/,
-  "mobile reference should collapse into a compact screenshot-friendly card",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.side-reference\s*\{[\s\S]*?display:\s*none/,
+  "mobile should hide the reference sheet (light hint guides placement; counts live on the 豆盒 chips)",
 );
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.right-panel\s*\{[\s\S]*?order:\s*2/,
-  "mobile bean box should follow the compact reference card",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.left-panel\s*\{[\s\S]*?order:\s*3/,
+  "mobile reference panel (now hidden) drops to the bottom of the order",
 );
 
 assert.match(

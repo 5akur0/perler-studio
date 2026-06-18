@@ -1161,57 +1161,13 @@
     display: none;
   }
 
+  /* Phone drops the reference sheet entirely: the in-canvas light hint already
+     guides placement and per-color counts live on the 豆盒 chips. This also kills
+     the frosted ghost that bled through the 豆盒 / 检查台 panels (the modules were
+     overlapping). The .left-panel … selector matches the max-width:1179 rule's
+     specificity so the reference stays hidden on phones (tablet keeps it). */
+  .bead-studio-grid:not([data-phase="choose"]) .left-panel .side-reference,
   .bead-studio-grid:not([data-phase="choose"]) .side-reference {
-    order: 1;
-    display: grid;
-    grid-template-columns: 72px minmax(0, 1fr);
-    grid-template-areas:
-      "canvas head"
-      "canvas legend";
-    align-items: center;
-    column-gap: var(--sp-3);
-    row-gap: var(--sp-1);
-    margin: 0;
-    padding: var(--sp-2);
-    border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
-    border-radius: var(--r-sm);
-    background: color-mix(in srgb, var(--surface) 86%, transparent);
-  }
-
-  .bead-studio-grid:not([data-phase="choose"]) .side-reference-head {
-    grid-area: head;
-    min-width: 0;
-  }
-
-  .bead-studio-grid:not([data-phase="choose"]) .side-reference-head span,
-  .bead-studio-grid:not([data-phase="choose"]) .side-reference-head small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .bead-studio-grid:not([data-phase="choose"]) #sideReferenceCanvas {
-    grid-area: canvas;
-    width: 72px;
-    height: 72px;
-    aspect-ratio: 1 / 1;
-  }
-
-  .bead-studio-grid:not([data-phase="choose"]) .side-reference-legend {
-    grid-area: legend;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-1);
-    min-width: 0;
-  }
-
-  .bead-studio-grid:not([data-phase="choose"]) .side-reference-chip {
-    min-height: 18px;
-    padding: 1px 5px;
-    font-size: var(--fs-2xs);
-  }
-
-  .bead-studio-grid:not([data-phase="choose"]) .side-reference-chip:nth-child(n + 5) {
     display: none;
   }
 
