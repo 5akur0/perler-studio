@@ -1887,12 +1887,13 @@
     o.start(t0);
     o.stop(t0 + dur + 0.02);
   }
-  function noiseHit(t0, { dur = 0.18, gain = 0.4, type = "bandpass", freq = 2600, q = 0.8, attack = 0.01, tremolo = 0 }) {
+  function noiseHit(t0, { dur = 0.18, gain = 0.4, type = "bandpass", freq = 2600, q = 0.8, attack = 0.01, tremolo = 0, glideTo = null }) {
     const src = ctx.createBufferSource();
     src.buffer = noise();
     const f = ctx.createBiquadFilter();
     f.type = type;
-    f.frequency.value = freq;
+    f.frequency.setValueAtTime(freq, t0);
+    if (glideTo) f.frequency.exponentialRampToValueAtTime(Math.max(20, glideTo), t0 + dur);
     f.Q.value = q;
     const g = ctx.createGain();
     g.gain.setValueAtTime(1e-4, t0);
@@ -1931,8 +1932,14 @@
         tone(tt, { freq: f, type: "triangle", dur: 0.05, gain: 0.18, glideTo: f * 0.7 });
       }
     },
+    // Tray shake / sorting
     sift(t) {
       noiseHit(t, { dur: 0.34, gain: 0.16, type: "bandpass", freq: 3200, q: 0.7, attack: 0.03, tremolo: 18 });
+    },
+    // Scoop beads onto needle / tweezers / from the box
+    grab(t) {
+      noiseHit(t, { dur: 0.13, gain: 0.16, type: "bandpass", freq: 1600, q: 0.6, attack: 0.02, glideTo: 2600 });
+      tone(t + 0.02, { freq: rand(300, 380), type: "triangle", dur: 0.05, gain: 0.16, glideTo: 220 });
     },
     pick(t) {
       noiseHit(t, { dur: 0.03, gain: 0.16, type: "highpass", freq: 4200, attack: 2e-3 });
@@ -1940,8 +1947,25 @@
     drop(t) {
       tone(t, { freq: 300, type: "sine", dur: 0.06, gain: 0.22, glideTo: 180 });
     },
+    // A loose bead bouncing onto the floor
+    "floor-drop"(t) {
+      tone(t, { freq: 360, type: "sine", dur: 0.07, gain: 0.22, glideTo: 200 });
+      tone(t + 0.09, { freq: 280, type: "sine", dur: 0.06, gain: 0.13, glideTo: 170 });
+      noiseHit(t, { dur: 0.03, gain: 0.1, type: "highpass", freq: 3500, attack: 2e-3 });
+    },
+    // Empty the tray
+    dump(t) {
+      for (let i = 0; i < 9; i += 1) {
+        const tt = t + i * rand(0.012, 0.03);
+        noiseHit(tt, { dur: 0.03, gain: 0.12, type: "bandpass", freq: 2600 - i * 140, q: 0.6, attack: 2e-3 });
+      }
+    },
     iron(t) {
       noiseHit(t, { dur: 0.22, gain: 0.11, type: "lowpass", freq: 900, q: 0.5, attack: 0.06 });
+    },
+    // Flip the board over for a second pass
+    flip(t) {
+      noiseHit(t, { dur: 0.2, gain: 0.14, type: "lowpass", freq: 700, q: 0.4, attack: 0.04, glideTo: 1800 });
     },
     cool(t) {
       noiseHit(t, { dur: 0.5, gain: 0.09, type: "highpass", freq: 5e3, attack: 0.08 });
@@ -1949,9 +1973,25 @@
     },
     finish(t) {
       [659.25, 783.99, 1046.5].forEach((nf, i) => (
-        // E5 · G5 · C6, gentle arpeggio
+        // E5 - G5 - C6, gentle arpeggio
         tone(t + i * 0.12, { freq: nf, type: "sine", dur: 0.5, gain: 0.2, attack: 0.01 })
       ));
+    },
+    // Achievement unlocked — brighter & sparklier than finish
+    achievement(t) {
+      [1046.5, 1318.5, 1567.98].forEach((nf, i) => {
+        tone(t + i * 0.1, { freq: nf, type: "sine", dur: 0.45, gain: 0.18, attack: 8e-3 });
+        tone(t + i * 0.1, { freq: nf * 2, type: "sine", dur: 0.3, gain: 0.05, attack: 8e-3 });
+      });
+    },
+    // Desk-lamp switch
+    lamp(t) {
+      noiseHit(t, { dur: 0.02, gain: 0.18, type: "highpass", freq: 5e3, attack: 1e-3 });
+      tone(t + 0.01, { freq: 180, type: "square", dur: 0.04, gain: 0.12, glideTo: 120 });
+    },
+    // Switching pages / app modes — very soft swish
+    nav(t) {
+      noiseHit(t, { dur: 0.12, gain: 0.08, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
     },
     spill(t) {
       tone(t, { freq: 150, type: "sine", dur: 0.16, gain: 0.28, glideTo: 70 });
@@ -1970,15 +2010,21 @@
     "bead-remove": 4,
     pour: [4, 26, 4, 26, 4],
     sift: [8, 22, 8],
+    grab: 5,
     pick: 4,
     drop: 6,
+    "floor-drop": [3, 20, 3],
+    dump: [4, 18, 4, 18, 4],
     iron: 6,
+    flip: 8,
     finish: [12, 40, 12, 40, 18],
+    achievement: [10, 30, 10, 30, 12],
+    lamp: 6,
     spill: [15, 30, 15],
     error: [15, 30, 15],
     "ui-tap": 4
   };
-  var throttleMs = { iron: 90, sift: 200, "bead-place": 18 };
+  var throttleMs = { iron: 90, sift: 200, nav: 140, grab: 40, "bead-place": 18 };
   var lastAt = {};
   function playSfx(name) {
     if (!sfxEnabled) return;
@@ -6785,8 +6831,9 @@
     }
     viewer.classList.add("show");
     const canvas = viewer.querySelector("canvas");
-    canvas.style.width = "min(640px, 78vh)";
-    canvas.style.height = "min(640px, 78vh)";
+    const previewSize = "min(640px, 78vh, 86vw)";
+    canvas.style.width = previewSize;
+    canvas.style.height = previewSize;
     requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
     viewer.querySelector(".collection-enlarged-meta").textContent = `${entry.name} \xB7 ${normalizeCraft(entry.craft)} \xB7 \u8BC4\u7EA7 ${entry.grade} \xB7 ${entry.date}`;
     const openBtn = viewer.querySelector(".collection-enlarged-open");
@@ -10240,7 +10287,9 @@
     }
   }
   function setAppMode(mode) {
+    const prevMode = state.appMode;
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
+    if (prevMode && prevMode !== state.appMode) playSfx("nav");
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
     if (state.appMode !== "bead") {
@@ -10391,6 +10440,7 @@
   }
   function toggleLamp(next = !state.lampOn) {
     state.lampOn = Boolean(next);
+    feedback("lamp");
     state.lampSwitchFlashUntil = performance.now() + 140;
     showToast(state.lampOn ? "\u5DE5\u4F5C\u706F\u5DF2\u6253\u5F00\uFF1A\u6295\u5F71\u8272\u7A3F\u53EF\u89C1\u3002" : "\u5DE5\u4F5C\u706F\u5DF2\u5173\u95ED\uFF1A\u5173\u95ED\u6295\u5F71\u8272\u7A3F\u3002");
     markDirty();
@@ -10430,6 +10480,7 @@
     };
     state.floorDrops.push(drop);
     if (state.floorDrops.length > 52) state.floorDrops.shift();
+    feedback("floor-drop");
     showToast(`${beadLabel(code)} \u6389\u5230\u5730\u677F\u4E0A\u4E86\u3002`);
     state.savedCurrent = false;
     markDirty();
@@ -10594,6 +10645,7 @@
       return;
     }
     state.trayProgress = clamp(state.trayProgress + amount, 0, 100);
+    feedback("sift");
     showToast(message);
     markDirty();
   }
@@ -10603,6 +10655,7 @@
       return;
     }
     const oldColor = state.trayColor;
+    feedback("dump");
     state.trayColor = null;
     state.trayProgress = 0;
     state.trayBeans = 0;
@@ -10641,6 +10694,7 @@
       return;
     }
     state.needleLoaded += grabbed;
+    feedback("grab");
     syncTrayBeans();
     state.trayProgress = clamp(state.trayProgress - grabbed * 0.12, 0, 100);
     showToast(`\u8C46\u9488\u4ECE\u7B2C ${row + 1} \u6761\u69FD\u53D6\u5230 ${grabbed} \u9897 ${beadIds[state.trayColor]}\u3002`);
@@ -10675,6 +10729,7 @@
     state.trayMatrix[row][col] = false;
     syncTrayBeans();
     state.tweezerBead = state.trayColor;
+    feedback("grab");
     state.trayProgress = clamp(state.trayProgress - 0.08, 0, 100);
     showToast(`\u954A\u5B50\u4ECE\u8C46\u7B5B\u5939\u8D77 ${beadLabel(state.tweezerBead)}\u3002`);
     markDirty();
@@ -11252,6 +11307,7 @@
     markDirty();
   }
   function flipAndIron() {
+    feedback("flip");
     state.flipCount += 1;
     state.cooling = 20;
     state.heat = state.heat.map((heat) => heat * 0.82);
@@ -11278,9 +11334,15 @@
     state.conceptEaster = true;
     state.conceptEasterType = type;
     if (type === "full") {
-      unlockAchievement(fullBoardAchievement, showAchievementToast);
+      unlockAchievement(fullBoardAchievement, (a) => {
+        feedback("achievement");
+        showAchievementToast(a);
+      });
     } else {
-      unlockAchievement(conceptAchievement, showAchievementToast);
+      unlockAchievement(conceptAchievement, (a) => {
+        feedback("achievement");
+        showAchievementToast(a);
+      });
     }
     setPhase("finish");
     state.savedCurrent = false;

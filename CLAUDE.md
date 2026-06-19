@@ -53,5 +53,6 @@ CloudBase 数据集合、画廊审核接口、Cloudflare Pages 上线步骤见 `
 
 ## 约定
 
-- 文档与 git 提交信息用中文（参考近期 `polish: …` 提交风格）。
+- **Git 提交信息（commit message）与所有代码注释一律用英文。** 这是硬性要求，没有例外：commit message、`src/**` 内的注释、JSDoc 全部写英文，禁止中文提交信息 / 中文代码注释。提交信息沿用 Conventional Commits 风格（`fix:` / `feat:` / `refactor:` / `polish:` 等）。
+- 上一条只约束「提交信息」和「代码注释」。面向用户的文案、以及 `README.md` / `DESIGN.md` / `PRODUCT.md` / 本文件等项目文档仍用中文。
 - 玩法、色卡、图纸尺寸等使用细节见 `README.md`，不在此重复。

@@ -1,12 +1,12 @@
 // Cozy craft "foley": synthesized sound effects (no audio assets, so it stays
-// offline / file:// safe) paired with haptics. Sound + vibration are fired from a
+// offline / file:// safe) paired with haptics. Sound + vibration fire from a
 // single feedback() call so they're synchronized by construction.
 //
-// Platform reality (2026): all iOS browsers AND in-app webviews (WeChat / 小红书)
-// use WebKit, which has no Web Vibration API — so navigator.vibrate is simply
-// absent there and vibrate() no-ops; iOS leans on sound + on-screen feedback.
-// Android (incl. Chromium in-app webviews) gets both. If Apple ever ships
-// navigator.vibrate, the feature-detect below makes it light up with no code change.
+// Platform note (2026): all iOS browsers AND in-app webviews (WeChat / Xiaohongshu)
+// use WebKit, which has no Web Vibration API — so navigator.vibrate is absent there
+// and vibrate() no-ops; iOS leans on sound + on-screen feedback. Android (incl.
+// Chromium in-app webviews) gets both. If Apple ever ships navigator.vibrate, the
+// feature-detect below lights it up with no code change.
 
 let ctx = null;
 let master = null;
@@ -31,7 +31,7 @@ function ensureCtx() {
   try {
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 0.22;                       // calm overall level (治愈基调)
+    master.gain.value = 0.22;                       // calm overall level
     const comp = ctx.createDynamicsCompressor();    // guard against clipping on rapid hits
     master.connect(comp);
     comp.connect(ctx.destination);
@@ -64,11 +64,13 @@ function tone(t0, { freq = 440, type = "sine", dur = 0.08, gain = 0.6, glideTo =
   o.start(t0); o.stop(t0 + dur + 0.02);
 }
 
-function noiseHit(t0, { dur = 0.18, gain = 0.4, type = "bandpass", freq = 2600, q = 0.8, attack = 0.01, tremolo = 0 }) {
+function noiseHit(t0, { dur = 0.18, gain = 0.4, type = "bandpass", freq = 2600, q = 0.8, attack = 0.01, tremolo = 0, glideTo = null }) {
   const src = ctx.createBufferSource();
   src.buffer = noise();
   const f = ctx.createBiquadFilter();
-  f.type = type; f.frequency.value = freq; f.Q.value = q;
+  f.type = type; f.frequency.setValueAtTime(freq, t0);
+  if (glideTo) f.frequency.exponentialRampToValueAtTime(Math.max(20, glideTo), t0 + dur);
+  f.Q.value = q;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(gain, t0 + attack);
@@ -102,21 +104,60 @@ const recipes = {
       tone(tt, { freq: f, type: "triangle", dur: 0.05, gain: 0.18, glideTo: f * 0.7 });
     }
   },
+  // Tray shake / sorting
   sift(t) {
     noiseHit(t, { dur: 0.34, gain: 0.16, type: "bandpass", freq: 3200, q: 0.7, attack: 0.03, tremolo: 18 });
   },
+  // Scoop beads onto needle / tweezers / from the box
+  grab(t) {
+    noiseHit(t, { dur: 0.13, gain: 0.16, type: "bandpass", freq: 1600, q: 0.6, attack: 0.02, glideTo: 2600 });
+    tone(t + 0.02, { freq: rand(300, 380), type: "triangle", dur: 0.05, gain: 0.16, glideTo: 220 });
+  },
   pick(t) { noiseHit(t, { dur: 0.03, gain: 0.16, type: "highpass", freq: 4200, attack: 0.002 }); },
   drop(t) { tone(t, { freq: 300, type: "sine", dur: 0.06, gain: 0.22, glideTo: 180 }); },
+  // A loose bead bouncing onto the floor
+  "floor-drop"(t) {
+    tone(t, { freq: 360, type: "sine", dur: 0.07, gain: 0.22, glideTo: 200 });
+    tone(t + 0.09, { freq: 280, type: "sine", dur: 0.06, gain: 0.13, glideTo: 170 });
+    noiseHit(t, { dur: 0.03, gain: 0.1, type: "highpass", freq: 3500, attack: 0.002 });
+  },
+  // Empty the tray
+  dump(t) {
+    for (let i = 0; i < 9; i += 1) {
+      const tt = t + i * rand(0.012, 0.03);
+      noiseHit(tt, { dur: 0.03, gain: 0.12, type: "bandpass", freq: 2600 - i * 140, q: 0.6, attack: 0.002 });
+    }
+  },
   iron(t) {
     noiseHit(t, { dur: 0.22, gain: 0.11, type: "lowpass", freq: 900, q: 0.5, attack: 0.06 });
+  },
+  // Flip the board over for a second pass
+  flip(t) {
+    noiseHit(t, { dur: 0.2, gain: 0.14, type: "lowpass", freq: 700, q: 0.4, attack: 0.04, glideTo: 1800 });
   },
   cool(t) {
     noiseHit(t, { dur: 0.5, gain: 0.09, type: "highpass", freq: 5000, attack: 0.08 });
     tone(t, { freq: 520, type: "sine", dur: 0.5, gain: 0.11, glideTo: 320, attack: 0.05 });
   },
   finish(t) {
-    [659.25, 783.99, 1046.5].forEach((nf, i) => // E5 · G5 · C6, gentle arpeggio
+    [659.25, 783.99, 1046.5].forEach((nf, i) => // E5 - G5 - C6, gentle arpeggio
       tone(t + i * 0.12, { freq: nf, type: "sine", dur: 0.5, gain: 0.2, attack: 0.01 }));
+  },
+  // Achievement unlocked — brighter & sparklier than finish
+  achievement(t) {
+    [1046.5, 1318.5, 1567.98].forEach((nf, i) => { // C6 - E6 - G6
+      tone(t + i * 0.1, { freq: nf, type: "sine", dur: 0.45, gain: 0.18, attack: 0.008 });
+      tone(t + i * 0.1, { freq: nf * 2, type: "sine", dur: 0.3, gain: 0.05, attack: 0.008 }); // shimmer
+    });
+  },
+  // Desk-lamp switch
+  lamp(t) {
+    noiseHit(t, { dur: 0.02, gain: 0.18, type: "highpass", freq: 5000, attack: 0.001 });
+    tone(t + 0.01, { freq: 180, type: "square", dur: 0.04, gain: 0.12, glideTo: 120 });
+  },
+  // Switching pages / app modes — very soft swish
+  nav(t) {
+    noiseHit(t, { dur: 0.12, gain: 0.08, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
   },
   spill(t) {
     tone(t, { freq: 150, type: "sine", dur: 0.16, gain: 0.28, glideTo: 70 });
@@ -131,15 +172,16 @@ const recipes = {
   },
 };
 
-// Haptic pattern paired with each event (ms). 0 / absent = no vibration.
+// Haptic pattern paired with each event (ms). Absent = no vibration.
 const haptics = {
   "bead-place": 5, "bead-remove": 4, pour: [4, 26, 4, 26, 4], sift: [8, 22, 8],
-  pick: 4, drop: 6, iron: 6, finish: [12, 40, 12, 40, 18], spill: [15, 30, 15],
-  error: [15, 30, 15], "ui-tap": 4,
+  grab: 5, pick: 4, drop: 6, "floor-drop": [3, 20, 3], dump: [4, 18, 4, 18, 4],
+  iron: 6, flip: 8, finish: [12, 40, 12, 40, 18], achievement: [10, 30, 10, 30, 12],
+  lamp: 6, spill: [15, 30, 15], error: [15, 30, 15], "ui-tap": 4,
 };
 
-// Throttle the chatty/continuous events so drags don't machine-gun the mixer.
-const throttleMs = { iron: 90, sift: 200, "bead-place": 18 };
+// Throttle chatty / continuous events so drags don't machine-gun the mixer.
+const throttleMs = { iron: 90, sift: 200, nav: 140, grab: 40, "bead-place": 18 };
 const lastAt = {};
 
 export function playSfx(name) {

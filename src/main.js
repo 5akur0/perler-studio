@@ -196,7 +196,9 @@ import { prefersReducedMotion } from './utils.js';
   }
 
   function setAppMode(mode) {
+    const prevMode = state.appMode;
     state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
+    if (prevMode && prevMode !== state.appMode) playSfx("nav"); // soft swish on real page switches only
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
     if (state.appMode !== "bead") {
@@ -376,6 +378,7 @@ import { prefersReducedMotion } from './utils.js';
 
   function toggleLamp(next = !state.lampOn) {
     state.lampOn = Boolean(next);
+    sfxFeedback("lamp");
     state.lampSwitchFlashUntil = performance.now() + 140;
     showToast(state.lampOn ? "工作灯已打开：投影色稿可见。" : "工作灯已关闭：关闭投影色稿。");
     markDirty();
@@ -420,6 +423,7 @@ import { prefersReducedMotion } from './utils.js';
     };
     state.floorDrops.push(drop);
     if (state.floorDrops.length > 52) state.floorDrops.shift();
+    sfxFeedback("floor-drop");
     showToast(`${beadLabel(code)} 掉到地板上了。`);
     state.savedCurrent = false;
     markDirty();
@@ -595,6 +599,7 @@ import { prefersReducedMotion } from './utils.js';
       return;
     }
     state.trayProgress = clamp(state.trayProgress + amount, 0, 100);
+    sfxFeedback("sift");
     showToast(message);
     markDirty();
   }
@@ -605,6 +610,7 @@ import { prefersReducedMotion } from './utils.js';
       return;
     }
     const oldColor = state.trayColor;
+    sfxFeedback("dump");
     state.trayColor = null;
     state.trayProgress = 0;
     state.trayBeans = 0;
@@ -646,6 +652,7 @@ import { prefersReducedMotion } from './utils.js';
       return;
     }
     state.needleLoaded += grabbed;
+    sfxFeedback("grab");
     syncTrayBeans();
     state.trayProgress = clamp(state.trayProgress - grabbed * 0.12, 0, 100);
     showToast(`豆针从第 ${row + 1} 条槽取到 ${grabbed} 颗 ${beadIds[state.trayColor]}。`);
@@ -681,6 +688,7 @@ import { prefersReducedMotion } from './utils.js';
     state.trayMatrix[row][col] = false;
     syncTrayBeans();
     state.tweezerBead = state.trayColor;
+    sfxFeedback("grab");
     state.trayProgress = clamp(state.trayProgress - 0.08, 0, 100);
     showToast(`镊子从豆筛夹起 ${beadLabel(state.tweezerBead)}。`);
     markDirty();
@@ -712,6 +720,7 @@ import { prefersReducedMotion } from './utils.js';
       return;
     }
     state.tweezerBead = code;
+    sfxFeedback("grab");
     showToast(`镊子夹起 ${beadLabel(code)}。`);
   }
 
@@ -1333,6 +1342,7 @@ import { prefersReducedMotion } from './utils.js';
   }
 
   function flipAndIron() {
+    sfxFeedback("flip");
     state.flipCount += 1;
     state.cooling = 20;
     state.heat = state.heat.map((heat) => heat * 0.82);
@@ -1361,9 +1371,9 @@ import { prefersReducedMotion } from './utils.js';
     state.conceptEaster = true;
     state.conceptEasterType = type;
     if (type === "full") {
-      unlockAchievement(fullBoardAchievement, showAchievementToast);
+      unlockAchievement(fullBoardAchievement, (a) => { sfxFeedback("achievement"); showAchievementToast(a); });
     } else {
-      unlockAchievement(conceptAchievement, showAchievementToast);
+      unlockAchievement(conceptAchievement, (a) => { sfxFeedback("achievement"); showAchievementToast(a); });
     }
     setPhase("finish");
     state.savedCurrent = false;

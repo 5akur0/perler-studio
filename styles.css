@@ -2208,6 +2208,8 @@ body[data-app-mode=collection] .gallery-screen {
   width: var(--tap-min);
   height: var(--tap-min);
   padding: 0;
+  display: grid;
+  place-items: center;
   border: 0;
   border-radius: var(--r-pill);
   background: rgba(255, 255, 255, 0.18);

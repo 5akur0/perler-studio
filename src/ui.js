@@ -1104,8 +1104,11 @@ function enlargeCollectionEntry(entry) {
   }
   viewer.classList.add("show");
   const canvas = viewer.querySelector("canvas");
-  canvas.style.width = "min(640px, 78vh)";
-  canvas.style.height = "min(640px, 78vh)";
+  // Keep the preview square AND inside the viewport: on phones 78vh alone
+  // overflows the (narrower) screen width, so clamp by 86vw too.
+  const previewSize = "min(640px, 78vh, 86vw)";
+  canvas.style.width = previewSize;
+  canvas.style.height = previewSize;
   requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
   viewer.querySelector(".collection-enlarged-meta").textContent =
     `${entry.name} · ${normalizeCraft(entry.craft)} · 评级 ${entry.grade} · ${entry.date}`;

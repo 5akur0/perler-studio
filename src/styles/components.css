@@ -1908,6 +1908,10 @@
   width: var(--tap-min);
   height: var(--tap-min);
   padding: 0;
+  /* Center the X glyph inside its circle; without this the block-level SVG
+     pins to the top-left and visibly misaligns with the round background. */
+  display: grid;
+  place-items: center;
   border: 0;
   border-radius: var(--r-pill);
   background: rgba(255, 255, 255, 0.18);
