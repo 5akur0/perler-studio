@@ -306,12 +306,8 @@
   box-shadow: var(--sh-card-hover);
 }
 
-/* Hero entry: 拼豆台 reads as the main object on the desk — a warm bead-tinted tray. */
-.start-row-bead {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 7%, white), color-mix(in srgb, var(--brand) 13%, white));
-  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
-}
-
+/* 拼豆台 keeps the same quiet surface as the other entries until hover, so it
+   does not read as a pre-selected/active tab on first paint. */
 /* A quiet scatter of candy beads anchored to the empty right edge of the hero. */
 .start-row-bead::after {
   content: "";
@@ -329,6 +325,7 @@
 }
 
 .start-row-bead:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 7%, white), color-mix(in srgb, var(--brand) 13%, white));
   border-color: color-mix(in srgb, var(--brand) 60%, var(--line));
 }
 

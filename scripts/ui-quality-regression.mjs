@@ -6,6 +6,10 @@ const cssBlock = (source, selector) => {
   const match = source.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`));
   return match?.[1] || "";
 };
+const cssBlocks = (source, selector) => {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`, "g");
+  return [...source.matchAll(pattern)].map((match) => match[1] || "");
+};
 
 const [
   baseCss,
@@ -96,6 +100,17 @@ assert.match(
   screensCss,
   /\.gallery-empty\s*\{[\s\S]*?background:[\s\S]*?var\(--surface\)/,
   "gallery empty state should be a deliberate screenshot-ready surface",
+);
+
+assert.equal(
+  cssBlocks(screensCss, ".start-row-bead").some((block) => /background:/.test(block)),
+  false,
+  "home bead entry should not look pre-selected; its fill should only appear on hover",
+);
+assert.match(
+  cssBlock(screensCss, ".start-row-bead:hover"),
+  /background:/,
+  "home bead entry should gain the bead-tinted fill on hover",
 );
 
 console.log("UI quality regression checks passed.");

@@ -3248,14 +3248,6 @@ body[data-app-mode=collection] .gallery-screen {
 .start-row:hover {
   box-shadow: var(--sh-card-hover);
 }
-.start-row-bead {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--brand) 7%, white),
-      color-mix(in srgb, var(--brand) 13%, white));
-  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
-}
 .start-row-bead::after {
   content: "";
   position: absolute;
@@ -3286,6 +3278,11 @@ body[data-app-mode=collection] .gallery-screen {
       transparent 72%);
 }
 .start-row-bead:hover {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand) 7%, white),
+      color-mix(in srgb, var(--brand) 13%, white));
   border-color: color-mix(in srgb, var(--brand) 60%, var(--line));
 }
 .start-row-draw:hover {
