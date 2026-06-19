@@ -6,11 +6,9 @@
 import { els } from './dom.js';
 import { patterns } from './patterns-data.js';
 import { drawPatternThumb } from './ui.js';
-import { prefersReducedMotion } from './utils.js';
+import { prefersReducedMotion, stableHash } from './utils.js';
 
-// Curated, visually varied featured set (falls back to the first patterns if an
-// id is ever renamed). Order is the rotation order.
-const FEATURED_IDS = ['berry-cat', 'strawberry', 'panda', 'boba', 'moon'];
+const FEATURED_COUNT = 5;
 const ROTATE_MS = 4200;
 
 let featured = [];
@@ -19,10 +17,27 @@ let timer = null;
 let active = false;
 let onPick = null;
 
+// The calendar day, in the user's local timezone, so "今日" matches their day.
+function todayKey() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+// "今日精选": a genuinely daily selection — a deterministic, date-seeded pick
+// from the whole catalog. Stable for the whole calendar day (same seed → same
+// set + order), but different day to day, so it stops looking like a canned,
+// always-identical row. Seeded Fisher–Yates (per-step hash, no global RNG).
 function resolveFeatured() {
-  const byId = new Map(patterns.map((p) => [p.id, p]));
-  const picked = FEATURED_IDS.map((id) => byId.get(id)).filter(Boolean);
-  return picked.length ? picked : patterns.slice(0, 5);
+  const pool = patterns.slice();
+  if (pool.length <= FEATURED_COUNT) return pool;
+  const key = todayKey();
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = stableHash(`${key}:${i}`) % (i + 1);
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, FEATURED_COUNT);
 }
 
 function buildDots() {

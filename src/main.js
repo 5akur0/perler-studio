@@ -3,7 +3,7 @@ import {
 } from './palette.js';
 import { patterns, resamplePatternRows, validatePatterns } from './patterns-data.js';
 import {
-  phases, backgroundThemes, toolStyles, craftOptions,
+  backgroundThemes, toolStyles, craftOptions,
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
   collectionKey, collectionLimit, achievementKey,
   conceptAchievement, fullBoardAchievement, needleLoadSortThreshold,
@@ -15,6 +15,10 @@ import {
 import { state } from './state.js';
 import { readCollection, writeCollection } from './storage.js';
 import { toggleBgm, isBgmPlaying } from './bgm.js';
+import {
+  feedback as sfxFeedback, playSfx, vibrate as sfxVibrate,
+  isSfxEnabled, setSfxEnabled, isHapticEnabled, setHapticEnabled,
+} from './sfx.js';
 import { readAchievements, writeAchievements, hasAchievement, unlockAchievement } from './achievements.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import { initStartShowcase, refreshShowcaseTheme, setShowcaseActive } from './start-showcase.js';
@@ -46,14 +50,13 @@ import {
   scoreLabel, finalGrade, statusText,
   boardCellFromPoint, pointInTray, trayDumpButtonRect, pointInTrayDumpButton,
   isSpillDamagedIndex, drawSpillDamages, drawInspectionHints, pointerToCanvas, pointInLampSwitch,
-  drawShareImage, setAutoSaveHook, markDirty,
+  drawShareImage, markDirty,
 } from './render.js';
 import { placedCount } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast, celebrate } from './notify.js';
 import {
   setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
   renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
-  drawPatternThumb,
 } from './ui.js';
 import {
   setGalleryActions, enterGalleryMode, renderGallery, loadGallery,
@@ -71,7 +74,7 @@ import {
   setCustomPatternActions, initCustomPatternEvents, setCustomDenoiseControls,
 } from './custom-pattern.js';
 import {
-  setSessionActions, scheduleAutoSave, flushAutoSave, clearAutoSave, loadAutoSave,
+  setSessionActions, flushAutoSave, clearAutoSave, loadAutoSave,
 } from './session.js';
 import {
   setModalActions, getOpenModalEl, focusablesIn, onModalOpened, restoreModalFocus,
@@ -283,53 +286,20 @@ import { prefersReducedMotion } from './utils.js';
 
 
   // --- Audio & Haptics ---
-  let audioCtx = null;
-  function initAudio() {
-    if (!audioCtx) {
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      } catch (e) { }
-    }
-  }
-
-  function playClickSound(type = "light") {
-    if (!audioCtx) return;
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    if (type === "light") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.04);
-    } else if (type === "heavy") {
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.06);
-      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.06);
-      osc.start(audioCtx.currentTime);
-      osc.stop(audioCtx.currentTime + 0.06);
-    }
-  }
-
+  // Sound + vibration now live in sfx.js (synthesized foley + paired haptics).
+  // triggerHaptic stays as a generic UI shim for existing callers; craft actions
+  // call sfxFeedback("<event>") directly for their own characterful sound.
   function triggerHaptic(type = "light") {
-    initAudio();
-    if (navigator.vibrate) {
-      if (type === "light") navigator.vibrate(5);
-      else if (type === "heavy") navigator.vibrate(10);
-      else if (type === "error") navigator.vibrate([15, 30, 15]);
-    }
-    playClickSound(type);
+    if (type === "error") return sfxFeedback("error");
+    if (type === "heavy") return sfxFeedback("drop");
+    return sfxFeedback("ui-tap");
   }
 
   function setPhase(phase) {
+    if (phase !== state.phase) {
+      if (phase === "finish") sfxFeedback("finish");
+      else if (phase === "cool") playSfx("cool");
+    }
     state.phase = phase;
     state.pointer.down = false;
     state.pointer.mode = null;
@@ -609,6 +579,7 @@ import { prefersReducedMotion } from './utils.js';
     state.trayColor = state.selectedColor;
     state.trayCapacity = calcTrayFillAmount(state.trayColor);
     state.trayPourId += 1;
+    sfxFeedback("pour");
     state.trayMatrix = makeTrayMatrix(state.trayCapacity);
     syncTrayBeans();
     state.traySeeds = makeTraySeeds(state.trayColor, state.trayCapacity);
@@ -1097,8 +1068,8 @@ import { prefersReducedMotion } from './utils.js';
       state.placed[index] = state.selectedColor;
       state.heat[index] = 0;
     }
+    sfxFeedback(removing ? "bead-remove" : "bead-place");
     if (useMobileDirectPlacement()) {
-      triggerHaptic("light");
       state.mobileBeadSettle = !removing && !prefersReducedMotion()
         ? { index, startedAt: performance.now(), duration: 180 }
         : null;
@@ -1106,7 +1077,7 @@ import { prefersReducedMotion } from './utils.js';
     invalidatePlacedCounts();
     state.savedCurrent = false;
     uiUpdateSelectedPaletteCount();
-    markCanvasDirty(true);
+    markCanvasDirty();
   }
 
   function announceKeyboardGrid(message) {
@@ -1176,6 +1147,7 @@ import { prefersReducedMotion } from './utils.js';
       state.heat[index] = 0;
       state.spill = null;
       state.savedCurrent = false;
+      sfxFeedback("pick");
       showToast("卡住的豆子已经夹起，可以继续摆放。");
       markDirty();
       return;
@@ -1189,6 +1161,7 @@ import { prefersReducedMotion } from './utils.js';
       state.placed[index] = null;
       invalidatePlacedCounts();
       state.heat[index] = 0;
+      sfxFeedback("pick");
       showToast("镊子取下一颗豆子。");
     } else {
       if (!state.tweezerBead) {
@@ -1199,6 +1172,7 @@ import { prefersReducedMotion } from './utils.js';
       state.placed[index] = state.tweezerBead;
       invalidatePlacedCounts();
       state.tweezerBead = null;
+      sfxFeedback("bead-place");
     }
     state.savedCurrent = false;
     markDirty();
@@ -1255,6 +1229,7 @@ import { prefersReducedMotion } from './utils.js';
       used += 1;
     });
     if (placedAny) {
+      sfxFeedback("bead-place");
       state.needleLoaded = Math.max(0, state.needleLoaded - used);
       const drain = Math.max(0.1, used * 0.12);
       state.trayProgress = clamp(state.trayProgress - drain, 0, 100);
@@ -1265,6 +1240,7 @@ import { prefersReducedMotion } from './utils.js';
   }
 
   function createSpillAt(x, y, code) {
+    sfxFeedback("spill");
     const cols = boardCols();
     const rows = boardRows();
     const spots = [
@@ -1295,6 +1271,7 @@ import { prefersReducedMotion } from './utils.js';
     const layout = currentLayout();
     const cell = boardCellFromPoint(x, y);
     if (!cell) return;
+    sfxFeedback("iron"); // throttled inside sfx.js → a continuous sizzle while ironing
     const speed = distance / Math.max(dt, 1);
     const speedFactor = clamp(1.42 - speed * 1.45, 0.42, 1.55);
     const pressure = state.pressure / 58;
@@ -1543,7 +1520,14 @@ import { prefersReducedMotion } from './utils.js';
       state.uiDirty = false;
     }
     if (state.renderDirty || state.previewDirty || shouldAnimateCanvas(now)) {
-      render();
+      // The render loop must be self-perpetuating: a single bad frame may not
+      // tear down the rAF chain (which would freeze the app permanently). Isolate
+      // the frame so the next one is always scheduled.
+      try {
+        render();
+      } catch (err) {
+        console.error("[render] frame skipped after error:", err);
+      }
     }
     requestAnimationFrame(tick);
   }
@@ -1599,23 +1583,8 @@ import { prefersReducedMotion } from './utils.js';
       setAppMode("bead");
     },
   });
-  // ③ Resume banner: when a session was loaded but user stays on home screen,
-  //   show "继续做" in place of the 拼豆台 button.
-  function initResumeBanner(sessionRestored) {
-    if (!sessionRestored || !state.selectedPattern || state.phase === "choose") return;
-    const phaseName = phases.find((p) => p.id === state.phase)?.name || state.phase;
-    const placed = Array.isArray(state.placed) ? state.placed.filter(Boolean).length : 0;
-    if (els.startResumeRow) els.startResumeRow.hidden = false;
-    if (els.startBeadButton) els.startBeadButton.hidden = true;
-    if (els.startResumeName) els.startResumeName.textContent = state.selectedPattern.name || "上次的作品";
-    if (els.startResumePhase) {
-      els.startResumePhase.textContent = placed
-        ? `${phaseName} · 已摆 ${placed} 颗`
-        : phaseName;
-    }
-    if (els.startResumeThumb) drawPatternThumb(els.startResumeThumb, state.selectedPattern);
-    els.startResumeBtn?.addEventListener("click", () => setAppMode("bead"));
-  }
+  // The 拼豆台 entry resumes whatever work is in memory — a restored session
+  // (loadAutoSave) continues automatically, so no separate "继续做" affordance.
   els.startDrawButton?.addEventListener("click", () => {
     setAppMode("draw");
   });
@@ -1641,13 +1610,12 @@ import { prefersReducedMotion } from './utils.js';
   els.gallerySubmitModal?.addEventListener("click", (event) => {
     if (event.target === els.gallerySubmitModal) closeGallerySubmitModal();
   });
-  els.beadBackButton?.addEventListener("click", async () => {
-    const hasProgress = state.phase !== "choose" || placedCount() > 0;
-    if (hasProgress && !(await confirmModal({ message: "返回首页将退出当前进度，确定吗？", okText: "返回首页", danger: true }))) return;
-    if (hasProgress) {
-      loadPattern(state.selectedPattern);
-      clearAutoSave();
-    }
+  els.beadBackButton?.addEventListener("click", () => {
+    // Exit boundary: persist the in-progress work so it can be resumed, then
+    // leave. flushAutoSave() writes when there is a real work-in-progress and
+    // clears the slot when only browsing (phase "choose"). The work also stays
+    // in memory, so re-entering the 拼豆台 continues right where you left off.
+    flushAutoSave();
     setAppMode("home");
   });
   els.sandboxButton?.addEventListener("click", () => toggleSandboxMode());
@@ -1678,6 +1646,25 @@ import { prefersReducedMotion } from './utils.js';
     document.addEventListener("pointerdown", resume, { once: true });
     document.addEventListener("keydown", resume, { once: true });
   }
+
+  // Sound-effects + vibration toggles (persisted in sfx.js).
+  function reflectFxToggle(btn, on, label) {
+    if (!btn) return;
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    btn.setAttribute("aria-label", `${label}：${on ? "开" : "关"}`);
+  }
+  reflectFxToggle(els.sfxButton, isSfxEnabled(), "音效");
+  reflectFxToggle(els.hapticButton, isHapticEnabled(), "震动");
+  els.sfxButton?.addEventListener("click", () => {
+    setSfxEnabled(!isSfxEnabled());
+    reflectFxToggle(els.sfxButton, isSfxEnabled(), "音效");
+    if (isSfxEnabled()) playSfx("ui-tap"); // preview the sound on enable
+  });
+  els.hapticButton?.addEventListener("click", () => {
+    setHapticEnabled(!isHapticEnabled());
+    reflectFxToggle(els.hapticButton, isHapticEnabled(), "震动");
+    if (isHapticEnabled()) sfxVibrate(8); // preview the buzz on enable
+  });
   reflectBgmButton();
   const startSelectedPattern = () => {
     if (state.phase === "choose") {
@@ -1877,8 +1864,8 @@ import { prefersReducedMotion } from './utils.js';
   const sessionRestored = loadAutoSave();
   setAppMode("home");
   if (!sessionRestored) setPhase("choose");
-  initResumeBanner(sessionRestored);
-  setAutoSaveHook(scheduleAutoSave);
+  // Session archiving happens only at exit boundaries (no per-edit autosave):
+  // leaving to home (beadBackButton), tab hide, and page close.
   window.addEventListener("pagehide", () => flushAutoSave());
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushAutoSave();

@@ -24,7 +24,6 @@ const {
   clearAutoSave,
   flushAutoSave,
   loadAutoSave,
-  scheduleAutoSave,
   setSessionActions,
 } = await import("../src/session.js");
 
@@ -632,7 +631,6 @@ run("flushAutoSave writes scheduled progress", () => {
   state.placed = Array(30 * 30).fill(null);
   state.heat = Array(30 * 30).fill(0);
   state.selectedColor = "P";
-  scheduleAutoSave(10000);
   assert(flushAutoSave() === true, "flushAutoSave should write active workbench immediately");
   assert(readSession()?.selectedColor === "P", "flushed session should include selected color");
 });

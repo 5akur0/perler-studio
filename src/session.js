@@ -16,8 +16,6 @@ export function setSessionActions(actions = {}) {
   Object.assign(sessionActions, actions);
 }
 
-let autoSaveTimer = 0;
-
 function clearStoredSession() {
   try {
     localStorage.removeItem(sessionKey);
@@ -27,7 +25,6 @@ function clearStoredSession() {
 }
 
 export function clearAutoSave() {
-  window.clearTimeout(autoSaveTimer);
   clearStoredSession();
 }
 
@@ -351,13 +348,9 @@ export function autoSave() {
   }
 }
 
-export function scheduleAutoSave(delay = 550) {
-  window.clearTimeout(autoSaveTimer);
-  autoSaveTimer = window.setTimeout(autoSave, delay);
-}
-
+// Persist the current in-progress work to the restore slot immediately. Called
+// only at exit boundaries (leaving to home, tab hide/close) — never per edit.
 export function flushAutoSave() {
-  window.clearTimeout(autoSaveTimer);
   return autoSave();
 }
 

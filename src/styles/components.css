@@ -514,7 +514,13 @@
   outline-offset: 2px;
 }
 
-.ghost-button {
+/* The three pill action buttons share horizontal padding so equal-length labels
+   render at equal width (e.g. 取消 / 重置 in the confirm dialog). Previously only
+   .ghost-button set padding, leaving .primary-button / .danger-button on the
+   narrower browser-default padding — hence the mismatched widths. */
+.ghost-button,
+.primary-button,
+.danger-button {
   padding: 0 var(--sp-4);
 }
 

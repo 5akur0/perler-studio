@@ -76,15 +76,6 @@
             <p class="start-tagline">挑一张图纸，慢慢摆一盘属于你的糖豆。</p>
           </div>
           <div class="start-rows" aria-label="工作台选择">
-            <!-- ③ Resume banner: replaces 拼豆台 button when a session exists -->
-            <div class="start-resume-row" id="startResumeRow" hidden>
-              <canvas class="start-resume-thumb" id="startResumeThumb" width="46" height="46" aria-hidden="true"></canvas>
-              <div class="start-resume-body">
-                <strong id="startResumeName"></strong>
-                <small id="startResumePhase"></small>
-              </div>
-              <button class="primary-button start-resume-btn" id="startResumeBtn" type="button">继续做</button>
-            </div>
             <button class="start-row start-row-bead" id="startBeadButton" type="button">
               <span class="start-row-icon" aria-hidden="true">
                 <span data-lucide-icon="pegboard" data-icon-size="22"></span>
@@ -497,6 +488,18 @@
           <div class="settings-field settings-toggle-row">
             <span>背景音乐</span>
             <button class="settings-toggle" id="bgmButton" type="button" role="switch" aria-checked="false" aria-label="背景音乐：关">
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </button>
+          </div>
+          <div class="settings-field settings-toggle-row">
+            <span>音效</span>
+            <button class="settings-toggle" id="sfxButton" type="button" role="switch" aria-checked="true" aria-label="音效：开">
+              <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+            </button>
+          </div>
+          <div class="settings-field settings-toggle-row">
+            <span>震动</span>
+            <button class="settings-toggle" id="hapticButton" type="button" role="switch" aria-checked="true" aria-label="震动：开">
               <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
             </button>
           </div>

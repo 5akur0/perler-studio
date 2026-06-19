@@ -161,20 +161,15 @@ export function pseudoRandom(seed) {
   h += h << 5;
   return ((h >>> 0) % 10000) / 10000;
 }
-// Autosave is owned by main.js (persistence layer). main.js injects it via
-// setAutoSaveHook so render.js stays free of a main.js dependency.
-let autoSaveHook = null;
-export function setAutoSaveHook(fn) {
-  autoSaveHook = fn;
-}
-export function markCanvasDirty(save = false) {
+// markDirty / markCanvasDirty are pure dirty-flag setters — render.js owns no
+// persistence. Session archiving is an exit-boundary concern handled in main.js
+// (no per-edit writes), so an edit no longer triggers a save.
+export function markCanvasDirty() {
   state.renderDirty = true;
-  if (save) autoSaveHook?.();
 }
 export function markDirty() {
   state.renderDirty = true;
   state.uiDirty = true;
-  autoSaveHook?.();
 }
 // Quantize the canvas bounding rect so 1–2 px wiggles (e.g. from right-panel
  // content changing height between place↔inspect) don't recompute boardSize
@@ -351,9 +346,17 @@ export function touchToCanvas(touch) {
   };
 }
 
+// Smallest viewport computeLayout will reason about. A hidden / unmounted
+// canvas measures 0×0, but callers (zoom limits, tray geometry) may still ask
+// for a layout while off-screen. Flooring here keeps computeLayout a *total*
+// function — a degenerate viewport yields a minimal but valid layout instead of
+// negative boardSize/cell (which previously produced negative arc radii and
+// crashed the frame). Real frames are gated upstream in render().
+const MIN_LAYOUT_VIEWPORT = 320;
+
 export function computeLayout(rect) {
-  const w = rect.width;
-  const h = rect.height;
+  const w = Math.max(rect.width, MIN_LAYOUT_VIEWPORT);
+  const h = Math.max(rect.height, MIN_LAYOUT_VIEWPORT);
   if (useMobileDirectPlacement()) {
     // Mobile: board only, centered in a square region (no reference note, no lamp).
     const margin = 12;
@@ -430,10 +433,33 @@ export function setupHiDpiCanvas(canvas, ctx, rect = canvas.getBoundingClientRec
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
+// Whether a canvas is currently a paintable surface. It is not while it is
+// `display:none` (another appMode active, or a stage that hides it), during a
+// screen transition, or before first layout — all of which measure as 0×0.
+function canvasRenderable(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
 export function render() {
   // UI (DOM) rendering is driven by the tick loop in main.js before render()
   // is called — see the uiDirty handling there. render() only paints canvases.
+  //
+  // Each canvas paints on its OWN renderability — they are independent surfaces.
+  // The preview canvas is shown on the choose stage *while #sceneCanvas is
+  // display:none*, so it must not be gated behind the scene canvas below.
+  if (state.previewDirty && canvasRenderable(previewCanvas)) {
+    drawPreview();
+    state.previewDirty = false;
+  }
+
   const sceneRect = sceneCanvas.getBoundingClientRect();
+  // Contract: render paints only a live, measured scene canvas. When it is
+  // unmounted or zero-sized, there is nothing meaningful to paint — skip the
+  // frame, leaving the dirty flags set so the pending paint lands once the
+  // canvas is mounted again. (Avoids fabricating geometry off a degenerate rect
+  // and polluting the layout cache with a hidden-state entry.)
+  if (sceneRect.width <= 0 || sceneRect.height <= 0) return;
   setupHiDpiCanvas(sceneCanvas, scene, sceneRect);
   const layout = currentLayout(sceneRect);
   scene.clearRect(0, 0, sceneRect.width, sceneRect.height);
@@ -467,10 +493,6 @@ export function render() {
   if (!useMobileDirectPlacement()) drawLampSwitch(layout);
   if (!useMobileDirectPlacement()) drawToolEntities(layout.w, layout.h);
 
-  if (state.previewDirty) {
-    drawPreview();
-    state.previewDirty = false;
-  }
   state.renderDirty = false;
 }
 
@@ -1086,7 +1108,7 @@ export function drawBoard(layout) {
       if (isSpillDamagedIndex(index)) {
         drawDamagedBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
       } else {
-        drawBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
+        drawBead(ctx, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile, index);
       }
       drawPegInBead(ctx, cx, cy, cell * 0.43, heat, boardFusedPhase);
       if (settle) {
@@ -1151,15 +1173,17 @@ function projectedGuideLightness(code) {
 }
 
 function projectedGuideColor(code) {
-  const base = palette[code] || "#bbbbbb";
-  const lightness = projectedGuideLightness(code);
-  return mixColor(base, "#f3c04f", lightness >= 205 ? 0.18 : 0.08);
+  // No warm tint at all — the guide shows every bead's true color; visibility is
+  // carried purely by opacity (see projectedGuideAlpha).
+  return palette[code] || "#bbbbbb";
 }
 
 function projectedGuideAlpha(code, alpha) {
+  // Light colors read faintly on the board, so make them more opaque (compensates
+  // for no longer warming them up).
   const lightness = projectedGuideLightness(code);
-  if (lightness >= 228) return Math.min(alpha * 1.7, 0.44);
-  if (lightness >= 205) return Math.min(alpha * 1.28, 0.36);
+  if (lightness >= 228) return Math.min(alpha * 2.2, 0.6);
+  if (lightness >= 205) return Math.min(alpha * 1.7, 0.5);
   return alpha;
 }
 
@@ -1201,9 +1225,9 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
   const spotCy = canvasH / 2;
   const spotRadius = Math.min(canvasW, canvasH) * 0.425;
 
-  // A flat warm wash over the whole board — uniform, no circular spotlight or
-  // distance falloff, so every bead's guide reads at the same strength.
-  ctx.fillStyle = "rgba(255, 248, 218, 0.14)";
+  // A flat neutral wash over the whole board — uniform (no spotlight/falloff) so
+  // every bead's guide reads at the same strength. Neutral white, not warm.
+  ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
   ctx.fillRect(0, 0, canvasW, canvasH);
 
   ctx.save();
@@ -1441,7 +1465,7 @@ export function drawFusedPieceTransformed(layout, piece, options = {}) {
     if (isSpillDamagedIndex(cell.index)) {
       drawDamagedBead(ctx, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile);
     } else {
-      drawBead(ctx, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile);
+      drawBead(ctx, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile, cell.index);
     }
   });
 }
@@ -1564,7 +1588,7 @@ export function drawConceptEasterScene(layout) {
       if (fullMode) {
         const code = state.placed[index] || state.selectedColor;
         const heat = Math.max(62, state.heat[index] || 0);
-        drawBead(ctx, px + displayCell / 2, py + displayCell / 2, displayCell * 0.43, code, heat, true);
+        drawBead(ctx, px + displayCell / 2, py + displayCell / 2, displayCell * 0.43, code, heat, true, null, index);
       }
     }
   }
@@ -2520,7 +2544,10 @@ export function drawFinishLayer(layout) {
   ctx.restore();
 }
 
-export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = null) {
+// `seed` (board cell index) is kept threaded through callers so a per-bead
+// specular highlight can be re-introduced on a stable random subset later;
+// highlights are currently removed entirely.
+export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = null, seed = null) {
   const base = palette[code] || "#999";
   const color = fusedColor(code, heat);
   const pressRaw = fused ? ((state.phase === "cool" || state.phase === "finish") ? clamp(state.flattening / 100, 0, 1) : 0) : 0;
@@ -2575,6 +2602,22 @@ export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = nu
     ctx.closePath();
   };
 
+  // Fused beads that touch a neighbor must merge seamlessly: only the piece's
+  // OUTER silhouette (exposed edges) gets an outline; connected seams get none —
+  // otherwise every bead is ringed by a dark line and the fused piece reads as a grid.
+  const strokeExposedEdges = (cx, cy, style, lw) => {
+    const left = cx - halfL, right = cx + halfR, top = cy - halfU, bottom = cy + halfD;
+    ctx.strokeStyle = style;
+    ctx.lineWidth = lw;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    if (edges.up) { ctx.moveTo(left + rTL, top); ctx.lineTo(right - rTR, top); }
+    if (edges.right) { ctx.moveTo(right, top + rTR); ctx.lineTo(right, bottom - rBR); }
+    if (edges.down) { ctx.moveTo(right - rBR, bottom); ctx.lineTo(left + rBL, bottom); }
+    if (edges.left) { ctx.moveTo(left, bottom - rBL); ctx.lineTo(left, top + rTL); }
+    ctx.stroke();
+  };
+
   // H1 = semi-transparent/frosted bead: visible but lets background show through
   if (beadIds[code] === "H1") {
     ctx.save();
@@ -2605,18 +2648,19 @@ export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = nu
   }
 
   ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.12)";
-  buildPath(x + r * 0.08, y + r * 0.13);
-  ctx.fill();
+  // When fused, the per-bead drop shadow falls onto the touching neighbor and
+  // reads as a dark seam — fade it out as the bead melts so connected beads merge.
+  const seamShadowAlpha = fused ? 0.12 * (1 - melt * 0.85) : 0.12;
+  if (seamShadowAlpha > 0.004) {
+    ctx.fillStyle = `rgba(0,0,0,${seamShadowAlpha})`;
+    buildPath(x + r * 0.08, y + r * 0.13);
+    ctx.fill();
+  }
 
   ctx.fillStyle = color;
   buildPath(x, y);
   ctx.fill();
 
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  ctx.beginPath();
-  ctx.arc(x - r * 0.28, y - r * 0.28, r * lerp(0.25, 0.14, melt), 0, Math.PI * 2);
-  ctx.fill();
 
   const holeFade = fused ? clamp((heat - 42) / 52 + pressBoost * 0.95, 0, 1) : 0;
   const holeR = r * clamp(0.39 - heat / 250 - pressBoost * 0.18, 0, 0.39);
@@ -2635,10 +2679,16 @@ export function drawBead(ctx, x, y, r, code, heat = 0, fused = false, shape = nu
     ctx.globalAlpha = 1;
   }
 
-  ctx.strokeStyle = "rgba(0,0,0,0.12)";
-  ctx.lineWidth = Math.max(1, r * 0.07);
-  buildPath(x, y);
-  ctx.stroke();
+  if (fused) {
+    // Only outline the exposed silhouette; connected seams stay invisible so the
+    // ironed piece reads as one continuous melt (matches the collection thumbnails).
+    strokeExposedEdges(x, y, "rgba(0,0,0,0.12)", Math.max(1, r * 0.07));
+  } else {
+    ctx.strokeStyle = "rgba(0,0,0,0.12)";
+    ctx.lineWidth = Math.max(1, r * 0.07);
+    buildPath(x, y);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -3262,7 +3312,7 @@ export function drawShareArtwork(ctx, x, y, size) {
         roundedPath(ctx, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.12);
         ctx.fill();
       } else {
-        drawBead(ctx, cx, cy, cell * 0.39, code, heat, false);
+        drawBead(ctx, cx, cy, cell * 0.39, code, heat, false, null, index);
       }
     }
   }

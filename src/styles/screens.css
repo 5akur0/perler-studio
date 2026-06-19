@@ -32,61 +32,6 @@
   min-width: 0;
 }
 
-/* Resume row: replaces the 拼豆台 button when a session exists */
-.start-resume-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  min-height: 78px;
-  border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--brand) 7%, white);
-  border: 1.5px solid color-mix(in srgb, var(--brand) 28%, var(--line));
-  box-shadow: var(--sh-1);
-}
-
-.start-resume-row[hidden] {
-  display: none;
-}
-
-.start-resume-thumb {
-  flex-shrink: 0;
-  width: 46px;
-  height: 46px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  display: block;
-}
-
-.start-resume-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.start-resume-body strong {
-  font-family: var(--font-cute);
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.start-resume-body small {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
-.start-resume-btn {
-  flex-shrink: 0;
-  padding-inline: var(--sp-4);
-}
-
 .start-brand {
   display: flex;
   flex-direction: column;
