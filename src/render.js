@@ -5,8 +5,9 @@ import {
   phases, backgroundThemes, toolStyles, craftOptions,
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
   collectionLimit, conceptAchievement, fullBoardAchievement, BOARD_SIZE, HEAT_LEVELS,
+  DESK_WOOD,
 } from './constants.js';
-import { clamp, lerp, easeOut, mixColor, hexToRgb } from './color-utils.js';
+import { clamp, lerp, easeOut, mixColor, fadedPrintColor, hexToRgb } from './color-utils.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import {
   targetAt, indexFor, getEffectiveTargetRows, getTargetCounts, getTargetTotal,
@@ -17,6 +18,9 @@ import { beadSettleScale } from './utils.js';
 import {
   drawBoardGuides, drawBoardSkin, drawPixelPatternPreview, pixelPatternPreviewLayout,
 } from './board-skin.js';
+
+const CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+const CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 
 export function useMobileTrayGrid() {
   return window.matchMedia("(max-width: 860px)").matches;
@@ -384,6 +388,7 @@ export function computeLayout(rect) {
       trayY: 0,
       trayW: 0,
       trayH: 0,
+      floorTop: h,
     };
   }
   const boardX = 34;
@@ -400,8 +405,24 @@ export function computeLayout(rect) {
   const trayX = boardX + boardSize + trayGap;
   const naturalTrayW = w - trayX - trayRightMargin;
   const trayW = Math.max(minTrayW, naturalTrayW);
+  // The board skin draws an outer frame `frameInset` beyond boardX/boardY (see
+  // drawBoardSkin), so the board's *visual* edges are boardY ∓ frameInset. Align
+  // the reference note's top to the board's frame top and the tray's bottom to
+  // the board's frame bottom, so all three line up edge-to-edge.
+  const frameInset = 14;
+  const boardTopOuter = boardY - frameInset;
+  const boardBottomOuter = boardY + boardH + frameInset;
   const refH = clamp(boardSize * 0.26, 130, 158);
-  const trayY = boardY + refH + 16;
+  const refY = boardTopOuter;
+  const trayY = refY + refH + 16;
+  const trayH = Math.max(120, boardBottomOuter - trayY);
+  // Desk/floor split: the table stops at floorTop, the darker floor runs below it.
+  // Kept here (not in drawWorkbench) so the lamp switch can be placed against the
+  // same boundary. Guarantee a tall-enough dark floor band so the lamp fits at a
+  // natural size, but never let the floor rise above the board/tray content.
+  const contentBottom = boardBottomOuter;
+  const minFloorBand = 66;
+  const floorTop = clamp(h - minFloorBand, contentBottom + 16, h - 18);
   return {
     w,
     h,
@@ -412,13 +433,14 @@ export function computeLayout(rect) {
     boardH,
     cell,
     refX: trayX,
-    refY: boardY,
+    refY,
     refW: trayW,
     refH,
     trayX,
     trayY,
     trayW,
-    trayH: Math.max(220, boardY + boardSize - trayY),
+    trayH,
+    floorTop,
   };
 }
 
@@ -497,70 +519,98 @@ export function render() {
 }
 
 export function drawWorkbench(layout) {
-  const { w, h, boardX, boardY, boardSize, trayX, trayY, trayW, trayH } = layout;
+  const { w, h, floorTop } = layout;
   const ctx = scene;
-  const theme = currentBackgroundTheme();
   ctx.save();
 
-  // Mobile: a plain solid backdrop behind the board — no desk/floor/woodgrain texture.
+  // layout w/h are quantized down to a multiple of 8 (see quantizedCanvasRect),
+  // so the real canvas can be up to 7px wider/taller. Overdraw the opaque
+  // background by one quantum past the right/bottom edges so the theme-tinted
+  // canvas backdrop can't peek through as a seam (the overdraw is clipped away).
+  const OVER = 8;
+  const fw = w + OVER;
+
+  // Mobile: a plain solid wood backdrop behind the board (board fills the screen,
+  // so the desk only shows as a thin warm border — keep it flat, no grain).
   if (useMobileDirectPlacement()) {
-    ctx.fillStyle = theme.table[1];
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = DESK_WOOD.mid;
+    ctx.fillRect(0, 0, fw, h + OVER);
     ctx.restore();
     return;
   }
 
-  // Table edge: stop the table at this Y; below it is the floor.
-  const activeBottom = trayH > 0 ? Math.max(boardY + boardSize + 24, trayY + trayH + 10) : Math.max(boardY + boardSize + 24, layout.refY + layout.refH + 14);
-  const matBottom = Math.min(h - 90, activeBottom);
-  const tableEdgeY = Math.min(h - 18, matBottom + 30);
-  const floorTop = tableEdgeY;
-
-  // Floor (a slightly cooler shade than table)
+  // Floor — an opaque, darker wood shade under the desk (opaque so it never lets
+  // the theme-tinted canvas background bleed through like a color filter).
   const floorGradient = ctx.createLinearGradient(0, floorTop, 0, h);
-  floorGradient.addColorStop(0, "rgba(54, 60, 72, 0.20)");
-  floorGradient.addColorStop(1, "rgba(40, 46, 56, 0.30)");
+  floorGradient.addColorStop(0, "#9c7a52");
+  floorGradient.addColorStop(1, "#79593a");
   ctx.fillStyle = floorGradient;
-  ctx.fillRect(0, floorTop, w, h - floorTop);
+  ctx.fillRect(0, floorTop, fw, h - floorTop + OVER);
 
   // Floor planks (subtle vertical seams)
-  ctx.strokeStyle = "rgba(20, 24, 32, 0.10)";
+  ctx.strokeStyle = "rgba(30, 20, 12, 0.18)";
   ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 78) {
+  for (let x = 0; x < fw; x += 78) {
     ctx.beginPath();
     ctx.moveTo(x, floorTop);
-    ctx.lineTo(x, h);
+    ctx.lineTo(x, h + OVER);
     ctx.stroke();
   }
 
-  // Table
-  const tableGradient = ctx.createLinearGradient(0, 0, w, floorTop);
-  tableGradient.addColorStop(0, theme.table[0]);
-  tableGradient.addColorStop(0.48, theme.table[1]);
-  tableGradient.addColorStop(1, theme.table[2]);
-  ctx.fillStyle = tableGradient;
-  ctx.fillRect(0, 0, w, floorTop);
-
-  ctx.fillStyle = "rgba(255, 255, 255, 0.26)";
-  for (let y = 0; y < floorTop; y += 34) {
-    ctx.fillRect(0, y, w, 1);
-  }
-  ctx.strokeStyle = "rgba(71, 86, 91, 0.07)";
-  ctx.lineWidth = 1;
-  for (let x = -floorTop; x < w; x += 42) {
-    ctx.beginPath();
-    ctx.moveTo(x, floorTop);
-    ctx.lineTo(x + floorTop, 0);
-    ctx.stroke();
-  }
+  // Desk — a warm wood surface with deterministic grain (index-seeded, so it
+  // stays stable across redraws instead of shimmering frame to frame).
+  drawWoodDesk(ctx, fw, floorTop);
 
   // Table front edge shadow
-  ctx.fillStyle = "rgba(28, 32, 40, 0.18)";
-  ctx.fillRect(0, floorTop - 4, w, 4);
-  ctx.fillStyle = "rgba(28, 32, 40, 0.10)";
-  ctx.fillRect(0, floorTop, w, 6);
+  ctx.fillStyle = "rgba(34, 22, 12, 0.22)";
+  ctx.fillRect(0, floorTop - 4, fw, 4);
+  ctx.fillStyle = "rgba(34, 22, 12, 0.12)";
+  ctx.fillRect(0, floorTop, fw, 6);
 
   ctx.restore();
+}
+
+// Paint a warm wooden desktop into [0,0]..[w,top]. Grain is seeded by row index
+// (a stable hash), never Math.random, so the texture doesn't flicker on redraw.
+function drawWoodDesk(ctx, w, top) {
+  if (top <= 0) return;
+  // Base wood gradient (lighter sheen near the back, deeper toward the front edge)
+  const base = ctx.createLinearGradient(0, 0, 0, top);
+  base.addColorStop(0, DESK_WOOD.light);
+  base.addColorStop(0.5, DESK_WOOD.mid);
+  base.addColorStop(1, DESK_WOOD.deep);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, w, top);
+
+  // Plank seams: a few long boards running the width of the desk.
+  const plankH = 132;
+  for (let py = plankH; py < top; py += plankH) {
+    ctx.fillStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
+    ctx.fillRect(0, py, w, 1.4);
+    ctx.fillStyle = "rgba(255, 246, 230, 0.18)";
+    ctx.fillRect(0, py + 1.4, w, 1);
+  }
+
+  // Flowing grain streaks along the boards.
+  ctx.lineWidth = 1;
+  let gi = 0;
+  for (let y = 6; y < top; y += 11, gi += 1) {
+    const hashed = Math.sin(gi * 12.9898) * 43758.5453;
+    const frac = hashed - Math.floor(hashed);           // stable 0..1 per row
+    const alpha = 0.025 + frac * 0.06;
+    const amp = 1.1 + frac * 2.6;
+    ctx.strokeStyle = `rgba(${DESK_WOOD.grain}, ${alpha.toFixed(3)})`;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 18) {
+      const yy = y + Math.sin(x * 0.014 + gi * 1.7) * amp + Math.sin(x * 0.06 + gi) * 0.5;
+      if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+
+  // Soft top sheen so the back of the desk catches a little light.
+  ctx.fillStyle = "rgba(255, 248, 234, 0.12)";
+  ctx.fillRect(0, 0, w, Math.min(40, top));
 }
 
 export function pointInReferenceSheet(x, y) {
@@ -614,10 +664,17 @@ export function drawFloorDrops(layout) {
 }
 
 function lampSwitchRect(layout = currentLayout()) {
-  const size = clamp(layout.boardSize * 0.09, 34, 56);
+  const margin = 12;
+  const gap = 10; // clearance below the desk/floor boundary line so the lamp never touches it
+  const floorTop = layout.floorTop ?? (layout.h - 60);
+  // Vertical room available inside the dark floor band (between the boundary +
+  // clearance and the bottom margin). The lamp is sized to fit so it stays fully
+  // in the dark zone instead of straddling the line.
+  const room = (layout.h - margin) - (floorTop + gap);
+  const size = clamp(Math.min(layout.boardSize * 0.10, room), 34, 46);
   return {
-    x: layout.w - size - 14,
-    y: layout.h - size - 14,
+    x: layout.w - size - margin,
+    y: layout.h - size - margin, // anchored to the bottom-right corner
     w: size,
     h: size,
   };
@@ -820,6 +877,12 @@ export function drawTweezersEntity(x, y) {
   const style = currentToolStyle();
   const inUse = state.phase === "place" && state.tool === "tweezers";
   ctx.save();
+  // Enlarge the whole tweezers (body + held bead) a touch, anchored on the tip
+  // (x+46, y+66) so the held position still tracks the cursor.
+  const tweezerScale = 1.18;
+  ctx.translate(x + 46, y + 66);
+  ctx.scale(tweezerScale, tweezerScale);
+  ctx.translate(-(x + 46), -(y + 66));
   ctx.globalAlpha = inUse ? 0.46 : 0.76;
   ctx.shadowColor = "rgba(38, 36, 43, 0.1)";
   ctx.shadowBlur = inUse ? 4 : 10;
@@ -846,11 +909,11 @@ export function drawTweezersEntity(x, y) {
   ctx.fill();
   drawToolDecoration(ctx, x + 24, y + 6, style);
   if (state.tweezerBead) {
-    drawBead(ctx, x + 46, y + 66, 5.8, state.tweezerBead, 0, false);
+    drawBead(ctx, x + 46, y + 66, 7.2, state.tweezerBead, 0, false);
   } else {
     ctx.fillStyle = "rgba(102, 116, 128, 0.2)";
     ctx.beginPath();
-    ctx.arc(x + 46, y + 66, 5.3, 0, Math.PI * 2);
+    ctx.arc(x + 46, y + 66, 6.2, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -1189,7 +1252,7 @@ function projectedGuideAlpha(code, alpha) {
 
 function drawProjectedTemplateLayer(ctx, cols, rows, cell, templateOpacity) {
   if (templateOpacity <= 0) return;
-  const projectedBeadRadius = cell * 0.43;
+  const projectedBeadRadius = cell * 0.49; // slightly larger than the bead (0.43) so the guide peeks out as a ring around placed beads — a wrong bead shows a mismatched halo
   ctx.save();
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
@@ -1220,7 +1283,7 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
   if (!ctx) return { key, canvas: null };
 
   const blur = Math.max(1.45, cell * 0.24);
-  const projectedBeadRadius = cell * 0.43;
+  const projectedBeadRadius = cell * 0.49; // slightly larger than the bead (0.43) so the guide peeks out as a ring around placed beads — a wrong bead shows a mismatched halo
   const spotCx = canvasW / 2;
   const spotCy = canvasH / 2;
   const spotRadius = Math.min(canvasW, canvasH) * 0.425;
@@ -2252,6 +2315,195 @@ export function visibleTraySeedCount() {
   return state.trayBeans;
 }
 
+// Cached paper texture for the reference note. Keyed by size so it's only
+// rebuilt when the note's dimensions change (not every redraw), and the grain is
+// position-seeded so it never shimmers. The scene clips it to the rounded card,
+// so this only needs to fill a plain rectangle.
+let _paperTextureCache = null;
+function getPaperTexture(w, h) {
+  const key = `${Math.round(w)}x${Math.round(h)}`;
+  if (_paperTextureCache && _paperTextureCache.key === key) return _paperTextureCache.canvas;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(w * dpr));
+  canvas.height = Math.max(1, Math.round(h * dpr));
+  const p = canvas.getContext("2d");
+  p.scale(dpr, dpr);
+
+  // Warm cream base.
+  const base = p.createLinearGradient(0, 0, 0, h);
+  base.addColorStop(0, "#fffefb");
+  base.addColorStop(1, "#f3ecdd");
+  p.fillStyle = base;
+  p.fillRect(0, 0, w, h);
+
+  // Seeded PRNG → deterministic texture (never shimmers between redraws).
+  let seed = 0;
+  const rnd = () => { seed += 1; const r = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return r - Math.floor(r); };
+
+  // Broad crumple shading: large soft light/dark blotches — this carries most of
+  // the "handled paper" feel (low contrast, very diffuse).
+  for (let i = 0; i < 9; i += 1) {
+    const cx = rnd() * w;
+    const cy = rnd() * h;
+    const rad = 50 + rnd() * 110;
+    const light = rnd() > 0.5;
+    const a = 0.05 + rnd() * 0.045;
+    const blob = p.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    blob.addColorStop(0, light ? `rgba(255,255,250,${a.toFixed(3)})` : `rgba(112,96,68,${a.toFixed(3)})`);
+    blob.addColorStop(1, "rgba(255,255,255,0)");
+    p.fillStyle = blob;
+    p.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+  }
+
+  // Soft folds: each crease is a gentle valley + ridge, but drawn as several
+  // stacked low-alpha passes (wide→narrow) so the edge feathers out instead of
+  // looking like a hard ink line.
+  p.lineCap = "round";
+  const softStroke = (x1, y1, cx, cy, x2, y2, rgb, peak) => {
+    const passes = [[5.5, peak * 0.4], [3, peak * 0.65], [1.5, peak]];
+    for (const [lw, a] of passes) {
+      p.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
+      p.lineWidth = lw;
+      p.beginPath();
+      p.moveTo(x1, y1);
+      p.quadraticCurveTo(cx, cy, x2, y2);
+      p.stroke();
+    }
+  };
+  const creases = 6;
+  for (let i = 0; i < creases; i += 1) {
+    const vertical = rnd() > 0.5;
+    let x1; let y1; let x2; let y2; let cx; let cy;
+    if (vertical) {
+      x1 = w * (0.15 + rnd() * 0.7); x2 = x1 + (rnd() * 70 - 35); y1 = -8; y2 = h + 8;
+      cx = (x1 + x2) / 2 + (rnd() * 44 - 22); cy = h * (0.3 + rnd() * 0.4);
+    } else {
+      y1 = h * (0.15 + rnd() * 0.7); y2 = y1 + (rnd() * 44 - 22); x1 = -8; x2 = w + 8;
+      cx = w * (0.3 + rnd() * 0.4); cy = (y1 + y2) / 2 + (rnd() * 30 - 15);
+    }
+    const inten = 0.6 + rnd() * 0.5;
+    softStroke(x1, y1, cx, cy, x2, y2, "108,92,64", 0.055 * inten);            // valley
+    softStroke(x1 + 2.2, y1 + 0.8, cx + 2.2, cy + 0.8, x2 + 2.2, y2 + 0.8, "255,253,246", 0.07 * inten); // ridge highlight
+  }
+  p.lineCap = "butt";
+
+  // Paper-fibre speckle on top of the folds.
+  const specks = Math.floor((w * h) / 150);
+  for (let i = 0; i < specks; i += 1) {
+    const sx = rnd() * w;
+    const sy = rnd() * h;
+    const a = 0.015 + rnd() * 0.03;
+    p.fillStyle = rnd() > 0.5 ? `rgba(138, 122, 92, ${a.toFixed(3)})` : `rgba(255, 255, 255, ${(a * 1.4).toFixed(3)})`;
+    p.fillRect(sx, sy, 1, 1);
+  }
+
+  // Soft inner edge shadow for a little depth.
+  p.strokeStyle = "rgba(120, 100, 70, 0.10)";
+  p.lineWidth = 2;
+  p.strokeRect(1, 1, w - 2, h - 2);
+
+  // Top sheen.
+  const sheen = p.createLinearGradient(0, 0, 0, Math.min(26, h));
+  sheen.addColorStop(0, "rgba(255, 255, 255, 0.4)");
+  sheen.addColorStop(1, "rgba(255, 255, 255, 0)");
+  p.fillStyle = sheen;
+  p.fillRect(0, 0, w, Math.min(26, h));
+
+  _paperTextureCache = { key, canvas };
+  return canvas;
+}
+
+// A short strip of tape over the note corner: translucent (the paper shows
+// through), softly shadowed, slightly rotated, with torn ends and a gloss band —
+// so it reads as a real piece of tape rather than a flat rounded rectangle.
+function tapeTornPath(ctx, halfW, halfH) {
+  const teeth = 6;
+  ctx.beginPath();
+  ctx.moveTo(-halfW - 3.4, -halfH);
+  for (let i = 0; i <= teeth; i += 1) {
+    const t = i / teeth;
+    const y = -halfH + 2 * halfH * t;
+    ctx.lineTo(-halfW + (i % 2 ? 3.6 : -3.4), y);
+  }
+  for (let i = 0; i <= teeth; i += 1) {
+    const t = i / teeth;
+    const y = halfH - 2 * halfH * t;
+    ctx.lineTo(halfW + (i % 2 ? -3.6 : 3.4), y);
+  }
+  ctx.closePath();
+}
+
+// Build an irregular hand-torn paper outline (no rounded corners, no straight
+// rectangle) into ctx, deckle-jittered along every edge. Seeded so the shape is
+// stable across redraws but differs per note. Re-callable with the same seed to
+// reproduce the exact path (for fill / stroke / clip).
+function tornPaperPath(ctx, x, y, w, h, seedBase) {
+  let s = seedBase;
+  const rnd = () => { s += 1; const r = Math.sin(s * 78.233 + 12.9898) * 43758.5453; return r - Math.floor(r); };
+  const pts = [];
+  // Walk each edge in random-sized steps, alternating big out-teeth and small
+  // in-notches — an irregular bold sawtooth (random spacing + random depth).
+  const edge = (x1, y1, x2, y2, nx, ny) => {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const ux = (x2 - x1) / len;
+    const uy = (y2 - y1) / len;
+    let d = 0;
+    let toggle = 0;
+    while (d < len - 0.5) {
+      d = Math.min(len, d + 26 + rnd() * 24);                          // random spacing 26..50 (fewer, larger teeth)
+      const out = (toggle % 2 === 0) ? 5 + rnd() * 7 : -(rnd() * 2.6);  // big random tooth / slight notch
+      pts.push([x1 + ux * d + nx * out, y1 + uy * d + ny * out]);
+      toggle += 1;
+    }
+  };
+  edge(x, y, x + w, y, 0, -1);          // top
+  edge(x + w, y, x + w, y + h, 1, 0);   // right
+  edge(x + w, y + h, x, y + h, 0, 1);   // bottom
+  edge(x, y + h, x, y, -1, 0);          // left
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i += 1) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+}
+
+function drawReferenceTape(cx, cy, angle) {
+  const ctx = scene;
+  const halfW = 43;
+  const halfH = 13;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  // Cast shadow under the tape.
+  ctx.save();
+  ctx.shadowColor = "rgba(46, 38, 26, 0.22)";
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "rgba(150, 130, 90, 0.01)";
+  tapeTornPath(ctx, halfW, halfH);
+  ctx.fill();
+  ctx.restore();
+
+  // Translucent tape body (lets the paper tone show through).
+  const body = ctx.createLinearGradient(0, -halfH, 0, halfH);
+  body.addColorStop(0, "rgba(232, 212, 154, 0.40)");
+  body.addColorStop(0.5, "rgba(216, 190, 124, 0.30)");
+  body.addColorStop(1, "rgba(200, 172, 108, 0.40)");
+  ctx.fillStyle = body;
+  tapeTornPath(ctx, halfW, halfH);
+  ctx.fill();
+
+  // Gloss highlight band across the top third.
+  ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+  ctx.fillRect(-halfW + 2, -halfH + 1.5, halfW * 2 - 4, 2.4);
+  // Faint lower edge line for thickness.
+  ctx.fillStyle = "rgba(150, 120, 70, 0.12)";
+  ctx.fillRect(-halfW + 2, halfH - 2, halfW * 2 - 4, 1);
+
+  ctx.restore();
+}
+
 export function drawReferenceSheet(layout) {
   const ctx = scene;
   const { refX, refY, refW, refH } = layout;
@@ -2259,96 +2511,196 @@ export function drawReferenceSheet(layout) {
   const pattern = state.selectedPattern;
   const legendAll = getPatternColors(pattern);
   const preferSingleLegend = legendAll.length <= 6;
-  const sheetPad = 12;
-  const gridSize = Math.min(refH - sheetPad * 2, refW * 0.36);
+
+  // Seed for the hand-torn outline: stable per note (so it doesn't wobble between
+  // redraws) but different across patterns/sizes.
+  let nameHash = 0;
+  for (const ch of (pattern?.name || "note")) nameHash = (nameHash * 31 + ch.charCodeAt(0)) % 100000;
+  const tearSeed = nameHash + Math.round(refW) * 7 + Math.round(refH) * 3 + 1;
+
+  // Content box (uniform padding); the grid swatch sits left, text column right.
+  const pad = 13;
+  const contentTop = refY + pad;
+  const contentH = refH - pad * 2;
+  const gridSize = Math.min(contentH, refW * 0.4);
   const cols = boardCols(pattern);
   const rowCount = boardRows(pattern);
   const cell = gridSize / Math.max(cols, rowCount);
   const gridW = cell * cols;
   const gridH = cell * rowCount;
-  const gridX = refX + sheetPad + (gridSize - gridW) / 2;
-  const gridY = refY + (refH - gridH) / 2;
+  const gridX = refX + pad + (gridSize - gridW) / 2;
+  const gridY = contentTop + (contentH - gridH) / 2;
 
+  // --- hand-torn paper card + shadow + tape ---
+  // Inset a touch so the deckle jitter stays inside the layout's ref rect.
+  const px = refX + 5;
+  const py = refY + 5;
+  const pw = refW - 10;
+  const ph = refH - 10;
   ctx.save();
-  ctx.shadowColor = "rgba(38, 36, 43, 0.13)";
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 9;
-  ctx.fillStyle = "#fffdf8";
-  roundedRect(refX, refY, refW, refH, 8);
+  ctx.shadowColor = "rgba(38, 36, 43, 0.18)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = "#fbf6ea";
+  tornPaperPath(ctx, px, py, pw, ph, tearSeed);
   ctx.fill();
   ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(111, 105, 92, 0.2)";
+  ctx.strokeStyle = "rgba(150, 134, 100, 0.30)";
+  ctx.lineWidth = 1;
+  tornPaperPath(ctx, px, py, pw, ph, tearSeed);
   ctx.stroke();
-  ctx.fillStyle = "rgba(216, 170, 92, 0.24)";
-  roundedRect(refX + 14, refY - 4, 48, 12, 3);
-  ctx.fill();
-  roundedRect(refX + refW - 62, refY - 4, 48, 12, 3);
-  ctx.fill();
-  ctx.save();
-  roundedPath(ctx, refX + 3, refY + 3, refW - 6, refH - 6, 6);
-  ctx.clip();
+  drawReferenceTape(px + 38, py - 3, -0.12);
+  drawReferenceTape(px + pw - 38, py - 3, 0.13);
 
-  ctx.fillStyle = "#f7f4ec";
-  roundedRect(gridX - 5, gridY - 5, gridW + 10, gridH + 10, 5);
-  ctx.fill();
+  // --- paper interior (clipped to the torn outline) ---
+  ctx.save();
+  tornPaperPath(ctx, px, py, pw, ph, tearSeed);
+  ctx.clip();
+  ctx.drawImage(getPaperTexture(refW, refH), refX, refY, refW, refH);
+
+  // --- pattern printed directly onto the note ---
+  // Faint printed plate border (thin ink rule, no glossy white sticker frame).
+  ctx.strokeStyle = "rgba(120, 108, 86, 0.30)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(gridX - 4, gridY - 4, gridW + 8, gridH + 8);
+
   const rows = getEffectiveTargetRows(pattern);
+  let ink = tearSeed;
+  const inkRnd = () => { ink += 1; const r = Math.sin(ink * 53.17 + 7.13) * 43758.5453; return r - Math.floor(r); };
+
+  // 1) Heavily faded ink: pushed far toward warm cream so even pure black reads as
+  //    a soft brown-grey, not deep black.
+  ctx.save();
   rows.forEach((row, y) => {
     [...row].forEach((code, x) => {
-      ctx.strokeStyle = "rgba(103, 98, 86, 0.12)";
-      ctx.lineWidth = 0.7;
-      ctx.strokeRect(gridX + x * cell, gridY + y * cell, cell, cell);
       if (code === ".") return;
-      const px = gridX + x * cell + 0.5;
-      const py = gridY + y * cell + 0.5;
-      ctx.fillStyle = palette[code];
-      ctx.fillRect(px, py, Math.max(1, cell - 1), Math.max(1, cell - 1));
+      ctx.fillStyle = fadedPrintColor(palette[code]);
+      ctx.fillRect(gridX + x * cell, gridY + y * cell, cell + 0.4, cell + 0.4);
     });
   });
+  ctx.restore();
 
-  const textX = refX + sheetPad + gridSize + 14;
-  const textAreaW = Math.max(72, refX + refW - textX - 12);
-  let nameSize = preferSingleLegend ? 16 : 14;
-  while (nameSize > 12) {
-    ctx.font = `700 ${nameSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-    if (ctx.measureText(pattern.name).width <= textAreaW) break;
-    nameSize -= 1;
+  // Everything below is confined to the printed plate.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(gridX, gridY, gridW, gridH);
+  ctx.clip();
+
+  // 2) Uneven / worn ink: broad roller patches, mostly bleached where the ink
+  //    ran thin, with a couple of heavier areas so the coverage visibly varies
+  //    without covering the pattern itself.
+  for (let i = 0; i < 6; i += 1) {
+    const cx = gridX + inkRnd() * gridW;
+    const cy = gridY + inkRnd() * gridH;
+    const rad = gridW * (0.40 + inkRnd() * 0.48);
+    const light = i < 4;
+    const a = light ? 0.16 + inkRnd() * 0.08 : 0.08 + inkRnd() * 0.05;
+    const patch = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    patch.addColorStop(0, light ? `rgba(250,244,230,${a.toFixed(3)})` : `rgba(86,70,46,${a.toFixed(3)})`);
+    patch.addColorStop(0.42, light ? `rgba(250,244,230,${(a * 0.56).toFixed(3)})` : `rgba(86,70,46,${(a * 0.48).toFixed(3)})`);
+    patch.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = patch;
+    ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
   }
-  const metaSize = preferSingleLegend ? 12 : 11;
-  const nameY = refY + 34;
-  const metaY = nameY + 18;
-  const legendStartY = metaY + 16;
 
-  ctx.fillStyle = "#26242b";
-  ctx.font = `700 ${nameSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
+  // 3) Print screen: a visible halftone dot grid.
+  const dotSize = Math.max(1.1, Math.min(1.7, cell * 0.25));
+  ctx.fillStyle = "rgba(62, 50, 34, 0.12)";
+  for (let yy = gridY + 1; yy < gridY + gridH; yy += 3) {
+    for (let xx = gridX + 1; xx < gridX + gridW; xx += 3) {
+      ctx.fillRect(xx, yy, dotSize, dotSize);
+    }
+  }
+  ctx.restore();
+
+  // 4) Printed chart grid: fine warm rules plus bold every-10 divisions. These
+  //    stay visible without turning faded dark cells back into solid black.
+  ctx.strokeStyle = "rgba(92, 76, 50, 0.26)";
+  ctx.lineWidth = 0.7;
+  for (let gx = 0; gx <= cols; gx += 1) {
+    if (gx % 10 === 0) continue;
+    ctx.beginPath(); ctx.moveTo(gridX + gx * cell, gridY); ctx.lineTo(gridX + gx * cell, gridY + gridH); ctx.stroke();
+  }
+  for (let gy = 0; gy <= rowCount; gy += 1) {
+    if (gy % 10 === 0) continue;
+    ctx.beginPath(); ctx.moveTo(gridX, gridY + gy * cell); ctx.lineTo(gridX + gridW, gridY + gy * cell); ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(54, 42, 26, 0.58)";
+  ctx.lineWidth = 1.05;
+  for (let gx = 0; gx <= cols; gx += 10) {
+    ctx.beginPath(); ctx.moveTo(gridX + gx * cell, gridY); ctx.lineTo(gridX + gx * cell, gridY + gridH); ctx.stroke();
+  }
+  for (let gy = 0; gy <= rowCount; gy += 10) {
+    ctx.beginPath(); ctx.moveTo(gridX, gridY + gy * cell); ctx.lineTo(gridX + gridW, gridY + gy * cell); ctx.stroke();
+  }
+
+  // --- text column (top-aligned to the content box) ---
+  const textX = gridX + gridW + 18;
+  const textAreaW = Math.max(64, refX + refW - pad - textX);
+  let nameSize = preferSingleLegend ? 13 : 12;
+  while (nameSize > 10.5) {
+    ctx.font = `700 ${nameSize}px ${CANVAS_CUTE_FONT}`;
+    if (ctx.measureText(pattern.name).width <= textAreaW) break;
+    nameSize -= 0.5;
+  }
+  const metaSize = preferSingleLegend ? 9.5 : 9;
+  const nameY = contentTop + nameSize + 1;
+  const metaY = nameY + 13;
+  const legendStartY = metaY + 15;
+
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(58, 50, 38, 0.72)";
+  ctx.font = `700 ${nameSize}px ${CANVAS_CUTE_FONT}`;
   ctx.fillText(fitText(ctx, pattern.name, textAreaW), textX, nameY);
-  ctx.fillStyle = "#686572";
-  ctx.font = `${metaSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-  ctx.fillText(fitText(ctx, `${boardCols(pattern)}x${boardRows(pattern)} · ${getTargetTotal()} 颗`, textAreaW), textX, metaY);
+  ctx.fillStyle = "rgba(94, 80, 58, 0.60)";
+  ctx.font = `600 ${metaSize}px ${CANVAS_CLEAR_FONT}`;
+  ctx.fillText(fitText(ctx, `${cols}×${rowCount} · ${getTargetTotal()} 颗 · ${legendAll.length} 色`, textAreaW), textX, metaY);
+  ctx.strokeStyle = "rgba(122, 108, 82, 0.16)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(textX, metaY + 6);
+  ctx.lineTo(textX + textAreaW, metaY + 6);
+  ctx.stroke();
 
+  // Colour legend, auto-fitting the rows that remain below the heading.
   const counts = getTargetCounts(pattern);
-  const legendAreaW = textAreaW;
-  const legendCols = (preferSingleLegend || legendAreaW < 154) ? 1 : 2;
-  const colW = legendCols === 1
-    ? legendAreaW
-    : Math.max(60, Math.floor((legendAreaW - 8) / 2));
-  const rowH = legendCols === 1 ? 16 : 15;
-  const maxRows = 5;
+  const legendCols = (preferSingleLegend || textAreaW < 150) ? 1 : 2;
+  const colW = legendCols === 1 ? textAreaW : Math.max(60, Math.floor((textAreaW - 8) / 2));
+  const legendBottom = refY + refH - pad;
+  const availableLegendH = Math.max(1, legendBottom - legendStartY);
+  const rowH = preferSingleLegend ? clamp(availableLegendH / Math.max(1, legendAll.length - 0.15), 11.5, 16) : 16;
+  const rowsThatFit = Math.max(1, Math.floor(availableLegendH / rowH) + 1);
+  const maxRows = preferSingleLegend ? Math.min(6, legendAll.length) : Math.min(5, rowsThatFit);
   const maxLegend = legendCols * maxRows;
-  const colors = legendAll.slice(0, maxLegend);
+  const truncated = legendAll.length > maxLegend;
+  const shown = truncated ? maxLegend - 1 : Math.min(legendAll.length, maxLegend);
+  const colors = legendAll.slice(0, shown);
   colors.forEach((code, i) => {
     const col = i % legendCols;
     const row = Math.floor(i / legendCols);
     const x = textX + col * (colW + 8);
     const y = legendStartY + row * rowH;
-    ctx.fillStyle = palette[code];
+    ctx.fillStyle = fadedPrintColor(palette[code]);
     ctx.beginPath();
-    ctx.arc(x, y - 4, legendCols === 1 ? 5.1 : 4.8, 0, Math.PI * 2);
+    ctx.arc(x + 4, y - 4, legendCols === 1 ? 5.1 : 4.8, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#686572";
-    ctx.font = `${legendCols === 1 ? 12 : 11.5}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-    const label = fitText(ctx, `${beadIds[code] || code} x${counts[code] || 0}`, Math.max(22, colW - 12));
-    ctx.fillText(label, x + 9, y);
+    ctx.strokeStyle = "rgba(80, 74, 62, 0.22)";
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.fillStyle = "rgba(86, 78, 60, 0.64)";
+    ctx.font = `${legendCols === 1 ? 12 : 11.5}px ${CANVAS_CLEAR_FONT}`;
+    const label = fitText(ctx, `${beadIds[code] || code} ×${counts[code] || 0}`, Math.max(22, colW - 16));
+    ctx.fillText(label, x + 13, y);
   });
+  if (truncated) {
+    const i = shown;
+    const col = i % legendCols;
+    const row = Math.floor(i / legendCols);
+    ctx.fillStyle = "#9a9484";
+    ctx.font = `${legendCols === 1 ? 12 : 11.5}px ${CANVAS_CLEAR_FONT}`;
+    ctx.fillText(`+${legendAll.length - shown} 色`, textX + col * (colW + 8), legendStartY + row * rowH);
+  }
+
   ctx.restore();
   ctx.restore();
 }

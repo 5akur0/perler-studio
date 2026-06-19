@@ -605,6 +605,9 @@
     const rb = Math.round(lerp(ab, bb, amount));
     return `rgb(${rr}, ${rg}, ${rb})`;
   }
+  function fadedPrintColor(hex) {
+    return mixColor(hex, "#eadfc6", 0.58);
+  }
   function srgbToLinear(value) {
     const v = value / 255;
     return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
@@ -1273,6 +1276,13 @@
     { id: "cool", name: "\u51B7\u5374" },
     { id: "finish", name: "\u6536\u85CF" }
   ];
+  var DESK_WOOD = {
+    light: "#e8cda6",
+    mid: "#d9b88a",
+    deep: "#c6a06f",
+    grain: "122, 84, 52",
+    seam: "96, 64, 40"
+  };
   var backgroundThemes = {
     mist: {
       name: "\u96FE\u9752",
@@ -1855,7 +1865,7 @@
     try {
       ctx = new AC();
       master = ctx.createGain();
-      master.gain.value = 0.22;
+      master.gain.value = 0.32;
       const comp = ctx.createDynamicsCompressor();
       master.connect(comp);
       comp.connect(ctx.destination);
@@ -1928,49 +1938,56 @@
       for (let i = 0; i < 7; i += 1) {
         const tt = t + i * rand(0.018, 0.05);
         const f = rand(360, 560);
-        noiseHit(tt, { dur: 0.025, gain: 0.14, type: "highpass", freq: 3200, attack: 2e-3 });
-        tone(tt, { freq: f, type: "triangle", dur: 0.05, gain: 0.18, glideTo: f * 0.7 });
+        noiseHit(tt, { dur: 0.025, gain: 0.2, type: "highpass", freq: 3200, attack: 2e-3 });
+        tone(tt, { freq: f, type: "triangle", dur: 0.05, gain: 0.24, glideTo: f * 0.7 });
       }
     },
     // Tray shake / sorting
     sift(t) {
-      noiseHit(t, { dur: 0.34, gain: 0.16, type: "bandpass", freq: 3200, q: 0.7, attack: 0.03, tremolo: 18 });
+      noiseHit(t, { dur: 0.34, gain: 0.24, type: "bandpass", freq: 3200, q: 0.7, attack: 0.03, tremolo: 18 });
     },
     // Scoop beads onto needle / tweezers / from the box
     grab(t) {
-      noiseHit(t, { dur: 0.13, gain: 0.16, type: "bandpass", freq: 1600, q: 0.6, attack: 0.02, glideTo: 2600 });
-      tone(t + 0.02, { freq: rand(300, 380), type: "triangle", dur: 0.05, gain: 0.16, glideTo: 220 });
+      noiseHit(t, { dur: 0.13, gain: 0.22, type: "bandpass", freq: 1600, q: 0.6, attack: 0.02, glideTo: 2600 });
+      tone(t + 0.02, { freq: rand(300, 380), type: "triangle", dur: 0.05, gain: 0.22, glideTo: 220 });
     },
     pick(t) {
-      noiseHit(t, { dur: 0.03, gain: 0.16, type: "highpass", freq: 4200, attack: 2e-3 });
+      noiseHit(t, { dur: 0.03, gain: 0.26, type: "highpass", freq: 4200, attack: 2e-3 });
     },
     drop(t) {
-      tone(t, { freq: 300, type: "sine", dur: 0.06, gain: 0.22, glideTo: 180 });
+      tone(t, { freq: 300, type: "sine", dur: 0.06, gain: 0.26, glideTo: 180 });
     },
     // A loose bead bouncing onto the floor
     "floor-drop"(t) {
-      tone(t, { freq: 360, type: "sine", dur: 0.07, gain: 0.22, glideTo: 200 });
-      tone(t + 0.09, { freq: 280, type: "sine", dur: 0.06, gain: 0.13, glideTo: 170 });
-      noiseHit(t, { dur: 0.03, gain: 0.1, type: "highpass", freq: 3500, attack: 2e-3 });
+      tone(t, { freq: 360, type: "sine", dur: 0.07, gain: 0.26, glideTo: 200 });
+      tone(t + 0.09, { freq: 280, type: "sine", dur: 0.06, gain: 0.16, glideTo: 170 });
+      noiseHit(t, { dur: 0.03, gain: 0.14, type: "highpass", freq: 3500, attack: 2e-3 });
     },
     // Empty the tray
     dump(t) {
       for (let i = 0; i < 9; i += 1) {
         const tt = t + i * rand(0.012, 0.03);
-        noiseHit(tt, { dur: 0.03, gain: 0.12, type: "bandpass", freq: 2600 - i * 140, q: 0.6, attack: 2e-3 });
+        noiseHit(tt, { dur: 0.03, gain: 0.18, type: "bandpass", freq: 2600 - i * 140, q: 0.6, attack: 2e-3 });
       }
     },
     iron(t) {
-      noiseHit(t, { dur: 0.26, gain: 0.22, type: "lowpass", freq: 1100, q: 0.5, attack: 0.06 });
-      noiseHit(t, { dur: 0.2, gain: 0.09, type: "bandpass", freq: 3200, q: 0.8, attack: 0.05 });
+      noiseHit(t, { dur: 0.26, gain: 0.24, type: "lowpass", freq: 1100, q: 0.5, attack: 0.06 });
+      noiseHit(t, { dur: 0.2, gain: 0.12, type: "bandpass", freq: 3200, q: 0.8, attack: 0.05 });
     },
     // Flip the board over for a second pass
     flip(t) {
-      noiseHit(t, { dur: 0.2, gain: 0.14, type: "lowpass", freq: 700, q: 0.4, attack: 0.04, glideTo: 1800 });
+      noiseHit(t, { dur: 0.2, gain: 0.22, type: "lowpass", freq: 700, q: 0.4, attack: 0.04, glideTo: 1800 });
     },
     cool(t) {
-      noiseHit(t, { dur: 0.5, gain: 0.09, type: "highpass", freq: 5e3, attack: 0.08 });
-      tone(t, { freq: 520, type: "sine", dur: 0.5, gain: 0.11, glideTo: 320, attack: 0.05 });
+      noiseHit(t, { dur: 0.5, gain: 0.14, type: "highpass", freq: 5e3, attack: 0.08 });
+      tone(t, { freq: 520, type: "sine", dur: 0.5, gain: 0.16, glideTo: 320, attack: 0.05 });
+    },
+    // Press the board flat while cooling — a crisp, firm press (bright contact + a short settle), not a muffled thud.
+    press(t) {
+      noiseHit(t, { dur: 0.04, gain: 0.18, type: "highpass", freq: 4200, attack: 2e-3 });
+      noiseHit(t, { dur: 0.24, gain: 0.15, type: "bandpass", freq: 1900, q: 0.6, attack: 0.04, glideTo: 1100 });
+      tone(t + 0.02, { freq: 240, type: "triangle", dur: 0.16, gain: 0.22, glideTo: 150, attack: 0.015 });
+      tone(t + 0.13, { freq: 430, type: "triangle", dur: 0.1, gain: 0.1, glideTo: 300, attack: 0.012 });
     },
     finish(t) {
       [659.25, 783.99, 1046.5].forEach((nf, i) => (
@@ -1990,24 +2007,24 @@
       noiseHit(t, { dur: 0.02, gain: 0.18, type: "highpass", freq: 5e3, attack: 1e-3 });
       tone(t + 0.01, { freq: 180, type: "square", dur: 0.04, gain: 0.12, glideTo: 120 });
     },
-    // Switching pages / app modes — very soft swish
+    // Switching pages / app modes — soft swish (kept gentle, just no longer inaudible)
     nav(t) {
-      noiseHit(t, { dur: 0.12, gain: 0.08, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
+      noiseHit(t, { dur: 0.12, gain: 0.13, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
     },
     // Dialog/modal opening — soft rising swell
     "modal-open"(t) {
-      noiseHit(t, { dur: 0.16, gain: 0.1, type: "lowpass", freq: 600, q: 0.4, attack: 0.03, glideTo: 1800 });
-      tone(t + 0.02, { freq: 360, type: "sine", dur: 0.1, gain: 0.1, glideTo: 520, attack: 0.02 });
+      noiseHit(t, { dur: 0.16, gain: 0.15, type: "lowpass", freq: 600, q: 0.4, attack: 0.03, glideTo: 1800 });
+      tone(t + 0.02, { freq: 360, type: "sine", dur: 0.1, gain: 0.15, glideTo: 520, attack: 0.02 });
     },
     // Dialog/modal closing — soft falling
     "modal-close"(t) {
-      noiseHit(t, { dur: 0.14, gain: 0.09, type: "lowpass", freq: 1600, q: 0.4, attack: 0.02, glideTo: 500 });
-      tone(t + 0.02, { freq: 460, type: "sine", dur: 0.1, gain: 0.09, glideTo: 300, attack: 0.02 });
+      noiseHit(t, { dur: 0.14, gain: 0.14, type: "lowpass", freq: 1600, q: 0.4, attack: 0.02, glideTo: 500 });
+      tone(t + 0.02, { freq: 460, type: "sine", dur: 0.1, gain: 0.14, glideTo: 300, attack: 0.02 });
     },
     // Inspection found issues — neutral scan tick (not punishing)
     inspect(t) {
-      noiseHit(t, { dur: 0.05, gain: 0.12, type: "bandpass", freq: 2e3, q: 1, attack: 4e-3 });
-      tone(t + 0.06, { freq: 440, type: "sine", dur: 0.08, gain: 0.14, glideTo: 360 });
+      noiseHit(t, { dur: 0.05, gain: 0.18, type: "bandpass", freq: 2e3, q: 1, attack: 4e-3 });
+      tone(t + 0.06, { freq: 440, type: "sine", dur: 0.08, gain: 0.2, glideTo: 360 });
     },
     // Inspection perfect / positive confirmation — gentle rising two-note
     success(t) {
@@ -2038,6 +2055,7 @@
     dump: [4, 18, 4, 18, 4],
     iron: 6,
     flip: 8,
+    press: [10, 40, 8],
     finish: [12, 40, 12, 40, 18],
     achievement: [10, 30, 10, 30, 12],
     lamp: 6,
@@ -2050,7 +2068,7 @@
     error: [15, 30, 15],
     "ui-tap": 4
   };
-  var throttleMs = { iron: 90, sift: 200, nav: 140, grab: 40, "bead-place": 18 };
+  var throttleMs = { iron: 90, sift: 200, nav: 140, grab: 40, "bead-place": 18, press: 120 };
   var lastAt = {};
   function playSfx(name) {
     if (!sfxEnabled) return;
@@ -2659,6 +2677,8 @@
   }
 
   // src/render.js
+  var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   function useMobileTrayGrid() {
     return window.matchMedia("(max-width: 860px)").matches;
   }
@@ -2962,7 +2982,8 @@
         trayX: 0,
         trayY: 0,
         trayW: 0,
-        trayH: 0
+        trayH: 0,
+        floorTop: h
       };
     }
     const boardX = 34;
@@ -2979,8 +3000,16 @@
     const trayX = boardX + boardSize + trayGap;
     const naturalTrayW = w - trayX - trayRightMargin;
     const trayW = Math.max(minTrayW, naturalTrayW);
+    const frameInset = 14;
+    const boardTopOuter = boardY - frameInset;
+    const boardBottomOuter = boardY + boardH + frameInset;
     const refH = clamp(boardSize * 0.26, 130, 158);
-    const trayY = boardY + refH + 16;
+    const refY = boardTopOuter;
+    const trayY = refY + refH + 16;
+    const trayH = Math.max(120, boardBottomOuter - trayY);
+    const contentBottom = boardBottomOuter;
+    const minFloorBand = 66;
+    const floorTop = clamp(h - minFloorBand, contentBottom + 16, h - 18);
     return {
       w,
       h,
@@ -2991,13 +3020,14 @@
       boardH,
       cell,
       refX: trayX,
-      refY: boardY,
+      refY,
       refW: trayW,
       refH,
       trayX,
       trayY,
       trayW,
-      trayH: Math.max(220, boardY + boardSize - trayY)
+      trayH,
+      floorTop
     };
   }
   function setupHiDpiCanvas(canvas, ctx2, rect = canvas.getBoundingClientRect()) {
@@ -3053,56 +3083,70 @@
     state.renderDirty = false;
   }
   function drawWorkbench(layout) {
-    const { w, h, boardX, boardY, boardSize, trayX, trayY, trayW, trayH } = layout;
+    const { w, h, floorTop } = layout;
     const ctx2 = scene;
-    const theme = currentBackgroundTheme();
     ctx2.save();
+    const OVER = 8;
+    const fw = w + OVER;
     if (useMobileDirectPlacement()) {
-      ctx2.fillStyle = theme.table[1];
-      ctx2.fillRect(0, 0, w, h);
+      ctx2.fillStyle = DESK_WOOD.mid;
+      ctx2.fillRect(0, 0, fw, h + OVER);
       ctx2.restore();
       return;
     }
-    const activeBottom = trayH > 0 ? Math.max(boardY + boardSize + 24, trayY + trayH + 10) : Math.max(boardY + boardSize + 24, layout.refY + layout.refH + 14);
-    const matBottom = Math.min(h - 90, activeBottom);
-    const tableEdgeY = Math.min(h - 18, matBottom + 30);
-    const floorTop = tableEdgeY;
     const floorGradient = ctx2.createLinearGradient(0, floorTop, 0, h);
-    floorGradient.addColorStop(0, "rgba(54, 60, 72, 0.20)");
-    floorGradient.addColorStop(1, "rgba(40, 46, 56, 0.30)");
+    floorGradient.addColorStop(0, "#9c7a52");
+    floorGradient.addColorStop(1, "#79593a");
     ctx2.fillStyle = floorGradient;
-    ctx2.fillRect(0, floorTop, w, h - floorTop);
-    ctx2.strokeStyle = "rgba(20, 24, 32, 0.10)";
+    ctx2.fillRect(0, floorTop, fw, h - floorTop + OVER);
+    ctx2.strokeStyle = "rgba(30, 20, 12, 0.18)";
     ctx2.lineWidth = 1;
-    for (let x = 0; x < w; x += 78) {
+    for (let x = 0; x < fw; x += 78) {
       ctx2.beginPath();
       ctx2.moveTo(x, floorTop);
-      ctx2.lineTo(x, h);
+      ctx2.lineTo(x, h + OVER);
       ctx2.stroke();
     }
-    const tableGradient = ctx2.createLinearGradient(0, 0, w, floorTop);
-    tableGradient.addColorStop(0, theme.table[0]);
-    tableGradient.addColorStop(0.48, theme.table[1]);
-    tableGradient.addColorStop(1, theme.table[2]);
-    ctx2.fillStyle = tableGradient;
-    ctx2.fillRect(0, 0, w, floorTop);
-    ctx2.fillStyle = "rgba(255, 255, 255, 0.26)";
-    for (let y = 0; y < floorTop; y += 34) {
-      ctx2.fillRect(0, y, w, 1);
-    }
-    ctx2.strokeStyle = "rgba(71, 86, 91, 0.07)";
-    ctx2.lineWidth = 1;
-    for (let x = -floorTop; x < w; x += 42) {
-      ctx2.beginPath();
-      ctx2.moveTo(x, floorTop);
-      ctx2.lineTo(x + floorTop, 0);
-      ctx2.stroke();
-    }
-    ctx2.fillStyle = "rgba(28, 32, 40, 0.18)";
-    ctx2.fillRect(0, floorTop - 4, w, 4);
-    ctx2.fillStyle = "rgba(28, 32, 40, 0.10)";
-    ctx2.fillRect(0, floorTop, w, 6);
+    drawWoodDesk(ctx2, fw, floorTop);
+    ctx2.fillStyle = "rgba(34, 22, 12, 0.22)";
+    ctx2.fillRect(0, floorTop - 4, fw, 4);
+    ctx2.fillStyle = "rgba(34, 22, 12, 0.12)";
+    ctx2.fillRect(0, floorTop, fw, 6);
     ctx2.restore();
+  }
+  function drawWoodDesk(ctx2, w, top) {
+    if (top <= 0) return;
+    const base = ctx2.createLinearGradient(0, 0, 0, top);
+    base.addColorStop(0, DESK_WOOD.light);
+    base.addColorStop(0.5, DESK_WOOD.mid);
+    base.addColorStop(1, DESK_WOOD.deep);
+    ctx2.fillStyle = base;
+    ctx2.fillRect(0, 0, w, top);
+    const plankH = 132;
+    for (let py = plankH; py < top; py += plankH) {
+      ctx2.fillStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
+      ctx2.fillRect(0, py, w, 1.4);
+      ctx2.fillStyle = "rgba(255, 246, 230, 0.18)";
+      ctx2.fillRect(0, py + 1.4, w, 1);
+    }
+    ctx2.lineWidth = 1;
+    let gi = 0;
+    for (let y = 6; y < top; y += 11, gi += 1) {
+      const hashed = Math.sin(gi * 12.9898) * 43758.5453;
+      const frac = hashed - Math.floor(hashed);
+      const alpha = 0.025 + frac * 0.06;
+      const amp = 1.1 + frac * 2.6;
+      ctx2.strokeStyle = `rgba(${DESK_WOOD.grain}, ${alpha.toFixed(3)})`;
+      ctx2.beginPath();
+      for (let x = 0; x <= w; x += 18) {
+        const yy = y + Math.sin(x * 0.014 + gi * 1.7) * amp + Math.sin(x * 0.06 + gi) * 0.5;
+        if (x === 0) ctx2.moveTo(x, yy);
+        else ctx2.lineTo(x, yy);
+      }
+      ctx2.stroke();
+    }
+    ctx2.fillStyle = "rgba(255, 248, 234, 0.12)";
+    ctx2.fillRect(0, 0, w, Math.min(40, top));
   }
   function drawFloorDrops(layout) {
     if (!state.floorDrops.length) return;
@@ -3150,10 +3194,15 @@
     ctx2.restore();
   }
   function lampSwitchRect(layout = currentLayout()) {
-    const size = clamp(layout.boardSize * 0.09, 34, 56);
+    const margin = 12;
+    const gap = 10;
+    const floorTop = layout.floorTop ?? layout.h - 60;
+    const room = layout.h - margin - (floorTop + gap);
+    const size = clamp(Math.min(layout.boardSize * 0.1, room), 34, 46);
     return {
-      x: layout.w - size - 14,
-      y: layout.h - size - 14,
+      x: layout.w - size - margin,
+      y: layout.h - size - margin,
+      // anchored to the bottom-right corner
       w: size,
       h: size
     };
@@ -3344,6 +3393,10 @@
     const style = currentToolStyle();
     const inUse = state.phase === "place" && state.tool === "tweezers";
     ctx2.save();
+    const tweezerScale = 1.18;
+    ctx2.translate(x + 46, y + 66);
+    ctx2.scale(tweezerScale, tweezerScale);
+    ctx2.translate(-(x + 46), -(y + 66));
     ctx2.globalAlpha = inUse ? 0.46 : 0.76;
     ctx2.shadowColor = "rgba(38, 36, 43, 0.1)";
     ctx2.shadowBlur = inUse ? 4 : 10;
@@ -3370,11 +3423,11 @@
     ctx2.fill();
     drawToolDecoration(ctx2, x + 24, y + 6, style);
     if (state.tweezerBead) {
-      drawBead(ctx2, x + 46, y + 66, 5.8, state.tweezerBead, 0, false);
+      drawBead(ctx2, x + 46, y + 66, 7.2, state.tweezerBead, 0, false);
     } else {
       ctx2.fillStyle = "rgba(102, 116, 128, 0.2)";
       ctx2.beginPath();
-      ctx2.arc(x + 46, y + 66, 5.3, 0, Math.PI * 2);
+      ctx2.arc(x + 46, y + 66, 6.2, 0, Math.PI * 2);
       ctx2.fill();
     }
     ctx2.restore();
@@ -3704,7 +3757,7 @@
   }
   function drawProjectedTemplateLayer(ctx2, cols, rows, cell, templateOpacity) {
     if (templateOpacity <= 0) return;
-    const projectedBeadRadius = cell * 0.43;
+    const projectedBeadRadius = cell * 0.49;
     ctx2.save();
     for (let y = 0; y < rows; y += 1) {
       for (let x = 0; x < cols; x += 1) {
@@ -3733,7 +3786,7 @@
     const ctx2 = canvas.getContext("2d");
     if (!ctx2) return { key, canvas: null };
     const blur = Math.max(1.45, cell * 0.24);
-    const projectedBeadRadius = cell * 0.43;
+    const projectedBeadRadius = cell * 0.49;
     const spotCx = canvasW / 2;
     const spotCy = canvasH / 2;
     const spotRadius = Math.min(canvasW, canvasH) * 0.425;
@@ -4613,6 +4666,173 @@
     ctx2.stroke();
     ctx2.restore();
   }
+  var _paperTextureCache = null;
+  function getPaperTexture(w, h) {
+    const key = `${Math.round(w)}x${Math.round(h)}`;
+    if (_paperTextureCache && _paperTextureCache.key === key) return _paperTextureCache.canvas;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(w * dpr));
+    canvas.height = Math.max(1, Math.round(h * dpr));
+    const p = canvas.getContext("2d");
+    p.scale(dpr, dpr);
+    const base = p.createLinearGradient(0, 0, 0, h);
+    base.addColorStop(0, "#fffefb");
+    base.addColorStop(1, "#f3ecdd");
+    p.fillStyle = base;
+    p.fillRect(0, 0, w, h);
+    let seed = 0;
+    const rnd = () => {
+      seed += 1;
+      const r = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+      return r - Math.floor(r);
+    };
+    for (let i = 0; i < 9; i += 1) {
+      const cx = rnd() * w;
+      const cy = rnd() * h;
+      const rad = 50 + rnd() * 110;
+      const light = rnd() > 0.5;
+      const a = 0.05 + rnd() * 0.045;
+      const blob = p.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      blob.addColorStop(0, light ? `rgba(255,255,250,${a.toFixed(3)})` : `rgba(112,96,68,${a.toFixed(3)})`);
+      blob.addColorStop(1, "rgba(255,255,255,0)");
+      p.fillStyle = blob;
+      p.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+    }
+    p.lineCap = "round";
+    const softStroke = (x1, y1, cx, cy, x2, y2, rgb, peak) => {
+      const passes = [[5.5, peak * 0.4], [3, peak * 0.65], [1.5, peak]];
+      for (const [lw, a] of passes) {
+        p.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
+        p.lineWidth = lw;
+        p.beginPath();
+        p.moveTo(x1, y1);
+        p.quadraticCurveTo(cx, cy, x2, y2);
+        p.stroke();
+      }
+    };
+    const creases = 6;
+    for (let i = 0; i < creases; i += 1) {
+      const vertical = rnd() > 0.5;
+      let x1;
+      let y1;
+      let x2;
+      let y2;
+      let cx;
+      let cy;
+      if (vertical) {
+        x1 = w * (0.15 + rnd() * 0.7);
+        x2 = x1 + (rnd() * 70 - 35);
+        y1 = -8;
+        y2 = h + 8;
+        cx = (x1 + x2) / 2 + (rnd() * 44 - 22);
+        cy = h * (0.3 + rnd() * 0.4);
+      } else {
+        y1 = h * (0.15 + rnd() * 0.7);
+        y2 = y1 + (rnd() * 44 - 22);
+        x1 = -8;
+        x2 = w + 8;
+        cx = w * (0.3 + rnd() * 0.4);
+        cy = (y1 + y2) / 2 + (rnd() * 30 - 15);
+      }
+      const inten = 0.6 + rnd() * 0.5;
+      softStroke(x1, y1, cx, cy, x2, y2, "108,92,64", 0.055 * inten);
+      softStroke(x1 + 2.2, y1 + 0.8, cx + 2.2, cy + 0.8, x2 + 2.2, y2 + 0.8, "255,253,246", 0.07 * inten);
+    }
+    p.lineCap = "butt";
+    const specks = Math.floor(w * h / 150);
+    for (let i = 0; i < specks; i += 1) {
+      const sx = rnd() * w;
+      const sy = rnd() * h;
+      const a = 0.015 + rnd() * 0.03;
+      p.fillStyle = rnd() > 0.5 ? `rgba(138, 122, 92, ${a.toFixed(3)})` : `rgba(255, 255, 255, ${(a * 1.4).toFixed(3)})`;
+      p.fillRect(sx, sy, 1, 1);
+    }
+    p.strokeStyle = "rgba(120, 100, 70, 0.10)";
+    p.lineWidth = 2;
+    p.strokeRect(1, 1, w - 2, h - 2);
+    const sheen = p.createLinearGradient(0, 0, 0, Math.min(26, h));
+    sheen.addColorStop(0, "rgba(255, 255, 255, 0.4)");
+    sheen.addColorStop(1, "rgba(255, 255, 255, 0)");
+    p.fillStyle = sheen;
+    p.fillRect(0, 0, w, Math.min(26, h));
+    _paperTextureCache = { key, canvas };
+    return canvas;
+  }
+  function tapeTornPath(ctx2, halfW, halfH) {
+    const teeth = 6;
+    ctx2.beginPath();
+    ctx2.moveTo(-halfW - 3.4, -halfH);
+    for (let i = 0; i <= teeth; i += 1) {
+      const t = i / teeth;
+      const y = -halfH + 2 * halfH * t;
+      ctx2.lineTo(-halfW + (i % 2 ? 3.6 : -3.4), y);
+    }
+    for (let i = 0; i <= teeth; i += 1) {
+      const t = i / teeth;
+      const y = halfH - 2 * halfH * t;
+      ctx2.lineTo(halfW + (i % 2 ? -3.6 : 3.4), y);
+    }
+    ctx2.closePath();
+  }
+  function tornPaperPath(ctx2, x, y, w, h, seedBase) {
+    let s = seedBase;
+    const rnd = () => {
+      s += 1;
+      const r = Math.sin(s * 78.233 + 12.9898) * 43758.5453;
+      return r - Math.floor(r);
+    };
+    const pts = [];
+    const edge = (x1, y1, x2, y2, nx, ny) => {
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const ux = (x2 - x1) / len;
+      const uy = (y2 - y1) / len;
+      let d = 0;
+      let toggle = 0;
+      while (d < len - 0.5) {
+        d = Math.min(len, d + 26 + rnd() * 24);
+        const out = toggle % 2 === 0 ? 5 + rnd() * 7 : -(rnd() * 2.6);
+        pts.push([x1 + ux * d + nx * out, y1 + uy * d + ny * out]);
+        toggle += 1;
+      }
+    };
+    edge(x, y, x + w, y, 0, -1);
+    edge(x + w, y, x + w, y + h, 1, 0);
+    edge(x + w, y + h, x, y + h, 0, 1);
+    edge(x, y + h, x, y, -1, 0);
+    ctx2.beginPath();
+    ctx2.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i += 1) ctx2.lineTo(pts[i][0], pts[i][1]);
+    ctx2.closePath();
+  }
+  function drawReferenceTape(cx, cy, angle) {
+    const ctx2 = scene;
+    const halfW = 43;
+    const halfH = 13;
+    ctx2.save();
+    ctx2.translate(cx, cy);
+    ctx2.rotate(angle);
+    ctx2.save();
+    ctx2.shadowColor = "rgba(46, 38, 26, 0.22)";
+    ctx2.shadowBlur = 5;
+    ctx2.shadowOffsetY = 2;
+    ctx2.fillStyle = "rgba(150, 130, 90, 0.01)";
+    tapeTornPath(ctx2, halfW, halfH);
+    ctx2.fill();
+    ctx2.restore();
+    const body = ctx2.createLinearGradient(0, -halfH, 0, halfH);
+    body.addColorStop(0, "rgba(232, 212, 154, 0.40)");
+    body.addColorStop(0.5, "rgba(216, 190, 124, 0.30)");
+    body.addColorStop(1, "rgba(200, 172, 108, 0.40)");
+    ctx2.fillStyle = body;
+    tapeTornPath(ctx2, halfW, halfH);
+    ctx2.fill();
+    ctx2.fillStyle = "rgba(255, 255, 255, 0.22)";
+    ctx2.fillRect(-halfW + 2, -halfH + 1.5, halfW * 2 - 4, 2.4);
+    ctx2.fillStyle = "rgba(150, 120, 70, 0.12)";
+    ctx2.fillRect(-halfW + 2, halfH - 2, halfW * 2 - 4, 1);
+    ctx2.restore();
+  }
   function drawReferenceSheet(layout) {
     const ctx2 = scene;
     const { refX, refY, refW, refH } = layout;
@@ -4620,89 +4840,178 @@
     const pattern = state.selectedPattern;
     const legendAll = getPatternColors(pattern);
     const preferSingleLegend = legendAll.length <= 6;
-    const sheetPad = 12;
-    const gridSize = Math.min(refH - sheetPad * 2, refW * 0.36);
+    let nameHash = 0;
+    for (const ch of pattern?.name || "note") nameHash = (nameHash * 31 + ch.charCodeAt(0)) % 1e5;
+    const tearSeed = nameHash + Math.round(refW) * 7 + Math.round(refH) * 3 + 1;
+    const pad = 13;
+    const contentTop = refY + pad;
+    const contentH = refH - pad * 2;
+    const gridSize = Math.min(contentH, refW * 0.4);
     const cols = boardCols(pattern);
     const rowCount = boardRows(pattern);
     const cell = gridSize / Math.max(cols, rowCount);
     const gridW = cell * cols;
     const gridH = cell * rowCount;
-    const gridX = refX + sheetPad + (gridSize - gridW) / 2;
-    const gridY = refY + (refH - gridH) / 2;
+    const gridX = refX + pad + (gridSize - gridW) / 2;
+    const gridY = contentTop + (contentH - gridH) / 2;
+    const px = refX + 5;
+    const py = refY + 5;
+    const pw = refW - 10;
+    const ph = refH - 10;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.13)";
-    ctx2.shadowBlur = 18;
-    ctx2.shadowOffsetY = 9;
-    ctx2.fillStyle = "#fffdf8";
-    roundedRect(refX, refY, refW, refH, 8);
+    ctx2.shadowColor = "rgba(38, 36, 43, 0.18)";
+    ctx2.shadowBlur = 16;
+    ctx2.shadowOffsetY = 8;
+    ctx2.fillStyle = "#fbf6ea";
+    tornPaperPath(ctx2, px, py, pw, ph, tearSeed);
     ctx2.fill();
     ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(111, 105, 92, 0.2)";
+    ctx2.strokeStyle = "rgba(150, 134, 100, 0.30)";
+    ctx2.lineWidth = 1;
+    tornPaperPath(ctx2, px, py, pw, ph, tearSeed);
     ctx2.stroke();
-    ctx2.fillStyle = "rgba(216, 170, 92, 0.24)";
-    roundedRect(refX + 14, refY - 4, 48, 12, 3);
-    ctx2.fill();
-    roundedRect(refX + refW - 62, refY - 4, 48, 12, 3);
-    ctx2.fill();
+    drawReferenceTape(px + 38, py - 3, -0.12);
+    drawReferenceTape(px + pw - 38, py - 3, 0.13);
     ctx2.save();
-    roundedPath(ctx2, refX + 3, refY + 3, refW - 6, refH - 6, 6);
+    tornPaperPath(ctx2, px, py, pw, ph, tearSeed);
     ctx2.clip();
-    ctx2.fillStyle = "#f7f4ec";
-    roundedRect(gridX - 5, gridY - 5, gridW + 10, gridH + 10, 5);
-    ctx2.fill();
+    ctx2.drawImage(getPaperTexture(refW, refH), refX, refY, refW, refH);
+    ctx2.strokeStyle = "rgba(120, 108, 86, 0.30)";
+    ctx2.lineWidth = 1;
+    ctx2.strokeRect(gridX - 4, gridY - 4, gridW + 8, gridH + 8);
     const rows = getEffectiveTargetRows(pattern);
+    let ink = tearSeed;
+    const inkRnd = () => {
+      ink += 1;
+      const r = Math.sin(ink * 53.17 + 7.13) * 43758.5453;
+      return r - Math.floor(r);
+    };
+    ctx2.save();
     rows.forEach((row, y) => {
       [...row].forEach((code, x) => {
-        ctx2.strokeStyle = "rgba(103, 98, 86, 0.12)";
-        ctx2.lineWidth = 0.7;
-        ctx2.strokeRect(gridX + x * cell, gridY + y * cell, cell, cell);
         if (code === ".") return;
-        const px = gridX + x * cell + 0.5;
-        const py = gridY + y * cell + 0.5;
-        ctx2.fillStyle = palette[code];
-        ctx2.fillRect(px, py, Math.max(1, cell - 1), Math.max(1, cell - 1));
+        ctx2.fillStyle = fadedPrintColor(palette[code]);
+        ctx2.fillRect(gridX + x * cell, gridY + y * cell, cell + 0.4, cell + 0.4);
       });
     });
-    const textX = refX + sheetPad + gridSize + 14;
-    const textAreaW = Math.max(72, refX + refW - textX - 12);
-    let nameSize = preferSingleLegend ? 16 : 14;
-    while (nameSize > 12) {
-      ctx2.font = `700 ${nameSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-      if (ctx2.measureText(pattern.name).width <= textAreaW) break;
-      nameSize -= 1;
+    ctx2.restore();
+    ctx2.save();
+    ctx2.beginPath();
+    ctx2.rect(gridX, gridY, gridW, gridH);
+    ctx2.clip();
+    for (let i = 0; i < 6; i += 1) {
+      const cx = gridX + inkRnd() * gridW;
+      const cy = gridY + inkRnd() * gridH;
+      const rad = gridW * (0.4 + inkRnd() * 0.48);
+      const light = i < 4;
+      const a = light ? 0.16 + inkRnd() * 0.08 : 0.08 + inkRnd() * 0.05;
+      const patch = ctx2.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      patch.addColorStop(0, light ? `rgba(250,244,230,${a.toFixed(3)})` : `rgba(86,70,46,${a.toFixed(3)})`);
+      patch.addColorStop(0.42, light ? `rgba(250,244,230,${(a * 0.56).toFixed(3)})` : `rgba(86,70,46,${(a * 0.48).toFixed(3)})`);
+      patch.addColorStop(1, "rgba(255,255,255,0)");
+      ctx2.fillStyle = patch;
+      ctx2.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
     }
-    const metaSize = preferSingleLegend ? 12 : 11;
-    const nameY = refY + 34;
-    const metaY = nameY + 18;
-    const legendStartY = metaY + 16;
-    ctx2.fillStyle = "#26242b";
-    ctx2.font = `700 ${nameSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
+    const dotSize = Math.max(1.1, Math.min(1.7, cell * 0.25));
+    ctx2.fillStyle = "rgba(62, 50, 34, 0.12)";
+    for (let yy = gridY + 1; yy < gridY + gridH; yy += 3) {
+      for (let xx = gridX + 1; xx < gridX + gridW; xx += 3) {
+        ctx2.fillRect(xx, yy, dotSize, dotSize);
+      }
+    }
+    ctx2.restore();
+    ctx2.strokeStyle = "rgba(92, 76, 50, 0.26)";
+    ctx2.lineWidth = 0.7;
+    for (let gx = 0; gx <= cols; gx += 1) {
+      if (gx % 10 === 0) continue;
+      ctx2.beginPath();
+      ctx2.moveTo(gridX + gx * cell, gridY);
+      ctx2.lineTo(gridX + gx * cell, gridY + gridH);
+      ctx2.stroke();
+    }
+    for (let gy = 0; gy <= rowCount; gy += 1) {
+      if (gy % 10 === 0) continue;
+      ctx2.beginPath();
+      ctx2.moveTo(gridX, gridY + gy * cell);
+      ctx2.lineTo(gridX + gridW, gridY + gy * cell);
+      ctx2.stroke();
+    }
+    ctx2.strokeStyle = "rgba(54, 42, 26, 0.58)";
+    ctx2.lineWidth = 1.05;
+    for (let gx = 0; gx <= cols; gx += 10) {
+      ctx2.beginPath();
+      ctx2.moveTo(gridX + gx * cell, gridY);
+      ctx2.lineTo(gridX + gx * cell, gridY + gridH);
+      ctx2.stroke();
+    }
+    for (let gy = 0; gy <= rowCount; gy += 10) {
+      ctx2.beginPath();
+      ctx2.moveTo(gridX, gridY + gy * cell);
+      ctx2.lineTo(gridX + gridW, gridY + gy * cell);
+      ctx2.stroke();
+    }
+    const textX = gridX + gridW + 18;
+    const textAreaW = Math.max(64, refX + refW - pad - textX);
+    let nameSize = preferSingleLegend ? 13 : 12;
+    while (nameSize > 10.5) {
+      ctx2.font = `700 ${nameSize}px ${CANVAS_CUTE_FONT}`;
+      if (ctx2.measureText(pattern.name).width <= textAreaW) break;
+      nameSize -= 0.5;
+    }
+    const metaSize = preferSingleLegend ? 9.5 : 9;
+    const nameY = contentTop + nameSize + 1;
+    const metaY = nameY + 13;
+    const legendStartY = metaY + 15;
+    ctx2.textBaseline = "alphabetic";
+    ctx2.fillStyle = "rgba(58, 50, 38, 0.72)";
+    ctx2.font = `700 ${nameSize}px ${CANVAS_CUTE_FONT}`;
     ctx2.fillText(fitText(ctx2, pattern.name, textAreaW), textX, nameY);
-    ctx2.fillStyle = "#686572";
-    ctx2.font = `${metaSize}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-    ctx2.fillText(fitText(ctx2, `${boardCols(pattern)}x${boardRows(pattern)} \xB7 ${getTargetTotal()} \u9897`, textAreaW), textX, metaY);
+    ctx2.fillStyle = "rgba(94, 80, 58, 0.60)";
+    ctx2.font = `600 ${metaSize}px ${CANVAS_CLEAR_FONT}`;
+    ctx2.fillText(fitText(ctx2, `${cols}\xD7${rowCount} \xB7 ${getTargetTotal()} \u9897 \xB7 ${legendAll.length} \u8272`, textAreaW), textX, metaY);
+    ctx2.strokeStyle = "rgba(122, 108, 82, 0.16)";
+    ctx2.lineWidth = 1;
+    ctx2.beginPath();
+    ctx2.moveTo(textX, metaY + 6);
+    ctx2.lineTo(textX + textAreaW, metaY + 6);
+    ctx2.stroke();
     const counts = getTargetCounts(pattern);
-    const legendAreaW = textAreaW;
-    const legendCols = preferSingleLegend || legendAreaW < 154 ? 1 : 2;
-    const colW = legendCols === 1 ? legendAreaW : Math.max(60, Math.floor((legendAreaW - 8) / 2));
-    const rowH = legendCols === 1 ? 16 : 15;
-    const maxRows = 5;
+    const legendCols = preferSingleLegend || textAreaW < 150 ? 1 : 2;
+    const colW = legendCols === 1 ? textAreaW : Math.max(60, Math.floor((textAreaW - 8) / 2));
+    const legendBottom = refY + refH - pad;
+    const availableLegendH = Math.max(1, legendBottom - legendStartY);
+    const rowH = preferSingleLegend ? clamp(availableLegendH / Math.max(1, legendAll.length - 0.15), 11.5, 16) : 16;
+    const rowsThatFit = Math.max(1, Math.floor(availableLegendH / rowH) + 1);
+    const maxRows = preferSingleLegend ? Math.min(6, legendAll.length) : Math.min(5, rowsThatFit);
     const maxLegend = legendCols * maxRows;
-    const colors = legendAll.slice(0, maxLegend);
+    const truncated = legendAll.length > maxLegend;
+    const shown = truncated ? maxLegend - 1 : Math.min(legendAll.length, maxLegend);
+    const colors = legendAll.slice(0, shown);
     colors.forEach((code, i) => {
       const col = i % legendCols;
       const row = Math.floor(i / legendCols);
       const x = textX + col * (colW + 8);
       const y = legendStartY + row * rowH;
-      ctx2.fillStyle = palette[code];
+      ctx2.fillStyle = fadedPrintColor(palette[code]);
       ctx2.beginPath();
-      ctx2.arc(x, y - 4, legendCols === 1 ? 5.1 : 4.8, 0, Math.PI * 2);
+      ctx2.arc(x + 4, y - 4, legendCols === 1 ? 5.1 : 4.8, 0, Math.PI * 2);
       ctx2.fill();
-      ctx2.fillStyle = "#686572";
-      ctx2.font = `${legendCols === 1 ? 12 : 11.5}px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`;
-      const label = fitText(ctx2, `${beadIds[code] || code} x${counts[code] || 0}`, Math.max(22, colW - 12));
-      ctx2.fillText(label, x + 9, y);
+      ctx2.strokeStyle = "rgba(80, 74, 62, 0.22)";
+      ctx2.lineWidth = 0.8;
+      ctx2.stroke();
+      ctx2.fillStyle = "rgba(86, 78, 60, 0.64)";
+      ctx2.font = `${legendCols === 1 ? 12 : 11.5}px ${CANVAS_CLEAR_FONT}`;
+      const label = fitText(ctx2, `${beadIds[code] || code} \xD7${counts[code] || 0}`, Math.max(22, colW - 16));
+      ctx2.fillText(label, x + 13, y);
     });
+    if (truncated) {
+      const i = shown;
+      const col = i % legendCols;
+      const row = Math.floor(i / legendCols);
+      ctx2.fillStyle = "#9a9484";
+      ctx2.font = `${legendCols === 1 ? 12 : 11.5}px ${CANVAS_CLEAR_FONT}`;
+      ctx2.fillText(`+${legendAll.length - shown} \u8272`, textX + col * (colW + 8), legendStartY + row * rowH);
+    }
     ctx2.restore();
     ctx2.restore();
   }
@@ -11066,7 +11375,7 @@
       return;
     }
     if (state.tool === "tweezers") {
-      useTweezers(x, y);
+      if (initial) useTweezers(x, y);
       return;
     }
     useNeedle(x, y);
@@ -11321,6 +11630,8 @@
     }
   }
   function pressFlat() {
+    const anim = state.pressAnim;
+    if (anim && performance.now() - anim.startedAt < anim.duration) return;
     const heat = heatStats();
     const heatedFactor = clamp(heat.heated / Math.max(1, heat.total), 0, 1);
     const bondedFactor = clamp(heat.bonded / Math.max(1, heat.total), 0, 1);
@@ -11329,6 +11640,7 @@
     const warpReduce = lerp(2, 12, effective);
     state.flattening = clamp(state.flattening + flattenGain, 0, 100);
     state.warp = clamp(state.warp - warpReduce, 0, 80);
+    feedback("press");
     state.pressAnim = { startedAt: performance.now(), duration: 820 };
     if (effective < 0.2) {
       showToast("\u53D7\u70ED\u4E0D\u8DB3\uFF0C\u538B\u5E73\u6548\u679C\u5F88\u5C0F\u3002\u518D\u71A8\u4E00\u4F1A\u513F\u4F1A\u66F4\u597D\u538B\u3002");
@@ -11865,6 +12177,18 @@
     }
   });
   window.addEventListener("resize", onResize);
+  if (typeof ResizeObserver === "function") {
+    let pending = false;
+    const ro = new ResizeObserver(() => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        onResize();
+      });
+    });
+    ro.observe(sceneCanvas);
+  }
   setSessionActions({
     loadPattern,
     setPhase

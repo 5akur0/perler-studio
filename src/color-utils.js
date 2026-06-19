@@ -27,6 +27,10 @@ export function mixColor(hex, target, amount) {
   return `rgb(${rr}, ${rg}, ${rb})`;
 }
 
+export function fadedPrintColor(hex) {
+  return mixColor(hex, "#eadfc6", 0.58);
+}
+
 export function srgbToLinear(value) {
   const v = value / 255;
   return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);

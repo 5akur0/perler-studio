@@ -8,6 +8,18 @@ export const phases = [
   { id: "finish", name: "收藏" },
 ];
 
+// Shared desk surface — a warm, cozy wood. Theme-independent on purpose: a real
+// craft desk is wood whatever the room's mood. Used by the canvas desk
+// (render.js) and the matching CSS surfaces (--table). `grain`/`seam` are rgb
+// triples for translucent stroke/fill.
+export const DESK_WOOD = {
+  light: "#e8cda6",
+  mid: "#d9b88a",
+  deep: "#c6a06f",
+  grain: "122, 84, 52",
+  seam: "96, 64, 40",
+};
+
 // Background themes
 export const backgroundThemes = {
   mist: {

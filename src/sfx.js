@@ -31,7 +31,7 @@ function ensureCtx() {
   try {
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 0.22;                       // calm overall level
+    master.gain.value = 0.32;                       // overall level — sits audibly above the 0.4 BGM bed (compressor below tames peaks)
     const comp = ctx.createDynamicsCompressor();    // guard against clipping on rapid hits
     master.connect(comp);
     comp.connect(ctx.destination);
@@ -100,45 +100,52 @@ const recipes = {
     for (let i = 0; i < 7; i += 1) {
       const tt = t + i * rand(0.018, 0.05);
       const f = rand(360, 560);
-      noiseHit(tt, { dur: 0.025, gain: 0.14, type: "highpass", freq: 3200, attack: 0.002 });
-      tone(tt, { freq: f, type: "triangle", dur: 0.05, gain: 0.18, glideTo: f * 0.7 });
+      noiseHit(tt, { dur: 0.025, gain: 0.2, type: "highpass", freq: 3200, attack: 0.002 });
+      tone(tt, { freq: f, type: "triangle", dur: 0.05, gain: 0.24, glideTo: f * 0.7 });
     }
   },
   // Tray shake / sorting
   sift(t) {
-    noiseHit(t, { dur: 0.34, gain: 0.16, type: "bandpass", freq: 3200, q: 0.7, attack: 0.03, tremolo: 18 });
+    noiseHit(t, { dur: 0.34, gain: 0.24, type: "bandpass", freq: 3200, q: 0.7, attack: 0.03, tremolo: 18 });
   },
   // Scoop beads onto needle / tweezers / from the box
   grab(t) {
-    noiseHit(t, { dur: 0.13, gain: 0.16, type: "bandpass", freq: 1600, q: 0.6, attack: 0.02, glideTo: 2600 });
-    tone(t + 0.02, { freq: rand(300, 380), type: "triangle", dur: 0.05, gain: 0.16, glideTo: 220 });
+    noiseHit(t, { dur: 0.13, gain: 0.22, type: "bandpass", freq: 1600, q: 0.6, attack: 0.02, glideTo: 2600 });
+    tone(t + 0.02, { freq: rand(300, 380), type: "triangle", dur: 0.05, gain: 0.22, glideTo: 220 });
   },
-  pick(t) { noiseHit(t, { dur: 0.03, gain: 0.16, type: "highpass", freq: 4200, attack: 0.002 }); },
-  drop(t) { tone(t, { freq: 300, type: "sine", dur: 0.06, gain: 0.22, glideTo: 180 }); },
+  pick(t) { noiseHit(t, { dur: 0.03, gain: 0.26, type: "highpass", freq: 4200, attack: 0.002 }); },
+  drop(t) { tone(t, { freq: 300, type: "sine", dur: 0.06, gain: 0.26, glideTo: 180 }); },
   // A loose bead bouncing onto the floor
   "floor-drop"(t) {
-    tone(t, { freq: 360, type: "sine", dur: 0.07, gain: 0.22, glideTo: 200 });
-    tone(t + 0.09, { freq: 280, type: "sine", dur: 0.06, gain: 0.13, glideTo: 170 });
-    noiseHit(t, { dur: 0.03, gain: 0.1, type: "highpass", freq: 3500, attack: 0.002 });
+    tone(t, { freq: 360, type: "sine", dur: 0.07, gain: 0.26, glideTo: 200 });
+    tone(t + 0.09, { freq: 280, type: "sine", dur: 0.06, gain: 0.16, glideTo: 170 });
+    noiseHit(t, { dur: 0.03, gain: 0.14, type: "highpass", freq: 3500, attack: 0.002 });
   },
   // Empty the tray
   dump(t) {
     for (let i = 0; i < 9; i += 1) {
       const tt = t + i * rand(0.012, 0.03);
-      noiseHit(tt, { dur: 0.03, gain: 0.12, type: "bandpass", freq: 2600 - i * 140, q: 0.6, attack: 0.002 });
+      noiseHit(tt, { dur: 0.03, gain: 0.18, type: "bandpass", freq: 2600 - i * 140, q: 0.6, attack: 0.002 });
     }
   },
   iron(t) {
-    noiseHit(t, { dur: 0.26, gain: 0.22, type: "lowpass", freq: 1100, q: 0.5, attack: 0.06 });
-    noiseHit(t, { dur: 0.2, gain: 0.09, type: "bandpass", freq: 3200, q: 0.8, attack: 0.05 }); // airy steam hiss on top
+    noiseHit(t, { dur: 0.26, gain: 0.24, type: "lowpass", freq: 1100, q: 0.5, attack: 0.06 });
+    noiseHit(t, { dur: 0.2, gain: 0.12, type: "bandpass", freq: 3200, q: 0.8, attack: 0.05 }); // airy steam hiss on top
   },
   // Flip the board over for a second pass
   flip(t) {
-    noiseHit(t, { dur: 0.2, gain: 0.14, type: "lowpass", freq: 700, q: 0.4, attack: 0.04, glideTo: 1800 });
+    noiseHit(t, { dur: 0.2, gain: 0.22, type: "lowpass", freq: 700, q: 0.4, attack: 0.04, glideTo: 1800 });
   },
   cool(t) {
-    noiseHit(t, { dur: 0.5, gain: 0.09, type: "highpass", freq: 5000, attack: 0.08 });
-    tone(t, { freq: 520, type: "sine", dur: 0.5, gain: 0.11, glideTo: 320, attack: 0.05 });
+    noiseHit(t, { dur: 0.5, gain: 0.14, type: "highpass", freq: 5000, attack: 0.08 });
+    tone(t, { freq: 520, type: "sine", dur: 0.5, gain: 0.16, glideTo: 320, attack: 0.05 });
+  },
+  // Press the board flat while cooling — a crisp, firm press (bright contact + a short settle), not a muffled thud.
+  press(t) {
+    noiseHit(t, { dur: 0.04, gain: 0.18, type: "highpass", freq: 4200, attack: 0.002 }); // bright contact tick so it reads as a firm press
+    noiseHit(t, { dur: 0.24, gain: 0.15, type: "bandpass", freq: 1900, q: 0.6, attack: 0.04, glideTo: 1100 }); // opened-up pressure swell (no longer boomy)
+    tone(t + 0.02, { freq: 240, type: "triangle", dur: 0.16, gain: 0.22, glideTo: 150, attack: 0.015 }); // firm body with presence
+    tone(t + 0.13, { freq: 430, type: "triangle", dur: 0.1, gain: 0.1, glideTo: 300, attack: 0.012 }); // plastic settle as edges flatten
   },
   finish(t) {
     [659.25, 783.99, 1046.5].forEach((nf, i) => // E5 - G5 - C6, gentle arpeggio
@@ -156,24 +163,24 @@ const recipes = {
     noiseHit(t, { dur: 0.02, gain: 0.18, type: "highpass", freq: 5000, attack: 0.001 });
     tone(t + 0.01, { freq: 180, type: "square", dur: 0.04, gain: 0.12, glideTo: 120 });
   },
-  // Switching pages / app modes — very soft swish
+  // Switching pages / app modes — soft swish (kept gentle, just no longer inaudible)
   nav(t) {
-    noiseHit(t, { dur: 0.12, gain: 0.08, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
+    noiseHit(t, { dur: 0.12, gain: 0.13, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
   },
   // Dialog/modal opening — soft rising swell
   "modal-open"(t) {
-    noiseHit(t, { dur: 0.16, gain: 0.1, type: "lowpass", freq: 600, q: 0.4, attack: 0.03, glideTo: 1800 });
-    tone(t + 0.02, { freq: 360, type: "sine", dur: 0.1, gain: 0.1, glideTo: 520, attack: 0.02 });
+    noiseHit(t, { dur: 0.16, gain: 0.15, type: "lowpass", freq: 600, q: 0.4, attack: 0.03, glideTo: 1800 });
+    tone(t + 0.02, { freq: 360, type: "sine", dur: 0.1, gain: 0.15, glideTo: 520, attack: 0.02 });
   },
   // Dialog/modal closing — soft falling
   "modal-close"(t) {
-    noiseHit(t, { dur: 0.14, gain: 0.09, type: "lowpass", freq: 1600, q: 0.4, attack: 0.02, glideTo: 500 });
-    tone(t + 0.02, { freq: 460, type: "sine", dur: 0.1, gain: 0.09, glideTo: 300, attack: 0.02 });
+    noiseHit(t, { dur: 0.14, gain: 0.14, type: "lowpass", freq: 1600, q: 0.4, attack: 0.02, glideTo: 500 });
+    tone(t + 0.02, { freq: 460, type: "sine", dur: 0.1, gain: 0.14, glideTo: 300, attack: 0.02 });
   },
   // Inspection found issues — neutral scan tick (not punishing)
   inspect(t) {
-    noiseHit(t, { dur: 0.05, gain: 0.12, type: "bandpass", freq: 2000, q: 1, attack: 0.004 });
-    tone(t + 0.06, { freq: 440, type: "sine", dur: 0.08, gain: 0.14, glideTo: 360 });
+    noiseHit(t, { dur: 0.05, gain: 0.18, type: "bandpass", freq: 2000, q: 1, attack: 0.004 });
+    tone(t + 0.06, { freq: 440, type: "sine", dur: 0.08, gain: 0.2, glideTo: 360 });
   },
   // Inspection perfect / positive confirmation — gentle rising two-note
   success(t) {
@@ -197,13 +204,13 @@ const recipes = {
 const haptics = {
   "bead-place": 5, "bead-remove": 4, pour: [4, 26, 4, 26, 4], sift: [8, 22, 8],
   grab: 5, pick: 4, drop: 6, "floor-drop": [3, 20, 3], dump: [4, 18, 4, 18, 4],
-  iron: 6, flip: 8, finish: [12, 40, 12, 40, 18], achievement: [10, 30, 10, 30, 12],
+  iron: 6, flip: 8, press: [10, 40, 8], finish: [12, 40, 12, 40, 18], achievement: [10, 30, 10, 30, 12],
   lamp: 6, nav: 0, "modal-open": 4, "modal-close": 3, inspect: [6, 24, 6],
   success: [10, 40, 14], spill: [15, 30, 15], error: [15, 30, 15], "ui-tap": 4,
 };
 
 // Throttle chatty / continuous events so drags don't machine-gun the mixer.
-const throttleMs = { iron: 90, sift: 200, nav: 140, grab: 40, "bead-place": 18 };
+const throttleMs = { iron: 90, sift: 200, nav: 140, grab: 40, "bead-place": 18, press: 120 };
 const lastAt = {};
 
 export function playSfx(name) {

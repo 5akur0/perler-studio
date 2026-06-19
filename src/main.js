@@ -1058,7 +1058,9 @@ import { prefersReducedMotion } from './utils.js';
       return;
     }
     if (state.tool === "tweezers") {
-      useTweezers(x, y);
+      // Tweezers act once per click — never along a drag, otherwise a long-press
+      // move picks/places on every cell tick. (The needle is allowed to paint.)
+      if (initial) useTweezers(x, y);
       return;
     }
     useNeedle(x, y);
@@ -1327,6 +1329,10 @@ import { prefersReducedMotion } from './utils.js';
   }
 
   function pressFlat() {
+    // Block re-press while the scraper stroke is still mid-animation, so the
+    // press button can't be rapidly spammed (one full stroke per press).
+    const anim = state.pressAnim;
+    if (anim && performance.now() - anim.startedAt < anim.duration) return;
     const heat = heatStats();
     const heatedFactor = clamp(heat.heated / Math.max(1, heat.total), 0, 1);
     const bondedFactor = clamp(heat.bonded / Math.max(1, heat.total), 0, 1);
@@ -1335,6 +1341,7 @@ import { prefersReducedMotion } from './utils.js';
     const warpReduce = lerp(2, 12, effective);
     state.flattening = clamp(state.flattening + flattenGain, 0, 100);
     state.warp = clamp(state.warp - warpReduce, 0, 80);
+    sfxFeedback("press");
     // Trigger the scraper-from-bottom animation.
     state.pressAnim = { startedAt: performance.now(), duration: 820 };
     if (effective < 0.2) {
@@ -1832,6 +1839,24 @@ import { prefersReducedMotion } from './utils.js';
   });
 
   window.addEventListener("resize", onResize);
+
+  // A `window.resize` only fires for viewport changes, not for container reflow.
+  // The scene canvas grows from 0×0 (hidden behind the start screen) to full
+  // size when the studio is entered, and can shift on flex reflow / font load /
+  // scrollbar changes — none of which is a window resize. Without recomputing
+  // there, the layout stays cached at the transitional size and the board, tray
+  // and reference note pile up on top of each other. Observe the canvas so any
+  // size change invalidates the layout. (Coalesced via rAF; render only changes
+  // the canvas bitmap, not its CSS box, so this can't feed back into a loop.)
+  if (typeof ResizeObserver === "function") {
+    let pending = false;
+    const ro = new ResizeObserver(() => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => { pending = false; onResize(); });
+    });
+    ro.observe(sceneCanvas);
+  }
 
   setSessionActions({
     loadPattern,
