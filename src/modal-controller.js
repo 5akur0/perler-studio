@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { els } from './dom.js';
 import { onboardingKey } from './constants.js';
 import { useMobileDirectPlacement } from './render.js';
+import { playSfx } from './sfx.js';
 
 const modalActions = {
   renderRemapModal: () => {},
@@ -38,6 +39,7 @@ export function onModalOpened(modalEl) {
   }
   // Lock background scroll: the mobile overflow:hidden only applies at ≥861px, otherwise the page behind the modal can still scroll (scroll bleed-through).
   document.body.classList.add("modal-open");
+  playSfx("modal-open");
   const focusables = focusablesIn(modalEl);
   if (focusables.length) focusables[0].focus();
 }
@@ -46,6 +48,7 @@ export function restoreModalFocus() {
   if (getOpenModalEl()) return;
   // No modal is open anymore → release the background scroll lock.
   document.body.classList.remove("modal-open");
+  playSfx("modal-close");
   const el = state.modalReturnFocus;
   state.modalReturnFocus = null;
   if (el && typeof el.focus === "function" && document.contains(el)) el.focus();

@@ -129,7 +129,8 @@ const recipes = {
     }
   },
   iron(t) {
-    noiseHit(t, { dur: 0.22, gain: 0.11, type: "lowpass", freq: 900, q: 0.5, attack: 0.06 });
+    noiseHit(t, { dur: 0.26, gain: 0.22, type: "lowpass", freq: 1100, q: 0.5, attack: 0.06 });
+    noiseHit(t, { dur: 0.2, gain: 0.09, type: "bandpass", freq: 3200, q: 0.8, attack: 0.05 }); // airy steam hiss on top
   },
   // Flip the board over for a second pass
   flip(t) {
@@ -159,6 +160,26 @@ const recipes = {
   nav(t) {
     noiseHit(t, { dur: 0.12, gain: 0.08, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
   },
+  // Dialog/modal opening — soft rising swell
+  "modal-open"(t) {
+    noiseHit(t, { dur: 0.16, gain: 0.1, type: "lowpass", freq: 600, q: 0.4, attack: 0.03, glideTo: 1800 });
+    tone(t + 0.02, { freq: 360, type: "sine", dur: 0.1, gain: 0.1, glideTo: 520, attack: 0.02 });
+  },
+  // Dialog/modal closing — soft falling
+  "modal-close"(t) {
+    noiseHit(t, { dur: 0.14, gain: 0.09, type: "lowpass", freq: 1600, q: 0.4, attack: 0.02, glideTo: 500 });
+    tone(t + 0.02, { freq: 460, type: "sine", dur: 0.1, gain: 0.09, glideTo: 300, attack: 0.02 });
+  },
+  // Inspection found issues — neutral scan tick (not punishing)
+  inspect(t) {
+    noiseHit(t, { dur: 0.05, gain: 0.12, type: "bandpass", freq: 2000, q: 1, attack: 0.004 });
+    tone(t + 0.06, { freq: 440, type: "sine", dur: 0.08, gain: 0.14, glideTo: 360 });
+  },
+  // Inspection perfect / positive confirmation — gentle rising two-note
+  success(t) {
+    tone(t, { freq: 659.25, type: "sine", dur: 0.18, gain: 0.18, attack: 0.01 });
+    tone(t + 0.1, { freq: 987.77, type: "sine", dur: 0.32, gain: 0.18, attack: 0.01 });
+  },
   spill(t) {
     tone(t, { freq: 150, type: "sine", dur: 0.16, gain: 0.28, glideTo: 70 });
     noiseHit(t, { dur: 0.12, gain: 0.13, type: "lowpass", freq: 500 });
@@ -177,7 +198,8 @@ const haptics = {
   "bead-place": 5, "bead-remove": 4, pour: [4, 26, 4, 26, 4], sift: [8, 22, 8],
   grab: 5, pick: 4, drop: 6, "floor-drop": [3, 20, 3], dump: [4, 18, 4, 18, 4],
   iron: 6, flip: 8, finish: [12, 40, 12, 40, 18], achievement: [10, 30, 10, 30, 12],
-  lamp: 6, spill: [15, 30, 15], error: [15, 30, 15], "ui-tap": 4,
+  lamp: 6, nav: 0, "modal-open": 4, "modal-close": 3, inspect: [6, 24, 6],
+  success: [10, 40, 14], spill: [15, 30, 15], error: [15, 30, 15], "ui-tap": 4,
 };
 
 // Throttle chatty / continuous events so drags don't machine-gun the mixer.

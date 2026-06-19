@@ -1961,7 +1961,8 @@
       }
     },
     iron(t) {
-      noiseHit(t, { dur: 0.22, gain: 0.11, type: "lowpass", freq: 900, q: 0.5, attack: 0.06 });
+      noiseHit(t, { dur: 0.26, gain: 0.22, type: "lowpass", freq: 1100, q: 0.5, attack: 0.06 });
+      noiseHit(t, { dur: 0.2, gain: 0.09, type: "bandpass", freq: 3200, q: 0.8, attack: 0.05 });
     },
     // Flip the board over for a second pass
     flip(t) {
@@ -1993,6 +1994,26 @@
     nav(t) {
       noiseHit(t, { dur: 0.12, gain: 0.08, type: "bandpass", freq: 1200, q: 0.5, attack: 0.03, glideTo: 2400 });
     },
+    // Dialog/modal opening — soft rising swell
+    "modal-open"(t) {
+      noiseHit(t, { dur: 0.16, gain: 0.1, type: "lowpass", freq: 600, q: 0.4, attack: 0.03, glideTo: 1800 });
+      tone(t + 0.02, { freq: 360, type: "sine", dur: 0.1, gain: 0.1, glideTo: 520, attack: 0.02 });
+    },
+    // Dialog/modal closing — soft falling
+    "modal-close"(t) {
+      noiseHit(t, { dur: 0.14, gain: 0.09, type: "lowpass", freq: 1600, q: 0.4, attack: 0.02, glideTo: 500 });
+      tone(t + 0.02, { freq: 460, type: "sine", dur: 0.1, gain: 0.09, glideTo: 300, attack: 0.02 });
+    },
+    // Inspection found issues — neutral scan tick (not punishing)
+    inspect(t) {
+      noiseHit(t, { dur: 0.05, gain: 0.12, type: "bandpass", freq: 2e3, q: 1, attack: 4e-3 });
+      tone(t + 0.06, { freq: 440, type: "sine", dur: 0.08, gain: 0.14, glideTo: 360 });
+    },
+    // Inspection perfect / positive confirmation — gentle rising two-note
+    success(t) {
+      tone(t, { freq: 659.25, type: "sine", dur: 0.18, gain: 0.18, attack: 0.01 });
+      tone(t + 0.1, { freq: 987.77, type: "sine", dur: 0.32, gain: 0.18, attack: 0.01 });
+    },
     spill(t) {
       tone(t, { freq: 150, type: "sine", dur: 0.16, gain: 0.28, glideTo: 70 });
       noiseHit(t, { dur: 0.12, gain: 0.13, type: "lowpass", freq: 500 });
@@ -2020,6 +2041,11 @@
     finish: [12, 40, 12, 40, 18],
     achievement: [10, 30, 10, 30, 12],
     lamp: 6,
+    nav: 0,
+    "modal-open": 4,
+    "modal-close": 3,
+    inspect: [6, 24, 6],
+    success: [10, 40, 14],
     spill: [15, 30, 15],
     error: [15, 30, 15],
     "ui-tap": 4
@@ -5660,12 +5686,14 @@
       state.modalReturnFocus = active2;
     }
     document.body.classList.add("modal-open");
+    playSfx("modal-open");
     const focusables = focusablesIn(modalEl);
     if (focusables.length) focusables[0].focus();
   }
   function restoreModalFocus() {
     if (getOpenModalEl()) return;
     document.body.classList.remove("modal-open");
+    playSfx("modal-close");
     const el = state.modalReturnFocus;
     state.modalReturnFocus = null;
     if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
@@ -10407,7 +10435,10 @@
     if (phase !== "cool" && phase !== "finish") state.fusedPieces = [];
     if (phase !== "place") state.tweezerBead = null;
     if (phase !== "choose" && state.remapModalOpen) closeRemapModal();
-    if (phase === "inspect") runInspection();
+    if (phase === "inspect") {
+      runInspection();
+      if (!state.sandboxMode) feedback(state.errors.length ? "inspect" : "success");
+    }
     if (phase === "iron") {
       state.temperature = IRON_DEFAULT_TEMPERATURE;
       state.pressure = IRON_DEFAULT_PRESSURE;
@@ -11610,6 +11641,13 @@
     reflectFxToggle(els.hapticButton, isHapticEnabled(), "\u9707\u52A8");
     if (isHapticEnabled()) vibrate(8);
   });
+  document.addEventListener("click", (event) => {
+    const el = event.target.closest?.(
+      "button, [role='button'], .color-chip, .tool-card, .gallery-card, .collection-card, .tile, a.settings-link"
+    );
+    if (!el || el.closest(".settings-toggle")) return;
+    playSfx("ui-tap");
+  }, true);
   reflectBgmButton();
   var startSelectedPattern = () => {
     if (state.phase === "choose") {

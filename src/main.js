@@ -325,7 +325,11 @@ import { prefersReducedMotion } from './utils.js';
     if (phase !== "cool" && phase !== "finish") state.fusedPieces = [];
     if (phase !== "place") state.tweezerBead = null;
     if (phase !== "choose" && state.remapModalOpen) closeRemapModal();
-    if (phase === "inspect") runInspection();
+    if (phase === "inspect") {
+      runInspection();
+      // Result chime on entering the check: positive if flawless, neutral scan otherwise.
+      if (!state.sandboxMode) sfxFeedback(state.errors.length ? "inspect" : "success");
+    }
     if (phase === "iron") {
       state.temperature = IRON_DEFAULT_TEMPERATURE;
       state.pressure = IRON_DEFAULT_PRESSURE;
@@ -1675,6 +1679,17 @@ import { prefersReducedMotion } from './utils.js';
     reflectFxToggle(els.hapticButton, isHapticEnabled(), "震动");
     if (isHapticEnabled()) sfxVibrate(8); // preview the buzz on enable
   });
+
+  // Soft tap on UI controls (DOM buttons/chips/cards). Craft sounds come from the
+  // canvas, so this never doubles up with them. Settings switches have their own feedback.
+  document.addEventListener("click", (event) => {
+    const el = event.target.closest?.(
+      "button, [role='button'], .color-chip, .tool-card, .gallery-card, .collection-card, .tile, a.settings-link"
+    );
+    if (!el || el.closest(".settings-toggle")) return;
+    playSfx("ui-tap");
+  }, true);
+
   reflectBgmButton();
   const startSelectedPattern = () => {
     if (state.phase === "choose") {
