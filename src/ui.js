@@ -51,15 +51,17 @@ let uiActions = {
   tweezerFromBox: () => {},
 };
 
-const stageControlsHome = els.stageControls?.parentElement || null;
-const stageControlsHomeNext = els.stageControls?.nextSibling || null;
-
 export function setUIActions(nextActions = {}) {
   uiActions = { ...uiActions, ...nextActions };
 }
 
+// State only — never geometry. This sets the data-attributes / class that CSS
+// reads to decide visibility and the mobile slot order; it does NOT move
+// #stageControls in the DOM. On mobile-working, CSS hoists the (sole visible)
+// left-rail child into the grid via display:contents and orders it with an
+// explicit slot, so position has a single owner (CSS).
 function syncStageControlsPlacement() {
-  if (!els.stageControls || !stageControlsHome) return;
+  if (!els.stageControls) return;
   const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
   if (els.studioGrid) {
     if (mobileWorking) {
@@ -72,20 +74,6 @@ function syncStageControlsPlacement() {
   }
   els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
   els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
-  if (mobileWorking) {
-    const workbench = els.studioGrid?.querySelector(":scope > .workbench");
-    if (workbench && els.stageControls.previousElementSibling !== workbench) {
-      workbench.after(els.stageControls);
-    }
-    return;
-  }
-  if (els.stageControls.parentElement !== stageControlsHome) {
-    if (stageControlsHomeNext?.parentElement === stageControlsHome) {
-      stageControlsHome.insertBefore(els.stageControls, stageControlsHomeNext);
-    } else {
-      stageControlsHome.appendChild(els.stageControls);
-    }
-  }
 }
 
 export function setSizeControls(size) {

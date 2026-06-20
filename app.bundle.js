@@ -6544,13 +6544,11 @@
     tweezerFromBox: () => {
     }
   };
-  var stageControlsHome = els.stageControls?.parentElement || null;
-  var stageControlsHomeNext = els.stageControls?.nextSibling || null;
   function setUIActions(nextActions = {}) {
     uiActions = { ...uiActions, ...nextActions };
   }
   function syncStageControlsPlacement() {
-    if (!els.stageControls || !stageControlsHome) return;
+    if (!els.stageControls) return;
     const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
     if (els.studioGrid) {
       if (mobileWorking) {
@@ -6563,20 +6561,6 @@
     }
     els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
     els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
-    if (mobileWorking) {
-      const workbench = els.studioGrid?.querySelector(":scope > .workbench");
-      if (workbench && els.stageControls.previousElementSibling !== workbench) {
-        workbench.after(els.stageControls);
-      }
-      return;
-    }
-    if (els.stageControls.parentElement !== stageControlsHome) {
-      if (stageControlsHomeNext?.parentElement === stageControlsHome) {
-        stageControlsHome.insertBefore(els.stageControls, stageControlsHomeNext);
-      } else {
-        stageControlsHome.appendChild(els.stageControls);
-      }
-    }
   }
   function setSizeControls(size) {
     const normalized = Number(size);

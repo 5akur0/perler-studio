@@ -139,6 +139,9 @@
     height: auto;
   }
 
+  /* Same pattern as bead mobile-working: dissolve the tool panel so its groups
+     become direct flex items of the column, then place them with the order slots
+     below. CSS owns position here too — no JS moves drawing modules. */
   .drawing-tools-panel,
   .drawing-tools-panel section {
     display: contents;
@@ -1116,14 +1119,18 @@
     overflow: hidden;
   }
 
-  /* Placing: bean box (color picker, the core tap target) sits right under the
-     action buttons; the reference sheet is secondary and drops to the bottom so
-     the color chips never spill below the fold. */
-  .bead-studio-grid:not([data-phase="choose"]) .right-panel {
+  /* —— Mobile-working slot order: CSS is the SINGLE owner of module position ——
+     The left rail is dissolved (display:contents below) so its only visible child,
+     #stageControls, becomes a direct grid item. Modules then sit in fixed slots:
+       1 board · 2 actions · 3 bean box
+     JS never moves these in the DOM; it only toggles state attributes/visibility. */
+  .bead-studio-grid:not([data-phase="choose"]) .workbench {
     order: 1;
   }
-
-  .bead-studio-grid:not([data-phase="choose"]) .left-panel {
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls {
+    order: 2;
+  }
+  .bead-studio-grid:not([data-phase="choose"]) .right-panel {
     order: 3;
   }
 
@@ -1133,8 +1140,13 @@
      instead of leaving a nameless frosted block below the bean box. The bean box is
      a placement-only surface on phones; inspection/ironing/cooling keep only the
      board and the stage actions so buttons stay in one predictable hit-test stack. */
-  .bead-studio-grid[data-mobile-controls="detached"] .left-panel {
-    display: none !important;
+  /* Dissolve the left rail and its working section so #stageControls (the rail's
+     only visible child on phones — reference / tool rack / title are display:none
+     below) becomes a direct grid item, placed by the slot order above. This
+     replaces the old JS DOM move + display:none detach: CSS now owns position. */
+  .bead-studio-grid:not([data-phase="choose"]) .left-panel,
+  .bead-studio-grid:not([data-phase="choose"]) .left-panel > section[data-stage="working"] {
+    display: contents;
   }
 
   .bead-studio-grid[data-mobile-controls="detached"][data-mobile-palette="visible"] .right-panel {
@@ -1161,18 +1173,13 @@
     max-height: none;
   }
 
-  .bead-studio-grid:not([data-phase="choose"]) .left-panel section[data-stage="working"] {
-    display: flex;
-    flex-direction: column;
-  }
-
   .bead-studio-grid:not([data-phase="choose"]) .left-panel section[data-stage="working"] .section-title {
     display: none;
   }
 
-  /* P1-6: keep the inspect/clear buttons near the canvas, with higher priority than the reference sheet and sidebar */
-  .bead-studio-grid:not([data-phase="choose"]) #stageControls.mobile-stage-controls {
-    order: 0;
+  /* Stretch the hoisted actions across the board column (position is owned by the
+     slot order above; this rule only sizes the box). */
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls {
     align-self: stretch;
   }
 
@@ -1289,10 +1296,11 @@
     margin-top: 2px;
   }
 
-  /* P1-1: in the iron/cool stages, phase controls live under the board;
-     remove side shells completely so no empty frosted panel remains. */
-  .bead-studio-grid[data-phase="iron"] .left-panel,
-  .bead-studio-grid[data-phase="cool"] .left-panel,
+  /* P1-1: in the iron/cool stages, phase controls live under the board. Only the
+     bean box (right panel) is removed here — the left rail must NOT be display:none
+     (that would also remove #stageControls, which now lives inside it). The rail is
+     already display:contents in every working phase, so no empty frosted shell
+     remains and the actions stay slotted under the board. */
   .bead-studio-grid[data-phase="iron"] .right-panel,
   .bead-studio-grid[data-phase="cool"] .right-panel {
     display: none !important;

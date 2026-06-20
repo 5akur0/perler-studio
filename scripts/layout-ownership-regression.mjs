@@ -28,6 +28,8 @@ const cssFileNames = (await readdir(stylesDir)).filter((f) => f.endsWith(".css")
 const cssFiles = Object.fromEntries(
   await Promise.all(cssFileNames.map(async (name) => [name, await readFile(new URL(name, stylesDir), "utf8")])),
 );
+const uiSource = await readFile(new URL("../src/ui.js", import.meta.url), "utf8");
+const mainSource = await readFile(new URL("../src/main.js", import.meta.url), "utf8");
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
@@ -160,12 +162,50 @@ function assertSharedTrackSingleSource() {
   );
 }
 
+// 6. Position ownership: JS must not relocate #stageControls in the DOM. Geometry
+//    is CSS's job; JS only toggles state/visibility.
+function assertStageControlsPositionNotMovedByJs() {
+  const js = `${uiSource}\n${mainSource}`;
+  const moves = [
+    /\.(?:appendChild|append)\(\s*els\.stageControls\s*\)/,
+    /\.insertBefore\(\s*els\.stageControls\b/,
+    /\.(?:before|after|replaceWith)\(\s*els\.stageControls\s*\)/,
+  ];
+  for (const re of moves) {
+    assert.doesNotMatch(js, re, `JS must not move #stageControls in the DOM (${re}) — CSS owns mobile position`);
+  }
+}
+
+// 7. The mobile slot order is owned by CSS: the left rail is hoisted via
+//    display:contents and workbench / #stageControls / right-panel each carry an
+//    explicit order under the mobile-working scope.
+function assertMobileSlotOrderOwnedByCss() {
+  const responsive = cssFiles["responsive.css"];
+  assert.match(
+    responsive,
+    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.left-panel[\s\S]{0,200}display:\s*contents/,
+    "mobile-working must hoist the left rail via display:contents so CSS can slot #stageControls",
+  );
+  const orderDecls = declarations(responsive).filter(
+    (d) => /^order\s*:/.test(d.decl) && mediaCaps(d).includes(860) && ancestryHas(d, /:not\(\[data-phase="choose"\]\)/),
+  );
+  const slotted = orderDecls.map(immediate);
+  for (const sel of [".workbench", "#stageControls", ".right-panel"]) {
+    assert.ok(
+      slotted.some((s) => s.includes(sel)),
+      `mobile-working slot order missing for ${sel} — CSS must own its position`,
+    );
+  }
+}
+
 const tests = [
   ["valid declaration scope (all stylesheets)", assertNoDeclarationsBareInConditionalGroups],
   ["budget owned in :root at ≤860 and ≤620 (exactly twice, vertical cap only)", assertBudgetOwnedInRootAtBothBreakpoints],
   ["all budget consumers are mobile-working scoped + composite width", assertConsumersAreMobileWorkingScoped],
   ["desktop-working stays rectangular composite", assertDesktopWorkingRectangular],
   ["shared working track single source", assertSharedTrackSingleSource],
+  ["#stageControls position not moved by JS", assertStageControlsPositionNotMovedByJs],
+  ["mobile slot order owned by CSS", assertMobileSlotOrderOwnedByCss],
 ];
 
 let failed = 0;

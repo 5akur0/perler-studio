@@ -63,10 +63,21 @@ assert.match(
   "mobile showcase should render as a compact bead preview row",
 );
 
+// Mobile-working slot order owned by CSS: 1 board · 2 actions · 3 bean box.
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.right-panel\s*\{[\s\S]*?order:\s*1/,
-  "mobile bean box (color picker) should appear right under the action buttons",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.workbench\s*\{[\s\S]*?order:\s*1/,
+  "mobile slot 1: the board sits at the top",
+);
+assert.match(
+  responsiveCss,
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+#stageControls\s*\{[\s\S]*?order:\s*2/,
+  "mobile slot 2: the action buttons sit right under the board",
+);
+assert.match(
+  responsiveCss,
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.right-panel\s*\{[\s\S]*?order:\s*3/,
+  "mobile slot 3: the bean box (color picker) sits under the actions",
 );
 assert.match(
   responsiveCss,
@@ -75,8 +86,8 @@ assert.match(
 );
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.left-panel\s*\{[\s\S]*?order:\s*3/,
-  "mobile reference panel (now hidden) drops to the bottom of the order",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.left-panel[\s\S]{0,180}display:\s*contents/,
+  "mobile left rail is dissolved (display:contents) so CSS slots #stageControls — no JS DOM move",
 );
 
 assert.match(
