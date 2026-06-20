@@ -29,7 +29,7 @@ const cssFiles = Object.fromEntries(
   await Promise.all(cssFileNames.map(async (name) => [name, await readFile(new URL(name, stylesDir), "utf8")])),
 );
 const uiSource = await readFile(new URL("../src/ui.js", import.meta.url), "utf8");
-const mainSource = await readFile(new URL("../src/main.js", import.meta.url), "utf8");
+const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
@@ -162,40 +162,47 @@ function assertSharedTrackSingleSource() {
   );
 }
 
-// 6. Position ownership: JS must not relocate #stageControls in the DOM. Geometry
-//    is CSS's job; JS only toggles state/visibility.
-function assertStageControlsPositionNotMovedByJs() {
-  const js = `${uiSource}\n${mainSource}`;
-  const moves = [
-    /\.(?:appendChild|append)\(\s*els\.stageControls\s*\)/,
-    /\.insertBefore\(\s*els\.stageControls\b/,
-    /\.(?:before|after|replaceWith)\(\s*els\.stageControls\s*\)/,
-  ];
-  for (const re of moves) {
-    assert.doesNotMatch(js, re, `JS must not move #stageControls in the DOM (${re}) — CSS owns mobile position`);
-  }
+// 6. Position is composed in the DOM via explicit slots: a single mount function
+//    switches #stageControls between the desktop slot and a mobile host authored
+//    after the board. (Moving the node is correct — it is what keeps Tab / AT order
+//    aligned with the visuals; the anti-pattern is faking the sequence with CSS.)
+function assertActionControlsComposedViaSlots() {
+  assert.match(uiSource, /function mountActionControls\(/, "a single mountActionControls() must own the host switch");
+  assert.match(uiSource, /mobileAction(?:Slot|Host)|mobileActionHost/, "mount must target the mobile action slot");
+  assert.match(uiSource, /desktopActionSlot/, "mount must target the desktop action slot");
+  const iScene = indexHtml.indexOf('id="sceneCanvas"');
+  const iHost = indexHtml.indexOf('id="mobileActionHost"');
+  const iRight = indexHtml.indexOf('class="side-panel right-panel"');
+  assert.ok(iScene > 0, "#sceneCanvas must exist in markup");
+  assert.ok(iHost > iScene, "#mobileActionHost must be authored after the board (DOM order = visual order)");
+  assert.ok(iRight > iHost, "#mobileActionHost must be authored before the bean box");
 }
 
-// 7. The mobile slot order is owned by CSS: the left rail is hoisted via
-//    display:contents and workbench / #stageControls / right-panel each carry an
-//    explicit order under the mobile-working scope.
-function assertMobileSlotOrderOwnedByCss() {
+// 7. Mobile-working order is owned by the DOM composition, NOT CSS order. The
+//    board/actions/bean-box modules must not carry an `order` in mobile-working
+//    scope (that would desync keyboard/AT order). The mobile host is display:contents
+//    and the emptied left rail is hidden.
+function assertMobileOrderFromDomNotCssOrder() {
   const responsive = cssFiles["responsive.css"];
+  for (const d of declarations(responsive)) {
+    if (!/^order\s*:/.test(d.decl)) continue;
+    if (!mediaCaps(d).includes(860)) continue;
+    if (!ancestryHas(d, /:not\(\[data-phase="choose"\]\)/)) continue;
+    const sel = immediate(d);
+    for (const m of [".workbench", "#stageControls", ".right-panel", ".mobile-action-host"]) {
+      assert.ok(!sel.includes(m), `${m} must not use CSS order in mobile-working — DOM composition owns the sequence (${d.decl})`);
+    }
+  }
   assert.match(
     responsive,
-    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.left-panel[\s\S]{0,200}display:\s*contents/,
-    "mobile-working must hoist the left rail via display:contents so CSS can slot #stageControls",
+    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.mobile-action-host[\s\S]{0,90}display:\s*contents/,
+    "mobile host must be display:contents so #stageControls takes its DOM grid position",
   );
-  const orderDecls = declarations(responsive).filter(
-    (d) => /^order\s*:/.test(d.decl) && mediaCaps(d).includes(860) && ancestryHas(d, /:not\(\[data-phase="choose"\]\)/),
+  assert.match(
+    responsive,
+    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.left-panel[\s\S]{0,90}display:\s*none/,
+    "emptied mobile left rail must be hidden (actions are mounted in the host, not the rail)",
   );
-  const slotted = orderDecls.map(immediate);
-  for (const sel of [".workbench", "#stageControls", ".right-panel"]) {
-    assert.ok(
-      slotted.some((s) => s.includes(sel)),
-      `mobile-working slot order missing for ${sel} — CSS must own its position`,
-    );
-  }
 }
 
 const tests = [
@@ -204,8 +211,8 @@ const tests = [
   ["all budget consumers are mobile-working scoped + composite width", assertConsumersAreMobileWorkingScoped],
   ["desktop-working stays rectangular composite", assertDesktopWorkingRectangular],
   ["shared working track single source", assertSharedTrackSingleSource],
-  ["#stageControls position not moved by JS", assertStageControlsPositionNotMovedByJs],
-  ["mobile slot order owned by CSS", assertMobileSlotOrderOwnedByCss],
+  ["action controls composed via explicit desktop/mobile slots", assertActionControlsComposedViaSlots],
+  ["mobile order from DOM composition, not CSS order", assertMobileOrderFromDomNotCssOrder],
 ];
 
 let failed = 0;

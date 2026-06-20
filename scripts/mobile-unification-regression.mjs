@@ -39,18 +39,18 @@ function assertMobileCssDefinesLayoutContract() {
     /@media[^{]*\{\s*(?:\/\*[\s\S]*?\*\/\s*)*--mobile-board-size\s*:/,
     "--mobile-board-size must not be declared bare inside an @media body (invalid, dropped by the parser)",
   );
-  // The mobile-working left rail is dissolved (display:contents) in every working
-  // phase — including iron — so no empty frosted shell remains AND #stageControls
-  // (which lives inside it) is never removed by a left-panel display:none.
+  // On phones #stageControls is mounted into #mobileActionHost (after the board),
+  // so the emptied left rail is simply hidden — no empty frosted shell, and the
+  // actions are never removed with the rail because they no longer live inside it.
   assert.match(
     responsiveCss,
-    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.left-panel[\s\S]{0,200}display:\s*contents/,
-    "mobile-working left rail must be dissolved via display:contents (no empty shell, keeps #stageControls)",
+    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.mobile-action-host[\s\S]{0,90}display:\s*contents/,
+    "mobile action host must be display:contents so the mounted #stageControls takes its DOM grid position",
   );
-  assert.doesNotMatch(
+  assert.match(
     responsiveCss,
-    /\.bead-studio-grid\[data-phase="(?:iron|cool)"\] \.left-panel[^{]*\{[^}]*display:\s*none/,
-    "iron/cool must not display:none the left rail — that would remove #stageControls with it",
+    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.left-panel[\s\S]{0,90}display:\s*none/,
+    "mobile-working left rail must be hidden (actions are mounted in the host, not the rail)",
   );
   assert.match(responsiveCss, /\.start-screen[\s\S]*overflow-y:\s*auto/, "mobile home should allow vertical recovery instead of hard clipping content");
 }

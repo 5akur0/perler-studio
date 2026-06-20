@@ -82,6 +82,7 @@ export const els = {
   controlTitle: $("#controlTitle"),
   toolMeta: $("#toolMeta"),
   stageControls: $("#stageControls"),
+  mobileActionHost: $("#mobileActionHost"),
   sideReference: $("#sideReference"),
   sideReferenceMeta: $("#sideReferenceMeta"),
   sideReferenceLegend: $("#sideReferenceLegend"),

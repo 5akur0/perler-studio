@@ -941,6 +941,13 @@
   overflow-y: auto;
 }
 
+/* Mobile action slot host: empty and hidden on desktop / in choose. On
+   mobile-working it becomes display:contents (see responsive.css) so the mounted
+   #stageControls takes its grid position after the board. */
+.mobile-action-host {
+  display: none;
+}
+
 .choose-preview-panel {
   width: 100%;
   margin: 0;

@@ -55,25 +55,37 @@ export function setUIActions(nextActions = {}) {
   uiActions = { ...uiActions, ...nextActions };
 }
 
-// State only — never geometry. This sets the data-attributes / class that CSS
-// reads to decide visibility and the mobile slot order; it does NOT move
-// #stageControls in the DOM. On mobile-working, CSS hoists the (sole visible)
-// left-rail child into the grid via display:contents and orders it with an
-// explicit slot, so position has a single owner (CSS).
-function syncStageControlsPlacement() {
+// #stageControls has two explicit host slots: the left rail on desktop and
+// #mobileActionHost (placed after the board) on phones. Capture the desktop slot
+// from the authored markup so we can mount back to the exact same position.
+const desktopActionSlot = els.stageControls?.parentElement || null;
+const desktopActionSlotNext = els.stageControls?.nextElementSibling || null;
+const mobileActionSlot = els.mobileActionHost || document.getElementById("mobileActionHost");
+
+// Semantic composition, NOT geometry. CSS owns size and visual layout; the DOM
+// composition must make the visual, keyboard (Tab) and screen-reader order agree.
+// Because the board sits before the actions visually on phones but the actions
+// precede the board in the desktop markup, the accessible fix is to mount
+// #stageControls into the platform's slot — a host switch, not a position
+// computation. (CSS `order` alone would desync Tab/AT order from the visuals.)
+function mountActionControls() {
   if (!els.stageControls) return;
   const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
-  if (els.studioGrid) {
-    if (mobileWorking) {
-      els.studioGrid.dataset.mobileControls = "detached";
-      els.studioGrid.dataset.mobilePalette = state.phase === "place" ? "visible" : "hidden";
-    } else {
-      delete els.studioGrid.dataset.mobileControls;
-      delete els.studioGrid.dataset.mobilePalette;
-    }
-  }
   els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
-  els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
+  const host = mobileWorking ? mobileActionSlot : desktopActionSlot;
+  if (!host || els.stageControls.parentElement === host) return;
+  if (!mobileWorking && desktopActionSlotNext?.parentElement === host) {
+    host.insertBefore(els.stageControls, desktopActionSlotNext);
+  } else {
+    host.appendChild(els.stageControls);
+  }
+}
+
+// Re-mount when crossing the phone breakpoint, so the slot follows the platform
+// even without a content re-render (e.g. rotate / window resize).
+if (typeof window !== "undefined" && window.matchMedia) {
+  const mq = window.matchMedia("(max-width: 860px)");
+  mq.addEventListener?.("change", () => mountActionControls());
 }
 
 export function setSizeControls(size) {
@@ -404,7 +416,7 @@ export function renderMobileSelectionSummary() {
 }
 
 export function renderControls() {
-  syncStageControlsPlacement();
+  mountActionControls();
   els.stageControls.innerHTML = "";
   els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "工具台";
   els.toolMeta.textContent = state.phase === "place" && !useMobileDirectPlacement()

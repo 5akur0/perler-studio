@@ -15,6 +15,7 @@
     "test:icons": "node scripts/icons-regression.mjs",
     "test:keyboard": "node scripts/keyboard-regression.mjs",
     "test:layout-ownership": "node scripts/layout-ownership-regression.mjs",
+    "test:mobile-tab-order": "node scripts/mobile-tab-order-regression.mjs",
     "test:mobile-ui": "node scripts/mobile-ui-regression.mjs",
     "test:projection": "node scripts/projection-regression.mjs",
     "test:release": "node scripts/release-regression.mjs",

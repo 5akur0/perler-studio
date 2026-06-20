@@ -1614,6 +1614,7 @@
     controlTitle: $("#controlTitle"),
     toolMeta: $("#toolMeta"),
     stageControls: $("#stageControls"),
+    mobileActionHost: $("#mobileActionHost"),
     sideReference: $("#sideReference"),
     sideReferenceMeta: $("#sideReferenceMeta"),
     sideReferenceLegend: $("#sideReferenceLegend"),
@@ -6547,20 +6548,24 @@
   function setUIActions(nextActions = {}) {
     uiActions = { ...uiActions, ...nextActions };
   }
-  function syncStageControlsPlacement() {
+  var desktopActionSlot = els.stageControls?.parentElement || null;
+  var desktopActionSlotNext = els.stageControls?.nextElementSibling || null;
+  var mobileActionSlot = els.mobileActionHost || document.getElementById("mobileActionHost");
+  function mountActionControls() {
     if (!els.stageControls) return;
     const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
-    if (els.studioGrid) {
-      if (mobileWorking) {
-        els.studioGrid.dataset.mobileControls = "detached";
-        els.studioGrid.dataset.mobilePalette = state.phase === "place" ? "visible" : "hidden";
-      } else {
-        delete els.studioGrid.dataset.mobileControls;
-        delete els.studioGrid.dataset.mobilePalette;
-      }
-    }
     els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
-    els.stageControls.classList.toggle("mobile-stage-controls", mobileWorking);
+    const host = mobileWorking ? mobileActionSlot : desktopActionSlot;
+    if (!host || els.stageControls.parentElement === host) return;
+    if (!mobileWorking && desktopActionSlotNext?.parentElement === host) {
+      host.insertBefore(els.stageControls, desktopActionSlotNext);
+    } else {
+      host.appendChild(els.stageControls);
+    }
+  }
+  if (typeof window !== "undefined" && window.matchMedia) {
+    const mq = window.matchMedia("(max-width: 860px)");
+    mq.addEventListener?.("change", () => mountActionControls());
   }
   function setSizeControls(size) {
     const normalized = Number(size);
@@ -6838,7 +6843,7 @@
     if (els.mobileSelectionThumb) drawPatternThumb(els.mobileSelectionThumb, state.selectedPattern);
   }
   function renderControls() {
-    syncStageControlsPlacement();
+    mountActionControls();
     els.stageControls.innerHTML = "";
     els.controlTitle.textContent = phases.find((phase) => phase.id === state.phase)?.name || "\u5DE5\u5177\u53F0";
     els.toolMeta.textContent = state.phase === "place" && !useMobileDirectPlacement() ? state.tool === "needle" ? "\u8C46\u9488" : `\u954A\u5B50${state.tweezerBead ? ` \xB7 ${beadIds[state.tweezerBead]}` : " \xB7 \u7A7A\u5939"}` : "";

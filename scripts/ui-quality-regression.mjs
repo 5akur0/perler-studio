@@ -63,31 +63,24 @@ assert.match(
   "mobile showcase should render as a compact bead preview row",
 );
 
-// Mobile-working slot order owned by CSS: 1 board · 2 actions · 3 bean box.
+// Mobile-working order is composed in the DOM (board → actions → bean box) so the
+// keyboard/screen-reader order matches the visuals. The mobile action host is
+// display:contents and the emptied left rail is hidden. (Tab order itself is
+// verified end-to-end in mobile-tab-order-regression.)
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.workbench\s*\{[\s\S]*?order:\s*1/,
-  "mobile slot 1: the board sits at the top",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.mobile-action-host[\s\S]{0,90}display:\s*contents/,
+  "mobile action host is display:contents so the mounted actions take their DOM grid position under the board",
 );
 assert.match(
   responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+#stageControls\s*\{[\s\S]*?order:\s*2/,
-  "mobile slot 2: the action buttons sit right under the board",
-);
-assert.match(
-  responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.right-panel\s*\{[\s\S]*?order:\s*3/,
-  "mobile slot 3: the bean box (color picker) sits under the actions",
+  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.left-panel[\s\S]{0,90}display:\s*none/,
+  "mobile left rail is hidden (actions are mounted in the host after the board, not the rail)",
 );
 assert.match(
   responsiveCss,
   /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.side-reference\s*\{[\s\S]*?display:\s*none/,
   "mobile should hide the reference sheet (light hint guides placement; counts live on the 豆盒 chips)",
-);
-assert.match(
-  responsiveCss,
-  /\.bead-studio-grid:not\(\[data-phase="choose"\]\)\s+\.left-panel[\s\S]{0,180}display:\s*contents/,
-  "mobile left rail is dissolved (display:contents) so CSS slots #stageControls — no JS DOM move",
 );
 
 assert.match(

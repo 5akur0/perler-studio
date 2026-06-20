@@ -1104,8 +1104,13 @@
   }
 
   .workbench {
-    order: -1;
     padding: var(--sp-2);
+  }
+
+  /* Choose: preview before the pattern list. Working phases rely on DOM order
+     (board → actions → bean box) instead of CSS order, so Tab/AT order matches. */
+  .bead-studio-grid[data-phase="choose"] .workbench {
+    order: -1;
   }
 
   /* Container owns the real available width: as a query container, 100cqi gives the
@@ -1119,43 +1124,27 @@
     overflow: hidden;
   }
 
-  /* —— Mobile-working slot order: CSS is the SINGLE owner of module position ——
-     The left rail is dissolved (display:contents below) so its only visible child,
-     #stageControls, becomes a direct grid item. Modules then sit in fixed slots:
-       1 board · 2 actions · 3 bean box
-     JS never moves these in the DOM; it only toggles state attributes/visibility. */
-  .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    order: 1;
-  }
-  .bead-studio-grid:not([data-phase="choose"]) #stageControls {
-    order: 2;
-  }
-  .bead-studio-grid:not([data-phase="choose"]) .right-panel {
-    order: 3;
-  }
-
-  /* Phone working phases detach the action controls from the desktop left rail.
-     Once detached, the original left rail has no visible phone content (reference
-     sheet/title/tool rack are intentionally hidden), so collapse the whole shell
-     instead of leaving a nameless frosted block below the bean box. The bean box is
-     a placement-only surface on phones; inspection/ironing/cooling keep only the
-     board and the stage actions so buttons stay in one predictable hit-test stack. */
-  /* Dissolve the left rail and its working section so #stageControls (the rail's
-     only visible child on phones — reference / tool rack / title are display:none
-     below) becomes a direct grid item, placed by the slot order above. This
-     replaces the old JS DOM move + display:none detach: CSS now owns position. */
-  .bead-studio-grid:not([data-phase="choose"]) .left-panel,
-  .bead-studio-grid:not([data-phase="choose"]) .left-panel > section[data-stage="working"] {
+  /* —— Mobile-working order is owned by the DOM composition, not CSS `order` ——
+     mountActionControls() mounts #stageControls into #mobileActionHost (a grid child
+     authored after the board), so the visual, keyboard (Tab) and screen-reader order
+     all read board → actions → bean box. The host is display:contents, so
+     #stageControls becomes the grid item at that DOM position. The now-empty left
+     rail is hidden (its reference / tool rack / title are display:none). */
+  .bead-studio-grid:not([data-phase="choose"]) .mobile-action-host {
     display: contents;
   }
+  .bead-studio-grid:not([data-phase="choose"]) .left-panel {
+    display: none;
+  }
 
-  .bead-studio-grid[data-mobile-controls="detached"][data-mobile-palette="visible"] .right-panel {
+  /* Bean box (right panel) shows only while placing; other working phases hide it.
+     Driven purely by data-phase — no JS-set layout attribute. */
+  .bead-studio-grid[data-phase="place"] .right-panel {
     display: flex;
     visibility: visible;
     pointer-events: auto;
   }
-
-  .bead-studio-grid[data-mobile-controls="detached"][data-mobile-palette="hidden"] .right-panel {
+  .bead-studio-grid:not([data-phase="choose"]):not([data-phase="place"]) .right-panel {
     display: none !important;
   }
 
@@ -1177,8 +1166,9 @@
     display: none;
   }
 
-  /* Stretch the hoisted actions across the board column (position is owned by the
-     slot order above; this rule only sizes the box). */
+  /* Stretch the mounted actions across the board column. Position is owned by the
+     DOM composition (mounted into #mobileActionHost after the board); this rule only
+     sizes the box. */
   .bead-studio-grid:not([data-phase="choose"]) #stageControls {
     align-self: stretch;
   }
@@ -1296,15 +1286,9 @@
     margin-top: 2px;
   }
 
-  /* P1-1: in the iron/cool stages, phase controls live under the board. Only the
-     bean box (right panel) is removed here — the left rail must NOT be display:none
-     (that would also remove #stageControls, which now lives inside it). The rail is
-     already display:contents in every working phase, so no empty frosted shell
-     remains and the actions stay slotted under the board. */
-  .bead-studio-grid[data-phase="iron"] .right-panel,
-  .bead-studio-grid[data-phase="cool"] .right-panel {
-    display: none !important;
-  }
+  /* iron/cool hide the bean box via the place-only rule above (the
+     :not([data-phase="place"]) right-panel rule), so no per-phase rule is needed
+     here. #stageControls is mounted in #mobileActionHost, never inside the rail. */
 
   /* P1-2: the inspect assist canvas is half-height on mobile */
   .inspect-canvas {

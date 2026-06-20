@@ -443,6 +443,12 @@
           </p>
         </section>
 
+        <!-- Mobile action slot: on phones #stageControls mounts here so its DOM
+             position (after the board, before the bean box) matches the visual,
+             keyboard (Tab) and screen-reader order. Empty + hidden on desktop,
+             where the controls live in the left rail. -->
+        <div id="mobileActionHost" class="mobile-action-host"></div>
+
         <aside class="side-panel right-panel">
           <section data-stage="working">
             <div class="section-title">

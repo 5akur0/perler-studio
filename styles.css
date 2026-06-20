@@ -1325,6 +1325,9 @@ body[data-app-mode=collection] .gallery-screen {
   box-shadow: var(--shadow);
   overflow-y: auto;
 }
+.mobile-action-host {
+  display: none;
+}
 .choose-preview-panel {
   width: 100%;
   margin: 0;
@@ -4780,8 +4783,10 @@ body.admin-page {
     animation: mobile-color-pick 180ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .workbench {
-    order: -1;
     padding: var(--sp-2);
+  }
+  .bead-studio-grid[data-phase=choose] .workbench {
+    order: -1;
   }
   .bead-studio-grid:not([data-phase=choose]) .workbench {
     container-type: inline-size;
@@ -4790,25 +4795,18 @@ body.admin-page {
     justify-content: center;
     overflow: hidden;
   }
-  .bead-studio-grid:not([data-phase=choose]) .workbench {
-    order: 1;
-  }
-  .bead-studio-grid:not([data-phase=choose]) #stageControls {
-    order: 2;
-  }
-  .bead-studio-grid:not([data-phase=choose]) .right-panel {
-    order: 3;
-  }
-  .bead-studio-grid:not([data-phase=choose]) .left-panel,
-  .bead-studio-grid:not([data-phase=choose]) .left-panel > section[data-stage=working] {
+  .bead-studio-grid:not([data-phase=choose]) .mobile-action-host {
     display: contents;
   }
-  .bead-studio-grid[data-mobile-controls=detached][data-mobile-palette=visible] .right-panel {
+  .bead-studio-grid:not([data-phase=choose]) .left-panel {
+    display: none;
+  }
+  .bead-studio-grid[data-phase=place] .right-panel {
     display: flex;
     visibility: visible;
     pointer-events: auto;
   }
-  .bead-studio-grid[data-mobile-controls=detached][data-mobile-palette=hidden] .right-panel {
+  .bead-studio-grid:not([data-phase=choose]):not([data-phase=place]) .right-panel {
     display: none !important;
   }
   .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
@@ -4908,10 +4906,6 @@ body.admin-page {
     color: var(--muted);
     line-height: 1;
     margin-top: 2px;
-  }
-  .bead-studio-grid[data-phase=iron] .right-panel,
-  .bead-studio-grid[data-phase=cool] .right-panel {
-    display: none !important;
   }
   .inspect-canvas {
     height: 140px;
