@@ -392,11 +392,12 @@ import { prefersReducedMotion } from './utils.js';
 
 
   function canDropToFloorAt(x, y) {
+    // Anywhere that isn't an interactive zone counts as "floor" — keeping the
+    // reference sheet droppable too gives a reliably clickable discard area.
     if (boardCellFromPoint(x, y)) return false;
     if (shouldShowTray() && pointInTray(x, y)) return false;
     if (shouldShowTray() && pointInTrayDumpButton(x, y)) return false;
-    if (pointInReferenceSheet(x, y)) return false;
-    if (pointInLampSwitch(x, y)) return false;
+    if (pointInLampSwitch(x, y)) return false; // lamp toggle owns its hit area
     return true;
   }
 
@@ -718,24 +719,28 @@ import { prefersReducedMotion } from './utils.js';
     loadTweezersFromTray(cell.row, cell.col);
   }
 
-  function pickTweezerFromBox(code) {
-    if (state.tweezerBead) {
-      showToast("镊子上已经夹着一颗，先放下或放回豆盒。");
+  // Return the bead currently held in the tweezers back to the box (discard it).
+  function returnTweezerBead() {
+    if (!state.tweezerBead) return false;
+    const oldColor = state.tweezerBead;
+    state.tweezerBead = null;
+    sfxFeedback("drop");
+    showToast(`${beadLabel(oldColor)} 放回豆盒。`);
+    markDirty();
+    return true;
+  }
+
+  // Pick a color straight from the bead box onto the tweezers (no tray needed).
+  // Clicking the color already held returns it; a different color swaps.
+  function tweezerFromBox(code) {
+    if (!code) return;
+    if (state.tweezerBead === code) {
+      returnTweezerBead();
       return;
     }
     state.tweezerBead = code;
     sfxFeedback("grab");
     showToast(`镊子夹起 ${beadLabel(code)}。`);
-  }
-
-  function toggleTweezerBean() {
-    if (state.tweezerBead) {
-      const oldColor = state.tweezerBead;
-      state.tweezerBead = null;
-      showToast(`${beadLabel(oldColor)} 放回豆盒。`);
-    } else {
-      pickTweezerFromBox(state.selectedColor);
-    }
     markDirty();
   }
 
@@ -1568,7 +1573,11 @@ import { prefersReducedMotion } from './utils.js';
   sceneCanvas.addEventListener("touchmove", onTouchMove, { passive: false });
   sceneCanvas.addEventListener("touchend", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
-  sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  sceneCanvas.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    // Right-click discards the bead held in the tweezers.
+    if (state.phase === "place" && state.tweezerBead) returnTweezerBead();
+  });
   sceneCanvas.addEventListener("focus", showKeyboardGrid);
   sceneCanvas.addEventListener("blur", hideKeyboardGrid);
   sceneCanvas.addEventListener("wheel", (event) => {
@@ -1761,6 +1770,13 @@ import { prefersReducedMotion } from './utils.js';
   window.addEventListener("keydown", (event) => {
     if (handleKeyboardGridKey(event)) return;
 
+    // Esc discards the bead held in the tweezers (returns it to the box).
+    if (event.key === "Escape" && !getOpenModalEl() && state.phase === "place" && state.tweezerBead) {
+      event.preventDefault();
+      returnTweezerBead();
+      return;
+    }
+
     // WASD / Arrow keys: pan board.  Z / X: zoom in / out.
     // Desktop only (non-touch), place/inspect phase, no modal open, no input focused.
     if (!isTouchDevice()) {
@@ -1906,6 +1922,8 @@ import { prefersReducedMotion } from './utils.js';
     openImportCodeModal: () => openDrawCodeModal("import-bead"),
     submitCurrentToGallery,
     triggerHaptic,
+    returnTweezerBead,
+    tweezerFromBox,
   });
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));

@@ -15,19 +15,35 @@
   </head>
   <body class="admin-page">
     <main>
-      <header>
-        <h1>图纸画廊审核</h1>
-        <p>管理员 token 只会发送给后端校验，不要提交到 GitHub。</p>
+      <header class="admin-header">
+        <div class="admin-header-text">
+          <h1>图纸画廊审核</h1>
+          <p>管理员 token 只会发送给后端校验，不要提交到 GitHub。</p>
+        </div>
       </header>
-      <section class="toolbar">
-        <input id="adminToken" type="password" autocomplete="off" placeholder="ADMIN_TOKEN" />
+
+      <section class="admin-toolbar">
+        <input id="adminToken" type="password" autocomplete="off" placeholder="ADMIN_TOKEN" aria-label="管理员 Token" />
         <button id="loadButton" class="primary icon-text-button" type="button">
           <span class="btn-glyph" data-lucide-icon="refresh-cw" data-icon-size="16"></span>
-          <span class="btn-label">读取待审核</span>
+          <span class="btn-label">读取</span>
         </button>
       </section>
-      <div id="status" class="status">等待读取。</div>
-      <section id="grid" class="grid"></section>
+
+      <nav class="admin-tabs" id="filterTabs" role="tablist" aria-label="筛选投稿">
+        <button class="admin-tab is-active" type="button" role="tab" data-filter="all" aria-selected="true">
+          全部 <span class="admin-tab-count" data-count="all">0</span>
+        </button>
+        <button class="admin-tab" type="button" role="tab" data-filter="pending" aria-selected="false">
+          待审核 <span class="admin-tab-count" data-count="pending">0</span>
+        </button>
+        <button class="admin-tab" type="button" role="tab" data-filter="published" aria-selected="false">
+          已发布 <span class="admin-tab-count" data-count="published">0</span>
+        </button>
+      </nav>
+
+      <div id="status" class="admin-status" role="status" aria-live="polite">输入 token 后点击「读取」。</div>
+      <section id="grid" class="admin-grid" aria-live="polite"></section>
     </main>
 
     <script type="module" src="./admin.js"></script>

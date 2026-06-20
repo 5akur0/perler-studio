@@ -17,6 +17,9 @@ export function hidePlaceHint() {
 
 export function showPlaceHint(message, key = message, duration = 2000) {
   if (!els.placeHint || !message) return;
+  // The place hint belongs to the bead workbench only — never leak it onto the
+  // home screen (e.g. after a refresh restores an in-progress "place" phase).
+  if (state.appMode !== "bead") return;
   if (state.lastPlaceHintKey === key) return;
   state.lastPlaceHintKey = key;
   window.clearTimeout(state.placeHintTimer);

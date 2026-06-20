@@ -1686,6 +1686,7 @@
   }
   function showPlaceHint(message, key = message, duration = 2e3) {
     if (!els.placeHint || !message) return;
+    if (state.appMode !== "bead") return;
     if (state.lastPlaceHintKey === key) return;
     state.lastPlaceHintKey = key;
     window.clearTimeout(state.placeHintTimer);
@@ -6149,6 +6150,8 @@
     "undo-2": '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
     // —— Common actions ——
     "trash-2": '<path d="M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    plus: '<path d="M5 12h14M12 5v14"/>',
+    minus: '<path d="M5 12h14"/>',
     upload: '<path d="M12 3v12m5-7l-5-5l-5 5m14 7v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
     download: '<path d="M12 15V3m9 12v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10l5 5l5-5"/>',
     "share-2": '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51l6.83 3.98m-.01-10.98l-6.82 3.98"/>',
@@ -6263,6 +6266,10 @@
     submitCurrentToGallery: () => {
     },
     triggerHaptic: () => {
+    },
+    returnTweezerBead: () => {
+    },
+    tweezerFromBox: () => {
     }
   };
   var stageControlsHome = els.stageControls?.parentElement || null;
@@ -6767,7 +6774,7 @@
     const tweezerSlots = [state.tweezerBead];
     const needleFoot = state.trayColor ? `\u8C46\u7B5B ${trayLabel} \xB7 \u5269\u4F59 ${state.trayBeans}` : "\u5148\u5012\u5165\u4E00\u79CD\u989C\u8272\uFF0C\u518D\u4ECE\u8C46\u7B5B\u53D6\u8C46";
     const needleFootText = state.spill ? "\u5148\u7528\u954A\u5B50\u5939\u8D77\u5361\u4F4F\u8C46" : needleFoot;
-    const tweezerFoot = state.tweezerBead ? `\u5939\u7740 ${beadIds[state.tweezerBead]}` : `\u4ECE\u8C46\u76D2\u5939\u4E00\u9897 ${beadIds[state.selectedColor]}`;
+    const tweezerFoot = state.tweezerBead ? `\u5939\u7740 ${beadIds[state.tweezerBead]} \xB7 \u70B9\u6B64\u653E\u56DE` : `\u70B9\u8C46\u76D2\u8272\u53F7\u76F4\u63A5\u5939\u8D77`;
     els.toolRack.innerHTML = `
       <button type="button" class="tool-card${state.tool === "needle" ? " active" : ""}" data-tool="needle">
         <div class="tool-head"><span>\u8C46\u9488</span></div>
@@ -6783,7 +6790,11 @@
     els.toolRack.querySelectorAll("[data-tool]").forEach((button) => {
       button.addEventListener("click", () => {
         const tool = button.getAttribute("data-tool");
-        if (!tool || state.tool === tool) return;
+        if (!tool) return;
+        if (state.tool === tool) {
+          if (tool === "tweezers" && state.tweezerBead) uiActions.returnTweezerBead?.();
+          return;
+        }
         state.tool = tool;
         markDirty();
       });
@@ -6878,8 +6889,10 @@
           state.mobileColorPulseId += 1;
           state.mobileColorPulsePending = true;
           uiActions.triggerHaptic("light");
+        } else if (state.phase === "place") {
+          if (state.tool === "tweezers") uiActions.tweezerFromBox?.(code);
+          else uiActions.pourSelectedColor?.();
         }
-        if (state.phase === "place" && !isMobile) uiActions.pourSelectedColor?.();
         markDirty();
       });
       els.colorPalette.appendChild(button);
@@ -10789,7 +10802,6 @@
     if (boardCellFromPoint(x, y)) return false;
     if (shouldShowTray() && pointInTray(x, y)) return false;
     if (shouldShowTray() && pointInTrayDumpButton(x, y)) return false;
-    if (pointInReferenceSheet(x, y)) return false;
     if (pointInLampSwitch(x, y)) return false;
     return true;
   }
@@ -11092,6 +11104,26 @@
       return;
     }
     loadTweezersFromTray(cell.row, cell.col);
+  }
+  function returnTweezerBead() {
+    if (!state.tweezerBead) return false;
+    const oldColor = state.tweezerBead;
+    state.tweezerBead = null;
+    feedback("drop");
+    showToast(`${beadLabel(oldColor)} \u653E\u56DE\u8C46\u76D2\u3002`);
+    markDirty();
+    return true;
+  }
+  function tweezerFromBox(code) {
+    if (!code) return;
+    if (state.tweezerBead === code) {
+      returnTweezerBead();
+      return;
+    }
+    state.tweezerBead = code;
+    feedback("grab");
+    showToast(`\u954A\u5B50\u5939\u8D77 ${beadLabel(code)}\u3002`);
+    markDirty();
   }
   async function clearBoard() {
     const hasContent = placedCount() > 0 || state.trayBeans > 0 || state.needleLoaded > 0 || state.tweezerBead || state.spill || state.fusedPieces.length > 0;
@@ -11840,7 +11872,10 @@
   sceneCanvas.addEventListener("touchmove", onTouchMove, { passive: false });
   sceneCanvas.addEventListener("touchend", onTouchEnd, { passive: false });
   sceneCanvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
-  sceneCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  sceneCanvas.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    if (state.phase === "place" && state.tweezerBead) returnTweezerBead();
+  });
   sceneCanvas.addEventListener("focus", showKeyboardGrid);
   sceneCanvas.addEventListener("blur", hideKeyboardGrid);
   sceneCanvas.addEventListener("wheel", (event) => {
@@ -12023,6 +12058,11 @@
   });
   window.addEventListener("keydown", (event) => {
     if (handleKeyboardGridKey(event)) return;
+    if (event.key === "Escape" && !getOpenModalEl() && state.phase === "place" && state.tweezerBead) {
+      event.preventDefault();
+      returnTweezerBead();
+      return;
+    }
     if (!isTouchDevice()) {
       const tag = document.activeElement?.tagName;
       const inputFocused = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
@@ -12236,7 +12276,9 @@
     importPatternCode,
     openImportCodeModal: () => openDrawCodeModal("import-bead"),
     submitCurrentToGallery,
-    triggerHaptic
+    triggerHaptic,
+    returnTweezerBead,
+    tweezerFromBox
   });
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));

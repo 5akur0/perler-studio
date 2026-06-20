@@ -50,6 +50,8 @@ const PATHS = {
   // —— Common actions ——
   "trash-2":
     '<path d="M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  plus: '<path d="M5 12h14M12 5v14"/>',
+  minus: '<path d="M5 12h14"/>',
   upload:
     '<path d="M12 3v12m5-7l-5-5l-5 5m14 7v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
   download:

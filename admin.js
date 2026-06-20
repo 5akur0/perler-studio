@@ -1,18 +1,25 @@
 import { decodePatternCode } from "./src/pattern-code.js";
 import { palette } from "./src/palette.js";
 import { escapeHtml } from "./src/utils.js";
-import { hydrateIcons } from "./src/icons.js";
+import { icon, hydrateIcons } from "./src/icons.js";
 
 const apiBase = String(document.querySelector('meta[name="beam-share-api-base"]')?.content || "").replace(/\/+$/, "");
 const tokenInput = document.querySelector("#adminToken");
 const loadButton = document.querySelector("#loadButton");
 const statusEl = document.querySelector("#status");
 const grid = document.querySelector("#grid");
+const tabsEl = document.querySelector("#filterTabs");
 
 hydrateIcons(document);
 
-function setStatus(text) {
+// In-memory store of every card. `state` is "pending" or "published".
+let items = [];
+let activeFilter = "all";
+let hasLoaded = false;
+
+function setStatus(text, tone = "") {
   statusEl.textContent = text;
+  statusEl.dataset.tone = tone;
 }
 
 async function request(path, payload = {}) {
@@ -23,12 +30,13 @@ async function request(path, payload = {}) {
   });
   const json = await response.json().catch(() => null);
   if (!response.ok || !json?.ok) {
-    throw new Error(json?.error?.message || "Request failed.");
+    throw new Error(json?.error?.message || "请求失败。");
   }
   return json.data;
 }
 
 function drawPattern(canvas, pattern) {
+  if (!pattern) return;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const rect = canvas.getBoundingClientRect();
   const dim = Math.max(180, Math.round((rect.width || 240) * dpr));
@@ -47,80 +55,196 @@ function drawPattern(canvas, pattern) {
   });
 }
 
-function render(items) {
-  grid.innerHTML = "";
-  if (!items.length) {
-    setStatus("没有待审核投稿。");
-    return;
-  }
-  setStatus(`共 ${items.length} 条待审核。`);
-  items.forEach((item) => {
-    let pattern;
-    try {
-      pattern = decodePatternCode(item.patternCode, { name: item.name });
-    } catch {
-      pattern = null;
-    }
-    const card = document.createElement("article");
-    card.className = "card";
-    card.innerHTML = `
-      <canvas aria-label="图纸预览"></canvas>
-      <div class="meta">
-        <strong>${escapeHtml(item.name || "投稿图纸")}</strong>
-        <span>${escapeHtml(item.author || "匿名投稿")} · ${escapeHtml(item.size)}x${escapeHtml(item.size)}</span>
-        <span>${escapeHtml(item.createdAt)}</span>
-      </div>
-      <div class="actions">
-        <button class="primary icon-text-button" type="button" data-action="approve">
-          <span class="btn-glyph" data-lucide-icon="badge-check" data-icon-size="16"></span>
-          <span class="btn-label">通过</span>
-        </button>
-        <button class="danger icon-text-button" type="button" data-action="reject">
-          <span class="btn-glyph" data-lucide-icon="badge-x" data-icon-size="16"></span>
-          <span class="btn-label">拒绝</span>
-        </button>
-      </div>
-    `;
-    hydrateIcons(card);
-    const canvas = card.querySelector("canvas");
-    if (pattern) drawPattern(canvas, pattern);
-    card.querySelectorAll("button[data-action]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const action = button.dataset.action;
-        card.querySelectorAll("button").forEach((btn) => {
-          btn.disabled = true;
-        });
-        try {
-          await request(`/api/gallery/${action}`, { id: item.id });
-          card.remove();
-          setStatus(action === "approve" ? "已通过。" : "已拒绝。");
-        } catch (error) {
-          card.querySelectorAll("button").forEach((btn) => {
-            btn.disabled = false;
-          });
-          setStatus(error.message || "操作失败。");
-        }
-      });
-    });
-    grid.appendChild(card);
+function formatDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function counts() {
+  return {
+    all: items.length,
+    pending: items.filter((it) => it.state === "pending").length,
+    published: items.filter((it) => it.state === "published").length,
+  };
+}
+
+function updateTabs() {
+  const c = counts();
+  tabsEl.querySelectorAll("[data-count]").forEach((el) => {
+    el.textContent = String(c[el.dataset.count] ?? 0);
+  });
+  tabsEl.querySelectorAll(".admin-tab").forEach((tab) => {
+    const active = tab.dataset.filter === activeFilter;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
   });
 }
 
-async function loadPending() {
-  if (!tokenInput.value.trim()) {
-    setStatus("请先输入 ADMIN_TOKEN。");
+function visibleItems() {
+  if (activeFilter === "all") return items;
+  return items.filter((it) => it.state === activeFilter);
+}
+
+function buildCard(item) {
+  let pattern;
+  try {
+    pattern = decodePatternCode(item.patternCode, { name: item.name });
+  } catch {
+    pattern = null;
+  }
+
+  const card = document.createElement("article");
+  card.className = "admin-card";
+  card.dataset.state = item.state;
+
+  const isPending = item.state === "pending";
+  const chipLabel = isPending ? "待审核" : "已发布";
+  const date = formatDate(item.publishedAt || item.createdAt);
+  const sizeText = item.size ? `${escapeHtml(item.size)}×${escapeHtml(item.size)}` : "";
+  const promoteBtn = isPending
+    ? `<button class="admin-act admin-act-add" type="button" data-action="approve" title="加入画廊" aria-label="加入画廊">
+         ${icon("plus", { size: 18 })}<span>加入画廊</span>
+       </button>`
+    : `<button class="admin-act admin-act-pull" type="button" data-action="unpublish" title="退回审核区" aria-label="退回审核区">
+         ${icon("minus", { size: 18 })}<span>退回审核</span>
+       </button>`;
+
+  card.innerHTML = `
+    <div class="admin-thumb-wrap">
+      <canvas class="admin-thumb" aria-label="图纸预览"></canvas>
+      <span class="admin-chip admin-chip-${item.state}">${chipLabel}</span>
+    </div>
+    <div class="admin-meta">
+      <strong title="${escapeHtml(item.name || "投稿图纸")}">${escapeHtml(item.name || "投稿图纸")}</strong>
+      <span>${escapeHtml(item.author || "匿名投稿")}${sizeText ? ` · ${sizeText}` : ""}</span>
+      <span class="admin-meta-date">${escapeHtml(date)}</span>
+    </div>
+    <div class="admin-actions">
+      ${promoteBtn}
+      <button class="admin-act admin-act-del" type="button" data-action="delete" title="彻底删除" aria-label="彻底删除">
+        ${icon("trash-2", { size: 18 })}
+      </button>
+    </div>
+  `;
+
+  drawPattern(card.querySelector("canvas"), pattern);
+
+  card.querySelectorAll("button[data-action]").forEach((button) => {
+    button.addEventListener("click", () => handleAction(button.dataset.action, item, card));
+  });
+
+  return card;
+}
+
+function render() {
+  updateTabs();
+  grid.innerHTML = "";
+  const list = visibleItems();
+  if (!list.length) {
+    grid.classList.add("is-empty");
+    grid.innerHTML = `<div class="admin-empty">${icon("clipboard-list", { size: 40, strokeWidth: 1.8 })}<p>${
+      hasLoaded ? "这里还没有内容。" : "尚未读取。"
+    }</p></div>`;
     return;
   }
-  setStatus("正在读取...");
+  grid.classList.remove("is-empty");
+  list.forEach((item) => grid.appendChild(buildCard(item)));
+}
+
+function setCardBusy(card, busy) {
+  card.classList.toggle("is-busy", busy);
+  card.querySelectorAll("button").forEach((btn) => {
+    btn.disabled = busy;
+  });
+}
+
+async function handleAction(action, item, card) {
+  if (action === "delete") {
+    const label = item.name || "这张图纸";
+    if (!window.confirm(`彻底删除「${label}」？此操作不可恢复。`)) return;
+  }
+
+  setCardBusy(card, true);
+  try {
+    if (action === "approve") {
+      const data = await request("/api/gallery/approve", { id: item.id });
+      item.state = "published";
+      item.publicId = data?.publicId || item.publicId;
+      item.publishedAt = new Date().toISOString();
+      setStatus(`已加入画廊：${item.name || "投稿图纸"}`, "ok");
+    } else if (action === "unpublish") {
+      const data = await request("/api/gallery/unpublish", { publicId: item.publicId });
+      item.state = "pending";
+      item.id = data?.submissionId || item.id;
+      item.createdAt = item.createdAt || new Date().toISOString();
+      setStatus(`已退回审核区：${item.name || "投稿图纸"}`, "ok");
+    } else if (action === "delete") {
+      await request("/api/gallery/delete", item.state === "published" ? { publicId: item.publicId } : { id: item.id });
+      items = items.filter((it) => it !== item);
+      setStatus(`已删除：${item.name || "投稿图纸"}`, "ok");
+    }
+    render();
+  } catch (err) {
+    setStatus(err.message || "操作失败。", "err");
+    setCardBusy(card, false);
+  }
+}
+
+async function loadAll() {
+  if (!tokenInput.value.trim()) {
+    setStatus("请先输入 ADMIN_TOKEN。", "err");
+    return;
+  }
+  setStatus("正在读取…");
   loadButton.disabled = true;
   try {
-    const data = await request("/api/gallery/pending", { limit: 96 });
-    render(Array.isArray(data.items) ? data.items : []);
-  } catch (error) {
-    setStatus(error.message || "读取失败。");
+    const [pending, published] = await Promise.all([
+      request("/api/gallery/pending", { limit: 96 }),
+      request("/api/gallery/list", { limit: 96 }),
+    ]);
+    const pendingItems = (Array.isArray(pending?.items) ? pending.items : []).map((it) => ({
+      state: "pending",
+      id: it.id,
+      name: it.name,
+      author: it.author || "",
+      size: it.size,
+      patternCode: it.patternCode,
+      createdAt: it.createdAt,
+    }));
+    const publishedItems = (Array.isArray(published?.items) ? published.items : []).map((it) => ({
+      state: "published",
+      publicId: it.id,
+      name: it.name,
+      author: it.author || "",
+      size: it.size,
+      patternCode: it.patternCode,
+      publishedAt: it.publishedAt,
+    }));
+    items = [...pendingItems, ...publishedItems];
+    hasLoaded = true;
+    const c = counts();
+    setStatus(`待审核 ${c.pending} · 已发布 ${c.published}`, "ok");
+    render();
+  } catch (err) {
+    setStatus(err.message || "读取失败。", "err");
   } finally {
     loadButton.disabled = false;
   }
 }
 
-loadButton.addEventListener("click", loadPending);
+tabsEl.addEventListener("click", (event) => {
+  const tab = event.target.closest(".admin-tab");
+  if (!tab) return;
+  activeFilter = tab.dataset.filter;
+  render();
+});
+
+loadButton.addEventListener("click", loadAll);
+tokenInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") loadAll();
+});
+
+render();

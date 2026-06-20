@@ -315,6 +315,14 @@ function isGalleryRejectPath(path) {
   return path.endsWith("/api/gallery/reject") || path.endsWith("/gallery/reject");
 }
 
+function isGalleryUnpublishPath(path) {
+  return path.endsWith("/api/gallery/unpublish") || path.endsWith("/gallery/unpublish");
+}
+
+function isGalleryDeletePath(path) {
+  return path.endsWith("/api/gallery/delete") || path.endsWith("/gallery/delete");
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -552,6 +560,87 @@ async function rejectGallery(payload, event, context) {
   return { id, status: "rejected" };
 }
 
+async function getDoc(collection, docId) {
+  if (!docId) return null;
+  const snap = await db.collection(collection).doc(docId).get();
+  const data = snap?.data;
+  if (Array.isArray(data)) return data[0] || null;
+  return data || null;
+}
+
+async function removeDocIfExists(collection, docId) {
+  const row = await getDoc(collection, docId);
+  if (!row) return false;
+  await db.collection(collection).doc(docId).remove();
+  return true;
+}
+
+// Move a published gallery item back to the pending review queue ("-").
+async function unpublishGallery(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const publicId = String(payload.publicId || payload.id || "").trim();
+  if (!publicId) throw new Error("publicId is required.");
+  const result = await db.collection(GALLERY_ITEMS).where({ publicId }).limit(1).get();
+  const item = (result.data || [])[0];
+  if (!item) throw new Error("Gallery item not found.");
+  const now = nowIso();
+  if (item._id) await db.collection(GALLERY_ITEMS).doc(item._id).remove();
+  let submissionId = item.submissionId || "";
+  // Reactivate the source submission if it still exists; otherwise recreate one
+  // so the pattern reappears in the pending queue rather than vanishing.
+  const existing = submissionId ? await getDoc(GALLERY_SUBMISSIONS, submissionId) : null;
+  if (existing) {
+    await db.collection(GALLERY_SUBMISSIONS).doc(submissionId).update({
+      status: "pending",
+      reviewedAt: "",
+      updatedAt: now,
+    });
+  } else {
+    const added = await db.collection(GALLERY_SUBMISSIONS).add({
+      name: item.name,
+      author: item.author || "",
+      patternCode: item.patternCode,
+      size: item.size,
+      status: "pending",
+      createdAt: item.createdAt || now,
+      updatedAt: now,
+    });
+    submissionId = added?.id || added?._id || "";
+  }
+  return { publicId, submissionId, status: "pending" };
+}
+
+// Permanently remove a submission and/or its published gallery item ("🗑").
+async function deleteGallery(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const publicId = String(payload.publicId || "").trim();
+  const submissionId = String(payload.id || "").trim();
+  if (!publicId && !submissionId) throw new Error("id or publicId is required.");
+  let removed = 0;
+  let linkedSubmissionId = submissionId;
+  if (publicId) {
+    const result = await db.collection(GALLERY_ITEMS).where({ publicId }).limit(1).get();
+    const item = (result.data || [])[0];
+    if (item?._id) {
+      await db.collection(GALLERY_ITEMS).doc(item._id).remove();
+      removed += 1;
+    }
+    if (!linkedSubmissionId && item?.submissionId) linkedSubmissionId = item.submissionId;
+  }
+  if (submissionId) {
+    // Also drop any published item still pointing at this submission.
+    const items = await db.collection(GALLERY_ITEMS).where({ submissionId }).get();
+    await Promise.all(
+      (items.data || []).map((row) => (row?._id ? db.collection(GALLERY_ITEMS).doc(row._id).remove() : null)),
+    );
+    removed += (items.data || []).length;
+  }
+  if (linkedSubmissionId && (await removeDocIfExists(GALLERY_SUBMISSIONS, linkedSubmissionId))) {
+    removed += 1;
+  }
+  return { removed, status: "deleted" };
+}
+
 exports.main = async (event, context) => {
   const method = String(event?.httpMethod || context?.httpContext?.httpMethod || "").toUpperCase();
   const path = getPath(event, context);
@@ -599,6 +688,16 @@ exports.main = async (event, context) => {
 
     if (isGalleryRejectPath(path)) {
       const data = await rejectGallery(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGalleryUnpublishPath(path)) {
+      const data = await unpublishGallery(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+
+    if (isGalleryDeletePath(path)) {
+      const data = await deleteGallery(payload, event, context);
       return json(event, { ok: true, data });
     }
 

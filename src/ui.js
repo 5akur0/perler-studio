@@ -47,6 +47,8 @@ let uiActions = {
   openImportCodeModal: () => {},
   submitCurrentToGallery: () => {},
   triggerHaptic: () => {},
+  returnTweezerBead: () => {},
+  tweezerFromBox: () => {},
 };
 
 const stageControlsHome = els.stageControls?.parentElement || null;
@@ -676,8 +678,8 @@ export function renderToolRack() {
     : "先倒入一种颜色，再从豆筛取豆";
   const needleFootText = state.spill ? "先用镊子夹起卡住豆" : needleFoot;
   const tweezerFoot = state.tweezerBead
-    ? `夹着 ${beadIds[state.tweezerBead]}`
-    : `从豆盒夹一颗 ${beadIds[state.selectedColor]}`;
+    ? `夹着 ${beadIds[state.tweezerBead]} · 点此放回`
+    : `点豆盒色号直接夹起`;
   els.toolRack.innerHTML = `
       <button type="button" class="tool-card${state.tool === "needle" ? " active" : ""}" data-tool="needle">
         <div class="tool-head"><span>豆针</span></div>
@@ -693,7 +695,12 @@ export function renderToolRack() {
   els.toolRack.querySelectorAll("[data-tool]").forEach((button) => {
     button.addEventListener("click", () => {
       const tool = button.getAttribute("data-tool");
-      if (!tool || state.tool === tool) return;
+      if (!tool) return;
+      if (state.tool === tool) {
+        // Clicking the already-active tweezers card while holding returns the bead.
+        if (tool === "tweezers" && state.tweezerBead) uiActions.returnTweezerBead?.();
+        return;
+      }
       state.tool = tool;
       markDirty();
     });
@@ -796,8 +803,12 @@ export function renderPalette() {
         state.mobileColorPulseId += 1;
         state.mobileColorPulsePending = true;
         uiActions.triggerHaptic("light");
+      } else if (state.phase === "place") {
+        // Tweezers pick straight from the box (clicking the held color returns it);
+        // the needle pours the color into the tray.
+        if (state.tool === "tweezers") uiActions.tweezerFromBox?.(code);
+        else uiActions.pourSelectedColor?.();
       }
-      if (state.phase === "place" && !isMobile) uiActions.pourSelectedColor?.();
       markDirty();
     });
     els.colorPalette.appendChild(button);

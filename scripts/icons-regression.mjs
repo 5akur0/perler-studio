@@ -76,8 +76,13 @@ assert.equal((indexHtml.match(/<svg\b/g) || []).length, 1);
 assert.match(indexHtml, /<svg viewBox="0 0 64 64"/);
 
 assert.match(adminHtml, /data-lucide-icon="refresh-cw"/);
-assert.match(adminSource, /data-lucide-icon="badge-check"/);
-assert.match(adminSource, /data-lucide-icon="badge-x"/);
-assert.match(adminSource, /hydrateIcons\(card\)/);
+// Admin renders action glyphs through the unified icon() helper (plus / minus / trash-2).
+assert.match(adminSource, /icon\("plus"/);
+assert.match(adminSource, /icon\("minus"/);
+assert.match(adminSource, /icon\("trash-2"/);
+// Every icon() name used in admin must exist in the registry.
+const adminIconNames = [...adminSource.matchAll(/\bicon\("([^"]+)"/g)].map((match) => match[1]);
+assert.ok(adminIconNames.length > 0);
+adminIconNames.forEach((name) => assert.equal(hasIcon(name), true, `Missing admin icon: ${name}`));
 
 console.log("Icon regression checks passed.");
