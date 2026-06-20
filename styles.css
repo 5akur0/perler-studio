@@ -75,6 +75,7 @@
   --canvas-min: 520px;
   --panel-pad: var(--sp-4);
   --panel-pad-tight: var(--sp-2);
+  --studio-cols-work: clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
   --topbar-h: 70px;
   --tap-min: 44px;
   --control-h-sm: 28px;
@@ -125,6 +126,12 @@
 @media (max-width: 860px) {
   :root {
     --panel-gap: var(--sp-3);
+    --mobile-board-size: 64vh;
+  }
+}
+@media (max-width: 620px) {
+  :root {
+    --mobile-board-size: 80vh;
   }
 }
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
@@ -3865,7 +3872,6 @@ body.admin-page {
 
 /* src/styles/responsive.css */
 @media (max-width: 860px) {
-  --mobile-board-size: min(64vh, calc(100vw - 16px));
   html,
   body {
     height: 100%;
@@ -4092,7 +4098,7 @@ body.admin-page {
 }
 @media (min-width: 861px) {
   .studio-grid.drawing-studio-grid {
-    grid-template-columns: clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
+    grid-template-columns: var(--studio-cols-work);
   }
   .drawing-studio-grid .drawing-palette-panel {
     grid-column: auto;
@@ -4253,7 +4259,7 @@ body.admin-page {
 }
 @media (min-width: 861px) {
   .bead-studio-grid:not([data-phase=choose]) {
-    grid-template-columns: clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
+    grid-template-columns: var(--studio-cols-work);
   }
   .bead-studio-grid:not([data-phase=choose]) .right-panel {
     grid-column: auto;
@@ -4778,8 +4784,10 @@ body.admin-page {
     padding: var(--sp-2);
   }
   .bead-studio-grid:not([data-phase=choose]) .workbench {
-    height: var(--mobile-board-size);
-    min-height: var(--mobile-board-size);
+    container-type: inline-size;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
   }
   .bead-studio-grid:not([data-phase=choose]) .right-panel {
@@ -4801,10 +4809,11 @@ body.admin-page {
   }
   .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
     flex: 0 0 auto;
-    height: auto;
-    aspect-ratio: 1 / 1;
+    width: min(100cqi, var(--mobile-board-size));
+    height: min(100cqi, var(--mobile-board-size));
+    aspect-ratio: auto;
     min-height: 0;
-    max-height: 72vh;
+    max-height: none;
   }
   .bead-studio-grid:not([data-phase=choose]) .left-panel section[data-stage=working] {
     display: flex;
@@ -5003,10 +5012,6 @@ body.admin-page {
   .color-palette {
     grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
     max-height: 240px;
-  }
-  #sceneCanvas {
-    height: min(80vh, 620px);
-    min-height: 500px;
   }
 }
 @media (max-width: 420px) {

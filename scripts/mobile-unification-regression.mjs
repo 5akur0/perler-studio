@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 const root = resolve(new URL("..", import.meta.url).pathname);
 const renderSource = await readFile(new URL("../src/render.js", import.meta.url), "utf8");
 const responsiveCss = await readFile(new URL("../src/styles/responsive.css", import.meta.url), "utf8");
+const tokensCss = await readFile(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
 const constantsSource = await readFile(new URL("../src/constants.js", import.meta.url), "utf8");
 
 function assertRenderUsesUnifiedBoardTransform() {
@@ -30,7 +31,14 @@ function assertHeatModelIsUnified() {
 }
 
 function assertMobileCssDefinesLayoutContract() {
-  assert.match(responsiveCss, /--mobile-board-size:/, "mobile CSS should expose a single board-size budget variable");
+  // The board-size budget now lives in tokens.css inside :root @media redefines.
+  // It must NOT be declared bare in responsive.css's at-rule body (invalid scope).
+  assert.match(tokensCss, /--mobile-board-size:/, "tokens.css should define the single board-size budget owner");
+  assert.doesNotMatch(
+    responsiveCss,
+    /@media[^{]*\{\s*(?:\/\*[\s\S]*?\*\/\s*)*--mobile-board-size\s*:/,
+    "--mobile-board-size must not be declared bare inside an @media body (invalid, dropped by the parser)",
+  );
   assert.match(responsiveCss, /\.bead-studio-grid\[data-phase="iron"\] \.left-panel[\s\S]*display:\s*none/, "iron stage should not leave an empty left-panel shell on phones");
   assert.match(responsiveCss, /\.start-screen[\s\S]*overflow-y:\s*auto/, "mobile home should allow vertical recovery instead of hard clipping content");
 }

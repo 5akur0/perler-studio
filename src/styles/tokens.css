@@ -112,6 +112,21 @@
   --canvas-min: 520px;            /* center column min floor (→ 360 at ≤1179) */
   --panel-pad: var(--sp-4);       /* 16 — content-surface inset */
   --panel-pad-tight: var(--sp-2); /* 8 — dense side-panel inset */
+  /* Shared 3-column working track recipe (bead-working + drawing studio, ≥861):
+     side rails shrink fluidly with the viewport, center takes the remainder.
+     Single source — both studios consume `grid-template-columns: var(--studio-cols-work)`
+     so the part that is genuinely identical can never drift between them. */
+  --studio-cols-work: clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
+
+  /* —— Layout: mobile-working board vertical cap (≤860 only) ——
+     Composite ownership: this token owns ONLY the vertical size limit. The real
+     available width is owned by the container (the workbench, via container-query
+     inline size). #sceneCanvas takes `min(100cqi, var(--mobile-board-size))` so the
+     square never exceeds the container's true content width (after app-shell /
+     safe-area / workbench padding) nor the vertical cap. The token must NOT use
+     100vw — that would pretend to own the container width and overflow under
+     overflow:hidden. Declared ONLY inside :root via the @media redefines below —
+     never bare in an at-rule (an invalid declaration is silently discarded). */
 
   /* —— Layout: topbar / controls —— */
   --topbar-h: 70px;               /* topbar min-height (→ 60 at 861–1179) */
@@ -173,6 +188,15 @@
 @media (max-width: 860px) {
   :root {
     --panel-gap: var(--sp-3); /* 12 */
+    --mobile-board-size: 64vh;
+  }
+}
+/* ≤620 redefines the same vertical cap (must come after ≤860 so it wins): small
+   phones give the board more vertical room. Width is still owned by the container,
+   so no 100vw term is needed here. */
+@media (max-width: 620px) {
+  :root {
+    --mobile-board-size: 80vh;
   }
 }
 

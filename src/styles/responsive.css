@@ -1,5 +1,7 @@
 @media (max-width: 860px) {
-  --mobile-board-size: min(64vh, calc(100vw - 16px));
+  /* --mobile-board-size is the single owner of the mobile-working board size; it
+     lives in tokens.css inside :root @media redefines (≤860 / ≤620). It must NOT
+     be declared here bare in the at-rule body — that is invalid CSS and is dropped. */
 
   /* Mobile uses the same viewport-locked shell as desktop: the app itself never
      page-scrolls, while each active content surface owns its internal scroll. */
@@ -282,8 +284,8 @@
      canvas column stays moderate and the palette stays a tall side column.
      Higher specificity than the generic 2-column `.studio-grid` rule below. */
   .studio-grid.drawing-studio-grid {
-    grid-template-columns:
-      clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
+    /* Same working track as bead-working — single source in tokens.css. */
+    grid-template-columns: var(--studio-cols-work);
   }
 
   .drawing-studio-grid .drawing-palette-panel {
@@ -494,11 +496,9 @@
    max-width:1179 block, which therefore only affects the drawing studio. */
 @media (min-width: 861px) {
   .bead-studio-grid:not([data-phase="choose"]) {
-    /* Coefficients chosen so the side columns reach their full 300/320 width
-       around ~1200px (matching the original desktop layout) and only shrink
-       below that, fluidly, down to 861px. */
-    grid-template-columns:
-      clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
+    /* Shared working track — single source in tokens.css (--studio-cols-work).
+       Side columns reach full 300/320 around ~1200px and shrink fluidly to 861px. */
+    grid-template-columns: var(--studio-cols-work);
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .right-panel {
@@ -1105,9 +1105,14 @@
     padding: var(--sp-2);
   }
 
+  /* Container owns the real available width: as a query container, 100cqi gives the
+     workbench's true content width (after app-shell / safe-area / its own padding).
+     It stays full-column width and centres the square canvas. */
   .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    height: var(--mobile-board-size);
-    min-height: var(--mobile-board-size);
+    container-type: inline-size;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
   }
 
@@ -1142,12 +1147,18 @@
     display: none !important;
   }
 
+  /* Canvas CSS box: a square whose edge is the smaller of the container's true
+     available width (100cqi, owned by the workbench) and the vertical cap
+     (--mobile-board-size). Composite ownership — neither term pretends to own the
+     other axis — so it fits the content width under any padding/safe-area and never
+     overflows. render.js computes the board geometry from this measured box. */
   .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
     flex: 0 0 auto;
-    height: auto;
-    aspect-ratio: 1 / 1;
+    width: min(100cqi, var(--mobile-board-size));
+    height: min(100cqi, var(--mobile-board-size));
+    aspect-ratio: auto;
     min-height: 0;
-    max-height: 72vh;
+    max-height: none;
   }
 
   .bead-studio-grid:not([data-phase="choose"]) .left-panel section[data-stage="working"] {
@@ -1398,10 +1409,10 @@
     max-height: 240px;
   }
 
-  #sceneCanvas {
-    height: min(80vh, 620px);
-    min-height: 500px;
-  }
+  /* The mobile board grows on small phones by redefining the single owner
+     (--mobile-board-size, in tokens.css @media ≤620), NOT by overriding the
+     #sceneCanvas box here — that override competed with the workbench budget and
+     could force the board past the viewport width under overflow:hidden. */
 }
 
 @media (max-width: 420px) {

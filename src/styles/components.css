@@ -1075,8 +1075,9 @@
 #sceneCanvas {
   display: block;
   width: 100%;
-  /* Container-driven: fill the workbench column height (≥861 flex model).
-     Mobile (≤860) overrides this with aspect-ratio:1/1; height:auto. */
+  /* Container-driven: fill the workbench column height (≥861 flex model) as a
+     rectangular composite workbench (board + tray + reference).
+     Mobile (≤860) overrides this with a square sized from --mobile-board-size. */
   flex: 1 1 auto;
   height: 100%;
   min-height: 0;

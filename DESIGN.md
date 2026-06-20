@@ -240,6 +240,8 @@ components:
 | `--shell-pad` | `18px` | — | `.app-shell` 内边距；`calc(100vh - 2*var())` 由它派生 |
 | `--sidebar-w` | `320px` | `240px` ≤1179 | 拼豆台左右栏（对称） |
 | `--canvas-min` | `520px` | `360px` ≤1179 | 中央画布列下限 |
+| `--studio-cols-work` | `clamp(208,25vw,300) 1fr clamp(216,27vw,320)` | — | ≥861 三列工作区轨道；**拼豆台 working 与绘图台共用的单一来源** |
+| `--mobile-board-size` | （未定义） | `64vh` ≤860；`80vh` ≤620 | mobile-working 方板的**垂直上限**（只管高度）；宽度由容器 `100cqi` 拥有，`#sceneCanvas` 取 `min(100cqi, 本 token)` |
 | `--panel-gap` | `--sp-4`(16) | `--sp-3`(12) ≤860 | `.studio-grid` 间距 |
 | `--panel-pad` / `--panel-pad-tight` | 16 / 8 | — | 内容面 / 紧凑侧栏内边距 |
 | `--topbar-h` | `70px` | `60px` 861–1179 | 顶栏 min-height |
@@ -253,7 +255,8 @@ components:
 | `--modal-max-h` | `min(86vh,760px)` | — | 弹窗高度上限 |
 
 - 弹窗宽度一律 `min(var(--modal-w-*), calc(100vw - var(--modal-gutter)))`。
-- **绘图台**左右栏是独立的**流式 clamp** 网格（`clamp(208,25vw,300) / clamp(216,27vw,320)`），不走 `--sidebar-w`，刻意保留。
+- **绘图台**左右栏走**流式 clamp** 网格（不走对称的 `--sidebar-w`，刻意保留）。这条 clamp 轨道与拼豆台 working 完全相同，已收敛到单一来源 `--studio-cols-work`，两台同时消费、不再各写一份。
+- **mobile-working 尺寸所有权（组合式）**：容器（workbench）/ canvas CSS 盒子（`#sceneCanvas`）/ 内部 board 几何三层各有所有者——**宽度**由容器拥有：workbench 设 `container-type: inline-size`，`100cqi` 即其真实内容宽度（已扣除 app-shell / safe-area / 自身 padding）；**垂直上限**由 `--mobile-board-size`（tokens.css，仅 ≤860/≤620 的 `:root` @media 里定义）拥有；`#sceneCanvas` 边长取 `min(100cqi, var(--mobile-board-size))` 保持方形，因此任何 padding/safe-area 变化下都不溢出、不被 `overflow:hidden` 裁切。token **禁止**用 `100vw` 假装拥有容器宽度，也**禁止**裸挂在 `@media` 体内（无效声明会被丢弃）。board 几何由 `render.js` 从实测盒子算。桌面 working 仍是矩形复合工作台（board+豆盘+参考），不改成方形。
 - 自检：改动布局后跑 `grep -rnP ': ?[0-9]+px' src/styles/ | grep -iE 'sidebar|canvas|modal|tile|topbar'` 确认没有新的裸魔法数。
 - **遗留（TODO）**：`gap`/`padding` 大多仍是 8/10/12/16 裸值，未并入 `--sp-*` 尺度；off-scale（5/7/9/10/14）待对齐。需一次专门的「spacing 扫描 + 截图复核」pass。
 
