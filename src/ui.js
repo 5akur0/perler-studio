@@ -798,16 +798,25 @@ export function renderPalette() {
         ${inPattern && isSelected ? `<span class="chip-count">${remaining}</span>` : ""}
       `;
     button.addEventListener("click", () => {
-      state.selectedColor = code;
       if (isMobile) {
-        state.mobileColorPulseId += 1;
-        state.mobileColorPulsePending = true;
-        uiActions.triggerHaptic("light");
-      } else if (state.phase === "place") {
-        // Tweezers pick straight from the box (clicking the held color returns it);
-        // the needle pours the color into the tray.
-        if (state.tool === "tweezers") uiActions.tweezerFromBox?.(code);
-        else uiActions.pourSelectedColor?.();
+        // Toggle: tapping the already-selected swatch clears the selection, so
+        // the next board taps place nothing — a safe look-without-placing state.
+        if (state.selectedColor === code) {
+          state.selectedColor = null;
+        } else {
+          state.selectedColor = code;
+          state.mobileColorPulseId += 1;
+          state.mobileColorPulsePending = true;
+          uiActions.triggerHaptic("light");
+        }
+      } else {
+        state.selectedColor = code;
+        if (state.phase === "place") {
+          // Tweezers pick straight from the box (clicking the held color returns it);
+          // the needle pours the color into the tray.
+          if (state.tool === "tweezers") uiActions.tweezerFromBox?.(code);
+          else uiActions.pourSelectedColor?.();
+        }
       }
       markDirty();
     });

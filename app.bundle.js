@@ -6884,14 +6884,21 @@
         ${inPattern && isSelected ? `<span class="chip-count">${remaining}</span>` : ""}
       `;
       button.addEventListener("click", () => {
-        state.selectedColor = code;
         if (isMobile) {
-          state.mobileColorPulseId += 1;
-          state.mobileColorPulsePending = true;
-          uiActions.triggerHaptic("light");
-        } else if (state.phase === "place") {
-          if (state.tool === "tweezers") uiActions.tweezerFromBox?.(code);
-          else uiActions.pourSelectedColor?.();
+          if (state.selectedColor === code) {
+            state.selectedColor = null;
+          } else {
+            state.selectedColor = code;
+            state.mobileColorPulseId += 1;
+            state.mobileColorPulsePending = true;
+            uiActions.triggerHaptic("light");
+          }
+        } else {
+          state.selectedColor = code;
+          if (state.phase === "place") {
+            if (state.tool === "tweezers") uiActions.tweezerFromBox?.(code);
+            else uiActions.pourSelectedColor?.();
+          }
         }
         markDirty();
       });
@@ -11414,17 +11421,20 @@
   }
   function placeSelectedBead(x, y, initial = true) {
     if (!isActiveTileCell(x, y)) return;
+    if (!state.selectedColor) {
+      if (initial) showPlaceHint("\u5148\u5728\u8C46\u76D2\u91CC\u9009\u4E00\u4E2A\u989C\u8272\u518D\u653E\u7F6E\u3002", "place:no-color");
+      return;
+    }
     const index2 = indexFor(x, y);
     if (state.spill && state.spill.index === index2) {
       state.spill = null;
     }
     const current = state.placed[index2];
-    const removing = current === state.selectedColor && initial;
-    if (current === state.selectedColor && initial) {
+    if (!initial && current) return;
+    const removing = current === state.selectedColor;
+    if (removing) {
       state.placed[index2] = null;
       state.heat[index2] = 0;
-    } else if (current === state.selectedColor) {
-      return;
     } else {
       state.placed[index2] = state.selectedColor;
       state.heat[index2] = 0;

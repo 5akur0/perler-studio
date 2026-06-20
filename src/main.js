@@ -1073,17 +1073,24 @@ import { prefersReducedMotion } from './utils.js';
 
   function placeSelectedBead(x, y, initial = true) {
     if (!isActiveTileCell(x, y)) return;
+    // No bead box selected → look-without-placing: a board tap places nothing.
+    if (!state.selectedColor) {
+      if (initial) showPlaceHint("先在豆盒里选一个颜色再放置。", "place:no-color");
+      return;
+    }
     const index = indexFor(x, y);
     if (state.spill && state.spill.index === index) {
       state.spill = null;
     }
     const current = state.placed[index];
-    const removing = current === state.selectedColor && initial;
-    if (current === state.selectedColor && initial) {
+    // Drag-paint (initial=false) only fills empty cells — a continuous swipe
+    // must never overwrite a different color or erase a bead you already placed.
+    // Deliberate taps still toggle (same color removes) and replace.
+    if (!initial && current) return;
+    const removing = current === state.selectedColor;
+    if (removing) {
       state.placed[index] = null;
       state.heat[index] = 0;
-    } else if (current === state.selectedColor) {
-      return;
     } else {
       state.placed[index] = state.selectedColor;
       state.heat[index] = 0;
