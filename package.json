@@ -11,6 +11,7 @@
     "test:bgm": "node scripts/bgm-regression.mjs",
     "test:board-layout": "node scripts/board-layout-regression.mjs",
     "test:color-chip-selection": "node scripts/color-chip-selection-regression.mjs",
+    "test:finish-showcase": "node scripts/finish-showcase-regression.mjs",
     "test:icons": "node scripts/icons-regression.mjs",
     "test:keyboard": "node scripts/keyboard-regression.mjs",
     "test:mobile-ui": "node scripts/mobile-ui-regression.mjs",

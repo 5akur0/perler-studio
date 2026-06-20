@@ -64,6 +64,7 @@ export const state = {
   warp: 18,
   flipCount: 0,
   craft: "钥匙扣",
+  craftSwitchAt: 0,
   savedCurrent: false,
   lastConversionStats: null,
   pointer: {

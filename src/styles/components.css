@@ -1269,6 +1269,11 @@
   box-shadow: inset 0 0 0 2px var(--brand-tint-strong);
 }
 
+.craft-toggle button.active {
+  border-width: 2px;
+  color: var(--brand-ink);
+}
+
 .hint-box {
   padding: var(--sp-2);
   border: 1px solid var(--brand-tint-strong);

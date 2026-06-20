@@ -1465,6 +1465,7 @@
     warp: 18,
     flipCount: 0,
     craft: "\u94A5\u5319\u6263",
+    craftSwitchAt: 0,
     savedCurrent: false,
     lastConversionStats: null,
     pointer: {
@@ -3031,6 +3032,42 @@
       floorTop
     };
   }
+  function computeShowcaseLayout(rect) {
+    const w = Math.max(rect.width, MIN_LAYOUT_VIEWPORT);
+    const h = Math.max(rect.height, MIN_LAYOUT_VIEWPORT);
+    const cols = boardCols();
+    const rows = boardRows();
+    const marginX = Math.max(24, w * 0.06);
+    const marginTop = Math.max(28, h * 0.07);
+    const marginBottom = Math.max(28, h * 0.07);
+    const availW = w - marginX * 2;
+    const availH = h - marginTop - marginBottom;
+    const display = clamp(Math.min(availW, availH), 240, 760);
+    const cell = display / Math.max(cols, rows);
+    const boardW = cell * cols;
+    const boardH = cell * rows;
+    const boardX = Math.round((w - boardW) / 2);
+    const boardY = Math.round(marginTop + (availH - boardH) / 2);
+    return {
+      w,
+      h,
+      boardX,
+      boardY,
+      boardSize: display,
+      boardW,
+      boardH,
+      cell,
+      refX: 0,
+      refY: 0,
+      refW: 0,
+      refH: 0,
+      trayX: 0,
+      trayY: 0,
+      trayW: 0,
+      trayH: 0,
+      floorTop: h
+    };
+  }
   function setupHiDpiCanvas(canvas, ctx2, rect = canvas.getBoundingClientRect()) {
     const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     const width = Math.max(1, Math.round(rect.width * dpr));
@@ -3063,8 +3100,9 @@
       if (state.conceptEaster) {
         drawConceptEasterScene(layout);
       } else {
-        drawFinishShowcase(layout);
-        drawFinishLayer(layout);
+        const showcase = computeShowcaseLayout(sceneRect);
+        drawFinishShowcase(showcase);
+        drawFinishLayer(showcase);
       }
     } else {
       withBoardViewTransform(layout, () => {
@@ -3969,15 +4007,55 @@
       });
     });
   }
-  function drawDetachedFusionBridgeByCenters(ctx2, cellSize, cellA, cellB, centerA, centerB) {
+  function finishMaterialColor(color, material) {
+    return material === "wax" ? mixColor(color, "#8f877c", 0.11) : color;
+  }
+  function drawWaxSheenForPiece(layout, piece, { scale, resolveCenter }) {
+    const ctx2 = scene;
+    const centers = piece.cells.map((cell) => ({ cell, center: resolveCenter(cell, piece) }));
+    if (!centers.length) return;
+    const radius = layout.cell * scale * 0.52;
+    const bridgeHalf = layout.cell * scale * 0.36;
+    const xs = centers.map(({ center }) => center.x);
+    const ys = centers.map(({ center }) => center.y);
+    const left = Math.min(...xs) - radius;
+    const top = Math.min(...ys) - radius;
+    const right = Math.max(...xs) + radius;
+    const bottom = Math.max(...ys) + radius;
+    ctx2.save();
+    ctx2.beginPath();
+    centers.forEach(({ cell, center }) => {
+      ctx2.moveTo(center.x + radius, center.y);
+      ctx2.arc(center.x, center.y, radius, 0, Math.PI * 2);
+      const rightCell = piece.map[`${cell.x + 1},${cell.y}`];
+      if (rightCell) {
+        const next = resolveCenter(rightCell, piece);
+        ctx2.rect(center.x, center.y - bridgeHalf, next.x - center.x, bridgeHalf * 2);
+      }
+      const downCell = piece.map[`${cell.x},${cell.y + 1}`];
+      if (downCell) {
+        const next = resolveCenter(downCell, piece);
+        ctx2.rect(center.x - bridgeHalf, center.y, bridgeHalf * 2, next.y - center.y);
+      }
+    });
+    ctx2.clip();
+    const sheen = ctx2.createLinearGradient(left, top, right, bottom);
+    sheen.addColorStop(0, "rgba(255,248,235,0.075)");
+    sheen.addColorStop(0.46, "rgba(255,248,235,0.025)");
+    sheen.addColorStop(1, "rgba(255,248,235,0)");
+    ctx2.fillStyle = sheen;
+    ctx2.fillRect(left, top, right - left, bottom - top);
+    ctx2.restore();
+  }
+  function drawDetachedFusionBridgeByCenters(ctx2, cellSize, cellA, cellB, centerA, centerB, material = null) {
     const heat = Math.min(cellA.heat || 0, cellB.heat || 0);
     const pressBoost = clamp(state.flattening / 100, 0, 1);
     const fuse = clamp((heat - 36) / 56 + pressBoost * 0.42, 0, 1);
     if (fuse <= 0) return;
     const spread = lerp(cellSize * 0.24, cellSize * (0.8 + pressBoost * 0.1), easeOut(fuse));
     const over = clamp((heat - 88) / 34, 0, 1);
-    const colorA = fusedColor(cellA.code, heat);
-    const colorB = fusedColor(cellB.code, heat);
+    const colorA = finishMaterialColor(fusedColor(cellA.code, heat), material);
+    const colorB = finishMaterialColor(fusedColor(cellB.code, heat), material);
     const gradient = ctx2.createLinearGradient(centerA.x, centerA.y, centerB.x, centerB.y);
     gradient.addColorStop(0, colorA);
     gradient.addColorStop(1, colorB);
@@ -3987,19 +4065,20 @@
     const ctx2 = scene;
     const scale = clamp(options.scale ?? 1, 0.28, 1.4);
     const resolveCenter = options.resolveCenter;
+    const material = options.material || null;
     if (!resolveCenter) return;
     piece.cells.forEach((cell) => {
       const right = piece.map[`${cell.x + 1},${cell.y}`];
       if (right) {
         const centerA = resolveCenter(cell, piece);
         const centerB = resolveCenter(right, piece);
-        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell, right, centerA, centerB);
+        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell, right, centerA, centerB, material);
       }
       const down = piece.map[`${cell.x},${cell.y + 1}`];
       if (down) {
         const centerA = resolveCenter(cell, piece);
         const centerB = resolveCenter(down, piece);
-        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell, down, centerA, centerB);
+        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell, down, centerA, centerB, material);
       }
     });
     piece.cells.forEach((cell) => {
@@ -4008,9 +4087,10 @@
       if (isSpillDamagedIndex(cell.index)) {
         drawDamagedBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile);
       } else {
-        drawBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile, cell.index);
+        drawBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile, cell.index, material);
       }
     });
+    if (material === "wax") drawWaxSheenForPiece(layout, piece, { scale, resolveCenter });
   }
   function pieceFusionShapeProfile(piece, cell) {
     const has = (x, y) => Boolean(piece.map[`${x},${y}`]);
@@ -4034,37 +4114,128 @@
   function pieceSortByArea(pieces) {
     return [...pieces].sort((a, b) => b.cells.length - a.cells.length);
   }
+  function getShowcaseBounds(pieces) {
+    const bounds = {
+      minX: Infinity,
+      minY: Infinity,
+      maxX: -Infinity,
+      maxY: -Infinity
+    };
+    pieces.forEach((piece) => {
+      bounds.minX = Math.min(bounds.minX, piece.minX);
+      bounds.minY = Math.min(bounds.minY, piece.minY);
+      bounds.maxX = Math.max(bounds.maxX, piece.maxX);
+      bounds.maxY = Math.max(bounds.maxY, piece.maxY);
+    });
+    if (!Number.isFinite(bounds.minX)) return null;
+    return {
+      ...bounds,
+      width: bounds.maxX - bounds.minX + 1,
+      height: bounds.maxY - bounds.minY + 1,
+      centerX: (bounds.minX + bounds.maxX) / 2,
+      centerY: (bounds.minY + bounds.maxY) / 2
+    };
+  }
+  function softShadow(ctx2, {
+    blur = 20,
+    dy = 10,
+    color = "rgba(38,36,43,0.14)"
+  } = {}) {
+    ctx2.shadowColor = color;
+    ctx2.shadowBlur = blur;
+    ctx2.shadowOffsetX = 0;
+    ctx2.shadowOffsetY = dy;
+  }
+  function getFinishCardRect(layout, craft = state.craft) {
+    const { boardX, boardY, boardW, boardH } = layout;
+    if (craft === "\u94A5\u5319\u6263") {
+      return {
+        x: boardX + boardW * 0.1,
+        y: boardY - 10,
+        w: boardW * 0.8,
+        h: boardH + 20
+      };
+    }
+    if (craft === "\u6446\u4EF6") {
+      return {
+        x: boardX + boardW * 0.035,
+        y: boardY + boardH * 0.14,
+        w: boardW * 0.93,
+        h: boardH * 0.72
+      };
+    }
+    return {
+      x: boardX - 18,
+      y: boardY - 18,
+      w: boardW + 36,
+      h: boardH + 36
+    };
+  }
+  function drawMaterialHighlight(ctx2, { x, y, w, h, r, alpha = 0.18 }) {
+    ctx2.save();
+    roundedPath(ctx2, x, y, w, h, r);
+    ctx2.clip();
+    const shine = ctx2.createLinearGradient(x, y, x + w * 0.72, y + h * 0.62);
+    shine.addColorStop(0, `rgba(255,255,255,${alpha})`);
+    shine.addColorStop(0.36, `rgba(255,255,255,${alpha * 0.45})`);
+    shine.addColorStop(0.58, "rgba(255,255,255,0)");
+    ctx2.fillStyle = shine;
+    ctx2.fillRect(x, y, w, h);
+    ctx2.restore();
+  }
+  function drawAcrylicPlate(ctx2, { x, y, w, h, r = 14, shadow = true }) {
+    ctx2.save();
+    if (shadow) softShadow(ctx2, { blur: 18, dy: 9, color: "rgba(38,36,43,0.13)" });
+    ctx2.fillStyle = "rgba(255,255,255,0.82)";
+    roundedPath(ctx2, x, y, w, h, r);
+    ctx2.fill();
+    ctx2.shadowColor = "transparent";
+    ctx2.strokeStyle = "rgba(255,255,255,0.92)";
+    ctx2.lineWidth = 2;
+    roundedPath(ctx2, x + 1, y + 1, w - 2, h - 2, Math.max(2, r - 1));
+    ctx2.stroke();
+    ctx2.strokeStyle = "rgba(124,136,147,0.2)";
+    ctx2.lineWidth = 1;
+    roundedPath(ctx2, x + 2.5, y + 2.5, w - 5, h - 5, Math.max(2, r - 2));
+    ctx2.stroke();
+    ctx2.restore();
+    drawMaterialHighlight(ctx2, { x, y, w, h, r, alpha: 0.24 });
+  }
+  function finishIntroProgress() {
+    if (prefersReducedMotion() || !state.craftSwitchAt) return 1;
+    const t = clamp((performance.now() - state.craftSwitchAt) / 260, 0, 1);
+    return 1 - (1 - t) ** 3;
+  }
   function drawFinishShowcase(layout) {
     const pieces = getFusedPieces();
     if (!pieces.length) return;
     const ctx2 = scene;
-    const { boardX, boardY, boardSize } = layout;
+    const card = getFinishCardRect(layout);
+    const intro = finishIntroProgress();
+    const centerX = card.x + card.w / 2;
+    const centerY = card.y + card.h / 2;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.12)";
-    ctx2.shadowBlur = 26;
-    ctx2.shadowOffsetY = 14;
+    ctx2.globalAlpha = 0.6 + intro * 0.4;
+    ctx2.translate(centerX, centerY);
+    ctx2.scale(0.96 + intro * 0.04, 0.96 + intro * 0.04);
+    ctx2.translate(-centerX, -centerY);
+    softShadow(ctx2, { blur: 26, dy: 14, color: "rgba(38,36,43,0.14)" });
     ctx2.fillStyle = "rgba(255,255,255,0.42)";
-    roundedRect(boardX - 12, boardY - 12, boardSize + 24, boardSize + 24, 14);
+    roundedRect(card.x, card.y, card.w, card.h, 14);
     ctx2.fill();
     ctx2.shadowColor = "transparent";
-    ctx2.restore();
     if (state.craft === "\u539F\u7248") {
       drawFinishOriginal(layout, pieces);
-      return;
-    }
-    if (state.craft === "\u94A5\u5319\u6263") {
+    } else if (state.craft === "\u94A5\u5319\u6263") {
       drawFinishKeychain(layout, pieces);
-      return;
-    }
-    if (state.craft === "\u6446\u4EF6") {
+    } else if (state.craft === "\u6446\u4EF6") {
       drawFinishFigurine(layout, pieces);
-      return;
-    }
-    if (state.craft === "\u676F\u57AB") {
+    } else if (state.craft === "\u676F\u57AB") {
       drawFinishCoaster(layout, pieces);
-      return;
+    } else {
+      drawFinishOriginal(layout, pieces);
     }
-    drawFinishOriginal(layout, pieces);
+    ctx2.restore();
   }
   function drawConceptEasterScene(layout) {
     const type = state.conceptEasterType || "empty";
@@ -4216,17 +4387,40 @@
   }
   function drawFinishKeychain(layout, pieces) {
     const ctx2 = scene;
-    const { boardX, boardY, boardSize, cell } = layout;
+    const { boardX, boardY, boardW, boardH, cell } = layout;
     const selected = pieceSortByArea(pieces).slice(0, 2);
-    const centerX = boardX + boardSize / 2;
-    const slots = [boardY + boardSize * 0.34, boardY + boardSize * 0.7];
+    const centerX = boardX + boardW / 2;
+    const slots = selected.length === 1 ? [boardY + boardH * 0.57] : [boardY + boardH * 0.38, boardY + boardH * 0.73];
     const placed = [];
     selected.forEach((piece, index2) => {
       const pieceW = (piece.maxX - piece.minX + 1) * cell;
       const pieceH = (piece.maxY - piece.minY + 1) * cell;
-      const scale = clamp(Math.min(boardSize * 0.58 / pieceW, boardSize * 0.28 / pieceH, 1), 0.52, 1);
-      const target = { x: centerX, y: slots[index2] };
-      placed.push({ piece, scale, target });
+      const maxW = boardW * (selected.length === 1 ? 0.58 : 0.46);
+      const maxH = boardH * (selected.length === 1 ? 0.48 : 0.25);
+      const scale = clamp(Math.min(maxW / pieceW, maxH / pieceH, 1.22), 0.48, 1.22);
+      const pad = Math.max(cell * 0.68, 12);
+      const plateW = pieceW * scale + pad * 2;
+      const plateH = pieceH * scale + pad * 2.15;
+      const target = { x: centerX, y: slots[index2] + pad * 0.2 };
+      const plate = {
+        x: centerX - plateW / 2,
+        y: slots[index2] - plateH / 2,
+        w: plateW,
+        h: plateH,
+        r: Math.max(12, cell * 0.72)
+      };
+      placed.push({ piece, scale, target, plate, pad });
+      drawAcrylicPlate(ctx2, plate);
+      const holeY = plate.y + pad * 0.52;
+      ctx2.save();
+      ctx2.fillStyle = "rgba(124,136,147,0.22)";
+      ctx2.strokeStyle = "rgba(83,94,105,0.68)";
+      ctx2.lineWidth = Math.max(1.5, cell * 0.09);
+      ctx2.beginPath();
+      ctx2.arc(centerX, holeY, Math.max(4, cell * 0.22), 0, Math.PI * 2);
+      ctx2.fill();
+      ctx2.stroke();
+      ctx2.restore();
       drawFusedPieceTransformed(layout, piece, {
         scale,
         resolveCenter: (cellData) => ({
@@ -4234,32 +4428,45 @@
           y: target.y + (cellData.y - piece.centerY) * cell * scale
         })
       });
+      drawMaterialHighlight(ctx2, { ...plate, alpha: 0.14 });
     });
-    const ringY = boardY + boardSize * 0.11;
+    const ringY = boardY + boardH * 0.1;
+    const ringR = Math.max(18, boardW * 0.055);
     ctx2.save();
-    ctx2.strokeStyle = "#b2bcc8";
-    ctx2.lineWidth = Math.max(5, cell * 0.3);
+    const metal = ctx2.createLinearGradient(centerX - ringR, ringY - ringR, centerX + ringR, ringY + ringR);
+    metal.addColorStop(0, "#f0f3f6");
+    metal.addColorStop(0.46, "#aab4c0");
+    metal.addColorStop(1, "#7c8893");
+    ctx2.strokeStyle = metal;
+    ctx2.lineWidth = Math.max(5, cell * 0.28);
     ctx2.beginPath();
-    ctx2.arc(centerX, ringY, boardSize * 0.065, 0, Math.PI * 2);
+    ctx2.arc(centerX, ringY, ringR, 0, Math.PI * 2);
+    ctx2.stroke();
+    ctx2.strokeStyle = "rgba(255,255,255,0.82)";
+    ctx2.lineWidth = Math.max(1.4, cell * 0.075);
+    ctx2.beginPath();
+    ctx2.arc(centerX, ringY, ringR, Math.PI * 1.08, Math.PI * 1.76);
     ctx2.stroke();
     if (placed.length) {
       const first = placed[0];
-      const firstTop = first.target.y - (first.piece.maxY - first.piece.minY + 1) * cell * first.scale / 2;
-      ctx2.lineWidth = Math.max(3, cell * 0.18);
-      ctx2.beginPath();
-      ctx2.moveTo(centerX, ringY + boardSize * 0.065);
-      ctx2.lineTo(centerX, firstTop - cell * 0.45);
-      ctx2.stroke();
+      const holeY = first.plate.y + first.pad * 0.52;
+      const connectorTop = ringY + ringR * 0.76;
+      const connectorH = Math.max(8, holeY - connectorTop + cell * 0.1);
+      ctx2.fillStyle = metal;
+      roundedPath(ctx2, centerX - Math.max(3, cell * 0.14), connectorTop, Math.max(6, cell * 0.28), connectorH, Math.max(3, cell * 0.14));
+      ctx2.fill();
     }
     if (placed.length > 1) {
       const top = placed[0];
       const bottom = placed[1];
-      const topBottomY = top.target.y + (top.piece.maxY - top.piece.minY + 1) * cell * top.scale / 2;
-      const bottomTopY = bottom.target.y - (bottom.piece.maxY - bottom.piece.minY + 1) * cell * bottom.scale / 2;
-      ctx2.lineWidth = Math.max(2.4, cell * 0.14);
+      const topBottomY = top.plate.y + top.plate.h;
+      const bottomTopY = bottom.plate.y;
+      ctx2.strokeStyle = metal;
+      ctx2.lineCap = "round";
+      ctx2.lineWidth = Math.max(2.8, cell * 0.16);
       ctx2.beginPath();
-      ctx2.moveTo(centerX, topBottomY + cell * 0.2);
-      ctx2.lineTo(centerX, bottomTopY - cell * 0.2);
+      ctx2.moveTo(centerX, topBottomY + cell * 0.06);
+      ctx2.lineTo(centerX, bottomTopY - cell * 0.06);
       ctx2.stroke();
     }
     ctx2.restore();
@@ -4269,17 +4476,20 @@
     const { boardX, boardY, cell } = layout;
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
+    const frame = 14;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.14)";
-    ctx2.shadowBlur = 20;
-    ctx2.shadowOffsetY = 10;
-    const baseGradient = ctx2.createLinearGradient(boardX, boardY - 10, boardX, boardY + boardH + 10);
-    baseGradient.addColorStop(0, "#f6f8fa");
-    baseGradient.addColorStop(1, "#d9e0e4");
-    ctx2.fillStyle = baseGradient;
-    roundedRect(boardX - 9, boardY - 9, boardW + 18, boardH + 18, 9);
+    softShadow(ctx2, { blur: 24, dy: 14, color: "rgba(38,36,43,0.16)" });
+    const woodFrame = ctx2.createLinearGradient(boardX - frame, boardY - frame, boardX + boardW + frame, boardY + boardH + frame);
+    woodFrame.addColorStop(0, "#e7dccb");
+    woodFrame.addColorStop(0.55, "#d8c8ad");
+    woodFrame.addColorStop(1, "#cdbb9f");
+    ctx2.fillStyle = woodFrame;
+    roundedRect(boardX - frame, boardY - frame, boardW + frame * 2, boardH + frame * 2, 12);
     ctx2.fill();
     ctx2.shadowColor = "transparent";
+    ctx2.fillStyle = "#fffdf8";
+    roundedRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 8);
+    ctx2.fill();
     ctx2.fillStyle = "#fbfcfd";
     roundedRect(boardX, boardY, boardW, boardH, 6);
     ctx2.fill();
@@ -4293,7 +4503,7 @@
         const px = boardX + x * cell;
         const py = boardY + y * cell;
         const pegR = cell * 0.138;
-        ctx2.fillStyle = "rgba(91, 104, 118, 0.24)";
+        ctx2.fillStyle = "rgba(91, 104, 118, 0.16)";
         ctx2.beginPath();
         ctx2.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
         ctx2.fill();
@@ -4309,92 +4519,146 @@
         })
       });
     });
+    drawMaterialHighlight(ctx2, {
+      x: boardX,
+      y: boardY,
+      w: boardW,
+      h: boardH,
+      r: 6,
+      alpha: 0.12
+    });
   }
   function drawFinishCoaster(layout, pieces) {
-    drawFinishOriginal(layout, pieces);
-    drawCoasterEdge(layout, pieces);
-  }
-  function drawCoasterEdge(layout, pieces) {
-    if (!pieces.length) return;
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    pieces.forEach((piece) => {
-      minX = Math.min(minX, piece.minX);
-      minY = Math.min(minY, piece.minY);
-      maxX = Math.max(maxX, piece.maxX);
-      maxY = Math.max(maxY, piece.maxY);
-    });
-    if (!Number.isFinite(minX)) return;
-    const pad = layout.cell * 0.68;
-    const left = layout.boardX + minX * layout.cell - pad;
-    const top = layout.boardY + minY * layout.cell - pad;
-    const width = (maxX - minX + 1) * layout.cell + pad * 2;
-    const height = (maxY - minY + 1) * layout.cell + pad * 2;
     const ctx2 = scene;
-    const petalR = clamp(layout.cell * 0.18, 3.4, 8.4);
-    const spacing = petalR * 1.7;
+    const bounds = getShowcaseBounds(pieces);
+    if (!bounds) return;
+    const { boardX, boardY, boardW, boardH, cell } = layout;
+    const side = Math.min(boardW, boardH) * 0.84;
+    const pad = Math.max(cell * 1.05, side * 0.055);
+    const scale = clamp(Math.min(
+      (side - pad * 2) / (bounds.width * cell),
+      (side - pad * 2) / (bounds.height * cell),
+      1.08
+    ), 0.42, 1.08);
+    const left = boardX + (boardW - side) / 2;
+    const top = boardY + (boardH - side) / 2;
+    const thickness = Math.max(7, cell * 0.35);
+    const radius = Math.max(18, cell * 0.9);
     ctx2.save();
-    ctx2.fillStyle = "rgba(255, 255, 255, 0.9)";
-    for (let x = left; x <= left + width + 0.01; x += spacing) {
+    softShadow(ctx2, { blur: 24, dy: 13, color: "rgba(38,36,43,0.18)" });
+    const edge = ctx2.createLinearGradient(left, top + thickness, left, top + side + thickness);
+    edge.addColorStop(0, "#c8a877");
+    edge.addColorStop(1, "#b08f5e");
+    ctx2.fillStyle = edge;
+    roundedPath(ctx2, left, top + thickness, side, side, radius);
+    ctx2.fill();
+    ctx2.shadowColor = "transparent";
+    const cork = ctx2.createLinearGradient(left, top, left + side, top + side);
+    cork.addColorStop(0, "#e2c493");
+    cork.addColorStop(0.52, "#d8b783");
+    cork.addColorStop(1, "#cda66d");
+    ctx2.fillStyle = cork;
+    roundedPath(ctx2, left, top, side, side, radius);
+    ctx2.fill();
+    roundedPath(ctx2, left, top, side, side, radius);
+    ctx2.clip();
+    for (let i = 0; i < 150; i += 1) {
+      const px = left + pseudoRandom(`coaster-x-${i}`) * side;
+      const py = top + pseudoRandom(`coaster-y-${i}`) * side;
+      const pr = 0.45 + pseudoRandom(`coaster-r-${i}`) * 1.25;
+      ctx2.fillStyle = pseudoRandom(`coaster-c-${i}`) > 0.5 ? "rgba(113,70,47,0.16)" : "rgba(255,247,225,0.28)";
       ctx2.beginPath();
-      ctx2.arc(x, top - petalR * 0.25, petalR, 0, Math.PI * 2);
-      ctx2.fill();
-      ctx2.beginPath();
-      ctx2.arc(x, top + height + petalR * 0.25, petalR, 0, Math.PI * 2);
+      ctx2.arc(px, py, pr, 0, Math.PI * 2);
       ctx2.fill();
     }
-    for (let y = top + spacing * 0.5; y <= top + height - spacing * 0.5 + 0.01; y += spacing) {
-      ctx2.beginPath();
-      ctx2.arc(left - petalR * 0.25, y, petalR, 0, Math.PI * 2);
-      ctx2.fill();
-      ctx2.beginPath();
-      ctx2.arc(left + width + petalR * 0.25, y, petalR, 0, Math.PI * 2);
-      ctx2.fill();
-    }
-    ctx2.strokeStyle = "rgba(87, 184, 167, 0.65)";
-    ctx2.lineWidth = Math.max(2.8, layout.cell * 0.12);
-    roundedPath(ctx2, left, top, width, height, Math.max(8, layout.cell * 0.56));
-    ctx2.stroke();
     ctx2.restore();
+    const centerX = boardX + boardW / 2;
+    const centerY = boardY + boardH / 2;
+    pieces.forEach((piece) => {
+      drawFusedPieceTransformed(layout, piece, {
+        scale,
+        material: "wax",
+        resolveCenter: (cellData) => ({
+          x: centerX + (cellData.x - bounds.centerX) * cell * scale,
+          y: centerY + (cellData.y - bounds.centerY) * cell * scale
+        })
+      });
+    });
+    drawMaterialHighlight(ctx2, { x: left, y: top, w: side, h: side, r: radius, alpha: 0.14 });
   }
   function drawFinishFigurine(layout, pieces) {
     const selected = pieceSortByArea(pieces).slice(0, Math.min(4, pieces.length));
     const count = selected.length;
     if (!count) return;
-    const centerY = layout.boardY + layout.boardSize * 0.57;
-    const gap = layout.boardSize / (count + 1);
+    const ctx2 = scene;
+    const { boardX, boardY, boardW, boardH, cell } = layout;
+    const baseline = boardY + boardH * 0.66;
+    const slotW = boardW / count;
     selected.forEach((piece, i) => {
-      const targetX = layout.boardX + gap * (i + 1);
-      const pieceW = (piece.maxX - piece.minX + 1) * layout.cell;
-      const pieceH = (piece.maxY - piece.minY + 1) * layout.cell;
-      const maxW = gap * 0.85;
-      const maxH = layout.boardSize * 0.34;
-      const scale = clamp(Math.min(maxW / pieceW, maxH / pieceH, 1), 0.48, 1);
+      const targetX = boardX + slotW * (i + 0.5);
+      const pieceW = (piece.maxX - piece.minX + 1) * cell;
+      const pieceH = (piece.maxY - piece.minY + 1) * cell;
+      const maxW = slotW * (count === 1 ? 0.7 : 0.72);
+      const maxH = boardH * (count === 1 ? 0.48 : 0.38);
+      const scale = clamp(Math.min(maxW / pieceW, maxH / pieceH, count === 1 ? 1.22 : 1), 0.4, count === 1 ? 1.22 : 1);
       const pieceWidth = pieceW * scale;
       const pieceHeight = pieceH * scale;
+      const platePad = Math.max(7, cell * 0.44);
+      const plateW = pieceWidth + platePad * 2;
+      const plateH = pieceHeight + platePad * 1.65;
+      const plateBottom = baseline + cell * 0.18;
+      const plate = {
+        x: targetX - plateW / 2,
+        y: plateBottom - plateH,
+        w: plateW,
+        h: plateH,
+        r: Math.max(9, cell * 0.52)
+      };
+      const targetY = plateBottom - platePad * 0.72 - pieceHeight / 2;
+      const baseW = clamp(pieceWidth * 1.05 + cell * 1.05, cell * 2.3, slotW * 0.9);
+      const baseH = clamp(cell * 0.72, 12, 24);
+      const baseY = baseline + cell * 0.12;
+      ctx2.save();
+      ctx2.fillStyle = "rgba(38,36,43,0.16)";
+      ctx2.shadowColor = "rgba(38,36,43,0.16)";
+      ctx2.shadowBlur = 13;
+      ctx2.beginPath();
+      ctx2.ellipse(targetX, baseY + baseH * 1.05, baseW * 0.48, Math.max(4, baseH * 0.38), 0, 0, Math.PI * 2);
+      ctx2.fill();
+      ctx2.restore();
+      drawAcrylicPlate(ctx2, plate);
       drawFusedPieceTransformed(layout, piece, {
         scale,
-        resolveCenter: (cell) => ({
-          x: targetX + (cell.x - piece.centerX) * layout.cell * scale,
-          y: centerY + (cell.y - piece.centerY) * layout.cell * scale
+        material: "wax",
+        resolveCenter: (cellData) => ({
+          x: targetX + (cellData.x - piece.centerX) * cell * scale,
+          y: targetY + (cellData.y - piece.centerY) * cell * scale
         })
       });
-      const baseW = clamp(pieceWidth * 0.95 + layout.cell * 0.7, layout.cell * 1.8, gap * 0.92);
-      const baseH = clamp(layout.cell * 0.46, 8, 16);
-      const topY = centerY + pieceHeight / 2 + layout.cell * 0.24;
-      const ctx2 = scene;
+      drawMaterialHighlight(ctx2, { ...plate, alpha: 0.13 });
       ctx2.save();
-      const wood = ctx2.createLinearGradient(targetX - baseW / 2, topY, targetX + baseW / 2, topY + baseH);
-      wood.addColorStop(0, "#9b6d4c");
-      wood.addColorStop(0.5, "#805538");
-      wood.addColorStop(1, "#71462f");
-      ctx2.fillStyle = wood;
-      roundedPath(ctx2, targetX - baseW / 2, topY, baseW, baseH, Math.min(6, baseH / 2));
+      const front = ctx2.createLinearGradient(targetX, baseY, targetX, baseY + baseH);
+      front.addColorStop(0, "#805538");
+      front.addColorStop(1, "#71462f");
+      ctx2.fillStyle = front;
+      roundedPath(ctx2, targetX - baseW / 2, baseY, baseW, baseH, Math.min(8, baseH / 2));
       ctx2.fill();
-      ctx2.fillStyle = "rgba(255,255,255,0.2)";
-      roundedPath(ctx2, targetX - baseW * 0.42, topY + 1.5, baseW * 0.84, Math.max(1.5, baseH * 0.18), Math.max(1, baseH * 0.1));
+      const topFace = ctx2.createLinearGradient(targetX - baseW / 2, baseY - baseH * 0.18, targetX + baseW / 2, baseY + baseH * 0.18);
+      topFace.addColorStop(0, "#b88a67");
+      topFace.addColorStop(0.5, "#9b6d4c");
+      topFace.addColorStop(1, "#805538");
+      ctx2.fillStyle = topFace;
+      ctx2.beginPath();
+      ctx2.ellipse(targetX, baseY, baseW / 2, Math.max(4, baseH * 0.34), 0, 0, Math.PI * 2);
+      ctx2.fill();
+      ctx2.strokeStyle = "rgba(61,37,25,0.72)";
+      ctx2.lineWidth = Math.max(1.4, cell * 0.08);
+      ctx2.beginPath();
+      ctx2.moveTo(targetX - Math.min(plateW * 0.38, baseW * 0.34), baseY - 0.5);
+      ctx2.lineTo(targetX + Math.min(plateW * 0.38, baseW * 0.34), baseY - 0.5);
+      ctx2.stroke();
+      ctx2.fillStyle = "rgba(255,255,255,0.18)";
+      roundedPath(ctx2, targetX - baseW * 0.4, baseY + baseH * 0.25, baseW * 0.8, Math.max(1.5, baseH * 0.14), Math.max(1, baseH * 0.08));
       ctx2.fill();
       ctx2.restore();
     });
@@ -4462,7 +4726,7 @@
   }
   function drawDamagedBead(ctx2, x, y, r, code, heat = 0, fused = false, shape = null) {
     const base = palette[code] || "#999";
-    const burnt = mixColor(base, "#6b4b44", 0.5);
+    const burnt = mixColor(base, "#b86f4f", 0.7);
     const pressRaw = fused ? state.phase === "cool" || state.phase === "finish" ? clamp(state.flattening / 100, 0, 1) : 0 : 0;
     const spread = clamp((heat - 30) / 50 + pressRaw * 0.5, 0.35, 1);
     const cluster = shape?.cluster ?? 0.5;
@@ -5178,23 +5442,31 @@
   }
   function drawFinishLayer(layout) {
     const ctx2 = scene;
-    const { boardX, boardY, boardSize } = layout;
+    const card = getFinishCardRect(layout);
+    const badgeW = 76;
+    const badgeH = 30;
+    const bx = card.x + card.w - badgeW - 8;
+    const by = card.y + card.h - badgeH - 8;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.18)";
-    ctx2.shadowBlur = 22;
-    ctx2.shadowOffsetY = 12;
-    ctx2.fillStyle = "rgba(255,255,255,0.28)";
-    roundedRect(boardX + boardSize - 74, boardY + boardSize - 42, 62, 28, 6);
+    softShadow(ctx2, { blur: 14, dy: 7, color: "rgba(38,36,43,0.15)" });
+    ctx2.fillStyle = "rgba(255,255,255,0.9)";
+    roundedRect(bx, by, badgeW, badgeH, 8);
     ctx2.fill();
     ctx2.shadowColor = "transparent";
+    ctx2.strokeStyle = "rgba(38,36,43,0.1)";
+    ctx2.lineWidth = 1;
+    roundedRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1, 7.5);
+    ctx2.stroke();
     ctx2.fillStyle = "#26242b";
-    ctx2.font = "800 13px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-    ctx2.fillText(`\u8BC4\u7EA7 ${finalGrade()}`, boardX + boardSize - 64, boardY + boardSize - 23);
+    ctx2.font = "800 14px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+    ctx2.textAlign = "center";
+    ctx2.textBaseline = "middle";
+    ctx2.fillText(`\u8BC4\u7EA7 ${finalGrade()}`, bx + badgeW / 2, by + badgeH / 2 + 0.5);
     ctx2.restore();
   }
-  function drawBead(ctx2, x, y, r, code, heat = 0, fused = false, shape = null, seed = null) {
+  function drawBead(ctx2, x, y, r, code, heat = 0, fused = false, shape = null, seed = null, material = null) {
     const base = palette[code] || "#999";
-    const color = fusedColor(code, heat);
+    const color = finishMaterialColor(fusedColor(code, heat), material);
     const pressRaw = fused ? state.phase === "cool" || state.phase === "finish" ? clamp(state.flattening / 100, 0, 1) : 0 : 0;
     const heatWeight = clamp((heat - 28) / 46, 0, 1);
     const pressBoost = pressRaw * (0.12 + heatWeight * 0.88);
@@ -6348,8 +6620,9 @@
   var sidebarReferenceRenderKey = "";
   function renderSidebarReference() {
     if (!els.sideReference || !sideReferenceCanvas || !sideReferenceCtx) return;
-    const visible = state.phase !== "choose";
+    const visible = !["choose", "cool", "finish"].includes(state.phase);
     els.sideReference.hidden = !visible;
+    els.sideReference.style.display = visible ? "" : "none";
     if (!visible) {
       sidebarReferenceRenderKey = "hidden";
       return;
@@ -6755,6 +7028,7 @@
       button.className = state.craft === craft ? "active" : "";
       button.addEventListener("click", () => {
         state.craft = craft;
+        state.craftSwitchAt = performance.now();
         state.savedCurrent = false;
         markDirty();
       });
@@ -11789,6 +12063,7 @@
     if (now < state.lampSwitchFlashUntil) return true;
     if (state.floorDrops.length > 0) return true;
     if (state.pressAnim && now - state.pressAnim.startedAt < state.pressAnim.duration) return true;
+    if (!prefersReducedMotion() && state.craftSwitchAt && now - state.craftSwitchAt < 260) return true;
     if (state.mobileBeadSettle && now - state.mobileBeadSettle.startedAt < state.mobileBeadSettle.duration) return true;
     const nav = state.kbdNav;
     if (nav.up || nav.down || nav.left || nav.right || nav.zoomIn || nav.zoomOut) return true;

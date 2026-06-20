@@ -136,8 +136,9 @@ export function renderPatternColorStats() {
 let sidebarReferenceRenderKey = "";
 export function renderSidebarReference() {
   if (!els.sideReference || !sideReferenceCanvas || !sideReferenceCtx) return;
-  const visible = state.phase !== "choose";
+  const visible = !["choose", "cool", "finish"].includes(state.phase);
   els.sideReference.hidden = !visible;
+  els.sideReference.style.display = visible ? "" : "none";
   if (!visible) {
     sidebarReferenceRenderKey = "hidden";
     return;
@@ -655,6 +656,7 @@ export function addCraftToggle() {
     button.className = state.craft === craft ? "active" : "";
     button.addEventListener("click", () => {
       state.craft = craft;
+      state.craftSwitchAt = performance.now();
       state.savedCurrent = false;
       markDirty();
     });

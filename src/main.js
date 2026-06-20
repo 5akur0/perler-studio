@@ -1467,6 +1467,7 @@ import { prefersReducedMotion } from './utils.js';
     if (now < state.lampSwitchFlashUntil) return true;
     if (state.floorDrops.length > 0) return true;
     if (state.pressAnim && now - state.pressAnim.startedAt < state.pressAnim.duration) return true;
+    if (!prefersReducedMotion() && state.craftSwitchAt && now - state.craftSwitchAt < 260) return true;
     if (
       state.mobileBeadSettle
       && now - state.mobileBeadSettle.startedAt < state.mobileBeadSettle.duration
