@@ -4284,6 +4284,22 @@ body.admin-page {
     font-size: var(--fs-2xs);
   }
 }
+@media (hover: none) and (pointer: coarse) and (min-width: 861px) {
+  .bead-studio-grid:not([data-phase=choose]) .workbench {
+    container-type: inline-size;
+    align-self: center;
+    justify-content: center;
+    overflow: visible;
+  }
+  .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
+    flex: 0 0 auto;
+    width: 100cqi;
+    height: auto;
+    aspect-ratio: var(--board-aspect, 1 / 1);
+    min-height: 0;
+    max-height: none;
+  }
+}
 .slider-field {
   display: grid;
   gap: var(--sp-2);

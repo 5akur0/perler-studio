@@ -537,6 +537,31 @@
   }
 }
 
+/* Touch tablet (landscape, ≥861) runs the lightweight flow — no tray — so the
+   board is square (or the pattern aspect) and would leave wide wood-texture bands
+   above/below if the workbench stretched to the full column height. Instead the
+   workbench hugs the board: it sizes to the board (align-self:center) while the
+   side rail and bean-box column still fill the height. The board is sized by the
+   column width (100cqi, like the phone shell) with aspect from --board-aspect, so
+   no letterbox. Mouse desktop is untouched and keeps the rectangular board+tray. */
+@media (hover: none) and (pointer: coarse) and (min-width: 861px) {
+  .bead-studio-grid:not([data-phase="choose"]) .workbench {
+    container-type: inline-size;
+    align-self: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
+    flex: 0 0 auto;
+    width: 100cqi;
+    height: auto;
+    aspect-ratio: var(--board-aspect, 1 / 1);
+    min-height: 0;
+    max-height: none;
+  }
+}
+
 .slider-field {
   display: grid;
   gap: var(--sp-2);
