@@ -13,7 +13,7 @@ import { confirmModal } from './modal-controller.js';
 import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
-  needleCapacity, statusText,
+  needleCapacity,
   useMobileDirectPlacement, useStackedMobileLayout,
 } from './render.js';
 import { els, sideReferenceCanvas, sideReferenceCtx, previewCanvas } from './dom.js';
@@ -1209,10 +1209,6 @@ export function renderUI() {
   }
   if (els.toolStyleField) {
     els.toolStyleField.style.display = (state.appMode === "gallery" || useMobileDirectPlacement()) ? "none" : "";
-  }
-  if (els.statusLine) {
-    const phaseObj = phases.find(p => p.id === state.phase);
-    els.statusLine.textContent = phaseObj?.name ?? statusText();
   }
   const showPlacementUi = state.phase === "place";
   // Mobile uses direct tap-to-place — no needle/tweezers tool selection.

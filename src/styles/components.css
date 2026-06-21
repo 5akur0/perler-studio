@@ -127,10 +127,6 @@
   line-height: 1.2;
 }
 
-#statusLine {
-  display: none;
-}
-
 .danger-text-button {
   background: none;
   border: none;

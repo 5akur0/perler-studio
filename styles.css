@@ -611,9 +611,6 @@ body[data-app-mode=collection] .gallery-screen {
   font-weight: 700;
   line-height: 1.2;
 }
-#statusLine {
-  display: none;
-}
 .danger-text-button {
   background: none;
   border: none;
@@ -4808,6 +4805,7 @@ body.admin-page {
   .bead-studio-grid {
     scroll-padding-block: var(--sp-2);
     padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom, 0px));
+    align-content: start;
   }
   .bead-studio-grid:not([data-phase=choose]) .mobile-action-host {
     display: contents;
@@ -4913,13 +4911,6 @@ body.admin-page {
     bottom: max(152px, calc(env(safe-area-inset-bottom, 0px) + 132px));
     max-width: min(330px, calc(100vw - 40px));
     padding: var(--sp-2) var(--sp-3);
-  }
-  #statusLine {
-    display: block;
-    font-size: var(--fs-xs);
-    color: var(--muted);
-    line-height: 1;
-    margin-top: 2px;
   }
   .inspect-canvas {
     height: 140px;

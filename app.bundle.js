@@ -1594,7 +1594,6 @@
     drawPalette: $("#drawPalette"),
     drawPaletteSearch: $("#drawPaletteSearch"),
     beadBackButton: $("#beadBackButton"),
-    statusLine: $("#statusLine"),
     patternMeta: $("#patternMeta"),
     patternList: $("#patternList"),
     mobileSelectionSummary: $("#mobileSelectionSummary"),
@@ -6221,31 +6220,6 @@
     if (score >= 0.58) return "C";
     return "D";
   }
-  function statusText() {
-    const phase = state.phase;
-    if (state.sandboxMode && phase === "place") {
-      return useMobileDirectPlacement() ? "\u6C99\u76D2\u6A21\u5F0F\uFF1A\u81EA\u7531\u62FC\u6446\u4E2D\u3002\u4ECE\u8C46\u76D2\u9009\u8272\uFF0C\u76F4\u63A5\u70B9\u683C\u5B50\u6446\u653E\u3002" : "\u6C99\u76D2\u6A21\u5F0F\uFF1A\u81EA\u7531\u62FC\u6446\u4E2D\u3002\u70B9\u8C46\u7B5B\u53D6\u8C46\u3001\u4EFB\u610F\u6392\u5E03\uFF0C\u4E0D\u53D7\u56FE\u7EB8\u9650\u5236\u3002";
-    }
-    if (phase === "choose") return "\u9009\u62E9\u4E00\u5F20\u56FE\u7EB8\uFF0C\u5F00\u59CB\u4ECA\u5929\u7684\u624B\u4F5C\u3002";
-    if (phase === "place") {
-      if (state.spill) return "\u6709\u8C46\u5B50\u5012\u4E0B\u6765\u5361\u4F4F\u4E86\u3002\u53EF\u5148\u7EE7\u7EED\u6446\u653E\uFF0C\u71A8\u70EB\u524D\u518D\u5904\u7406\u3002";
-      if (useMobileDirectPlacement()) {
-        return `\u5DF2\u9009 ${beadLabel(state.selectedColor)} \xB7 \u70B9\u683C\u5B50\u653E\u7F6E\u6216\u66FF\u6362\u3002${state.lampOn ? " \u6295\u5F71\u5F00" : ""}`;
-      }
-      if (state.tool === "needle") {
-        if (!state.trayColor) return `\u9488\u5DE5\u5177\u9700\u8981\u5148\u628A\u67D0\u4E2A\u8272\u53F7\u5012\u5165\u8C46\u7B5B\u3002${state.lampOn ? " \u6295\u5F71\u8272\u7A3F\u5DF2\u5F00\u542F\u3002" : " \u53EF\u6253\u5F00\u5DE5\u4F5C\u706F\u67E5\u770B\u6295\u5F71\u8272\u7A3F\u3002"} `;
-        return `\u8C46\u7B5B ${state.trayBeans} \u9897 ${beadIds[state.trayColor]} \xB7 ${state.lampOn ? "\u6295\u5F71\u5F00" : "\u6295\u5F71\u5173"}`;
-      }
-      return state.tweezerBead ? `\u954A\u5B50\u5939\u7740 ${beadLabel(state.tweezerBead)} \xB7 ${state.lampOn ? "\u6295\u5F71\u5F00" : "\u6295\u5F71\u5173"}` : `\u70B9\u8C46\u7B5B\u5939\u4E00\u9897\uFF0C\u6216\u4ECE\u677F\u9762\u53D6\u4E00\u9897\uFF0C\u518D\u653E\u5230\u677F\u4E0A\u3002${state.lampOn ? " \u6295\u5F71\u8272\u7A3F\u5DF2\u5F00\u542F\u3002" : ""}`;
-    }
-    if (phase === "inspect") {
-      if (state.spill) return "\u8FD8\u6709\u5012\u4E0B\u7684\u8C46\u5B50\u672A\u5904\u7406\u3002\u7EE7\u7EED\u71A8\u70EB\u4F1A\u7CCA\u574F\u8BE5\u4F4D\u7F6E\u3002";
-      return state.errors.length ? "\u68C0\u67E5\u5230\u9700\u8981\u4FEE\u6B63\u7684\u4F4D\u7F6E\u3002" : "\u677F\u9762\u68C0\u67E5\u901A\u8FC7\uFF0C\u53EF\u4EE5\u76D6\u7EB8\u71A8\u70EB\u3002";
-    }
-    if (phase === "iron") return "\u6162\u6162\u79FB\u52A8\u71A8\u6597\uFF0C\u8BA9\u8C46\u5B50\u521A\u597D\u7C98\u8FDE\u3002";
-    if (phase === "cool") return "\u7B49\u5F85\u51B7\u5374\uFF0C\u538B\u5E73\u8FB9\u7F18\uFF0C\u518D\u51C6\u5907\u53D6\u4E0B\u4F5C\u54C1\u3002";
-    return `${state.selectedPattern.name}\u5B8C\u6210\uFF0C\u5DF2\u8FDB\u5165\u6536\u85CF\u9636\u6BB5\u3002`;
-  }
 
   // src/modal-controller.js
   var modalActions = {
@@ -7532,10 +7506,6 @@
     }
     if (els.toolStyleField) {
       els.toolStyleField.style.display = state.appMode === "gallery" || useMobileDirectPlacement() ? "none" : "";
-    }
-    if (els.statusLine) {
-      const phaseObj = phases.find((p) => p.id === state.phase);
-      els.statusLine.textContent = phaseObj?.name ?? statusText();
     }
     const showPlacementUi = state.phase === "place";
     const showToolUi = showPlacementUi && !useMobileDirectPlacement();

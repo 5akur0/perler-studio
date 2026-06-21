@@ -61,7 +61,6 @@ export const els = {
   drawPalette: $("#drawPalette"),
   drawPaletteSearch: $("#drawPaletteSearch"),
   beadBackButton: $("#beadBackButton"),
-  statusLine: $("#statusLine"),
   patternMeta: $("#patternMeta"),
   patternList: $("#patternList"),
   mobileSelectionSummary: $("#mobileSelectionSummary"),
