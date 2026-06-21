@@ -14,7 +14,7 @@ import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
   needleCapacity, statusText,
-  useMobileDirectPlacement,
+  useMobileDirectPlacement, useStackedMobileLayout,
 } from './render.js';
 import { els, sideReferenceCanvas, sideReferenceCtx, previewCanvas } from './dom.js';
 import { escapeHtml, prefersReducedMotion } from './utils.js';
@@ -70,7 +70,11 @@ const mobileActionSlot = els.mobileActionHost || document.getElementById("mobile
 // computation. (CSS `order` alone would desync Tab/AT order from the visuals.)
 function mountActionControls() {
   if (!els.stageControls) return;
-  const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
+  // Slot is a LAYOUT decision (width-based), not a flow decision: only the narrow
+  // single-column phone shell mounts controls into the in-board action slot. A
+  // landscape tablet runs the lightweight flow but keeps the desktop multi-column
+  // layout, so its controls stay in the left rail (desktop slot).
+  const mobileWorking = useStackedMobileLayout() && state.phase !== "choose";
   els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
   const host = mobileWorking ? mobileActionSlot : desktopActionSlot;
   if (!host || els.stageControls.parentElement === host) return;

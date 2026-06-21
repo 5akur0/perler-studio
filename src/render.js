@@ -26,7 +26,21 @@ export function useMobileTrayGrid() {
   return window.matchMedia("(max-width: 860px)").matches;
 }
 
+// FLOW predicate (not layout): true on any touch-primary device, so BOTH phones
+// (portrait) and tablets (landscape) use the lightweight direct-placement flow —
+// pick a color from the bead box and tap to place — with no 豆筛 / 豆针 / 镊子.
+// Mouse/trackpad desktop keeps the full handcraft flow. This is intentionally
+// decoupled from the single-column stacked LAYOUT (useStackedMobileLayout, which
+// stays width-based): a landscape tablet runs the lightweight flow inside the
+// desktop multi-column distribution.
 export function useMobileDirectPlacement() {
+  return isTouchDevice();
+}
+
+// LAYOUT predicate (not flow): true only on the narrow single-column phone shell,
+// where #stageControls mounts into the in-board mobile action slot. Tablets/desktop
+// (≥861) keep the multi-column distribution with controls in the left rail.
+export function useStackedMobileLayout() {
   return window.matchMedia("(max-width: 860px)").matches;
 }
 

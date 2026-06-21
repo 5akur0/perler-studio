@@ -118,15 +118,12 @@
      so the part that is genuinely identical can never drift between them. */
   --studio-cols-work: clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
 
-  /* —— Layout: mobile-working board vertical cap (≤860 only) ——
-     Composite ownership: this token owns ONLY the vertical size limit. The real
-     available width is owned by the container (the workbench, via container-query
-     inline size). #sceneCanvas takes `min(100cqi, var(--mobile-board-size))` so the
-     square never exceeds the container's true content width (after app-shell /
-     safe-area / workbench padding) nor the vertical cap. The token must NOT use
-     100vw — that would pretend to own the container width and overflow under
-     overflow:hidden. Declared ONLY inside :root via the @media redefines below —
-     never bare in an at-rule (an invalid declaration is silently discarded). */
+  /* —— Layout: mobile-working board (≤860) ——
+     The board is a true square owned solely by the container width: #sceneCanvas
+     takes 100cqi of the workbench (container-type: inline-size) with aspect-ratio
+     1/1. There is intentionally NO vertical cap token — the board never shrinks to
+     fit the viewport height; instead the studio grid (overflow-y:auto) scrolls
+     when board + actions + bean box exceed the viewport. See responsive.css. */
 
   /* —— Layout: topbar / controls —— */
   --topbar-h: 70px;               /* topbar min-height (→ 60 at 861–1179) */
@@ -188,15 +185,6 @@
 @media (max-width: 860px) {
   :root {
     --panel-gap: var(--sp-3); /* 12 */
-    --mobile-board-size: 64vh;
-  }
-}
-/* ≤620 redefines the same vertical cap (must come after ≤860 so it wins): small
-   phones give the board more vertical room. Width is still owned by the container,
-   so no 100vw term is needed here. */
-@media (max-width: 620px) {
-  :root {
-    --mobile-board-size: 80vh;
   }
 }
 

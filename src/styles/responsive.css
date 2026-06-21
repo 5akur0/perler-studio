@@ -1,10 +1,11 @@
 @media (max-width: 860px) {
-  /* --mobile-board-size is the single owner of the mobile-working board size; it
-     lives in tokens.css inside :root @media redefines (≤860 / ≤620). It must NOT
-     be declared here bare in the at-rule body — that is invalid CSS and is dropped. */
+  /* Mobile-working board sizing: width is the single owner (#sceneCanvas takes
+     100cqi of the workbench, a true square via aspect-ratio). There is no vertical
+     cap — when content runs taller than the viewport the studio grid scrolls. */
 
   /* Mobile uses the same viewport-locked shell as desktop: the app itself never
-     page-scrolls, while each active content surface owns its internal scroll. */
+     page-scrolls (topbar stays fixed), while each active content surface owns its
+     internal scroll. */
   html,
   body {
     height: 100%;
@@ -1124,6 +1125,16 @@
     overflow: hidden;
   }
 
+  /* The board is a full-width square with no vertical cap, so working phases can
+     run taller than the viewport. The grid is the scroller (overflow-y:auto, set
+     above): give it bottom breathing room (incl. safe-area) so the last module
+     (actions / bean box) isn't clipped at the scroll end, and keep the board off
+     the top edge when scrolled. */
+  .bead-studio-grid {
+    scroll-padding-block: var(--sp-2);
+    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom, 0px));
+  }
+
   /* —— Mobile-working order is owned by the DOM composition, not CSS `order` ——
      mountActionControls() mounts #stageControls into #mobileActionHost (a grid child
      authored after the board), so the visual, keyboard (Tab) and screen-reader order
@@ -1148,16 +1159,18 @@
     display: none !important;
   }
 
-  /* Canvas CSS box: a square whose edge is the smaller of the container's true
-     available width (100cqi, owned by the workbench) and the vertical cap
-     (--mobile-board-size). Composite ownership — neither term pretends to own the
-     other axis — so it fits the content width under any padding/safe-area and never
-     overflows. render.js computes the board geometry from this measured box. */
+  /* Canvas CSS box: a true square sized purely by the container's available
+     width (100cqi, owned by the workbench). Width is the SINGLE owner — there is
+     deliberately no vertical cap, so the board never shrinks to fit the viewport
+     height. When board + actions + bean box exceed the viewport, the studio grid
+     (overflow-y:auto) scrolls instead. Height derives from aspect-ratio so the
+     box stays square under any padding/safe-area. render.js computes the board
+     geometry from this measured box. */
   .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
     flex: 0 0 auto;
-    width: min(100cqi, var(--mobile-board-size));
-    height: min(100cqi, var(--mobile-board-size));
-    aspect-ratio: auto;
+    width: 100cqi;
+    height: auto;
+    aspect-ratio: 1 / 1;
     min-height: 0;
     max-height: none;
   }
@@ -1401,10 +1414,9 @@
     max-height: 240px;
   }
 
-  /* The mobile board grows on small phones by redefining the single owner
-     (--mobile-board-size, in tokens.css @media ≤620), NOT by overriding the
-     #sceneCanvas box here — that override competed with the workbench budget and
-     could force the board past the viewport width under overflow:hidden. */
+  /* The mobile board is sized purely by container width (100cqi square, see the
+     ≤860 #sceneCanvas rule); small phones need no special board override — a wider
+     viewport simply yields a wider square, and extra height is handled by scroll. */
 }
 
 @media (max-width: 420px) {

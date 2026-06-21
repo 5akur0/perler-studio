@@ -2686,6 +2686,9 @@
     return window.matchMedia("(max-width: 860px)").matches;
   }
   function useMobileDirectPlacement() {
+    return isTouchDevice();
+  }
+  function useStackedMobileLayout() {
     return window.matchMedia("(max-width: 860px)").matches;
   }
   function isTouchDevice() {
@@ -6553,7 +6556,7 @@
   var mobileActionSlot = els.mobileActionHost || document.getElementById("mobileActionHost");
   function mountActionControls() {
     if (!els.stageControls) return;
-    const mobileWorking = useMobileDirectPlacement() && state.phase !== "choose";
+    const mobileWorking = useStackedMobileLayout() && state.phase !== "choose";
     els.stageControls.dataset.mobilePhase = mobileWorking ? state.phase : "";
     const host = mobileWorking ? mobileActionSlot : desktopActionSlot;
     if (!host || els.stageControls.parentElement === host) return;

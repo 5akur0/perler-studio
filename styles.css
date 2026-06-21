@@ -126,12 +126,6 @@
 @media (max-width: 860px) {
   :root {
     --panel-gap: var(--sp-3);
-    --mobile-board-size: 64vh;
-  }
-}
-@media (max-width: 620px) {
-  :root {
-    --mobile-board-size: 80vh;
   }
 }
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
@@ -4795,6 +4789,10 @@ body.admin-page {
     justify-content: center;
     overflow: hidden;
   }
+  .bead-studio-grid {
+    scroll-padding-block: var(--sp-2);
+    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom, 0px));
+  }
   .bead-studio-grid:not([data-phase=choose]) .mobile-action-host {
     display: contents;
   }
@@ -4811,9 +4809,9 @@ body.admin-page {
   }
   .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
     flex: 0 0 auto;
-    width: min(100cqi, var(--mobile-board-size));
-    height: min(100cqi, var(--mobile-board-size));
-    aspect-ratio: auto;
+    width: 100cqi;
+    height: auto;
+    aspect-ratio: 1 / 1;
     min-height: 0;
     max-height: none;
   }
