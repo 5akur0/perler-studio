@@ -26,15 +26,16 @@ export function useMobileTrayGrid() {
   return window.matchMedia("(max-width: 860px)").matches;
 }
 
-// FLOW predicate (not layout): true on any touch-primary device, so BOTH phones
-// (portrait) and tablets (landscape) use the lightweight direct-placement flow —
-// pick a color from the bead box and tap to place — with no 豆筛 / 豆针 / 镊子.
-// Mouse/trackpad desktop keeps the full handcraft flow. This is intentionally
-// decoupled from the single-column stacked LAYOUT (useStackedMobileLayout, which
-// stays width-based): a landscape tablet runs the lightweight flow inside the
-// desktop multi-column distribution.
+// FLOW predicate (not layout): lightweight direct-placement flow — pick a color
+// from the bead box and tap to place, with no 豆筛 / 豆针 / 镊子. True when the
+// device is touch-primary (phones AND landscape tablets) OR the viewport is the
+// narrow single-column shell (≤860, e.g. a resized desktop window). Only a wide
+// mouse/trackpad desktop keeps the full handcraft flow. The OR is what keeps flow
+// and layout from disagreeing: the narrow stacked layout ALWAYS pairs with the
+// lightweight flow (so tools never land in the hidden left rail), while a wide
+// touch tablet runs the lightweight flow inside the desktop multi-column layout.
 export function useMobileDirectPlacement() {
-  return isTouchDevice();
+  return isTouchDevice() || useStackedMobileLayout();
 }
 
 // LAYOUT predicate (not flow): true only on the narrow single-column phone shell,
@@ -376,13 +377,20 @@ export function computeLayout(rect) {
   const w = Math.max(rect.width, MIN_LAYOUT_VIEWPORT);
   const h = Math.max(rect.height, MIN_LAYOUT_VIEWPORT);
   if (useMobileDirectPlacement()) {
-    // Mobile: board only, centered in a square region (no reference note, no lamp).
+    // Mobile: board only (no reference note, no lamp). The canvas box hugs the
+    // board aspect (--board-aspect, set in render()), so a single cell size that
+    // fits BOTH axes makes the board span the canvas edge-to-edge with no
+    // letterbox. min() across axes keeps it safe for the one transitional frame
+    // before the aspect var lands (board centers without overflow).
     const margin = 12;
-    const rawBoard = clamp(Math.min(w - margin * 2, h - margin * 2), 240, 520);
-    const boardSize = Math.floor(rawBoard / 8) * 8;
-    const cellM = boardSize / Math.max(boardCols(), boardRows());
-    const boardWM = cellM * boardCols();
-    const boardHM = cellM * boardRows();
+    const cols = boardCols();
+    const rows = boardRows();
+    const availW = Math.max(1, w - margin * 2);
+    const availH = Math.max(1, h - margin * 2);
+    const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);
+    const boardWM = cellM * cols;
+    const boardHM = cellM * rows;
+    const boardSize = Math.max(boardWM, boardHM);
     const boardX = Math.floor((w - boardWM) / 2);
     const boardY = Math.floor((h - boardHM) / 2);
     return {
@@ -526,6 +534,15 @@ export function render() {
   if (state.previewDirty && canvasRenderable(previewCanvas)) {
     drawPreview();
     state.previewDirty = false;
+  }
+
+  // Mobile-working board hugs the pattern: the canvas box aspect follows the board
+  // (cols:rows) so a non-square pattern fills the canvas instead of letterboxing
+  // inside a forced square. Consumed by the ≤860 #sceneCanvas rule via
+  // var(--board-aspect). Set before measuring so this frame reads the hugged box.
+  const boardAspect = `${boardCols()} / ${boardRows()}`;
+  if (sceneCanvas.style.getPropertyValue("--board-aspect") !== boardAspect) {
+    sceneCanvas.style.setProperty("--board-aspect", boardAspect);
   }
 
   const sceneRect = sceneCanvas.getBoundingClientRect();

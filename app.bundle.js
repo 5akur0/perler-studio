@@ -2686,7 +2686,7 @@
     return window.matchMedia("(max-width: 860px)").matches;
   }
   function useMobileDirectPlacement() {
-    return isTouchDevice();
+    return isTouchDevice() || useStackedMobileLayout();
   }
   function useStackedMobileLayout() {
     return window.matchMedia("(max-width: 860px)").matches;
@@ -2965,11 +2965,14 @@
     const h = Math.max(rect.height, MIN_LAYOUT_VIEWPORT);
     if (useMobileDirectPlacement()) {
       const margin = 12;
-      const rawBoard2 = clamp(Math.min(w - margin * 2, h - margin * 2), 240, 520);
-      const boardSize2 = Math.floor(rawBoard2 / 8) * 8;
-      const cellM = boardSize2 / Math.max(boardCols(), boardRows());
-      const boardWM = cellM * boardCols();
-      const boardHM = cellM * boardRows();
+      const cols = boardCols();
+      const rows = boardRows();
+      const availW = Math.max(1, w - margin * 2);
+      const availH = Math.max(1, h - margin * 2);
+      const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);
+      const boardWM = cellM * cols;
+      const boardHM = cellM * rows;
+      const boardSize2 = Math.max(boardWM, boardHM);
       const boardX2 = Math.floor((w - boardWM) / 2);
       const boardY2 = Math.floor((h - boardHM) / 2);
       return {
@@ -3090,6 +3093,10 @@
     if (state.previewDirty && canvasRenderable(previewCanvas)) {
       drawPreview();
       state.previewDirty = false;
+    }
+    const boardAspect = `${boardCols()} / ${boardRows()}`;
+    if (sceneCanvas.style.getPropertyValue("--board-aspect") !== boardAspect) {
+      sceneCanvas.style.setProperty("--board-aspect", boardAspect);
     }
     const sceneRect = sceneCanvas.getBoundingClientRect();
     if (sceneRect.width <= 0 || sceneRect.height <= 0) return;

@@ -4811,7 +4811,7 @@ body.admin-page {
     flex: 0 0 auto;
     width: 100cqi;
     height: auto;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: var(--board-aspect, 1 / 1);
     min-height: 0;
     max-height: none;
   }

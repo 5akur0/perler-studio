@@ -1159,18 +1159,19 @@
     display: none !important;
   }
 
-  /* Canvas CSS box: a true square sized purely by the container's available
-     width (100cqi, owned by the workbench). Width is the SINGLE owner — there is
-     deliberately no vertical cap, so the board never shrinks to fit the viewport
-     height. When board + actions + bean box exceed the viewport, the studio grid
-     (overflow-y:auto) scrolls instead. Height derives from aspect-ratio so the
-     box stays square under any padding/safe-area. render.js computes the board
-     geometry from this measured box. */
+  /* Canvas CSS box: full container width (100cqi, owned by the workbench), with
+     the box hugging the board — aspect-ratio follows the pattern (cols:rows) via
+     --board-aspect, set by render.js. A square pattern → square box; a non-square
+     pattern → a box of the same shape, so the board fills it edge-to-edge with no
+     letterbox. Width is the SINGLE size owner: there is deliberately no vertical
+     cap, so the board never shrinks to fit the viewport height — when board +
+     actions + bean box exceed the viewport, the studio grid (overflow-y:auto)
+     scrolls instead. render.js computes the board geometry from this measured box. */
   .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
     flex: 0 0 auto;
     width: 100cqi;
     height: auto;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: var(--board-aspect, 1 / 1);
     min-height: 0;
     max-height: none;
   }
