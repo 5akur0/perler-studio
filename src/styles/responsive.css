@@ -44,6 +44,11 @@
     overflow: hidden;
   }
 
+  .drawing-studio {
+    display: flex;
+    flex-direction: column;
+  }
+
   .gallery-studio-card,
   .collection-studio-card,
   .drawing-studio-card {
@@ -124,10 +129,12 @@
     flex-direction: column;
     height: auto;
     gap: var(--sp-3);
+    overflow: hidden;
   }
 
   .drawing-canvas-panel {
-    order: -1;
+    order: 0;
+    flex: 0 1 auto;
     overflow-y: visible;
   }
 
@@ -136,9 +143,11 @@
   }
 
   .drawing-canvas-wrap {
+    width: min(100%, 48dvh);
     aspect-ratio: 1 / 1;
-    max-height: 56vh;
+    max-height: 48dvh;
     height: auto;
+    margin-inline: auto;
   }
 
   /* Same pattern as bead mobile-working: dissolve the tool panel so its groups
@@ -154,8 +163,11 @@
   }
 
   .drawing-tools-panel .drawing-tool-group {
-    order: 0;
+    order: 1;
     flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--sp-1);
     padding: var(--sp-2);
     border: 1px solid rgba(139, 148, 166, 0.42);
     border-radius: var(--r-md);
@@ -196,8 +208,7 @@
   }
 
   .drawing-tools-panel .tool-toggle {
-    width: 100%;
-    gap: var(--sp-2);
+    display: contents;
   }
 
   .drawing-tools-panel .tool-group-large {
@@ -210,8 +221,8 @@
   }
 
   .drawing-tools-panel .tool-toggle button {
-    min-height: 52px;
-    height: 52px;
+    min-height: var(--tap-min);
+    height: 48px;
     border-radius: var(--r-xs);
     gap: 2px;
     font-size: var(--fs-2xs);
@@ -242,14 +253,34 @@
   }
 
   .drawing-footer-actions {
-    order: 0;
+    order: 3;
     flex: 0 0 auto;
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
     margin-top: 0;
     gap: var(--sp-2);
   }
 
+  .drawing-footer-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .drawing-footer-actions .drawing-footer-row,
+  .drawing-footer-actions .drawing-secondary-actions {
+    display: contents;
+  }
+
+  .drawing-footer-actions button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
   #drawUsePatternButton {
     order: -1;
+    min-width: 112px;
   }
 
   .drawing-footer-row {
@@ -258,7 +289,21 @@
   }
 
   .drawing-palette-panel {
-    order: 1;
+    order: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .drawing-palette-panel section {
+    min-height: min-content;
+  }
+
+  .drawing-palette-panel .color-palette {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .draw-recent-colors {
