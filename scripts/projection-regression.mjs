@@ -19,18 +19,18 @@ assert.match(
 );
 assert.doesNotMatch(
   guideCacheSource,
-  /spotRadius\s*=\s*Math\.min\(canvasW,\s*canvasH\)\s*\*\s*0\.425\s*\+\s*cell\s*\*\s*0\.43/,
-  "do not enlarge the whole lamp spot by a bead radius",
+  /spotRadius\s*=\s*Math\.min\(canvasW,\s*canvasH\)\s*\*\s*0\.425\s*\+\s*projectedBeadRadius/,
+  "do not enlarge the whole lamp spot by the projected bead radius",
 );
 assert.match(
   guideCacheSource,
-  /projectedBeadRadius\s*=\s*cell\s*\*\s*0\.43/,
-  "dark projected beads should use the same radius as real board beads",
+  /projectedBeadRadius\s*=\s*cell\s*\*\s*0\.49/,
+  "projected beads should remain slightly larger than real beads so the guide halo stays visible",
 );
 assert.match(
   renderSource,
-  /function projectedGuideColor[\s\S]*mixColor[\s\S]*#f3c04f/,
-  "light projected colours should be warmed/saturated so white projection remains visible",
+  /function projectedGuideColor[\s\S]*return\s+palette\[code\]\s*\|\|\s*["']#bbbbbb["']/,
+  "projected guide colors should preserve the selected bead colors without a warm tint",
 );
 assert.match(
   renderSource,

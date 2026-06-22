@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+const stylesDir = new URL("../src/styles/", import.meta.url);
+const cssFileNames = (await readdir(stylesDir)).filter((name) => name.endsWith(".css")).sort();
+const cssFiles = Object.fromEntries(
+  await Promise.all(cssFileNames.map(async (name) => [name, await readFile(new URL(name, stylesDir), "utf8")])),
+);
 const cssBlock = (source, selector) => {
   const match = source.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`));
   return match?.[1] || "";
@@ -22,6 +27,42 @@ const [
   read("src/styles/screens.css"),
   read("src/modal-controller.js"),
 ]);
+
+function declarations(css) {
+  const source = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const stack = [];
+  const found = [];
+  let buffer = "";
+  for (const char of source) {
+    if (char === "{") {
+      stack.push(buffer.trim());
+      buffer = "";
+    } else if (char === "}") {
+      const segment = buffer.trim();
+      if (segment.includes(":")) found.push({ declaration: segment, ancestry: [...stack] });
+      buffer = "";
+      stack.pop();
+    } else if (char === ";") {
+      const segment = buffer.trim();
+      if (segment.includes(":")) found.push({ declaration: segment, ancestry: [...stack] });
+      buffer = "";
+    } else {
+      buffer += char;
+    }
+  }
+  return found;
+}
+
+for (const [file, css] of Object.entries(cssFiles)) {
+  for (const item of declarations(css)) {
+    const owner = item.ancestry[item.ancestry.length - 1] || "";
+    assert.doesNotMatch(
+      owner,
+      /^@(media|supports)\b/,
+      `${file}: declaration "${item.declaration.slice(0, 48)}" must be inside a selector`,
+    );
+  }
+}
 
 assert.equal(
   responsiveCss.includes("background: var(--bg);"),
