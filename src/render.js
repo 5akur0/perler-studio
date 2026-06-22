@@ -1306,6 +1306,8 @@ export function projectedGuideCacheKey(layout, templateOpacity = 0) {
     `${boardCols()}x${boardRows()}`,
     Math.round(layout.boardW || layout.boardSize),
     Math.round(layout.boardH || layout.boardSize),
+    // Cache is rasterised at device pixels, so it must rebuild if the DPR changes.
+    Math.min(window.devicePixelRatio || 1, 1.75),
     Math.round(templateOpacity * 1000),
     mapSig,
   ].join("|");
@@ -1355,13 +1357,18 @@ export function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
   const cols = boardCols();
   const rows = boardRows();
   const cell = (layout.boardW || layout.boardSize) / cols;
+  // CSS-pixel size of the guide (drawing coordinates) …
   const canvasW = Math.max(1, Math.round((layout.boardW || layout.boardSize)));
   const canvasH = Math.max(1, Math.round((layout.boardH || layout.boardSize)));
+  // … rasterised at device pixels so it stays crisp on HiDPI screens (the scene
+  // is DPR-scaled; a 1x cache would be upscaled by DPR and look blurry).
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
   const canvas = document.createElement("canvas");
-  canvas.width = canvasW;
-  canvas.height = canvasH;
+  canvas.width = Math.max(1, Math.round(canvasW * dpr));
+  canvas.height = Math.max(1, Math.round(canvasH * dpr));
   const ctx = canvas.getContext("2d");
   if (!ctx) return { key, canvas: null };
+  ctx.scale(dpr, dpr); // draw in CSS coordinates; output is device-resolution
 
   const blur = Math.max(1.45, cell * 0.24);
   const projectedBeadRadius = cell * 0.49; // slightly larger than the bead (0.43) so the guide peeks out as a ring around placed beads — a wrong bead shows a mismatched halo

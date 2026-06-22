@@ -3815,6 +3815,8 @@
       `${boardCols()}x${boardRows()}`,
       Math.round(layout.boardW || layout.boardSize),
       Math.round(layout.boardH || layout.boardSize),
+      // Cache is rasterised at device pixels, so it must rebuild if the DPR changes.
+      Math.min(window.devicePixelRatio || 1, 1.75),
       Math.round(templateOpacity * 1e3),
       mapSig
     ].join("|");
@@ -3857,11 +3859,13 @@
     const cell = (layout.boardW || layout.boardSize) / cols;
     const canvasW = Math.max(1, Math.round(layout.boardW || layout.boardSize));
     const canvasH = Math.max(1, Math.round(layout.boardH || layout.boardSize));
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     const canvas = document.createElement("canvas");
-    canvas.width = canvasW;
-    canvas.height = canvasH;
+    canvas.width = Math.max(1, Math.round(canvasW * dpr));
+    canvas.height = Math.max(1, Math.round(canvasH * dpr));
     const ctx2 = canvas.getContext("2d");
     if (!ctx2) return { key, canvas: null };
+    ctx2.scale(dpr, dpr);
     const blur = Math.max(1.45, cell * 0.24);
     const projectedBeadRadius = cell * 0.49;
     const spotCx = canvasW / 2;
