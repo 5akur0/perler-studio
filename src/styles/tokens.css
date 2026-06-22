@@ -185,6 +185,11 @@
 @media (max-width: 860px) {
   :root {
     --panel-gap: var(--sp-3); /* 12 */
+    /* Locked height of the mobile-working bottom zone (step controls + bean box).
+       Fixed on every phone and every step, so the 拼豆台 module above it (which
+       takes 100% − this) is the same height in every step. Sized to hold the
+       tallest dock (place: actions + bean box ≈ 175 + gaps/safe-area). */
+    --mobile-dock-h: 190px;
   }
 }
 

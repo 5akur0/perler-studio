@@ -1150,14 +1150,15 @@
     padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom, 0px));
   }
 
-  /* Three-zone column = window height: top (topbar+info) and bottom (step controls
-     + bean box) keep their NATURAL sizes (buttons are just button-sized, the same
-     on every phone/step); the middle (拼豆台 module) fills whatever is left, so the
-     layout reaches the screen bottom (撑满). The canvas fills the module and
-     render.js draws the desk (top 4/5) + floor (bottom 1/5) with the board on the
-     desk. */
+  /* Three-zone column = window height: top (topbar+info, natural) + a LOCKED bottom
+     reserve (--mobile-dock-h, the same on every phone AND every step, sized to hold
+     the tallest dock = place's controls + bean box) + the middle (拼豆台 module) =
+     everything left. Because the bottom reserve is constant, the module height is
+     identical in every step (no jump when the bean box / step controls change),
+     while still growing with the device. The canvas fills the module; render.js
+     splits it desk (top 4/5) : floor (bottom 1/5) with the board on the desk. */
   .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    flex: 1 1 auto;
+    flex: 0 0 calc(100% - var(--mobile-dock-h));
     min-height: 0;
     display: flex;
     overflow: hidden;
