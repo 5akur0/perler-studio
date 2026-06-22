@@ -1,103 +1,110 @@
-# 项目规范与回归测试瘦身设计
+# Project Guidelines and Regression Test Cleanup Design
 
-## 目标
+## Goal
 
-让项目规范、产品意图、视觉契约和自动化测试各自只有一个清晰职责，避免同一规则在多份文件中重复、过期测试阻碍合理架构演进。
+Give repository rules, product intent, design contracts, and automated tests one clear responsibility each. This prevents duplicated guidance from drifting and stops obsolete implementation-detail tests from blocking valid architectural changes.
 
-完成后应满足：
+The completed change should establish the following:
 
-- `AGENTS.md` 是所有编码代理共享的仓库操作规范。
-- `CLAUDE.md` 只保留 Claude 专属入口和项目导航，不再重复通用规则。
-- `PRODUCT.md` 描述产品意图，不绑定具体 CSS 变量或布局算法。
-- `DESIGN.md` 描述可验证的交互与视觉结果，不要求手机版初始显示完整棋盘。
-- 回归测试只保护用户行为、数据正确性和仍有效的关键技术契约。
-- 主分支不保留已知失败的回归测试。
+- `AGENTS.md` is the shared engineering guide for all coding agents.
+- `CLAUDE.md` contains only Claude-specific entry points and project navigation.
+- `PRODUCT.md` describes product intent without binding it to CSS variables or layout algorithms.
+- `DESIGN.md` describes measurable interaction and visual outcomes without requiring the full mobile board to be visible initially.
+- Regression tests protect user behavior, data correctness, and technical contracts that remain meaningful.
+- The main branch does not retain known failing regression tests.
 
-## 文档职责
+## Language Policy
 
-### `AGENTS.md`：通用工程规范
+- Agent-facing instructions use English: `AGENTS.md`, `CLAUDE.md`, implementation specifications, plans, code comments, JSDoc, and regression test comments.
+- Product and design documentation remains Chinese: `PRODUCT.md`, `DESIGN.md`, and user-facing project documentation unless a document has a separate reason to use English.
+- User-interface copy remains Chinese.
+- Git commit messages remain English Conventional Commits.
 
-保留并补强以下内容：
+## Document Responsibilities
 
-- 项目结构、编码风格、构建产物和 CSP 双写规则。
-- 修改 `src/` 后必须执行 `npm run build` 并提交生成产物。
-- UI 改动前阅读 `PRODUCT.md` 和 `DESIGN.md`。
-- 新测试采用 `scripts/<area>-regression.mjs` 和 `test:<area>` 命名。
-- 测试优先验证用户可观察行为或稳定公共契约，禁止仅验证代码位于指定文件、使用指定变量名或保持无产品意义的源码字面量。
-- 架构变化使旧契约失效时，必须在同一变更中更新、合并或删除对应测试。
-- 合入主分支前，相关测试和当前登记的完整回归套件必须通过；不得把已知红测试当作正常基线。
+### `AGENTS.md`: Shared Engineering Rules
 
-### `CLAUDE.md`：Claude 项目入口
+Keep and strengthen the following guidance:
 
-缩短为以下内容：
+- Repository structure, coding style, generated assets, and the duplicated CSP update rule.
+- Every change under `src/` must be followed by `npm run build`, and updated generated assets must be committed.
+- Read `PRODUCT.md` and `DESIGN.md` before changing user-facing UI.
+- New regression checks use `scripts/<area>-regression.mjs` with a matching `test:<area>` package script.
+- Tests should prefer observable user behavior or stable public contracts. They must not require code to live in a particular file, use a particular private variable name, or preserve a source literal with no product meaning.
+- When an architectural change invalidates an old contract, update, merge, or remove its regression test in the same change.
+- Before merging to main, the focused tests and every currently registered regression test must pass. Known red tests are not an acceptable baseline.
 
-- 一段项目简介。
-- 明确要求先遵循 `AGENTS.md`。
-- 指向 `PRODUCT.md`、`DESIGN.md`、`design-system/MASTER.md` 和部署文档。
-- 保留 Claude/impeccable 专属使用说明。
-- 不再重复构建、测试、提交风格、CSP、模块地图等通用内容。
+### `CLAUDE.md`: Claude Project Entry Point
 
-### `PRODUCT.md`：产品意图
+Reduce this file to:
 
-补充手机版棋盘交互原则：
+- A short project description.
+- A requirement to follow `AGENTS.md` first.
+- Links to `PRODUCT.md`, `DESIGN.md`, `design-system/MASTER.md`, and deployment documentation.
+- Claude- or impeccable-specific usage notes.
+- No duplicated build commands, testing policy, commit style, CSP rules, or module map.
 
-- 手机版是可缩放、可平移的工作视窗，初始状态不要求一次显示完整棋盘。
-- 成功标准是所有有效格子都能通过自然的缩放和平移到达并操作，而不是强制缩小到全览。
-- 不应为了“初始全览”牺牲豆子可辨识度、点击精度或沉浸感。
-- 桌面、手机、平板可以采用不同的初始取景和工具密度，但共享作品状态与阶段语义。
+### `PRODUCT.md`: Product Intent
 
-### `DESIGN.md`：可验证设计契约
+Add the following mobile board principles in Chinese:
 
-调整移动工作区描述：
+- The mobile board is a zoomable and pannable workspace viewport. Its initial view does not need to show the complete board.
+- Success means every active cell can be reached and edited through natural zooming and panning, not that the board is always shrunk to fit.
+- Do not sacrifice bead legibility, placement accuracy, or immersion merely to provide an initial full-board view.
+- Desktop, phone, and tablet may use different initial framing and tool density while sharing work state and phase semantics.
 
-- 把“棋盘完整装入画布”改为“画布是棋盘的视窗”。
-- 棋盘允许超出当前视窗，但缩放、平移、命中测试和绘制必须使用同一坐标变换。
-- 页面级布局不得因棋盘长宽比无限扩张；超出部分应由画布内部导航处理，不能把阶段操作或豆盒推出视口。
-- 手机操作区与豆盒保持可达；平板横屏保留多栏结构，但长方形图纸也应受工作区可用高度约束。
-- 保留输入字号至少 16px、触控目标至少 44×44px 等现有无障碍要求。
+### `DESIGN.md`: Verifiable Design Contracts
 
-## 测试瘦身方案
+Adjust the mobile workspace contract in Chinese:
 
-### 删除独立 `layout-ownership` 回归
+- Treat the canvas as a viewport onto the board rather than a container that must always fit the entire board.
+- The board may extend beyond the current viewport, but drawing, hit testing, zooming, and panning must use the same coordinate transform.
+- Page-level layout must not expand without bounds because of board aspect ratio. Overflow belongs inside canvas navigation and must not push phase controls or the bead box out of the viewport.
+- Phone controls and the bead box must remain reachable. Landscape tablet keeps its multi-column structure, but rectangular patterns must still respect available workspace height.
+- Preserve the existing minimum 16px input font size and 44×44px touch-target requirements.
 
-删除 `scripts/layout-ownership-regression.mjs` 及其 package script。它验证的旧 `--mobile-board-size` 契约已失效，并与其他移动布局测试重复。
+## Regression Test Cleanup
 
-其中仍有价值的“CSS 条件规则中不得出现裸声明”检查并入 `ui-quality-regression.mjs`。DOM 顺序由 `mobile-tab-order-regression.mjs` 的真实浏览器行为继续保护。
+### Remove the Standalone `layout-ownership` Regression
 
-### 精简 `mobile-ui` 回归
+Delete `scripts/layout-ownership-regression.mjs` and its package script. Its obsolete `--mobile-board-size` contract is no longer valid, and most of its remaining checks overlap with other mobile layout tests.
 
-删除对以下实现细节的正则断言：
+Move the still-useful check that forbids bare declarations inside CSS conditional groups into `ui-quality-regression.mjs`. Keep real DOM and keyboard order protected by `mobile-tab-order-regression.mjs`.
 
-- 函数调用必须出现在指定源码文件。
-- 触觉反馈必须使用某段固定字符串。
-- 只证明 DOM/CSS 类名存在、但不证明用户行为正确的重复检查。
+### Reduce `mobile-ui` to Stable Behavior
 
-保留纯逻辑测试，例如工作流摘要、豆子落下动效计算；确有用户价值的移动交互应由 Playwright 行为测试覆盖。
+Remove source-regex assertions that require:
 
-### 更新 `mobile-unification` 回归
+- A function call to appear in a particular source file.
+- Haptic feedback to use one exact source string.
+- DOM IDs or CSS class names whose existence does not prove correct user behavior and is already covered elsewhere.
 
-删除 `--mobile-board-size` 必须存在的断言。保留统一棋盘变换、热量模型、移动操作流程和真实浏览器交互检查。
+Keep pure behavior checks such as workflow summaries and bead-settle calculations. Mobile interactions with user value should be covered by Playwright behavior tests.
 
-测试不再规定棋盘初始必须完整可见；改为验证缩放和平移后边缘格子仍可到达，且阶段操作区没有被页面级画布尺寸挤出。
+### Update `mobile-unification`
 
-### 更新 `projection` 回归
+Remove the assertion that `--mobile-board-size` must exist. Preserve tests for the unified board transform, heat model, mobile phase flow, and real browser interaction.
 
-保留投影遮罩、颜色增强和缓存边界测试。投影豆半径按当前有意设计更新为 `cell * 0.49`，用于在已放置豆子外围露出提示光晕。
+Do not require the initial mobile view to contain the complete board. Instead, verify that edge cells remain reachable after zooming and panning and that page-level canvas sizing does not push phase controls outside the viewport.
 
-后续若该数值需要频繁调节，应提取为具名常量并测试视觉关系，而不是反复锁定源码字面量。
+### Update `projection`
 
-## 验证方式
+Keep projection mask, color enhancement, and cache-boundary checks. Update the projected bead radius contract to the current intentional `cell * 0.49`, which lets the guide halo remain visible around placed beads.
 
-实现阶段需要完成：
+If this value becomes frequently adjustable, extract it to a named constant and test its visual relationship rather than repeatedly locking a private source literal.
 
-1. `npm run build`。
-2. 运行 package.json 中登记的全部剩余 `test:<area>` 命令。
-3. 确认不存在已知失败测试。
-4. 使用 Playwright 检查手机竖屏、平板横屏和桌面布局。
-5. 验证手机可以缩放、平移并操作棋盘边缘格子。
-6. 验证长方形图纸不会让 canvas DOM 元素把操作区推出视口。
-7. 确认 `app.bundle.js`、`styles.css` 与源码同步。
+## Verification
 
-## 非目标
+Implementation must complete all of the following:
 
-本轮不重新设计视觉风格，不改变拼豆玩法、图纸数据、熨烫算法或主题系统。弹窗焦点管理、旋转遮罩隔离和其他已发现问题保留为后续独立修复任务。
+1. Run `npm run build`.
+2. Run every remaining registered `test:<area>` command.
+3. Confirm there are no known failing tests.
+4. Use Playwright to check phone portrait, tablet landscape, and desktop layouts.
+5. Verify that mobile users can zoom, pan, and edit edge cells.
+6. Verify that rectangular patterns do not make the canvas DOM element push controls outside the viewport.
+7. Confirm `app.bundle.js` and `styles.css` match the source build.
+
+## Non-Goals
+
+This change does not redesign the visual language or alter gameplay, pattern data, ironing behavior, or theming. Modal focus management, orientation-overlay isolation, and other previously identified issues remain separate follow-up tasks.
