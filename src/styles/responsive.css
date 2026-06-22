@@ -1150,8 +1150,12 @@
     padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom, 0px));
   }
 
+  /* The 拼豆台 module is a FIXED-height block (same in every step), so it never
+     resizes when the bean box / step controls show or hide. The canvas fills it
+     and render.js draws the desk+floor scene with the board resting on the desk. */
   .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    height: 50dvh;
     min-height: 0;
     display: flex;
     overflow: hidden;
