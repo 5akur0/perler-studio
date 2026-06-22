@@ -31,26 +31,17 @@ function assertHeatModelIsUnified() {
 }
 
 function assertMobileCssDefinesLayoutContract() {
-  // The board-size budget now lives in tokens.css inside :root @media redefines.
-  // It must NOT be declared bare in responsive.css's at-rule body (invalid scope).
-  assert.match(tokensCss, /--mobile-board-size:/, "tokens.css should define the single board-size budget owner");
+  assert.doesNotMatch(tokensCss, /--mobile-board-size:/, "removed mobile board budget must not return");
+  assert.match(tokensCss, /--mobile-dock-h:/, "phone working layout should reserve a stable bottom dock");
   assert.doesNotMatch(
     responsiveCss,
-    /@media[^{]*\{\s*(?:\/\*[\s\S]*?\*\/\s*)*--mobile-board-size\s*:/,
-    "--mobile-board-size must not be declared bare inside an @media body (invalid, dropped by the parser)",
+    /@media[^{]*\{\s*(?:\/\*[\s\S]*?\*\/\s*)*--[a-z-]+\s*:/,
+    "custom properties must not be declared bare inside an @media body",
   );
-  // On phones #stageControls is mounted into #mobileActionHost (after the board),
-  // so the emptied left rail is simply hidden — no empty frosted shell, and the
-  // actions are never removed with the rail because they no longer live inside it.
   assert.match(
     responsiveCss,
     /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.mobile-action-host[\s\S]{0,90}display:\s*contents/,
-    "mobile action host must be display:contents so the mounted #stageControls takes its DOM grid position",
-  );
-  assert.match(
-    responsiveCss,
-    /\.bead-studio-grid:not\(\[data-phase="choose"\]\) \.left-panel[\s\S]{0,90}display:\s*none/,
-    "mobile-working left rail must be hidden (actions are mounted in the host, not the rail)",
+    "mobile action host must preserve board → actions → bead-box DOM order",
   );
   assert.match(responsiveCss, /\.start-screen[\s\S]*overflow-y:\s*auto/, "mobile home should allow vertical recovery instead of hard clipping content");
 }
@@ -170,6 +161,39 @@ function sessionForPhase(phase) {
   };
 }
 
+function rectangularTabletSession() {
+  const width = 30;
+  const height = 60;
+  const rows = Array.from({ length: height }, () => "K".repeat(width));
+  return {
+    version: 2,
+    phase: "place",
+    selectedPatternId: "custom-tablet-tall",
+    patternSize: height,
+    boardWidth: width,
+    boardHeight: height,
+    boardRows: rows,
+    customPattern: {
+      id: "custom-tablet-tall",
+      name: "纵向测试图纸",
+      size: height,
+      width,
+      height,
+      rows,
+      sourceRows: rows,
+      sourceSize: height,
+      sourceWidth: width,
+      sourceHeight: height,
+      craft: "原版",
+    },
+    placed: Array(width * height).fill(null),
+    heat: Array(width * height).fill(0),
+    selectedColor: "K",
+    sandboxMode: true,
+    boardView: { scale: 1, panX: 0, panY: 0 },
+  };
+}
+
 async function assertHomeShowcaseReachable(baseUrl) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
@@ -212,13 +236,12 @@ async function assertMobilePhasePanelsAndControls(baseUrl) {
   try {
     await page.addInitScript((session) => localStorage.setItem("beadWorkshopSession.v1", JSON.stringify(session)), sessionForPhase("place"));
     await page.goto(baseUrl, { waitUntil: "networkidle" });
-    await page.click("#startResumeBtn");
+    await page.click("#startBeadButton");
     await page.waitForTimeout(250);
 
     async function snapshot(label) {
       return page.evaluate((snapshotLabel) => {
         const grid = document.querySelector(".bead-studio-grid");
-        const workbench = document.querySelector(".bead-studio-grid .workbench");
         const controls = document.querySelector("#stageControls");
         const leftPanel = document.querySelector(".bead-studio-grid .left-panel");
         const rightPanel = document.querySelector(".bead-studio-grid .right-panel");
@@ -260,9 +283,7 @@ async function assertMobilePhasePanelsAndControls(baseUrl) {
         return {
           label: snapshotLabel,
           phase: grid?.dataset.phase,
-          mobileControls: grid?.dataset.mobileControls,
           controlsParentClass: controls?.parentElement?.className || "",
-          controlsAfterWorkbench: controls?.previousElementSibling === workbench,
           left,
           right,
           leftCollapsed: isCollapsed(left),
@@ -274,8 +295,11 @@ async function assertMobilePhasePanelsAndControls(baseUrl) {
 
     let result = await snapshot("place");
     assert.equal(result.phase, "place", JSON.stringify(result));
-    assert.equal(result.mobileControls, "detached", JSON.stringify(result));
-    assert.equal(result.controlsAfterWorkbench, true, JSON.stringify(result));
+    assert.match(
+      result.controlsParentClass,
+      /mobile-action-host/,
+      `phone controls must mount in the authored mobile action host: ${JSON.stringify(result)}`,
+    );
     assert.equal(result.leftCollapsed, true, `place should not leave the detached left-panel shell below the bean box: ${JSON.stringify(result)}`);
     assert.equal(result.rightCollapsed, false, `place should keep the bean box visible: ${JSON.stringify(result)}`);
     assert.ok(result.buttons.some((button) => button.text.includes("检查作品") && button.hitTarget), `place controls must be clickable: ${JSON.stringify(result)}`);
@@ -318,7 +342,7 @@ async function assertIronHasNoEmptyMobilePanel(baseUrl) {
   try {
     await page.addInitScript((session) => localStorage.setItem("beadWorkshopSession.v1", JSON.stringify(session)), ironSession());
     await page.goto(baseUrl, { waitUntil: "networkidle" });
-    await page.click("#startResumeBtn");
+    await page.click("#startBeadButton");
     await page.waitForTimeout(250);
     const canvasBox = await page.locator("#sceneCanvas").boundingBox();
     await page.mouse.move(canvasBox.x + canvasBox.width * 0.5, canvasBox.y + canvasBox.height * 0.5);
@@ -361,6 +385,88 @@ async function assertIronHasNoEmptyMobilePanel(baseUrl) {
   }
 }
 
+async function assertRectangularTabletCanvasIsBounded(baseUrl) {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 1024, height: 768 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  try {
+    await page.addInitScript((session) => {
+      localStorage.setItem("beadWorkshopSession.v1", JSON.stringify(session));
+    }, rectangularTabletSession());
+    await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.click("#startBeadButton");
+    await page.waitForTimeout(200);
+    const result = await page.evaluate(() => {
+      const grid = document.querySelector("#studioGrid").getBoundingClientRect();
+      const canvas = document.querySelector("#sceneCanvas").getBoundingClientRect();
+      const controls = document.querySelector("#stageControls").getBoundingClientRect();
+      return {
+        grid: { top: grid.top, bottom: grid.bottom },
+        canvas: { top: canvas.top, bottom: canvas.bottom, height: canvas.height },
+        controls: { top: controls.top, bottom: controls.bottom },
+        viewportHeight: innerHeight,
+      };
+    });
+    assert.ok(result.canvas.top >= result.grid.top - 1, JSON.stringify(result));
+    assert.ok(result.canvas.bottom <= result.grid.bottom + 1, JSON.stringify(result));
+    assert.ok(result.controls.top >= 0 && result.controls.bottom <= result.viewportHeight, JSON.stringify(result));
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+}
+
+async function assertMobileBoardEdgesAreReachable(baseUrl) {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 320, height: 568 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.click("#startBeadButton");
+    await page.click("#mobileSelectionStartButton");
+    await page.waitForTimeout(100);
+    const result = await page.evaluate(async () => {
+      const render = await import("/src/render.js");
+      render.invalidateLayoutCache();
+      const layout = render.currentLayout();
+
+      function pointForCell(x, y, view) {
+        const localX = layout.boardX + (x + 0.5) * layout.cell;
+        const localY = layout.boardY + (y + 0.5) * layout.cell;
+        return {
+          x: view.cx + view.panX + (localX - view.cx) * view.scale,
+          y: view.cy + view.panY + (localY - view.cy) * view.scale,
+        };
+      }
+
+      render.setBoardZoom(2, 1e6, 1e6);
+      const topLeftView = render.boardViewTransform(layout);
+      const topLeftPoint = pointForCell(0, 0, topLeftView);
+      const topLeft = render.boardCellFromPoint(topLeftPoint.x, topLeftPoint.y);
+
+      render.setBoardZoom(2, -1e6, -1e6);
+      const bottomRightView = render.boardViewTransform(layout);
+      const bottomRightPoint = pointForCell(29, 29, bottomRightView);
+      const bottomRight = render.boardCellFromPoint(bottomRightPoint.x, bottomRightPoint.y);
+
+      return { topLeft, bottomRight };
+    });
+    assert.deepEqual(result.topLeft, { x: 0, y: 0 }, JSON.stringify(result));
+    assert.deepEqual(result.bottomRight, { x: 29, y: 29 }, JSON.stringify(result));
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+}
+
 assertRenderUsesUnifiedBoardTransform();
 assertHeatModelIsUnified();
 assertMobileCssDefinesLayoutContract();
@@ -369,6 +475,8 @@ try {
   await assertHomeShowcaseReachable(url);
   await assertMobilePhasePanelsAndControls(url);
   await assertIronHasNoEmptyMobilePanel(url);
+  await assertRectangularTabletCanvasIsBounded(url);
+  await assertMobileBoardEdgesAreReachable(url);
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));
 }

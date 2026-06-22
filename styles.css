@@ -4285,17 +4285,18 @@ body.admin-page {
 @media (hover: none) and (pointer: coarse) and (min-width: 861px) {
   .bead-studio-grid:not([data-phase=choose]) .workbench {
     container-type: inline-size;
-    align-self: center;
+    align-self: stretch;
     justify-content: center;
-    overflow: visible;
+    overflow: hidden;
   }
   .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     width: 100cqi;
     height: auto;
     aspect-ratio: var(--board-aspect, 1 / 1);
     min-height: 0;
-    max-height: none;
+    max-width: 100%;
+    max-height: 100%;
   }
 }
 .slider-field {
