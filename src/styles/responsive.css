@@ -279,8 +279,28 @@
   }
 
   #drawUsePatternButton {
-    order: -1;
+    order: 0;
     min-width: 112px;
+  }
+
+  #drawShortCodeButton {
+    order: 1;
+  }
+
+  #drawSubmitGalleryButton {
+    order: 2;
+  }
+
+  #drawImageStampButton {
+    order: 3;
+  }
+
+  #drawImportButton {
+    order: 4;
+  }
+
+  #drawClearButton {
+    order: 5;
   }
 
   .drawing-footer-row {
