@@ -381,14 +381,12 @@ export function computeLayout(rect) {
     const rows = boardRows();
     if (useStackedMobileLayout()) {
       // PHONE (stacked): a desk + floor scene (like desktop, minus tray /
-      // reference / lamp). The workbench is a FIXED-height module (pinned in CSS,
-      // so this canvas box is identical in every step → the board never jumps when
-      // the bean box shows/hides). Rest the board on the desk, centred in the desk
-      // area above a floor band, so it reads as sitting ON the table.
+      // reference / lamp). The canvas fills the flexed module; the desk is the top
+      // 4/5 and the floor the bottom 1/5, with the board resting (centred) on the
+      // desk so it reads as sitting ON the table.
       const marginX = 16;
       const restGap = 14;
-      const floorBand = clamp(Math.round(h * 0.16), 48, 120);
-      const floorTop = h - floorBand;
+      const floorTop = Math.round(h * 0.8);   // desk : floor = 4 : 1
       const availW = Math.max(1, w - marginX * 2);
       const availH = Math.max(1, floorTop - restGap * 2);
       const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);

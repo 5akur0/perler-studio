@@ -1150,20 +1150,25 @@
     padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom, 0px));
   }
 
-  /* The 拼豆台 module is a FIXED-height block (same in every step), so it never
-     resizes when the bean box / step controls show or hide. The canvas fills it
-     and render.js draws the desk+floor scene with the board resting on the desk. */
+  /* Three-zone column = window height: top (topbar+info) and bottom (step controls
+     + bean box) keep their NATURAL sizes (buttons are just button-sized, the same
+     on every phone/step); the middle (拼豆台 module) fills whatever is left, so the
+     layout reaches the screen bottom (撑满). The canvas fills the module and
+     render.js draws the desk (top 4/5) + floor (bottom 1/5) with the board on the
+     desk. */
   .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    flex: 0 0 auto;
-    height: 50dvh;
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
     overflow: hidden;
   }
 
+  /* Bottom zone keeps its natural height (buttons are button-sized; the bean box
+     is as tall as its colors need). The middle module above absorbs the rest. */
   .bead-studio-grid:not([data-phase="choose"]) #stageControls,
   .bead-studio-grid:not([data-phase="choose"]) .right-panel {
     flex: 0 0 auto;
+    min-height: 0;
   }
 
   /* —— Mobile-working order is owned by the DOM composition, not CSS `order` ——
