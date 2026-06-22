@@ -2484,7 +2484,7 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title);
 }
 .palette-search-input::placeholder {
   color: var(--muted);

@@ -251,7 +251,7 @@ body[data-app-mode="collection"] .gallery-screen {
   border-radius: var(--r-sm);
   padding: var(--sp-3);
   font-family: "SFMono-Regular", "Consolas", "Menlo", monospace;
-  font-size: 12px;
+  font-size: var(--fs-title);
   line-height: var(--lh-body);
   color: #2f3645;
   background: rgba(255, 255, 255, 0.96);
@@ -267,7 +267,7 @@ body[data-app-mode="collection"] .gallery-screen {
 }
 
 .draw-code-modal-body .drawing-code-input {
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 1.65;
 }
 

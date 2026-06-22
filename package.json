@@ -13,6 +13,7 @@
     "test:color-chip-selection": "node scripts/color-chip-selection-regression.mjs",
     "test:finish-showcase": "node scripts/finish-showcase-regression.mjs",
     "test:icons": "node scripts/icons-regression.mjs",
+    "test:input-font": "node scripts/input-font-regression.mjs",
     "test:keyboard": "node scripts/keyboard-regression.mjs",
     "test:layout-ownership": "node scripts/layout-ownership-regression.mjs",
     "test:mobile-tab-order": "node scripts/mobile-tab-order-regression.mjs",
