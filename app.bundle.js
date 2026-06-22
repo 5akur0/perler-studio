@@ -2967,17 +2967,15 @@
       const rows = boardRows();
       if (useStackedMobileLayout()) {
         const marginX = 16;
-        const topMargin = 18;
         const restGap = 14;
-        const floorBand = clamp(Math.round(h * 0.16), 56, 130);
-        const floorTop2 = h - floorBand;
+        const floorTop2 = Math.round(h * 0.8);
         const availW2 = Math.max(1, w - marginX * 2);
-        const availH2 = Math.max(1, floorTop2 - topMargin - restGap);
+        const availH2 = Math.max(1, floorTop2 - restGap * 2);
         const cellM2 = clamp(Math.min(availW2 / cols, availH2 / rows), 4, 64);
         const boardWM2 = cellM2 * cols;
         const boardHM2 = cellM2 * rows;
         const boardX2 = Math.floor((w - boardWM2) / 2);
-        const boardY2 = Math.max(topMargin, Math.floor(floorTop2 - restGap - boardHM2));
+        const boardY2 = Math.floor((floorTop2 - boardHM2) / 2);
         return {
           w,
           h,

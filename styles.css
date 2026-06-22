@@ -126,6 +126,7 @@
 @media (max-width: 860px) {
   :root {
     --panel-gap: var(--sp-3);
+    --mobile-dock-h: 190px;
   }
 }
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
@@ -465,7 +466,7 @@ body[data-app-mode=collection] .gallery-screen {
     "Consolas",
     "Menlo",
     monospace;
-  font-size: 12px;
+  font-size: var(--fs-title);
   line-height: var(--lh-body);
   color: #2f3645;
   background: rgba(255, 255, 255, 0.96);
@@ -478,7 +479,7 @@ body[data-app-mode=collection] .gallery-screen {
   padding: var(--sp-3);
 }
 .draw-code-modal-body .drawing-code-input {
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 1.65;
 }
 .draw-code-hint {
@@ -2728,7 +2729,7 @@ body[data-app-mode=collection] .gallery-screen {
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title);
 }
 .palette-search-input::placeholder {
   color: var(--muted);
@@ -4801,7 +4802,7 @@ body.admin-page {
     padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom, 0px));
   }
   .bead-studio-grid:not([data-phase=choose]) .workbench {
-    flex: 1 1 auto;
+    flex: 0 0 calc(100% - var(--mobile-dock-h));
     min-height: 0;
     display: flex;
     overflow: hidden;
@@ -4809,6 +4810,7 @@ body.admin-page {
   .bead-studio-grid:not([data-phase=choose]) #stageControls,
   .bead-studio-grid:not([data-phase=choose]) .right-panel {
     flex: 0 0 auto;
+    min-height: 0;
   }
   .bead-studio-grid:not([data-phase=choose]) .mobile-action-host {
     display: contents;
