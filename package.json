@@ -9,6 +9,7 @@
     "build:css": "esbuild src/styles/index.css --bundle --outfile=styles.css",
     "build": "npm run build:js && npm run build:css",
     "test:bgm": "node scripts/bgm-regression.mjs",
+    "test:build-timer": "node scripts/build-timer-regression.mjs",
     "test:board-layout": "node scripts/board-layout-regression.mjs",
     "test:color-chip-selection": "node scripts/color-chip-selection-regression.mjs",
     "test:finish-showcase": "node scripts/finish-showcase-regression.mjs",

@@ -66,6 +66,7 @@ export const state = {
   craft: "钥匙扣",
   craftSwitchAt: 0,
   savedCurrent: false,
+  buildMs: 0,
   lastConversionStats: null,
   pointer: {
     down: false,

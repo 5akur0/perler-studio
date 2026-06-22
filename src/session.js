@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { sessionKey, BOARD_SIZE } from './constants.js';
 import { palette } from './palette.js';
 import { baseIdFor, boardCols, boardRows, invalidatePatternDataCaches, invalidatePlacedCounts, normalizePatternSize, resizePattern } from './pattern.js';
+import { buildElapsedMs, setBuildElapsedMs } from './build-timer.js';
 
 const sessionVersion = 2;
 const restorablePhases = new Set(["place", "inspect", "iron", "cool", "finish"]);
@@ -293,6 +294,7 @@ function captureSession() {
   return {
     version: sessionVersion,
     phase: state.phase,
+    buildMs: buildElapsedMs(),
     sandboxMode: state.sandboxMode,
     lampOn: state.lampOn,
     selectedPatternId: state.selectedPattern ? baseIdFor(state.selectedPattern) : null,
@@ -421,6 +423,9 @@ export function loadAutoSave() {
     state.errors = needRegrid ? [] : (session.errors || []);
     state.warp = session.warp || 18;
     state.cooling = session.cooling || 0;
+    // Restore the accumulated build time (loadPattern above reset it to 0).
+    setBuildElapsedMs(Number(session.buildMs) || 0);
+    state.buildMs = buildElapsedMs();
     state.spill = spill;
     state.boardView = {
       ...state.boardView,

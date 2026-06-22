@@ -2,3 +2,13 @@
 node_modules/
 .DS_Store
 .claude/
+
+# Local scratch / working artifacts (previews, seeds, planning notes)
+_*.png
+_*.html
+preview-*.html
+.superpowers/
+CLAUDE-FABLE-5.md
+FINISH_REDESIGN_PLAN.md
+SHARE_CARD_INTEGRATION_PLAN.md
+social-card-share/_*.mjs

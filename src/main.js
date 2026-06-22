@@ -86,6 +86,10 @@ import {
 import { hydrateIcons } from './icons.js';
 import { keyboardGridAction, moveGridCursor, normalizeGridCursor } from './keyboard-grid.js';
 import { prefersReducedMotion } from './utils.js';
+import {
+  resetBuildTimer, startBuildTimer, pauseBuildTimer, buildElapsedMs, setBuildElapsedMs, formatBuildTime,
+} from './build-timer.js';
+import { SHARE_QR_DATA_URL } from './share-qr.js';
 
   hydrateIcons(document);
 
@@ -201,6 +205,7 @@ import { prefersReducedMotion } from './utils.js';
     if (prevMode && prevMode !== state.appMode) playSfx("nav"); // soft swish on real page switches only
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
+    syncBuildTimer();
     if (state.appMode !== "bead") {
       state.lastPlaceHintKey = "";
       hidePlaceHint();
@@ -275,6 +280,8 @@ import { prefersReducedMotion } from './utils.js';
     state.flipCount = 0;
     state.craft = normalizeCraft(pattern.craft);
     state.savedCurrent = false;
+    resetBuildTimer();
+    state.buildMs = 0;
     state.tool = "needle";
     state.needleTier = 1;
     const firstColor = getPatternColors(pattern)[0] || "K";
@@ -295,6 +302,23 @@ import { prefersReducedMotion } from './utils.js';
     if (type === "error") return sfxFeedback("error");
     if (type === "heavy") return sfxFeedback("drop");
     return sfxFeedback("ui-tap");
+  }
+
+  // --- Active build timer (feeds the share card's 用时 KPI) ---
+  // Runs only while actively making the current piece: in the bead studio's
+  // working phases and with the tab visible. Paused on home/gallery, tab hide,
+  // and completion (finish). main.js calls syncBuildTimer() on every phase /
+  // mode / visibility change; loadPattern resets it for a new work.
+  const BUILD_PHASES = new Set(["place", "inspect", "iron", "cool"]);
+  function buildTimerShouldRun() {
+    return state.appMode === "bead"
+      && BUILD_PHASES.has(state.phase)
+      && document.visibilityState !== "hidden";
+  }
+  function syncBuildTimer() {
+    if (buildTimerShouldRun()) startBuildTimer();
+    else pauseBuildTimer();
+    state.buildMs = buildElapsedMs();
   }
 
   function setPhase(phase) {
@@ -344,6 +368,7 @@ import { prefersReducedMotion } from './utils.js';
     }
     state.pendingWorkflowScroll = true;
     schedulePhaseViewportReset();
+    syncBuildTimer();
     markDirty();
     updateFullBg();
     if (phase === "place") maybeShowOnboarding();
@@ -812,12 +837,9 @@ import { prefersReducedMotion } from './utils.js';
     state.patternColorMaps[patternId] = map;
     invalidateEffectiveMap();
     state.previewDirty = true;
-    if (state.phase !== "choose" && (placedCount() > 0 || state.trayBeans > 0 || state.needleLoaded > 0 || state.tweezerBead || state.spill)) {
-      resetPlacementForRemap();
-      showToast("图纸换色已应用，当前摆放已重置。");
-    } else {
-      showToast(`已将 ${beadLabel(sourceCode)} 改为 ${beadLabel(targetCode)}。`);
-    }
+    // The early return above guarantees phase === "choose", so nothing is placed
+    // yet — no placement reset is ever needed here, just confirm the swap.
+    showToast(`已将 ${beadLabel(sourceCode)} 改为 ${beadLabel(targetCode)}。`);
     const available = getPatternColors();
     if (!available.includes(state.selectedColor)) {
       state.selectedColor = available[0] || sourceCode;
@@ -1413,6 +1435,7 @@ import { prefersReducedMotion } from './utils.js';
       size: state.selectedPattern.size,
       width: boardCols(),
       height: boardRows(),
+      buildMs: buildElapsedMs(),
       placed: state.placed.slice(),
     };
     if (!state.savedCurrent) {
@@ -1430,31 +1453,78 @@ import { prefersReducedMotion } from './utils.js';
     markDirty();
   }
 
-  function exportShareImage(format) {
-    const portrait = format === "portrait";
+  // Ensure LXGW Marker Gothic is loaded before the canvas draws, or the cute font
+  // silently falls back (canvas FOUT). Resolves immediately once cached.
+  function ensureShareFonts() {
+    if (!document.fonts?.load) return Promise.resolve();
+    return Promise.all([
+      document.fonts.load("400 92px 'LXGW Marker Gothic'"),
+      document.fonts.load("500 26px 'Noto Sans SC'"),
+      document.fonts.load("700 42px 'Noto Sans SC'"),
+    ]).then(() => document.fonts.ready).catch(() => {});
+  }
+
+  // Decode the baked QR data: URL once. data: images don't taint the canvas, so
+  // the result is safe to draw and still export via toBlob() under file://.
+  let shareQrPromise = null;
+  function loadShareQR() {
+    if (!shareQrPromise) {
+      shareQrPromise = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = SHARE_QR_DATA_URL;
+      });
+    }
+    return shareQrPromise;
+  }
+
+  async function exportShareImage(format) {
+    const portrait = format !== "square";
+    const [, qrImg] = await Promise.all([ensureShareFonts(), loadShareQR()]);
     const canvas = document.createElement("canvas");
-    canvas.width = portrait ? 1080 : 1080;
+    canvas.width = 1080;
     canvas.height = portrait ? 1440 : 1080;
     const ctx = canvas.getContext("2d");
-    drawShareImage(ctx, canvas.width, canvas.height, portrait);
+    drawShareImage(ctx, canvas.width, canvas.height, portrait, qrImg);
 
     const filename = `拼豆工坊-${state.selectedPattern.name}-${portrait ? "竖图" : "方图"}.png`;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) {
+      showToast("导出失败，请重试。");
+      return;
+    }
+
+    // P0: Web Share API — on iOS Safari an <a download> click is a no-op, so the
+    // native share sheet is the only way to actually save/share the image there.
+    const file = new File([blob], filename, { type: "image/png" });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "拼豆工坊" });
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return; // user dismissed the sheet
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.download = filename;
-    link.href = canvas.toDataURL("image/png");
+    link.href = url;
     link.click();
-    showToast("已导出带水印分享图。");
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast("已导出分享图。");
   }
 
   function copyShareText() {
-    const flowText = useMobileDirectPlacement()
-      ? `从豆盒选色、直接摆放，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`
-      : `从豆盒选色、豆筛抖豆、镊子修正，到熨烫冷却定型，真的很像坐在桌前慢慢做手工。`;
+    const slogans = ["想拼就拼，走到哪拼到哪", "碎片时间，玩会赛博拼豆", "一部手机，随身的拼豆台"];
+    const slogan = slogans[Math.floor(Math.random() * slogans.length)];
+    const timeText = state.buildMs > 0 ? `，花了 ${formatBuildTime(state.buildMs)}` : "";
     const text = [
-      `女朋友爱玩的拼豆，我做成了浏览器小游戏。`,
-      `今天做的是「${state.selectedPattern.name}」，${getTargetTotal()}颗、${getPatternColors().length}个色号，最后评级 ${finalGrade()}。`,
-      flowText,
-      `#拼豆 #手作 #像素画 #情侣日常 #小游戏`,
+      `赛博拼豆，${slogan}。`,
+      `今天拼了「${state.selectedPattern.name}」，${getTargetTotal()}颗、${getPatternColors().length}个色号，最后评级 ${finalGrade()}${timeText}。`,
+      `一部手机就能拼，碎片时间随手来一块。`,
+      `#拼豆 #手作 #像素画 #解压 #小游戏`,
     ].join("\n");
     autoCopyText(text, "文案已复制。", "复制失败，请手动复制。");
   }
@@ -1944,6 +2014,7 @@ import { prefersReducedMotion } from './utils.js';
   // leaving to home (beadBackButton), tab hide, and page close.
   window.addEventListener("pagehide", () => flushAutoSave());
   document.addEventListener("visibilitychange", () => {
+    syncBuildTimer();
     if (document.visibilityState === "hidden") flushAutoSave();
   });
   uiRenderUI();

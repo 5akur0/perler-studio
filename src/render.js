@@ -15,6 +15,7 @@ import {
   boardCols, boardRows, isActiveTileCell,
 } from './pattern.js';
 import { beadSettleScale, prefersReducedMotion } from './utils.js';
+import { formatBuildTime } from './build-timer.js';
 import {
   drawBoardGuides, drawBoardSkin, drawPixelPatternPreview, pixelPatternPreviewLayout,
 } from './board-skin.js';
@@ -22,6 +23,10 @@ import { shouldUseBoardPegCache, visibleBoardCellRange } from './board-layout.js
 
 const CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 const CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+// Legacy canvas/share-image family stack (no Noto Sans SC). Single source for the
+// many `ctx.font = "<weight> <size>px " + CANVAS_FONT_STACK` callers below; the
+// pending brand-font merge (see DESIGN.md §3) only has to touch this one line.
+const CANVAS_FONT_STACK = "Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 
 export function useMobileTrayGrid() {
   return window.matchMedia("(max-width: 860px)").matches;
@@ -1114,10 +1119,10 @@ export function drawChooseScene(layout) {
   ctx.save();
   drawPaper(x, y, cardW, 230);
   ctx.fillStyle = "#26242b";
-  ctx.font = "700 28px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  ctx.font = "700 28px " + CANVAS_FONT_STACK;
   ctx.fillText("今天的工作台已经清空", x + 28, y + 48);
   ctx.fillStyle = "#686572";
-  ctx.font = "15px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  ctx.font = "15px " + CANVAS_FONT_STACK;
   wrapText("从左侧挑一张图纸，照着色号从豆盒取豆。豆筛只有一个，针工具从豆筛取豆，镊子必须先夹住一颗再放下。", x + 28, y + 82, cardW - 56, 25);
   drawMiniSupplies(x + 32, y + 145, cardW - 64, 54);
   ctx.restore();
@@ -2006,17 +2011,17 @@ export function buildConceptLabelMetrics(type, labelW) {
   const title = type === "full" ? "《满格构图》" : "《无题》";
   const paragraphs = type === "full"
     ? [
-      { text: "2026", font: "500 15px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#2f333b", lineHeight: 22 },
-      { text: "塑料拼豆、网格、完全占据的表面", font: "500 14px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#4f5560", lineHeight: 22 },
+      { text: "2026", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
+      { text: "塑料拼豆、网格、完全占据的表面", font: "500 14px " + CANVAS_FONT_STACK, color: "#4f5560", lineHeight: 22 },
       { gap: 10 },
-      { text: "这件作品拒绝留白，整块板面成为图像本身。", font: "500 15px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#2f333b", lineHeight: 22 },
-      { text: "每个孔位都被占据，每个位置都同等重要。", font: "500 15px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#2f333b", lineHeight: 22 },
+      { text: "这件作品拒绝留白，整块板面成为图像本身。", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
+      { text: "每个孔位都被占据，每个位置都同等重要。", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
     ]
     : [
-      { text: "2026", font: "500 15px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#2f333b", lineHeight: 22 },
-      { text: "空白拼豆板、未放置的塑料豆、玩家的观看", font: "500 14px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#4f5560", lineHeight: 22 },
+      { text: "2026", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
+      { text: "空白拼豆板、未放置的塑料豆、玩家的观看", font: "500 14px " + CANVAS_FONT_STACK, color: "#4f5560", lineHeight: 22 },
       { gap: 10 },
-      { text: "没有颜色，也是一种结构。", font: "500 15px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif", color: "#2f333b", lineHeight: 22 },
+      { text: "没有颜色，也是一种结构。", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
     ];
   const bodyMaxW = labelW - 36;
   const rows = [];
@@ -2055,7 +2060,7 @@ export function drawConceptMuseumLabel({ x, y, w, type, maxBottom }) {
   roundedRect(labelX, labelY, labelW, boxH, 6);
   ctx.stroke();
   ctx.fillStyle = "#22242a";
-  ctx.font = "700 23px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  ctx.font = "700 23px " + CANVAS_FONT_STACK;
   ctx.fillText(title, labelX + 18, labelY + 36);
   let cursorY = labelY + 66;
   rows.forEach((row) => {
@@ -2641,7 +2646,7 @@ export function drawTray(layout, compact = false) {
   if (!color) {
     ctx.save();
     ctx.fillStyle = "rgba(63, 81, 91, 0.46)";
-    ctx.font = "600 12px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+    ctx.font = "600 12px " + CANVAS_FONT_STACK;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("点色号倒豆", trayX + trayW / 2, trayY + trayH / 2 - 8);
@@ -3313,7 +3318,7 @@ export function drawFinishLayer(layout) {
   roundedRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1, 7.5);
   ctx.stroke();
   ctx.fillStyle = "#26242b";
-  ctx.font = "800 14px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  ctx.font = "800 14px " + CANVAS_FONT_STACK;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(`评级 ${finalGrade()}`, bx + badgeW / 2, by + badgeH / 2 + 0.5);
@@ -3793,7 +3798,7 @@ export function drawInspectFusePreviewCanvas(canvas) {
 
   if (!cells.length) {
     ctx.fillStyle = "rgba(67, 77, 91, 0.58)";
-    ctx.font = "600 13px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+    ctx.font = "600 13px " + CANVAS_FONT_STACK;
     ctx.textAlign = "center";
     ctx.fillText("还没有可预览的拼豆", w / 2, h / 2 + 4);
     return;
@@ -4001,71 +4006,36 @@ export function estimateWarp() {
 }
 
 
-export function drawShareImage(ctx, w, h, portrait) {
-  const bg = ctx.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, "#fff7f3");
-  bg.addColorStop(0.52, "#eef8f5");
-  bg.addColorStop(1, "#f6f1ff");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
+// Footer slogans — one picked at random per export (cyber-perler casual voice).
+const SHARE_SLOGANS = [
+  "想拼就拼，走到哪拼到哪",
+  "碎片时间，玩会赛博拼豆",
+  "一部手机，随身的拼豆台",
+];
 
-  ctx.fillStyle = "rgba(231, 100, 95, 0.12)";
-  for (let i = 0; i < 18; i += 1) {
-    const x = (i * 137) % w;
-    const y = (i * 211) % h;
-    ctx.beginPath();
-    ctx.arc(x, y, 18 + (i % 4) * 7, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const margin = portrait ? 88 : 72;
-  const artSize = portrait ? 760 : 610;
-  const artX = (w - artSize) / 2;
-  const artY = portrait ? 300 : 220;
-
-  ctx.fillStyle = "#26242b";
-  ctx.font = "800 54px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("女朋友爱玩的拼豆", w / 2, portrait ? 126 : 108);
-  ctx.font = "700 32px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  ctx.fillStyle = "#686572";
-  ctx.fillText(`今天做：${state.selectedPattern.name}`, w / 2, portrait ? 178 : 154);
-
-  drawShareArtwork(ctx, artX, artY, artSize);
-
-  const statsY = artY + artSize + (portrait ? 86 : 70);
-  drawShareStats(ctx, margin, statsY, w - margin * 2);
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(38, 36, 43, 0.72)";
-  ctx.font = "700 28px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  ctx.fillText("拼豆工坊 · 浏览器手作模拟", w / 2, h - 76);
-  ctx.font = "600 22px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  ctx.fillStyle = "rgba(38, 36, 43, 0.46)";
-  ctx.fillText(useMobileDirectPlacement() ? "从豆盒选色、直接摆放到熨烫定型" : "从散豆、豆筛、镊子到熨烫定型", w / 2, h - 42);
-
-  ctx.save();
-  ctx.translate(w - 42, h * 0.55);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = "rgba(38, 36, 43, 0.18)";
-  ctx.font = "800 24px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  ctx.fillText("拼豆工坊 WATERMARK", 0, 0);
-  ctx.restore();
+// Derive a pastel share-card palette from the active background theme so the card
+// reads as the same brand the user is looking at (守粉彩 + theme-following).
+export function sharePalette() {
+  const t = currentBackgroundTheme() || backgroundThemes.mist;
+  const ink = mixColor(t.brandInk, "#2c2630", 0.5);
+  return {
+    pageA: t.pageBase,
+    pageB: mixColor(t.pageBase, t.brand, 0.12),
+    well: "#ffffff",
+    wellEdge: t.brandTintStrong,
+    chip: "rgba(255, 255, 255, 0.82)",
+    chipEdge: t.brandTint,
+    glow: t.brandTint,
+    accent: t.brand,
+    accentDeep: t.brandEdge,
+    ink,
+    muted: mixColor(ink, "#ffffff", 0.46),
+  };
 }
 
-export function drawShareArtwork(ctx, x, y, size) {
-  ctx.save();
-  ctx.shadowColor = "rgba(38, 36, 43, 0.2)";
-  ctx.shadowBlur = 34;
-  ctx.shadowOffsetY = 22;
-  ctx.fillStyle = "rgba(255,255,255,0.86)";
-  roundedPath(ctx, x - 26, y - 26, size + 52, size + 52, 22);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-
-  ctx.fillStyle = "#fbfcfd";
-  roundedPath(ctx, x, y, size, size, 16);
-  ctx.fill();
+// Render the bead artwork (placed beads, or the target pattern before placing)
+// centered inside a square region of side `size` at (x, y).
+function drawShareGrid(ctx, x, y, size) {
   const pattern = state.selectedPattern;
   const cols = boardCols(pattern);
   const rows = boardRows(pattern);
@@ -4077,50 +4047,189 @@ export function drawShareArtwork(ctx, x, y, size) {
     for (let px = 0; px < cols; px += 1) {
       const index = indexFor(px, py);
       const code = hasPlaced ? state.placed[index] : targetAt(px, py);
+      if (!code) continue;
       const cx = gx + px * cell + cell / 2;
       const cy = gy + py * cell + cell / 2;
-      ctx.strokeStyle = "rgba(117, 126, 139, 0.12)";
-      ctx.strokeRect(gx + px * cell, gy + py * cell, cell, cell);
-      if (!code) continue;
       const heat = state.heat[index] || (state.phase === "finish" ? 66 : 0);
       if (heat > 34 || state.phase === "finish") {
         ctx.fillStyle = fusedColor(code, Math.max(heat, 58));
-        roundedPath(ctx, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.12);
+        roundedPath(ctx, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.18);
         ctx.fill();
       } else {
-        drawBead(ctx, cx, cy, cell * 0.39, code, heat, false, null, index);
+        drawBead(ctx, cx, cy, cell * 0.42, code, heat, false, null, index);
       }
     }
   }
-  ctx.strokeStyle = "rgba(38, 36, 43, 0.18)";
-  ctx.lineWidth = 5;
-  roundedPath(ctx, x, y, size, size, 16);
-  ctx.stroke();
-  ctx.restore();
 }
 
-export function drawShareStats(ctx, x, y, w) {
-  const stats = [
-    ["图纸", state.selectedPattern.name],
-    ["颗数", `${getTargetTotal()}颗`],
-    ["色号", `${getPatternColors().length}色`],
-    ["评级", finalGrade()],
+// New pastel social card (A3 port). All chrome is canvas-drawn; the only raster is
+// the optional pre-decoded QR Image (`qrImg`) composited in the footer. Caller is
+// responsible for awaiting `document.fonts.ready` before drawing (LXGW gate).
+export function drawShareImage(ctx, w, h, portrait, qrImg = null) {
+  const p = sharePalette();
+  const PAD = 80;
+  const innerW = w - PAD * 2;
+
+  // ── page wash ──────────────────────────────────────────────────────────────
+  const bg = ctx.createLinearGradient(0, 0, w * 0.4, h);
+  bg.addColorStop(0, p.pageA);
+  bg.addColorStop(1, p.pageB);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  const glowA = ctx.createRadialGradient(w * 0.84, h * 0.06, 0, w * 0.84, h * 0.06, 560);
+  glowA.addColorStop(0, p.glow);
+  glowA.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glowA;
+  ctx.fillRect(0, 0, w, h);
+  const glowB = ctx.createRadialGradient(w * 0.06, h * 0.96, 0, w * 0.06, h * 0.96, 540);
+  glowB.addColorStop(0, p.glow);
+  glowB.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glowB;
+  ctx.fillRect(0, 0, w, h);
+
+  // ── header: pattern name (hero) + grade badge ────────────────────────────────
+  const top = 80;
+  const badgeSize = 148;
+  const badgeX = w - PAD - badgeSize;
+  ctx.textBaseline = "alphabetic";
+  // grade badge
+  const badgeGrad = ctx.createLinearGradient(badgeX, top, badgeX, top + badgeSize);
+  badgeGrad.addColorStop(0, p.accent);
+  badgeGrad.addColorStop(1, p.accentDeep);
+  ctx.fillStyle = badgeGrad;
+  roundedPath(ctx, badgeX, top, badgeSize, badgeSize, 34);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.font = `84px ${CANVAS_CUTE_FONT}`;
+  ctx.fillText(finalGrade(), badgeX + badgeSize / 2, top + 96);
+  ctx.font = `500 24px ${CANVAS_CLEAR_FONT}`;
+  ctx.globalAlpha = 0.92;
+  ctx.fillText("评级", badgeX + badgeSize / 2, top + 128);
+  ctx.globalAlpha = 1;
+  // title — shrink to fit the space left of the badge
+  const titleMaxW = badgeX - PAD - 28;
+  ctx.textAlign = "left";
+  ctx.fillStyle = p.ink;
+  let titleSize = 92;
+  ctx.font = `${titleSize}px ${CANVAS_CUTE_FONT}`;
+  while (titleSize > 52 && ctx.measureText(state.selectedPattern.name).width > titleMaxW) {
+    titleSize -= 4;
+    ctx.font = `${titleSize}px ${CANVAS_CUTE_FONT}`;
+  }
+  ctx.fillText(fitText(ctx, state.selectedPattern.name, titleMaxW), PAD, top + badgeSize / 2 + titleSize * 0.34);
+
+  // ── layout math (well flexes between header and the KPI/footer stack) ─────────
+  const gap = 32;
+  const kpiH = 116;
+  const footerH = 210;
+  const wellTop = top + badgeSize + 40;
+  const wellBottom = h - 64 - footerH - gap - kpiH - gap;
+  const wellH = wellBottom - wellTop;
+
+  // ── well: white card holding the artwork + craft capsule ─────────────────────
+  ctx.save();
+  ctx.shadowColor = "rgba(49, 54, 68, 0.13)";
+  ctx.shadowBlur = 48;
+  ctx.shadowOffsetY = 24;
+  ctx.fillStyle = p.well;
+  roundedPath(ctx, PAD, wellTop, innerW, wellH, 40);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = p.wellEdge;
+  ctx.lineWidth = 2;
+  roundedPath(ctx, PAD, wellTop, innerW, wellH, 40);
+  ctx.stroke();
+  // artwork centered in the well, inset by 40
+  const wellPad = 40;
+  const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
+  drawShareGrid(ctx, PAD + (innerW - gridSize) / 2, wellTop + (wellH - gridSize) / 2, gridSize);
+  // craft capsule, bottom-right of the well
+  const craft = state.craft || state.selectedPattern.craft || "钥匙扣";
+  ctx.font = `26px ${CANVAS_CUTE_FONT}`;
+  const craftW = ctx.measureText(craft).width + 40;
+  const craftH = 46;
+  const craftX = PAD + innerW - 30 - craftW;
+  const craftY = wellTop + wellH - 30 - craftH;
+  ctx.fillStyle = p.chip;
+  roundedPath(ctx, craftX, craftY, craftW, craftH, craftH / 2);
+  ctx.fill();
+  ctx.strokeStyle = p.chipEdge;
+  ctx.lineWidth = 1.5;
+  roundedPath(ctx, craftX, craftY, craftW, craftH, craftH / 2);
+  ctx.stroke();
+  ctx.fillStyle = p.accentDeep;
+  ctx.textAlign = "center";
+  ctx.fillText(craft, craftX + craftW / 2, craftY + craftH / 2 + 9);
+
+  // ── KPI strip: 尺寸 / 颗数 / 色号 / 用时 ───────────────────────────────────────
+  const kpis = [
+    [`${boardCols(state.selectedPattern)}×${boardRows(state.selectedPattern)}`, "尺寸"],
+    [`${getTargetTotal()}`, "颗数"],
+    [`${getPatternColors().length}`, "色号"],
+    [state.buildMs > 0 ? formatBuildTime(state.buildMs) : "—", "用时"],
   ];
-  const gap = 14;
-  const boxW = (w - gap * 3) / 4;
-  stats.forEach(([label, value], i) => {
-    const bx = x + i * (boxW + gap);
-    ctx.fillStyle = "rgba(255,255,255,0.78)";
-    roundedPath(ctx, bx, y, boxW, 92, 14);
+  const kpiGap = 16;
+  const kpiW = (innerW - kpiGap * 3) / 4;
+  const kpiY = wellBottom + gap;
+  kpis.forEach(([value, label], i) => {
+    const kx = PAD + i * (kpiW + kpiGap);
+    ctx.fillStyle = p.chip;
+    roundedPath(ctx, kx, kpiY, kpiW, kpiH, 22);
     ctx.fill();
-    ctx.fillStyle = "#8a8792";
-    ctx.font = "700 20px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+    ctx.strokeStyle = p.chipEdge;
+    ctx.lineWidth = 1.5;
+    roundedPath(ctx, kx, kpiY, kpiW, kpiH, 22);
+    ctx.stroke();
     ctx.textAlign = "center";
-    ctx.fillText(label, bx + boxW / 2, y + 32);
-    ctx.fillStyle = "#26242b";
-    ctx.font = "800 26px Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-    ctx.fillText(value, bx + boxW / 2, y + 66);
+    ctx.fillStyle = p.ink;
+    ctx.font = `700 42px ${CANVAS_CLEAR_FONT}`;
+    ctx.fillText(value, kx + kpiW / 2, kpiY + 60);
+    ctx.fillStyle = p.muted;
+    ctx.font = `26px ${CANVAS_CLEAR_FONT}`;
+    ctx.fillText(label, kx + kpiW / 2, kpiY + 96);
   });
+
+  // ── footer: QR + brand + random slogan + CTA ─────────────────────────────────
+  const footTop = kpiY + kpiH + gap;
+  const qrBox = footerH;
+  // QR card
+  ctx.save();
+  ctx.shadowColor = "rgba(49, 54, 68, 0.10)";
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
+  ctx.fillStyle = "#ffffff";
+  roundedPath(ctx, PAD, footTop, qrBox, qrBox, 24);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = p.chipEdge;
+  ctx.lineWidth = 1.5;
+  roundedPath(ctx, PAD, footTop, qrBox, qrBox, 24);
+  ctx.stroke();
+  const qrImgSize = 150;
+  if (qrImg) {
+    ctx.drawImage(qrImg, PAD + (qrBox - qrImgSize) / 2, footTop + 18, qrImgSize, qrImgSize);
+  }
+  ctx.fillStyle = p.ink;
+  ctx.textAlign = "center";
+  ctx.font = `26px ${CANVAS_CUTE_FONT}`;
+  ctx.fillText("拼豆工坊", PAD + qrBox / 2, footTop + qrBox - 18);
+  // sign block
+  const signX = PAD + qrBox + 30;
+  ctx.textAlign = "left";
+  ctx.fillStyle = p.ink;
+  ctx.font = `52px ${CANVAS_CUTE_FONT}`;
+  ctx.fillText("拼豆工坊", signX, footTop + 56);
+  ctx.fillStyle = p.accentDeep;
+  ctx.font = `34px ${CANVAS_CUTE_FONT}`;
+  const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];
+  ctx.fillText(slogan, signX, footTop + 108);
+  ctx.fillStyle = p.muted;
+  ctx.font = `26px ${CANVAS_CLEAR_FONT}`;
+  ctx.fillText("扫码 · 开始你的拼豆", signX, footTop + 150);
+
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
 }
 
 
