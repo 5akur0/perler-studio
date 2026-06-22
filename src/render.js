@@ -18,6 +18,7 @@ import { beadSettleScale, prefersReducedMotion } from './utils.js';
 import {
   drawBoardGuides, drawBoardSkin, drawPixelPatternPreview, pixelPatternPreviewLayout,
 } from './board-skin.js';
+import { shouldUseBoardPegCache, visibleBoardCellRange } from './board-layout.js';
 
 const CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 const CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -1203,6 +1204,27 @@ function getBoardPegCache(layout, cols, rows, patTiles) {
   return canvas;
 }
 
+function drawVisibleBoardPegs(ctx, layout, view, cols, rows, patTiles) {
+  const { startCol, endCol, startRow, endRow } = visibleBoardCellRange(layout, view, cols, rows);
+  const { boardX, boardY, cell } = layout;
+  const pegR = cell * 0.138;
+  for (let y = startRow; y < endRow; y += 1) {
+    for (let x = startCol; x < endCol; x += 1) {
+      if (patTiles && !isActiveTileCell(x, y)) continue;
+      const cx = boardX + x * cell + cell / 2;
+      const cy = boardY + y * cell + cell / 2;
+      ctx.fillStyle = 'rgba(91, 104, 118, 0.32)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, pegR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.58)';
+      ctx.beginPath();
+      ctx.arc(cx - pegR * 0.22, cy - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
 export function drawBoard(layout) {
   const ctx = scene;
   const { boardX, boardY, cell } = layout;
@@ -1263,12 +1285,14 @@ export function drawBoard(layout) {
   if (guideVisible) {
     drawProjectedGuide(layout, templateOpacity);
   }
-  // Empty peg-holes for the whole board are static per layout, so blit them from a
-  // cache instead of stroking up to cols×rows×2 arcs every animated frame. (Cells
-  // under a fallen bead keep their peg in the cache — the bead is drawn over it.)
-  const pegCanvas = getBoardPegCache(layout, cols, rows, patTiles);
-  if (pegCanvas) {
-    ctx.drawImage(pegCanvas, boardX, boardY, boardW, boardH);
+  // At native scale, reuse the full-board bitmap. Once zoomed, drawing only the
+  // visible pegs as vectors avoids enlarging cached pixels while keeping the loop
+  // bounded to the small portion of the board currently inside the viewport.
+  if (shouldUseBoardPegCache(boardView.scale)) {
+    const pegCanvas = getBoardPegCache(layout, cols, rows, patTiles);
+    if (pegCanvas) ctx.drawImage(pegCanvas, boardX, boardY, boardW, boardH);
+  } else {
+    drawVisibleBoardPegs(ctx, layout, boardView, cols, rows, patTiles);
   }
 
   if (patTiles) {

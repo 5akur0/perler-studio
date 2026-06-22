@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const { growGridByTile } = await import("../src/board-layout.js");
+const {
+  growGridByTile,
+  shouldUseBoardPegCache,
+  visibleBoardCellRange,
+} = await import("../src/board-layout.js");
 const { encodePatternCode, decodePatternCode } = await import("../src/pattern-code.js");
 
 const tile = 30;
@@ -40,6 +44,19 @@ const decoded = decodePatternCode(encodePatternCode(rectangularPattern));
 assert.equal(decoded.width, tile * 2);
 assert.equal(decoded.height, tile);
 assert.equal(decoded.rows[10][45], "K");
+
+assert.equal(shouldUseBoardPegCache(1), true, "native scale may reuse the peg bitmap");
+assert.equal(shouldUseBoardPegCache(1.01), false, "zoomed boards must keep pegs vector-sharp");
+assert.deepEqual(
+  visibleBoardCellRange(
+    { w: 320, h: 480, boardX: 10, boardY: 90, cell: 10 },
+    { scale: 4, panX: 0, panY: 0, cx: 160, cy: 240 },
+    30,
+    30,
+  ),
+  { startCol: 11, endCol: 19, startRow: 9, endRow: 21 },
+  "zoomed peg rendering is limited to cells visible in the canvas",
+);
 
 const mainSource = await readFile(new URL("../src/main.js", import.meta.url), "utf8");
 const renderSource = await readFile(new URL("../src/render.js", import.meta.url), "utf8");

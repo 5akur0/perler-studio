@@ -2678,6 +2678,58 @@
     return layout;
   }
 
+  // src/board-layout.js
+  function tileKey(tx, ty) {
+    return `${tx},${ty}`;
+  }
+  function shouldUseBoardPegCache(scale) {
+    return Number.isFinite(scale) && scale <= 1.001;
+  }
+  function visibleBoardCellRange(layout, view, cols, rows) {
+    const scale = Math.max(1e-4, Number(view?.scale) || 1);
+    const cx = Number(view?.cx) || 0;
+    const cy = Number(view?.cy) || 0;
+    const panX = Number(view?.panX) || 0;
+    const panY = Number(view?.panY) || 0;
+    const cell = Math.max(1e-4, Number(layout?.cell) || 1);
+    const boardX = Number(layout?.boardX) || 0;
+    const boardY = Number(layout?.boardY) || 0;
+    const viewportW = Math.max(0, Number(layout?.w) || 0);
+    const viewportH = Math.max(0, Number(layout?.h) || 0);
+    const columnCount = Math.max(0, Number.parseInt(cols, 10) || 0);
+    const rowCount = Math.max(0, Number.parseInt(rows, 10) || 0);
+    const localLeft = (0 - cx - panX) / scale + cx;
+    const localRight = (viewportW - cx - panX) / scale + cx;
+    const localTop = (0 - cy - panY) / scale + cy;
+    const localBottom = (viewportH - cy - panY) / scale + cy;
+    const clampIndex = (value, max) => Math.min(max, Math.max(0, value));
+    return {
+      startCol: clampIndex(Math.floor((localLeft - boardX) / cell), columnCount),
+      endCol: clampIndex(Math.ceil((localRight - boardX) / cell), columnCount),
+      startRow: clampIndex(Math.floor((localTop - boardY) / cell), rowCount),
+      endRow: clampIndex(Math.ceil((localBottom - boardY) / cell), rowCount)
+    };
+  }
+  function fitGridToBoardTiles(rows, sourceWidth, sourceHeight, tileSize, maxDimension) {
+    const tile = Number.parseInt(tileSize, 10);
+    const max = Number.parseInt(maxDimension, 10);
+    const rawWidth = Math.max(1, Number.parseInt(sourceWidth, 10) || 1);
+    const rawHeight = Math.max(1, Number.parseInt(sourceHeight, 10) || 1);
+    const width = Math.min(max, Math.max(tile, Math.ceil(rawWidth / tile) * tile));
+    const height = Math.min(max, Math.max(tile, Math.ceil(rawHeight / tile) * tile));
+    const offsetX = Math.floor((width - rawWidth) / 2);
+    const offsetY = Math.floor((height - rawHeight) / 2);
+    const fittedRows = Array.from({ length: height }, (_, y) => {
+      const sourceY = y - offsetY;
+      const sourceRow = sourceY >= 0 && sourceY < rawHeight ? String(rows?.[sourceY] || "") : "";
+      return Array.from({ length: width }, (_2, x) => {
+        const sourceX = x - offsetX;
+        return sourceX >= 0 && sourceX < rawWidth ? sourceRow[sourceX] || "." : ".";
+      }).join("");
+    });
+    return { width, height, rows: fittedRows };
+  }
+
   // src/render.js
   var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -3693,6 +3745,26 @@
     _boardPegCache = { key, canvas };
     return canvas;
   }
+  function drawVisibleBoardPegs(ctx2, layout, view, cols, rows, patTiles) {
+    const { startCol, endCol, startRow, endRow } = visibleBoardCellRange(layout, view, cols, rows);
+    const { boardX, boardY, cell } = layout;
+    const pegR = cell * 0.138;
+    for (let y = startRow; y < endRow; y += 1) {
+      for (let x = startCol; x < endCol; x += 1) {
+        if (patTiles && !isActiveTileCell(x, y)) continue;
+        const cx = boardX + x * cell + cell / 2;
+        const cy = boardY + y * cell + cell / 2;
+        ctx2.fillStyle = "rgba(91, 104, 118, 0.32)";
+        ctx2.beginPath();
+        ctx2.arc(cx, cy, pegR, 0, Math.PI * 2);
+        ctx2.fill();
+        ctx2.fillStyle = "rgba(255,255,255,0.58)";
+        ctx2.beginPath();
+        ctx2.arc(cx - pegR * 0.22, cy - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
+        ctx2.fill();
+      }
+    }
+  }
   function drawBoard(layout) {
     const ctx2 = scene;
     const { boardX, boardY, cell } = layout;
@@ -3765,9 +3837,11 @@
     if (guideVisible) {
       drawProjectedGuide(layout, templateOpacity);
     }
-    const pegCanvas = getBoardPegCache(layout, cols, rows, patTiles);
-    if (pegCanvas) {
-      ctx2.drawImage(pegCanvas, boardX, boardY, boardW, boardH);
+    if (shouldUseBoardPegCache(boardView.scale)) {
+      const pegCanvas = getBoardPegCache(layout, cols, rows, patTiles);
+      if (pegCanvas) ctx2.drawImage(pegCanvas, boardX, boardY, boardW, boardH);
+    } else {
+      drawVisibleBoardPegs(ctx2, layout, boardView, cols, rows, patTiles);
     }
     if (patTiles) {
       const tileW = T * cell;
@@ -8227,30 +8301,6 @@
       showToast("\u77ED\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
       return false;
     }
-  }
-
-  // src/board-layout.js
-  function tileKey(tx, ty) {
-    return `${tx},${ty}`;
-  }
-  function fitGridToBoardTiles(rows, sourceWidth, sourceHeight, tileSize, maxDimension) {
-    const tile = Number.parseInt(tileSize, 10);
-    const max = Number.parseInt(maxDimension, 10);
-    const rawWidth = Math.max(1, Number.parseInt(sourceWidth, 10) || 1);
-    const rawHeight = Math.max(1, Number.parseInt(sourceHeight, 10) || 1);
-    const width = Math.min(max, Math.max(tile, Math.ceil(rawWidth / tile) * tile));
-    const height = Math.min(max, Math.max(tile, Math.ceil(rawHeight / tile) * tile));
-    const offsetX = Math.floor((width - rawWidth) / 2);
-    const offsetY = Math.floor((height - rawHeight) / 2);
-    const fittedRows = Array.from({ length: height }, (_, y) => {
-      const sourceY = y - offsetY;
-      const sourceRow = sourceY >= 0 && sourceY < rawHeight ? String(rows?.[sourceY] || "") : "";
-      return Array.from({ length: width }, (_2, x) => {
-        const sourceX = x - offsetX;
-        return sourceX >= 0 && sourceX < rawWidth ? sourceRow[sourceX] || "." : ".";
-      }).join("");
-    });
-    return { width, height, rows: fittedRows };
   }
 
   // src/image-convert.js

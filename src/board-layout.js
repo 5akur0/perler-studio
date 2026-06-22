@@ -1,5 +1,36 @@
 export function tileKey(tx, ty) { return `${tx},${ty}`; }
 
+export function shouldUseBoardPegCache(scale) {
+  return Number.isFinite(scale) && scale <= 1.001;
+}
+
+export function visibleBoardCellRange(layout, view, cols, rows) {
+  const scale = Math.max(0.0001, Number(view?.scale) || 1);
+  const cx = Number(view?.cx) || 0;
+  const cy = Number(view?.cy) || 0;
+  const panX = Number(view?.panX) || 0;
+  const panY = Number(view?.panY) || 0;
+  const cell = Math.max(0.0001, Number(layout?.cell) || 1);
+  const boardX = Number(layout?.boardX) || 0;
+  const boardY = Number(layout?.boardY) || 0;
+  const viewportW = Math.max(0, Number(layout?.w) || 0);
+  const viewportH = Math.max(0, Number(layout?.h) || 0);
+  const columnCount = Math.max(0, Number.parseInt(cols, 10) || 0);
+  const rowCount = Math.max(0, Number.parseInt(rows, 10) || 0);
+  const localLeft = (0 - cx - panX) / scale + cx;
+  const localRight = (viewportW - cx - panX) / scale + cx;
+  const localTop = (0 - cy - panY) / scale + cy;
+  const localBottom = (viewportH - cy - panY) / scale + cy;
+  const clampIndex = (value, max) => Math.min(max, Math.max(0, value));
+
+  return {
+    startCol: clampIndex(Math.floor((localLeft - boardX) / cell), columnCount),
+    endCol: clampIndex(Math.ceil((localRight - boardX) / cell), columnCount),
+    startRow: clampIndex(Math.floor((localTop - boardY) / cell), rowCount),
+    endRow: clampIndex(Math.ceil((localBottom - boardY) / cell), rowCount),
+  };
+}
+
 function normalizedRows(rows, width, height) {
   return Array.from({ length: height }, (_, y) => String(rows?.[y] || "").slice(0, width).padEnd(width, "."));
 }
