@@ -4795,17 +4795,20 @@ body.admin-page {
   .bead-studio-grid[data-phase=choose] .workbench {
     order: -1;
   }
-  .bead-studio-grid:not([data-phase=choose]) .workbench {
-    container-type: inline-size;
+  .bead-studio-grid:not([data-phase=choose]) {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom, 0px));
+  }
+  .bead-studio-grid:not([data-phase=choose]) .workbench {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
     overflow: hidden;
   }
-  .bead-studio-grid {
-    scroll-padding-block: var(--sp-2);
-    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom, 0px));
-    align-content: start;
+  .bead-studio-grid:not([data-phase=choose]) #stageControls,
+  .bead-studio-grid:not([data-phase=choose]) .right-panel {
+    flex: 0 0 auto;
   }
   .bead-studio-grid:not([data-phase=choose]) .mobile-action-host {
     display: contents;
@@ -4822,11 +4825,11 @@ body.admin-page {
     display: none !important;
   }
   .bead-studio-grid:not([data-phase=choose]) #sceneCanvas {
-    flex: 0 0 auto;
-    width: 100cqi;
-    height: auto;
-    aspect-ratio: var(--board-aspect, 1 / 1);
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
     min-height: 0;
+    aspect-ratio: auto;
     max-height: none;
   }
   .bead-studio-grid:not([data-phase=choose]) .left-panel section[data-stage=working] .section-title {

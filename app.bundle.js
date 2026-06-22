@@ -2963,23 +2963,53 @@
     const w = Math.max(rect.width, MIN_LAYOUT_VIEWPORT);
     const h = Math.max(rect.height, MIN_LAYOUT_VIEWPORT);
     if (useMobileDirectPlacement()) {
-      const margin = 12;
       const cols = boardCols();
       const rows = boardRows();
+      if (useStackedMobileLayout()) {
+        const marginX = 16;
+        const topMargin = 18;
+        const restGap = 14;
+        const floorBand = clamp(Math.round(h * 0.16), 56, 130);
+        const floorTop2 = h - floorBand;
+        const availW2 = Math.max(1, w - marginX * 2);
+        const availH2 = Math.max(1, floorTop2 - topMargin - restGap);
+        const cellM2 = clamp(Math.min(availW2 / cols, availH2 / rows), 4, 64);
+        const boardWM2 = cellM2 * cols;
+        const boardHM2 = cellM2 * rows;
+        const boardX2 = Math.floor((w - boardWM2) / 2);
+        const boardY2 = Math.max(topMargin, Math.floor(floorTop2 - restGap - boardHM2));
+        return {
+          w,
+          h,
+          boardX: boardX2,
+          boardY: boardY2,
+          boardSize: Math.max(boardWM2, boardHM2),
+          boardW: boardWM2,
+          boardH: boardHM2,
+          cell: cellM2,
+          refX: 0,
+          refY: 0,
+          refW: 0,
+          refH: 0,
+          trayX: 0,
+          trayY: 0,
+          trayW: 0,
+          trayH: 0,
+          floorTop: floorTop2
+        };
+      }
+      const margin = 12;
       const availW = Math.max(1, w - margin * 2);
       const availH = Math.max(1, h - margin * 2);
       const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);
       const boardWM = cellM * cols;
       const boardHM = cellM * rows;
-      const boardSize2 = Math.max(boardWM, boardHM);
-      const boardX2 = Math.floor((w - boardWM) / 2);
-      const boardY2 = Math.floor((h - boardHM) / 2);
       return {
         w,
         h,
-        boardX: boardX2,
-        boardY: boardY2,
-        boardSize: boardSize2,
+        boardX: Math.floor((w - boardWM) / 2),
+        boardY: Math.floor((h - boardHM) / 2),
+        boardSize: Math.max(boardWM, boardHM),
         boardW: boardWM,
         boardH: boardHM,
         cell: cellM,
@@ -3137,7 +3167,7 @@
     ctx2.save();
     const OVER = 8;
     const fw = w + OVER;
-    if (useMobileDirectPlacement()) {
+    if (useMobileDirectPlacement() && !useStackedMobileLayout()) {
       ctx2.fillStyle = DESK_WOOD.mid;
       ctx2.fillRect(0, 0, fw, h + OVER);
       ctx2.restore();
@@ -3669,7 +3699,7 @@
         }
       }
     } else {
-      drawBoardSkin(ctx2, layout, { cols, rows, brand, shadow: !useMobileDirectPlacement(), guides: false });
+      drawBoardSkin(ctx2, layout, { cols, rows, brand, shadow: true, guides: false });
     }
     const guideVisible = (state.lampOn || useMobileDirectPlacement()) && (state.phase === "place" || state.phase === "inspect");
     const templateOpacity = guideVisible ? state.phase === "place" ? 0.1 : 0.08 : 0;

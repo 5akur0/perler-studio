@@ -377,39 +377,53 @@ export function computeLayout(rect) {
   const w = Math.max(rect.width, MIN_LAYOUT_VIEWPORT);
   const h = Math.max(rect.height, MIN_LAYOUT_VIEWPORT);
   if (useMobileDirectPlacement()) {
-    // Mobile: board only (no reference note, no lamp). The canvas box hugs the
-    // board aspect (--board-aspect, set in render()), so a single cell size that
-    // fits BOTH axes makes the board span the canvas edge-to-edge with no
-    // letterbox. min() across axes keeps it safe for the one transitional frame
-    // before the aspect var lands (board centers without overflow).
-    const margin = 12;
     const cols = boardCols();
     const rows = boardRows();
+    if (useStackedMobileLayout()) {
+      // PHONE (stacked): a desk + floor scene (like desktop, minus tray /
+      // reference / lamp). The canvas fills the flexed workbench, so reserve a
+      // floor band at the bottom and rest the board on the desk above it. The
+      // board is sized to fit the width and the desk area; on a tall canvas it
+      // stays a comfortable size sitting on the table rather than stretching.
+      const marginX = 16;
+      const topMargin = 18;
+      const restGap = 14;                     // board floats this far above the floor edge
+      const floorBand = clamp(Math.round(h * 0.16), 56, 130);
+      const floorTop = h - floorBand;
+      const availW = Math.max(1, w - marginX * 2);
+      const availH = Math.max(1, floorTop - topMargin - restGap);
+      const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);
+      const boardWM = cellM * cols;
+      const boardHM = cellM * rows;
+      const boardX = Math.floor((w - boardWM) / 2);
+      // Rest the board on the desk: its bottom sits just above the floor edge,
+      // but never crowd the top of the desk.
+      const boardY = Math.max(topMargin, Math.floor(floorTop - restGap - boardHM));
+      return {
+        w, h, boardX, boardY,
+        boardSize: Math.max(boardWM, boardHM),
+        boardW: boardWM, boardH: boardHM, cell: cellM,
+        refX: 0, refY: 0, refW: 0, refH: 0,
+        trayX: 0, trayY: 0, trayW: 0, trayH: 0,
+        floorTop,
+      };
+    }
+    // TABLET (touch, ≥861): the board hugs its square canvas (sized in CSS), so
+    // no desk/floor scene — fill the box edge-to-edge (floorTop = h ⇒ flat wood).
+    const margin = 12;
     const availW = Math.max(1, w - margin * 2);
     const availH = Math.max(1, h - margin * 2);
     const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);
     const boardWM = cellM * cols;
     const boardHM = cellM * rows;
-    const boardSize = Math.max(boardWM, boardHM);
-    const boardX = Math.floor((w - boardWM) / 2);
-    const boardY = Math.floor((h - boardHM) / 2);
     return {
-      w,
-      h,
-      boardX,
-      boardY,
-      boardSize,
-      boardW: boardWM,
-      boardH: boardHM,
-      cell: cellM,
-      refX: 0,
-      refY: 0,
-      refW: 0,
-      refH: 0,
-      trayX: 0,
-      trayY: 0,
-      trayW: 0,
-      trayH: 0,
+      w, h,
+      boardX: Math.floor((w - boardWM) / 2),
+      boardY: Math.floor((h - boardHM) / 2),
+      boardSize: Math.max(boardWM, boardHM),
+      boardW: boardWM, boardH: boardHM, cell: cellM,
+      refX: 0, refY: 0, refW: 0, refH: 0,
+      trayX: 0, trayY: 0, trayW: 0, trayH: 0,
       floorTop: h,
     };
   }
@@ -601,9 +615,10 @@ export function drawWorkbench(layout) {
   const OVER = 8;
   const fw = w + OVER;
 
-  // Mobile: a plain solid wood backdrop behind the board (board fills the screen,
-  // so the desk only shows as a thin warm border — keep it flat, no grain).
-  if (useMobileDirectPlacement()) {
+  // Tablet (touch, ≥861): the board hugs its square canvas, so the desk only shows
+  // as a thin warm border — keep it a flat solid wood fill (no floor, no grain).
+  // Phone (stacked) and desktop fall through to the full desk + floor scene below.
+  if (useMobileDirectPlacement() && !useStackedMobileLayout()) {
     ctx.fillStyle = DESK_WOOD.mid;
     ctx.fillRect(0, 0, fw, h + OVER);
     ctx.restore();
@@ -1168,7 +1183,7 @@ export function drawBoard(layout) {
       if (!patTiles.has(`${tx - 1},${ty}`)) { ctx.beginPath(); ctx.moveTo(tbx, tby); ctx.lineTo(tbx, tby + tileH); ctx.stroke(); }
     }
   } else {
-    drawBoardSkin(ctx, layout, { cols, rows, brand, shadow: !useMobileDirectPlacement(), guides: false });
+    drawBoardSkin(ctx, layout, { cols, rows, brand, shadow: true, guides: false });
   }
 
   // Mobile has no lamp switch and no reference sheet, so the placement guide is

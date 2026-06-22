@@ -241,7 +241,7 @@ components:
 | `--sidebar-w` | `320px` | `240px` ≤1179 | 拼豆台左右栏（对称） |
 | `--canvas-min` | `520px` | `360px` ≤1179 | 中央画布列下限 |
 | `--studio-cols-work` | `clamp(208,25vw,300) 1fr clamp(216,27vw,320)` | — | ≥861 三列工作区轨道；**拼豆台 working 与绘图台共用的单一来源** |
-| ~~`--mobile-board-size`~~ | （已移除） | — | 旧的 mobile 方板垂直上限；现已删除：方板只由容器宽度 `100cqi` 拥有（`#sceneCanvas` aspect-ratio 1/1），超高交给内容区滚动 |
+| ~~`--mobile-board-size`~~ | （已移除） | — | 旧的 mobile 方板垂直上限；现已删除：手机工作区改为 flex 填满视口，画布吃满剩余高度并画桌子+地板（板放桌上）|
 | `--panel-gap` | `--sp-4`(16) | `--sp-3`(12) ≤860 | `.studio-grid` 间距 |
 | `--panel-pad` / `--panel-pad-tight` | 16 / 8 | — | 内容面 / 紧凑侧栏内边距 |
 | `--topbar-h` | `70px` | `60px` 861–1179 | 顶栏 min-height |
@@ -256,7 +256,7 @@ components:
 
 - 弹窗宽度一律 `min(var(--modal-w-*), calc(100vw - var(--modal-gutter)))`。
 - **绘图台**左右栏走**流式 clamp** 网格（不走对称的 `--sidebar-w`，刻意保留）。这条 clamp 轨道与拼豆台 working 完全相同，已收敛到单一来源 `--studio-cols-work`，两台同时消费、不再各写一份。
-- **mobile-working 尺寸所有权（手机竖屏 = mode A）**：方板由**容器宽度单一拥有**——workbench 设 `container-type: inline-size`，`#sceneCanvas` 取 `width: 100cqi`（其真实内容宽度，已扣除 app-shell / safe-area / 自身 padding）+ `aspect-ratio: 1/1` 成正方形。**刻意不设垂直上限**：方板永不为塞进视口高度而缩小；当 board + 操作区 + 豆盒高于视口时，由 studio grid（`overflow-y:auto`，topbar 仍固定）滚动承接（底部留 `safe-area` 呼吸）。board 几何由 `render.js` 从实测盒子算。**朝向分流**：手机强制竖屏走本 mode A；平板强制横屏（≥861）走桌面三列复合工作台（board+豆盘+参考，矩形，不改成方形），横屏手机 / 竖屏平板由 `.orientation-overlay` 全屏提示旋转。
+- **mobile-working 布局（手机竖屏 = mode A）**：`.bead-studio-grid:not([data-phase=choose])` 是**填满视口的 flex 纵列**——workbench（画布区）`flex:1 1 auto` 吃满剩余高度，`#sceneCanvas` `width/height:100%` 填满 workbench；操作区（检查/清空）与豆盒 `flex:0 0 auto` 贴底（底部留 `safe-area` 呼吸），**下方不再留装饰背景空白**。画布里 `render.js` 画**桌子+地板**场景（同桌面端，去掉豆筛/参考/灯），拼豆板带阴影**自然放在桌上**（`computeLayout` 手机分支保留底部 floor band、板子歇在桌面上）。board 几何由实测盒子算。**朝向分流**：手机强制竖屏走 mode A（`useStackedMobileLayout`，≤860）；平板强制横屏（≥861 触屏）走桌面三列分栏 + 轻量工具集，画布**方板紧贴**（平铺木纹、无桌地）；鼠标宽屏走完整桌面手作流程；横屏手机 / 竖屏平板由 `.orientation-overlay` 全屏提示旋转。
 - 自检：改动布局后跑 `grep -rnP ': ?[0-9]+px' src/styles/ | grep -iE 'sidebar|canvas|modal|tile|topbar'` 确认没有新的裸魔法数。
 - **遗留（TODO）**：`gap`/`padding` 大多仍是 8/10/12/16 裸值，未并入 `--sp-*` 尺度；off-scale（5/7/9/10/14）待对齐。需一次专门的「spacing 扫描 + 截图复核」pass。
 

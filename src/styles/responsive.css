@@ -1,7 +1,8 @@
 @media (max-width: 860px) {
-  /* Mobile-working board sizing: width is the single owner (#sceneCanvas takes
-     100cqi of the workbench, a true square via aspect-ratio). There is no vertical
-     cap — when content runs taller than the viewport the studio grid scrolls. */
+  /* Mobile-working layout: a viewport-filling flex column. The workbench (board
+     area) flexes to take the remaining height and renders a desk+floor scene with
+     the board resting on the desk (see render.js computeLayout/drawWorkbench);
+     actions and the bean box sit at the bottom, so nothing leaves an empty band. */
 
   /* Mobile uses the same viewport-locked shell as desktop: the app itself never
      page-scrolls (topbar stays fixed), while each active content surface owns its
@@ -1139,32 +1140,26 @@
     order: -1;
   }
 
-  /* Container owns the real available width: as a query container, 100cqi gives the
-     workbench's true content width (after app-shell / safe-area / its own padding).
-     It stays full-column width and centres the square canvas. */
-  .bead-studio-grid:not([data-phase="choose"]) .workbench {
-    container-type: inline-size;
+  /* Mobile working fills the viewport as a flex column: the board area (workbench)
+     takes the REMAINING height and renders the desk+floor scene (board resting on
+     the desk, like desktop), while the actions and bean box sit naturally at the
+     bottom — so there is no empty decorative background left below them. */
+  .bead-studio-grid:not([data-phase="choose"]) {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom, 0px));
+  }
+
+  .bead-studio-grid:not([data-phase="choose"]) .workbench {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
     overflow: hidden;
   }
 
-  /* The board is a full-width square with no vertical cap, so working phases can
-     run taller than the viewport. The grid is the scroller (overflow-y:auto, set
-     above): give it bottom breathing room (incl. safe-area) so the last module
-     (actions / bean box) isn't clipped at the scroll end, and keep the board off
-     the top edge when scrolled. */
-  .bead-studio-grid {
-    scroll-padding-block: var(--sp-2);
-    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom, 0px));
-    /* Pack rows to the top instead of the grid's default align-content:stretch.
-       Otherwise, on a tall viewport the spare height is stretched INTO the rows,
-       making the workbench taller than the square board so the board floats in a
-       tall card with texture bands above/below (reads as "rectangular"). With
-       start, the workbench hugs the board; spare space falls below the last row,
-       and overflowing content still scrolls. */
-    align-content: start;
+  .bead-studio-grid:not([data-phase="choose"]) #stageControls,
+  .bead-studio-grid:not([data-phase="choose"]) .right-panel {
+    flex: 0 0 auto;
   }
 
   /* —— Mobile-working order is owned by the DOM composition, not CSS `order` ——
@@ -1191,20 +1186,14 @@
     display: none !important;
   }
 
-  /* Canvas CSS box: full container width (100cqi, owned by the workbench), with
-     the box hugging the board — aspect-ratio follows the pattern (cols:rows) via
-     --board-aspect, set by render.js. A square pattern → square box; a non-square
-     pattern → a box of the same shape, so the board fills it edge-to-edge with no
-     letterbox. Width is the SINGLE size owner: there is deliberately no vertical
-     cap, so the board never shrinks to fit the viewport height — when board +
-     actions + bean box exceed the viewport, the studio grid (overflow-y:auto)
-     scrolls instead. render.js computes the board geometry from this measured box. */
+  /* Canvas fills the flexed workbench (the remaining height); render.js draws the
+     desk + floor scene and rests the board on the desk inside this measured box. */
   .bead-studio-grid:not([data-phase="choose"]) #sceneCanvas {
-    flex: 0 0 auto;
-    width: 100cqi;
-    height: auto;
-    aspect-ratio: var(--board-aspect, 1 / 1);
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
     min-height: 0;
+    aspect-ratio: auto;
     max-height: none;
   }
 
