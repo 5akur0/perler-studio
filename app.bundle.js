@@ -3159,13 +3159,35 @@
     if (!useMobileDirectPlacement()) drawToolEntities(layout.w, layout.h);
     state.renderDirty = false;
   }
+  var _workbenchCache = null;
   function drawWorkbench(layout) {
     const { w, h, floorTop } = layout;
-    const ctx2 = scene;
+    const OVER = 8;
+    const flat = useMobileDirectPlacement() && !useStackedMobileLayout();
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    const key = `${Math.round(w)}x${Math.round(h)}|${Math.round(floorTop)}|${flat ? "f" : "d"}|${dpr}`;
+    if (!_workbenchCache || _workbenchCache.key !== key) {
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round((w + OVER) * dpr));
+      c.height = Math.max(1, Math.round((h + OVER) * dpr));
+      const cctx = c.getContext("2d");
+      if (cctx) {
+        cctx.scale(dpr, dpr);
+        paintWorkbench(cctx, w, h, floorTop, flat);
+      }
+      _workbenchCache = { key, canvas: cctx ? c : null };
+    }
+    if (_workbenchCache.canvas) {
+      scene.drawImage(_workbenchCache.canvas, 0, 0, w + OVER, h + OVER);
+    } else {
+      paintWorkbench(scene, w, h, floorTop, flat);
+    }
+  }
+  function paintWorkbench(ctx2, w, h, floorTop, flat) {
     ctx2.save();
     const OVER = 8;
     const fw = w + OVER;
-    if (useMobileDirectPlacement() && !useStackedMobileLayout()) {
+    if (flat) {
       ctx2.fillStyle = DESK_WOOD.mid;
       ctx2.fillRect(0, 0, fw, h + OVER);
       ctx2.restore();
@@ -3634,9 +3656,48 @@
     ctx2.stroke();
     ctx2.restore();
   }
+  var _boardPegCache = null;
+  function getBoardPegCache(layout, cols, rows, patTiles) {
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
+    const cell = layout.cell;
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    const tileSig = patTiles ? `${state.selectedPattern?.tileOriginX ?? 0},${state.selectedPattern?.tileOriginY ?? 0}:${[...patTiles].sort().join("|")}` : "";
+    const key = `${cols}x${rows}|${Math.round(boardW)}x${Math.round(boardH)}|${Math.round(cell * 100)}|${dpr}|${tileSig}`;
+    if (_boardPegCache && _boardPegCache.key === key) return _boardPegCache.canvas;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(boardW * dpr));
+    canvas.height = Math.max(1, Math.round(boardH * dpr));
+    const ctx2 = canvas.getContext("2d");
+    if (!ctx2) {
+      _boardPegCache = { key, canvas: null };
+      return null;
+    }
+    ctx2.scale(dpr, dpr);
+    const pegR = cell * 0.138;
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        if (patTiles && !isActiveTileCell(x, y)) continue;
+        const cx = x * cell + cell / 2;
+        const cy = y * cell + cell / 2;
+        ctx2.fillStyle = "rgba(91, 104, 118, 0.32)";
+        ctx2.beginPath();
+        ctx2.arc(cx, cy, pegR, 0, Math.PI * 2);
+        ctx2.fill();
+        ctx2.fillStyle = "rgba(255,255,255,0.58)";
+        ctx2.beginPath();
+        ctx2.arc(cx - pegR * 0.22, cy - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
+        ctx2.fill();
+      }
+    }
+    _boardPegCache = { key, canvas };
+    return canvas;
+  }
   function drawBoard(layout) {
     const ctx2 = scene;
     const { boardX, boardY, cell } = layout;
+    const boardW = layout.boardW || layout.boardSize;
+    const boardH = layout.boardH || layout.boardSize;
     const cols = boardCols();
     const rows = boardRows();
     const boardView = boardViewTransform(layout);
@@ -3704,25 +3765,9 @@
     if (guideVisible) {
       drawProjectedGuide(layout, templateOpacity);
     }
-    const spillIndex = state.spill ? state.spill.index : -1;
-    for (let y = 0; y < rows; y += 1) {
-      for (let x = 0; x < cols; x += 1) {
-        if (patTiles && !isActiveTileCell(x, y)) continue;
-        const index2 = indexFor(x, y);
-        const px = boardX + x * cell;
-        const py = boardY + y * cell;
-        if (index2 !== spillIndex) {
-          const pegR = cell * 0.138;
-          ctx2.fillStyle = "rgba(91, 104, 118, 0.32)";
-          ctx2.beginPath();
-          ctx2.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
-          ctx2.fill();
-          ctx2.fillStyle = "rgba(255,255,255,0.58)";
-          ctx2.beginPath();
-          ctx2.arc(px + cell / 2 - pegR * 0.22, py + cell / 2 - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
-          ctx2.fill();
-        }
-      }
+    const pegCanvas = getBoardPegCache(layout, cols, rows, patTiles);
+    if (pegCanvas) {
+      ctx2.drawImage(pegCanvas, boardX, boardY, boardW, boardH);
     }
     if (patTiles) {
       const tileW = T * cell;

@@ -598,9 +598,37 @@ export function render() {
   state.renderDirty = false;
 }
 
+// The desk + floor scene depends only on (w, h, floorTop, flat, dpr) — never on the
+// animation/board state — so cache it offscreen at device resolution and blit it
+// each frame instead of re-running the gradient + wood-grain loops (~900 strokes)
+// on every animated frame. Rebuilt only when the layout/DPR changes.
+let _workbenchCache = null;
+
 export function drawWorkbench(layout) {
   const { w, h, floorTop } = layout;
-  const ctx = scene;
+  const OVER = 8;
+  const flat = useMobileDirectPlacement() && !useStackedMobileLayout();
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+  const key = `${Math.round(w)}x${Math.round(h)}|${Math.round(floorTop)}|${flat ? "f" : "d"}|${dpr}`;
+  if (!_workbenchCache || _workbenchCache.key !== key) {
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round((w + OVER) * dpr));
+    c.height = Math.max(1, Math.round((h + OVER) * dpr));
+    const cctx = c.getContext("2d");
+    if (cctx) {
+      cctx.scale(dpr, dpr);
+      paintWorkbench(cctx, w, h, floorTop, flat);
+    }
+    _workbenchCache = { key, canvas: cctx ? c : null };
+  }
+  if (_workbenchCache.canvas) {
+    scene.drawImage(_workbenchCache.canvas, 0, 0, w + OVER, h + OVER);
+  } else {
+    paintWorkbench(scene, w, h, floorTop, flat); // fallback if offscreen ctx failed
+  }
+}
+
+function paintWorkbench(ctx, w, h, floorTop, flat) {
   ctx.save();
 
   // layout w/h are quantized down to a multiple of 8 (see quantizedCanvasRect),
@@ -613,7 +641,7 @@ export function drawWorkbench(layout) {
   // Tablet (touch, ≥861): the board hugs its square canvas, so the desk only shows
   // as a thin warm border — keep it a flat solid wood fill (no floor, no grain).
   // Phone (stacked) and desktop fall through to the full desk + floor scene below.
-  if (useMobileDirectPlacement() && !useStackedMobileLayout()) {
+  if (flat) {
     ctx.fillStyle = DESK_WOOD.mid;
     ctx.fillRect(0, 0, fw, h + OVER);
     ctx.restore();
@@ -1130,9 +1158,56 @@ export function drawMiniSupplies(x, y, w, h) {
   ctx.restore();
 }
 
+// The empty peg-holes are identical every frame for a given layout/pattern, so
+// rasterise them once (at device resolution) and blit. This removes up to
+// cols×rows×2 arc fills (≈20k on a 100×100 board) from every animated frame.
+let _boardPegCache = null;
+
+function getBoardPegCache(layout, cols, rows, patTiles) {
+  const boardW = layout.boardW || layout.boardSize;
+  const boardH = layout.boardH || layout.boardSize;
+  const cell = layout.cell;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+  const tileSig = patTiles
+    ? `${state.selectedPattern?.tileOriginX ?? 0},${state.selectedPattern?.tileOriginY ?? 0}:${[...patTiles].sort().join("|")}`
+    : "";
+  const key = `${cols}x${rows}|${Math.round(boardW)}x${Math.round(boardH)}|${Math.round(cell * 100)}|${dpr}|${tileSig}`;
+  if (_boardPegCache && _boardPegCache.key === key) return _boardPegCache.canvas;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(boardW * dpr));
+  canvas.height = Math.max(1, Math.round(boardH * dpr));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    _boardPegCache = { key, canvas: null };
+    return null;
+  }
+  ctx.scale(dpr, dpr);
+  const pegR = cell * 0.138;
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      if (patTiles && !isActiveTileCell(x, y)) continue;
+      const cx = x * cell + cell / 2;
+      const cy = y * cell + cell / 2;
+      ctx.fillStyle = "rgba(91, 104, 118, 0.32)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, pegR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.58)";
+      ctx.beginPath();
+      ctx.arc(cx - pegR * 0.22, cy - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  _boardPegCache = { key, canvas };
+  return canvas;
+}
+
 export function drawBoard(layout) {
   const ctx = scene;
   const { boardX, boardY, cell } = layout;
+  const boardW = layout.boardW || layout.boardSize;
+  const boardH = layout.boardH || layout.boardSize;
   const cols = boardCols();
   const rows = boardRows();
   const boardView = boardViewTransform(layout);
@@ -1188,25 +1263,12 @@ export function drawBoard(layout) {
   if (guideVisible) {
     drawProjectedGuide(layout, templateOpacity);
   }
-  const spillIndex = state.spill ? state.spill.index : -1;
-  for (let y = 0; y < rows; y += 1) {
-    for (let x = 0; x < cols; x += 1) {
-      if (patTiles && !isActiveTileCell(x, y)) continue;
-      const index = indexFor(x, y);
-      const px = boardX + x * cell;
-      const py = boardY + y * cell;
-      if (index !== spillIndex) {
-        const pegR = cell * 0.138;
-        ctx.fillStyle = "rgba(91, 104, 118, 0.32)";
-        ctx.beginPath();
-        ctx.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.58)";
-        ctx.beginPath();
-        ctx.arc(px + cell / 2 - pegR * 0.22, py + cell / 2 - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+  // Empty peg-holes for the whole board are static per layout, so blit them from a
+  // cache instead of stroking up to cols×rows×2 arcs every animated frame. (Cells
+  // under a fallen bead keep their peg in the cache — the bead is drawn over it.)
+  const pegCanvas = getBoardPegCache(layout, cols, rows, patTiles);
+  if (pegCanvas) {
+    ctx.drawImage(pegCanvas, boardX, boardY, boardW, boardH);
   }
 
   if (patTiles) {
