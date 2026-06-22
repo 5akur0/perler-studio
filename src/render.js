@@ -381,24 +381,31 @@ export function computeLayout(rect) {
     const rows = boardRows();
     if (useStackedMobileLayout()) {
       // PHONE (stacked): a desk + floor scene (like desktop, minus tray /
-      // reference / lamp). The canvas fills the flexed workbench, so reserve a
-      // floor band at the bottom and rest the board on the desk above it. The
-      // board is sized to fit the width and the desk area; on a tall canvas it
-      // stays a comfortable size sitting on the table rather than stretching.
+      // reference / lamp). The board is ANCHORED on the desk — fixed top offset,
+      // and a size that depends only on the viewport (width + a height fraction),
+      // NOT on this canvas's height. Switching steps shows/hides the bean box and
+      // resizes the canvas, but because the board's position and size are
+      // viewport-derived, it never moves or resizes between steps. The canvas
+      // grows/shrinks BELOW the board (more/less desk + floor); the floor stays
+      // pinned to the canvas bottom. This is what makes the board "sit on the
+      // desk" instead of floating centered.
+      const vpH = (typeof window !== "undefined" && window.innerHeight) || h;
       const marginX = 16;
-      const topMargin = 18;
-      const restGap = 14;                     // board floats this far above the floor edge
-      const floorBand = clamp(Math.round(h * 0.16), 56, 130);
-      const floorTop = h - floorBand;
-      const availW = Math.max(1, w - marginX * 2);
-      const availH = Math.max(1, floorTop - topMargin - restGap);
-      const cellM = clamp(Math.min(availW / cols, availH / rows), 4, 64);
+      const topMargin = 16;
+      const restGap = 12;
+      const widthFit = (w - marginX * 2) / cols;
+      // Height cap is a fraction of the viewport (constant across steps) so the
+      // board always clears the bean box in the place step on short phones.
+      const heightCap = (vpH * 0.4) / rows;
+      const cellM = clamp(Math.min(widthFit, heightCap), 4, 64);
       const boardWM = cellM * cols;
       const boardHM = cellM * rows;
       const boardX = Math.floor((w - boardWM) / 2);
-      // Rest the board on the desk: its bottom sits just above the floor edge,
-      // but never crowd the top of the desk.
-      const boardY = Math.max(topMargin, Math.floor(floorTop - restGap - boardHM));
+      const boardY = topMargin;               // fixed top anchor: board rests on the desk
+      // Floor band pinned to the canvas bottom, but never let it rise above the
+      // board (keep a small desk strip in front of the board).
+      const floorBand = clamp(Math.round(h * 0.16), 40, 130);
+      const floorTop = Math.max(boardY + boardHM + restGap, h - floorBand);
       return {
         w, h, boardX, boardY,
         boardSize: Math.max(boardWM, boardHM),
