@@ -3980,9 +3980,9 @@ body.admin-page {
     display: none;
   }
   .drawing-canvas-wrap {
-    width: min(100%, 48dvh);
+    width: min(100%, clamp(180px, calc(100dvh - 408px), 48dvh));
     aspect-ratio: 1 / 1;
-    max-height: 48dvh;
+    max-height: clamp(180px, calc(100dvh - 408px), 48dvh);
     height: auto;
     margin-inline: auto;
   }
