@@ -257,6 +257,8 @@ components:
 - 弹窗宽度一律 `min(var(--modal-w-*), calc(100vw - var(--modal-gutter)))`。
 - **绘图台**左右栏走**流式 clamp** 网格（不走对称的 `--sidebar-w`，刻意保留）。这条 clamp 轨道与拼豆台 working 完全相同，已收敛到单一来源 `--studio-cols-work`，两台同时消费、不再各写一份。
 - **mobile-working 布局（手机竖屏 = mode A）**：`.bead-studio-grid:not([data-phase=choose])` 是**填满视口的 flex 纵列**——workbench（画布区）`flex:1 1 auto` 吃满剩余高度，`#sceneCanvas` `width/height:100%` 填满 workbench；操作区（检查/清空）与豆盒 `flex:0 0 auto` 贴底（底部留 `safe-area` 呼吸），**下方不再留装饰背景空白**。画布里 `render.js` 画**桌子+地板**场景（同桌面端，去掉豆筛/参考/灯），拼豆板带阴影**自然放在桌上**（`computeLayout` 手机分支保留底部 floor band、板子歇在桌面上）。board 几何由实测盒子算。**朝向分流**：手机强制竖屏走 mode A（`useStackedMobileLayout`，≤860）；平板强制横屏（≥861 触屏）走桌面三列分栏 + 轻量工具集，画布**方板紧贴**（平铺木纹、无桌地）；鼠标宽屏走完整桌面手作流程；横屏手机 / 竖屏平板由 `.orientation-overlay` 全屏提示旋转。
+
+**The Board-Viewport Rule（棋盘视窗规则）.** 手机与平板的 canvas 是观察和操作棋盘的**有界视窗**，不是必须完整包住棋盘的内容盒。棋盘可以超出当前取景，但绘制、命中测试、缩放和平移必须共享同一坐标变换，保证任意有效格子均可到达。页面级 canvas DOM 盒不得随图纸长宽比无限扩张，也不得把阶段操作或豆盒推出视口；超出部分由画布内部导航处理。手机初始不要求全览，平板横屏长方形图纸也必须受工作区可用高度约束。输入字号继续保持 ≥16px，触控目标继续保持 ≥44×44px。
 - 自检：改动布局后跑 `grep -rnP ': ?[0-9]+px' src/styles/ | grep -iE 'sidebar|canvas|modal|tile|topbar'` 确认没有新的裸魔法数。
 - **遗留（TODO）**：`gap`/`padding` 大多仍是 8/10/12/16 裸值，未并入 `--sp-*` 尺度；off-scale（5/7/9/10/14）待对齐。需一次专门的「spacing 扫描 + 截图复核」pass。
 
