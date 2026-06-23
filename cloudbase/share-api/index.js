@@ -24,6 +24,16 @@ const MAX_PATTERN_CELLS = MAX_PATTERN_DIMENSION * MAX_PATTERN_DIMENSION;
 const SHARE_TTL_DAYS = 7;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_PER_IP = 12;
+// Read endpoints (share-open, gallery-list) are cheap per call but unauthenticated
+// and unmetered until now — an attacker could loop them to amplify CloudBase read
+// cost / concurrency into a DoS, and probe short codes for free. A looser 60/min
+// cap leaves real users untouched while killing the flood.
+const RATE_LIMIT_READ_MAX_PER_IP = 60;
+// Hard ceiling on the raw request body BEFORE JSON.parse. MAX_PATTERN_CODE_LENGTH
+// (64KB) is only enforced after the whole body is parsed, so without this a
+// multi-MB body would be fully parsed into memory first. 128KB comfortably covers
+// a max pattern code plus JSON envelope.
+const MAX_REQUEST_BODY_BYTES = 128 * 1024;
 const ADMIN_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const ADMIN_RATE_LIMIT_MAX_PER_IP = 30;
 const ADMIN_AUTH_WINDOW_MS = 10 * 60 * 1000;
@@ -305,6 +315,11 @@ function parseBody(event) {
   if (!event || event.body == null) return {};
   if (typeof event.body === "object") return event.body;
   if (typeof event.body === "string") {
+    // Reject oversized payloads before JSON.parse so a hostile multi-MB body is
+    // never materialised. Measured in bytes (not chars) to bound real memory.
+    if (Buffer.byteLength(event.body, "utf8") > MAX_REQUEST_BODY_BYTES) {
+      throw createHttpError(413, "payload_too_large", "Request body is too large.");
+    }
     const body = event.body.trim();
     if (!body) return {};
     return JSON.parse(body);
@@ -732,11 +747,15 @@ exports.main = async (event, context) => {
     }
 
     if (isOpenPath(path)) {
+      const ip = clientIp(event, context);
+      await consumeRateLimit("share_open", ip, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_READ_MAX_PER_IP);
       const data = await openShare(payload);
       return json(event, { ok: true, data });
     }
 
     if (isGalleryListPath(path)) {
+      const ip = clientIp(event, context);
+      await consumeRateLimit("gallery_list", ip, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_READ_MAX_PER_IP);
       const data = await listGallery(payload);
       return json(event, { ok: true, data });
     }

@@ -9,8 +9,16 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+// `frame-ancestors` only takes effect when delivered as an HTTP header — browsers
+// ignore it (with a console warning) inside a <meta http-equiv>. So it lives only
+// in _headers by design; strip it before comparing so the two CSPs can still be
+// asserted byte-identical on every other directive.
+function stripHeaderOnlyDirectives(csp) {
+  return csp.replace(/\s*frame-ancestors[^;]*;?/i, "");
+}
+
 function normalize(csp) {
-  return csp.replace(/\s+/g, " ").trim();
+  return stripHeaderOnlyDirectives(csp).replace(/\s+/g, " ").trim();
 }
 
 const headers = readFileSync(join(root, "_headers"), "utf8");
