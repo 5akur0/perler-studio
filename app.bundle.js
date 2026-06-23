@@ -4096,29 +4096,9 @@
     });
   }
 
-  // src/render.js
-  var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  var CANVAS_FONT_STACK = "Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  // src/render-tray.js
   function useMobileTrayGrid() {
     return window.matchMedia("(max-width: 860px)").matches;
-  }
-  function useMobileDirectPlacement() {
-    return isTouchDevice() || useStackedMobileLayout();
-  }
-  function useStackedMobileLayout() {
-    return window.matchMedia("(max-width: 860px)").matches;
-  }
-  function isTouchDevice() {
-    return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
-  }
-  function maxBoardScale(layout = null) {
-    const cell = Number(layout?.cell || 0);
-    if (!Number.isFinite(cell) || cell <= 0) {
-      return isTouchDevice() ? 6 : 2.8;
-    }
-    const targetCellPx = isTouchDevice() ? 56 : 48;
-    return clamp(targetCellPx / cell, 1, isTouchDevice() ? 10 : 8);
   }
   function shouldShowTray(layout = currentLayout()) {
     return !useMobileDirectPlacement() && layout.trayW > 0 && layout.trayH > 0;
@@ -4211,6 +4191,186 @@
   }
   function calcTrayFillAmount(code = state.selectedColor) {
     return traySlotCapacity();
+  }
+  function drawTrayBeadRandomized(ctx2, x, y, r, code, angle = 0, tilt = 1, heightLift = 0) {
+    const base = palette[code] || "#999";
+    const length = r * 2.22;
+    const thickness = r * 1.88 * tilt;
+    const corner = Math.max(1.8, thickness * 0.2);
+    ctx2.save();
+    ctx2.translate(x, y - heightLift);
+    ctx2.rotate(angle);
+    ctx2.fillStyle = "rgba(0,0,0,0.14)";
+    ctx2.beginPath();
+    ctx2.ellipse(0.3, thickness * 0.26, length * 0.42, Math.max(1.2, thickness * 0.22), 0, 0, Math.PI * 2);
+    ctx2.fill();
+    ctx2.fillStyle = base;
+    roundedPath(ctx2, -length / 2, -thickness / 2, length, thickness, corner);
+    ctx2.fill();
+    ctx2.fillStyle = "rgba(255,255,255,0.2)";
+    roundedPath(
+      ctx2,
+      -length * 0.4,
+      -thickness * 0.34,
+      length * 0.8,
+      Math.max(1.1, thickness * 0.16),
+      Math.max(1, corner * 0.45)
+    );
+    ctx2.fill();
+    ctx2.strokeStyle = "rgba(0,0,0,0.16)";
+    ctx2.lineWidth = Math.max(0.9, r * 0.15);
+    roundedPath(ctx2, -length / 2, -thickness / 2, length, thickness, corner);
+    ctx2.stroke();
+    ctx2.restore();
+  }
+  function drawTray(layout, compact = false) {
+    const ctx2 = scene;
+    const { trayX, trayY, trayW, trayH } = layout;
+    const color = state.trayColor;
+    const progress = color ? state.trayProgress : 0;
+    const p = easeOut(progress / 100);
+    const g = trayGeometry(layout, compact);
+    const beadR = g.beadR;
+    ctx2.save();
+    ctx2.shadowColor = "rgba(38, 36, 43, 0.13)";
+    ctx2.shadowBlur = 20;
+    ctx2.shadowOffsetY = 10;
+    const trayGradient = ctx2.createLinearGradient(trayX, trayY, trayX, trayY + trayH);
+    trayGradient.addColorStop(0, compact ? "rgba(255,255,255,0.72)" : "#fbfdff");
+    trayGradient.addColorStop(1, compact ? "rgba(227,235,239,0.72)" : "#e7eff3");
+    ctx2.fillStyle = trayGradient;
+    roundedRect(trayX, trayY, trayW, trayH, 8);
+    ctx2.fill();
+    ctx2.shadowColor = "transparent";
+    ctx2.strokeStyle = "rgba(87, 104, 116, 0.24)";
+    ctx2.stroke();
+    ctx2.fillStyle = "rgba(63, 81, 91, 0.08)";
+    roundedRect(trayX + trayW - 44, trayY + 16, 24, trayH - 32, 8);
+    ctx2.fill();
+    ctx2.fillStyle = "rgba(87, 184, 167, 0.08)";
+    roundedRect(trayX + 10, trayY + 10, trayW - 20, trayH - 20, 6);
+    ctx2.fill();
+    for (let i = 0; i < g.rows; i += 1) {
+      const y = g.startY + g.stepY * i;
+      const grooveWidth = Math.max(7.6, beadR * 2.25, g.slotGap * 0.44);
+      ctx2.strokeStyle = "rgba(75, 90, 98, 0.22)";
+      ctx2.lineWidth = grooveWidth;
+      ctx2.lineCap = "round";
+      ctx2.beginPath();
+      ctx2.moveTo(g.lineStartX, y);
+      ctx2.lineTo(g.lineEndX, y);
+      ctx2.stroke();
+      ctx2.strokeStyle = "rgba(255,255,255,0.58)";
+      ctx2.lineWidth = Math.max(1, grooveWidth * 0.18);
+      ctx2.beginPath();
+      ctx2.moveTo(g.lineStartX + 2, y - 1);
+      ctx2.lineTo(g.lineEndX - 2, y - 1);
+      ctx2.stroke();
+    }
+    if (!color) {
+      ctx2.save();
+      ctx2.fillStyle = "rgba(63, 81, 91, 0.46)";
+      ctx2.font = "600 12px " + CANVAS_FONT_STACK;
+      ctx2.textAlign = "center";
+      ctx2.textBaseline = "middle";
+      ctx2.fillText("\u70B9\u8272\u53F7\u5012\u8C46", trayX + trayW / 2, trayY + trayH / 2 - 8);
+      ctx2.fillText("\u8C46\u7B5B\u5C31\u6EE1\u5566", trayX + trayW / 2, trayY + trayH / 2 + 9);
+      ctx2.restore();
+    }
+    if (color) {
+      const animateScatter = state.pointer.down && state.pointer.mode === "tray";
+      const now = animateScatter ? performance.now() / 680 : 0;
+      const rowNormDiv = Math.max(1, g.rows - 1);
+      for (let row = 0; row < g.rows; row += 1) {
+        for (let col = 0; col < g.cols; col += 1) {
+          if (!state.trayMatrix[row]?.[col]) continue;
+          const center = trayCellCenter(layout, row, col, compact);
+          const seedX = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-x`);
+          const seedY = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-y`);
+          const seedA = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-a`);
+          const seedT = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-t`);
+          const seedH = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-h`);
+          const seedL = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-l`);
+          const randX = trayX + 20 + seedX * (trayW - 40);
+          const randY = trayY + 20 + seedY * (trayH - 54);
+          const lag = seedL * 0.58 + row / rowNormDiv * 0.14;
+          const localP = p <= lag ? 0 : clamp((p - lag) / Math.max(0.08, 1 - lag), 0, 1);
+          const settleNoiseX = (seedX - 0.5) * lerp(1.9, 0.55, localP);
+          const settleNoiseY = (seedY - 0.5) * lerp(1.4, 0.4, localP);
+          const targetX = center.x + settleNoiseX;
+          const targetY = center.y + settleNoiseY;
+          const jitterX = animateScatter ? Math.sin(now + row * 0.6 + col * 0.35) * (1 - localP) * 6.2 : 0;
+          const jitterY = animateScatter ? Math.cos(now * 0.8 + row * 0.4 + col * 0.45) * (1 - localP) * 5.1 : 0;
+          const x = lerp(randX, targetX, localP) + jitterX;
+          const y = lerp(randY, targetY, localP) + jitterY;
+          const chaos = 1 - localP;
+          const randomAngle = (seedA - 0.5) * Math.PI * 0.95;
+          const angle = randomAngle * (0.14 + chaos * 0.86);
+          const randomTilt = 0.72 + seedT * 0.5;
+          const tilt = lerp(randomTilt, 1 - (seedT - 0.5) * 0.12, localP);
+          const lift = chaos * (seedH * 1.5);
+          drawTrayBeadRandomized(ctx2, x, y, beadR, color, angle, tilt, lift);
+        }
+      }
+    }
+    if (color) {
+      ctx2.fillStyle = "rgba(38, 36, 43, 0.11)";
+      roundedRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7, 4);
+      ctx2.fill();
+      ctx2.fillStyle = progress >= 70 ? "#57b8a7" : progress >= 35 ? "#d99b3d" : "#e7645f";
+      roundedRect(trayX + 18, trayY + trayH - 30, (trayW - 36) * (progress / 100), 7, 4);
+      ctx2.fill();
+    }
+    const dump = trayDumpButtonRect(layout);
+    const hoverDump = state.phase === "place" && pointInTrayDumpButton(state.pointer.x, state.pointer.y);
+    ctx2.fillStyle = hoverDump ? "rgba(231, 100, 95, 0.22)" : "rgba(255,255,255,0.85)";
+    roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
+    ctx2.fill();
+    ctx2.strokeStyle = color ? "rgba(189, 72, 67, 0.62)" : "rgba(122, 130, 140, 0.42)";
+    ctx2.lineWidth = 1.3;
+    roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
+    ctx2.stroke();
+    ctx2.strokeStyle = color ? "rgba(189, 72, 67, 0.88)" : "rgba(122, 130, 140, 0.65)";
+    ctx2.fillStyle = "transparent";
+    ctx2.lineWidth = 1.9;
+    ctx2.lineCap = "round";
+    const cx = dump.x + dump.w / 2;
+    const cy = dump.y + dump.h / 2 + 1;
+    ctx2.beginPath();
+    ctx2.moveTo(cx - 5.5, cy - 5);
+    ctx2.lineTo(cx + 5.5, cy - 5);
+    ctx2.moveTo(cx - 4.2, cy - 5);
+    ctx2.lineTo(cx - 3, cy + 4.8);
+    ctx2.moveTo(cx, cy - 5);
+    ctx2.lineTo(cx, cy + 5.2);
+    ctx2.moveTo(cx + 4.2, cy - 5);
+    ctx2.lineTo(cx + 3, cy + 4.8);
+    ctx2.moveTo(cx - 1.8, cy - 7.2);
+    ctx2.lineTo(cx + 1.8, cy - 7.2);
+    ctx2.stroke();
+    ctx2.restore();
+  }
+
+  // src/render.js
+  var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  var CANVAS_FONT_STACK = "Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
+  function useMobileDirectPlacement() {
+    return isTouchDevice() || useStackedMobileLayout();
+  }
+  function useStackedMobileLayout() {
+    return window.matchMedia("(max-width: 860px)").matches;
+  }
+  function isTouchDevice() {
+    return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+  }
+  function maxBoardScale(layout = null) {
+    const cell = Number(layout?.cell || 0);
+    if (!Number.isFinite(cell) || cell <= 0) {
+      return isTouchDevice() ? 6 : 2.8;
+    }
+    const targetCellPx = isTouchDevice() ? 56 : 48;
+    return clamp(targetCellPx / cell, 1, isTouchDevice() ? 10 : 8);
   }
   function pseudoRandom(seed) {
     let h = 2166136261;
@@ -5569,164 +5729,6 @@
     ctx2.strokeStyle = "rgba(0,0,0,0.16)";
     ctx2.lineWidth = Math.max(1, cell * 0.045);
     roundedPath(ctx2, -length / 2, -thickness / 2, length, thickness, corner);
-    ctx2.stroke();
-    ctx2.restore();
-  }
-  function drawTrayBeadRandomized(ctx2, x, y, r, code, angle = 0, tilt = 1, heightLift = 0) {
-    const base = palette[code] || "#999";
-    const length = r * 2.22;
-    const thickness = r * 1.88 * tilt;
-    const corner = Math.max(1.8, thickness * 0.2);
-    ctx2.save();
-    ctx2.translate(x, y - heightLift);
-    ctx2.rotate(angle);
-    ctx2.fillStyle = "rgba(0,0,0,0.14)";
-    ctx2.beginPath();
-    ctx2.ellipse(0.3, thickness * 0.26, length * 0.42, Math.max(1.2, thickness * 0.22), 0, 0, Math.PI * 2);
-    ctx2.fill();
-    ctx2.fillStyle = base;
-    roundedPath(ctx2, -length / 2, -thickness / 2, length, thickness, corner);
-    ctx2.fill();
-    ctx2.fillStyle = "rgba(255,255,255,0.2)";
-    roundedPath(
-      ctx2,
-      -length * 0.4,
-      -thickness * 0.34,
-      length * 0.8,
-      Math.max(1.1, thickness * 0.16),
-      Math.max(1, corner * 0.45)
-    );
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(0,0,0,0.16)";
-    ctx2.lineWidth = Math.max(0.9, r * 0.15);
-    roundedPath(ctx2, -length / 2, -thickness / 2, length, thickness, corner);
-    ctx2.stroke();
-    ctx2.restore();
-  }
-  function drawTray(layout, compact = false) {
-    const ctx2 = scene;
-    const { trayX, trayY, trayW, trayH } = layout;
-    const color = state.trayColor;
-    const progress = color ? state.trayProgress : 0;
-    const p = easeOut(progress / 100);
-    const g = trayGeometry(layout, compact);
-    const beadR = g.beadR;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.13)";
-    ctx2.shadowBlur = 20;
-    ctx2.shadowOffsetY = 10;
-    const trayGradient = ctx2.createLinearGradient(trayX, trayY, trayX, trayY + trayH);
-    trayGradient.addColorStop(0, compact ? "rgba(255,255,255,0.72)" : "#fbfdff");
-    trayGradient.addColorStop(1, compact ? "rgba(227,235,239,0.72)" : "#e7eff3");
-    ctx2.fillStyle = trayGradient;
-    roundedRect(trayX, trayY, trayW, trayH, 8);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(87, 104, 116, 0.24)";
-    ctx2.stroke();
-    ctx2.fillStyle = "rgba(63, 81, 91, 0.08)";
-    roundedRect(trayX + trayW - 44, trayY + 16, 24, trayH - 32, 8);
-    ctx2.fill();
-    ctx2.fillStyle = "rgba(87, 184, 167, 0.08)";
-    roundedRect(trayX + 10, trayY + 10, trayW - 20, trayH - 20, 6);
-    ctx2.fill();
-    for (let i = 0; i < g.rows; i += 1) {
-      const y = g.startY + g.stepY * i;
-      const grooveWidth = Math.max(7.6, beadR * 2.25, g.slotGap * 0.44);
-      ctx2.strokeStyle = "rgba(75, 90, 98, 0.22)";
-      ctx2.lineWidth = grooveWidth;
-      ctx2.lineCap = "round";
-      ctx2.beginPath();
-      ctx2.moveTo(g.lineStartX, y);
-      ctx2.lineTo(g.lineEndX, y);
-      ctx2.stroke();
-      ctx2.strokeStyle = "rgba(255,255,255,0.58)";
-      ctx2.lineWidth = Math.max(1, grooveWidth * 0.18);
-      ctx2.beginPath();
-      ctx2.moveTo(g.lineStartX + 2, y - 1);
-      ctx2.lineTo(g.lineEndX - 2, y - 1);
-      ctx2.stroke();
-    }
-    if (!color) {
-      ctx2.save();
-      ctx2.fillStyle = "rgba(63, 81, 91, 0.46)";
-      ctx2.font = "600 12px " + CANVAS_FONT_STACK;
-      ctx2.textAlign = "center";
-      ctx2.textBaseline = "middle";
-      ctx2.fillText("\u70B9\u8272\u53F7\u5012\u8C46", trayX + trayW / 2, trayY + trayH / 2 - 8);
-      ctx2.fillText("\u8C46\u7B5B\u5C31\u6EE1\u5566", trayX + trayW / 2, trayY + trayH / 2 + 9);
-      ctx2.restore();
-    }
-    if (color) {
-      const animateScatter = state.pointer.down && state.pointer.mode === "tray";
-      const now = animateScatter ? performance.now() / 680 : 0;
-      const rowNormDiv = Math.max(1, g.rows - 1);
-      for (let row = 0; row < g.rows; row += 1) {
-        for (let col = 0; col < g.cols; col += 1) {
-          if (!state.trayMatrix[row]?.[col]) continue;
-          const center = trayCellCenter(layout, row, col, compact);
-          const seedX = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-x`);
-          const seedY = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-y`);
-          const seedA = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-a`);
-          const seedT = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-t`);
-          const seedH = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-h`);
-          const seedL = pseudoRandom(`${state.selectedPattern.id}-${state.trayColor}-${state.trayPourId}-${row}-${col}-l`);
-          const randX = trayX + 20 + seedX * (trayW - 40);
-          const randY = trayY + 20 + seedY * (trayH - 54);
-          const lag = seedL * 0.58 + row / rowNormDiv * 0.14;
-          const localP = p <= lag ? 0 : clamp((p - lag) / Math.max(0.08, 1 - lag), 0, 1);
-          const settleNoiseX = (seedX - 0.5) * lerp(1.9, 0.55, localP);
-          const settleNoiseY = (seedY - 0.5) * lerp(1.4, 0.4, localP);
-          const targetX = center.x + settleNoiseX;
-          const targetY = center.y + settleNoiseY;
-          const jitterX = animateScatter ? Math.sin(now + row * 0.6 + col * 0.35) * (1 - localP) * 6.2 : 0;
-          const jitterY = animateScatter ? Math.cos(now * 0.8 + row * 0.4 + col * 0.45) * (1 - localP) * 5.1 : 0;
-          const x = lerp(randX, targetX, localP) + jitterX;
-          const y = lerp(randY, targetY, localP) + jitterY;
-          const chaos = 1 - localP;
-          const randomAngle = (seedA - 0.5) * Math.PI * 0.95;
-          const angle = randomAngle * (0.14 + chaos * 0.86);
-          const randomTilt = 0.72 + seedT * 0.5;
-          const tilt = lerp(randomTilt, 1 - (seedT - 0.5) * 0.12, localP);
-          const lift = chaos * (seedH * 1.5);
-          drawTrayBeadRandomized(ctx2, x, y, beadR, color, angle, tilt, lift);
-        }
-      }
-    }
-    if (color) {
-      ctx2.fillStyle = "rgba(38, 36, 43, 0.11)";
-      roundedRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7, 4);
-      ctx2.fill();
-      ctx2.fillStyle = progress >= 70 ? "#57b8a7" : progress >= 35 ? "#d99b3d" : "#e7645f";
-      roundedRect(trayX + 18, trayY + trayH - 30, (trayW - 36) * (progress / 100), 7, 4);
-      ctx2.fill();
-    }
-    const dump = trayDumpButtonRect(layout);
-    const hoverDump = state.phase === "place" && pointInTrayDumpButton(state.pointer.x, state.pointer.y);
-    ctx2.fillStyle = hoverDump ? "rgba(231, 100, 95, 0.22)" : "rgba(255,255,255,0.85)";
-    roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
-    ctx2.fill();
-    ctx2.strokeStyle = color ? "rgba(189, 72, 67, 0.62)" : "rgba(122, 130, 140, 0.42)";
-    ctx2.lineWidth = 1.3;
-    roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
-    ctx2.stroke();
-    ctx2.strokeStyle = color ? "rgba(189, 72, 67, 0.88)" : "rgba(122, 130, 140, 0.65)";
-    ctx2.fillStyle = "transparent";
-    ctx2.lineWidth = 1.9;
-    ctx2.lineCap = "round";
-    const cx = dump.x + dump.w / 2;
-    const cy = dump.y + dump.h / 2 + 1;
-    ctx2.beginPath();
-    ctx2.moveTo(cx - 5.5, cy - 5);
-    ctx2.lineTo(cx + 5.5, cy - 5);
-    ctx2.moveTo(cx - 4.2, cy - 5);
-    ctx2.lineTo(cx - 3, cy + 4.8);
-    ctx2.moveTo(cx, cy - 5);
-    ctx2.lineTo(cx, cy + 5.2);
-    ctx2.moveTo(cx + 4.2, cy - 5);
-    ctx2.lineTo(cx + 3, cy + 4.8);
-    ctx2.moveTo(cx - 1.8, cy - 7.2);
-    ctx2.lineTo(cx + 1.8, cy - 7.2);
     ctx2.stroke();
     ctx2.restore();
   }
