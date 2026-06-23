@@ -2834,6 +2834,88 @@
     return out ? `${out}${ellipsis}` : ellipsis;
   }
 
+  // src/render-stats.js
+  function placedCount2() {
+    return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
+  }
+  function inspectionSummary() {
+    return state.errors.reduce((summary, error) => {
+      summary[error.type] += 1;
+      return summary;
+    }, { missing: 0, wrong: 0, extra: 0 });
+  }
+  function placementAccuracy() {
+    if (state.sandboxMode) return 1;
+    const total = getTargetTotal();
+    if (!total) return 1;
+    let correct = 0;
+    const cols = boardCols();
+    const rows = boardRows();
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const target = targetAt(x, y);
+        if (target && state.placed[indexFor(x, y)] === target) correct += 1;
+      }
+    }
+    return correct / total;
+  }
+  function heatStats() {
+    const total = getTargetTotal();
+    let bonded = 0;
+    let ideal = 0;
+    let over = 0;
+    let heated = 0;
+    state.heat.forEach((heat, index2) => {
+      if (!state.placed[index2]) return;
+      if (heat > HEAT_LEVELS.visible) heated += 1;
+      if (heat >= HEAT_LEVELS.bonded) bonded += 1;
+      if (heat >= HEAT_LEVELS.idealMin && heat <= HEAT_LEVELS.idealMax) ideal += 1;
+      if (heat > HEAT_LEVELS.over) over += 1;
+    });
+    return {
+      total,
+      bonded,
+      ideal,
+      over,
+      heated,
+      bondedPercent: total ? bonded / total * 100 : 0,
+      idealPercent: total ? ideal / total * 100 : 0,
+      overPercent: total ? over / total * 100 : 0
+    };
+  }
+  function estimateWarp() {
+    const stats = heatStats();
+    const under = Math.max(0, stats.total - stats.bonded);
+    return clamp(14 + under * 0.08 + stats.over * 0.42, 0, 75);
+  }
+  function scoreLabel() {
+    if (state.sandboxMode) return "\u6C99\u76D2";
+    if (state.phase === "choose") return "\u672A\u5F00\u59CB";
+    if (state.phase === "finish") return `\u8BC4\u7EA7 ${finalGrade()}`;
+    const acc = placementAccuracy();
+    if (acc >= 0.92) return "\u51FA\u8272";
+    if (acc >= 0.78) return "\u826F\u597D";
+    if (acc >= 0.55) return "\u4E00\u822C";
+    return "\u9700\u8C03\u6574";
+  }
+  function finalGrade() {
+    if (state.sandboxMode) return "\u6C99\u76D2";
+    const accuracy = placementAccuracy();
+    const heat = heatStats();
+    const mildYellow = Math.max(0, heat.overPercent - 8);
+    const severeBurn = Math.max(0, heat.overPercent - 24);
+    const yellowPenalty = mildYellow * 0.28 + severeBurn * 0.4;
+    const heatScore = clamp(heat.idealPercent - yellowPenalty, 0, 100) / 100;
+    const flat = clamp(100 - state.warp, 0, 100) / 100;
+    const cool = clamp(state.cooling, 0, 100) / 100;
+    const score = accuracy * 0.42 + heatScore * 0.36 + flat * 0.14 + cool * 0.08;
+    if (score >= 0.93) return "S";
+    if (score >= 0.84) return "A";
+    if (score >= 0.72) return "B";
+    if (score >= 0.58) return "C";
+    return "D";
+  }
+
   // src/render.js
   var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -6176,9 +6258,6 @@
       ctx2.stroke();
     });
   }
-  function placedCount2() {
-    return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
-  }
   function pointerToCanvas(event) {
     const rect = sceneCanvas.getBoundingClientRect();
     return {
@@ -6219,56 +6298,6 @@
   function pointInTrayDumpButton(x, y) {
     const rect = trayDumpButtonRect();
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
-  }
-  function inspectionSummary() {
-    return state.errors.reduce((summary, error) => {
-      summary[error.type] += 1;
-      return summary;
-    }, { missing: 0, wrong: 0, extra: 0 });
-  }
-  function placementAccuracy() {
-    if (state.sandboxMode) return 1;
-    const total = getTargetTotal();
-    if (!total) return 1;
-    let correct = 0;
-    const cols = boardCols();
-    const rows = boardRows();
-    for (let y = 0; y < rows; y += 1) {
-      for (let x = 0; x < cols; x += 1) {
-        const target = targetAt(x, y);
-        if (target && state.placed[indexFor(x, y)] === target) correct += 1;
-      }
-    }
-    return correct / total;
-  }
-  function heatStats() {
-    const total = getTargetTotal();
-    let bonded = 0;
-    let ideal = 0;
-    let over = 0;
-    let heated = 0;
-    state.heat.forEach((heat, index2) => {
-      if (!state.placed[index2]) return;
-      if (heat > HEAT_LEVELS.visible) heated += 1;
-      if (heat >= HEAT_LEVELS.bonded) bonded += 1;
-      if (heat >= HEAT_LEVELS.idealMin && heat <= HEAT_LEVELS.idealMax) ideal += 1;
-      if (heat > HEAT_LEVELS.over) over += 1;
-    });
-    return {
-      total,
-      bonded,
-      ideal,
-      over,
-      heated,
-      bondedPercent: total ? bonded / total * 100 : 0,
-      idealPercent: total ? ideal / total * 100 : 0,
-      overPercent: total ? over / total * 100 : 0
-    };
-  }
-  function estimateWarp() {
-    const stats = heatStats();
-    const under = Math.max(0, stats.total - stats.bonded);
-    return clamp(14 + under * 0.08 + stats.over * 0.42, 0, 75);
   }
   var SHARE_SLOGANS = [
     "\u60F3\u62FC\u5C31\u62FC\uFF0C\u8D70\u5230\u54EA\u62FC\u5230\u54EA",
@@ -6464,33 +6493,6 @@
     ctx2.fillText("\u626B\u7801 \xB7 \u5F00\u59CB\u4F60\u7684\u62FC\u8C46", signX, footTop + 150);
     ctx2.textBaseline = "alphabetic";
     ctx2.textAlign = "left";
-  }
-  function scoreLabel() {
-    if (state.sandboxMode) return "\u6C99\u76D2";
-    if (state.phase === "choose") return "\u672A\u5F00\u59CB";
-    if (state.phase === "finish") return `\u8BC4\u7EA7 ${finalGrade()}`;
-    const acc = placementAccuracy();
-    if (acc >= 0.92) return "\u51FA\u8272";
-    if (acc >= 0.78) return "\u826F\u597D";
-    if (acc >= 0.55) return "\u4E00\u822C";
-    return "\u9700\u8C03\u6574";
-  }
-  function finalGrade() {
-    if (state.sandboxMode) return "\u6C99\u76D2";
-    const accuracy = placementAccuracy();
-    const heat = heatStats();
-    const mildYellow = Math.max(0, heat.overPercent - 8);
-    const severeBurn = Math.max(0, heat.overPercent - 24);
-    const yellowPenalty = mildYellow * 0.28 + severeBurn * 0.4;
-    const heatScore = clamp(heat.idealPercent - yellowPenalty, 0, 100) / 100;
-    const flat = clamp(100 - state.warp, 0, 100) / 100;
-    const cool = clamp(state.cooling, 0, 100) / 100;
-    const score = accuracy * 0.42 + heatScore * 0.36 + flat * 0.14 + cool * 0.08;
-    if (score >= 0.93) return "S";
-    if (score >= 0.84) return "A";
-    if (score >= 0.72) return "B";
-    if (score >= 0.58) return "C";
-    return "D";
   }
 
   // src/modal-controller.js

@@ -29,6 +29,17 @@ import {
 export {
   softShadow, fusedColor, roundedRect, roundedPath, wrapText, fitText,
 };
+// Canvas-free scoring/status derivations. render-stats.js imports
+// useMobileDirectPlacement back from this file (a call-time cycle, safe in the
+// single esbuild IIFE). Re-exported so main.js/ui.js keep their import paths.
+import {
+  placedCount, inspectionSummary, placementAccuracy, heatStats, estimateWarp,
+  scoreLabel, finalGrade, statusText,
+} from './render-stats.js';
+export {
+  placedCount, inspectionSummary, placementAccuracy, heatStats, estimateWarp,
+  scoreLabel, finalGrade, statusText,
+};
 
 const CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 const CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -3840,10 +3851,6 @@ export function drawInspectFusePreviewCanvas(canvas) {
     ctx.stroke();
   });
 }
-export function placedCount() {
-  return Object.values(getPlacedCounts()).reduce((sum, count) => sum + count, 0);
-}
-
 export function pointerToCanvas(event) {
   const rect = sceneCanvas.getBoundingClientRect();
   return {
@@ -3889,59 +3896,9 @@ export function pointInTrayDumpButton(x, y) {
   const rect = trayDumpButtonRect();
   return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
 }
-export function inspectionSummary() {
-  return state.errors.reduce((summary, error) => {
-    summary[error.type] += 1;
-    return summary;
-  }, { missing: 0, wrong: 0, extra: 0 });
-}
-
-export function placementAccuracy() {
-  if (state.sandboxMode) return 1;
-  const total = getTargetTotal();
-  if (!total) return 1;
-  let correct = 0;
-  const cols = boardCols();
-  const rows = boardRows();
-  for (let y = 0; y < rows; y += 1) {
-    for (let x = 0; x < cols; x += 1) {
-      const target = targetAt(x, y);
-      if (target && state.placed[indexFor(x, y)] === target) correct += 1;
-    }
-  }
-  return correct / total;
-}
-
-export function heatStats() {
-  const total = getTargetTotal();
-  let bonded = 0;
-  let ideal = 0;
-  let over = 0;
-  let heated = 0;
-  state.heat.forEach((heat, index) => {
-    if (!state.placed[index]) return;
-    if (heat > HEAT_LEVELS.visible) heated += 1;
-    if (heat >= HEAT_LEVELS.bonded) bonded += 1;
-    if (heat >= HEAT_LEVELS.idealMin && heat <= HEAT_LEVELS.idealMax) ideal += 1;
-    if (heat > HEAT_LEVELS.over) over += 1;
-  });
-  return {
-    total,
-    bonded,
-    ideal,
-    over,
-    heated,
-    bondedPercent: total ? (bonded / total) * 100 : 0,
-    idealPercent: total ? (ideal / total) * 100 : 0,
-    overPercent: total ? (over / total) * 100 : 0,
-  };
-}
-
-export function estimateWarp() {
-  const stats = heatStats();
-  const under = Math.max(0, stats.total - stats.bonded);
-  return clamp(14 + under * 0.08 + stats.over * 0.42, 0, 75);
-}
+// placedCount, inspectionSummary, placementAccuracy, heatStats, estimateWarp,
+// scoreLabel, finalGrade, statusText moved to ./render-stats.js (imported back
+// near the top of this file).
 
 
 // Footer slogans — one picked at random per export (cyber-perler casual voice).
@@ -4171,61 +4128,4 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null) {
 }
 
 
-export function scoreLabel() {
-  if (state.sandboxMode) return "沙盒";
-  if (state.phase === "choose") return "未开始";
-  if (state.phase === "finish") return `评级 ${finalGrade()}`;
-  const acc = placementAccuracy();
-  if (acc >= 0.92) return "出色";
-  if (acc >= 0.78) return "良好";
-  if (acc >= 0.55) return "一般";
-  return "需调整";
-}
-
-export function finalGrade() {
-  if (state.sandboxMode) return "沙盒";
-  const accuracy = placementAccuracy();
-  const heat = heatStats();
-  const mildYellow = Math.max(0, heat.overPercent - 8);
-  const severeBurn = Math.max(0, heat.overPercent - 24);
-  const yellowPenalty = mildYellow * 0.28 + severeBurn * 0.4;
-  const heatScore = clamp(heat.idealPercent - yellowPenalty, 0, 100) / 100;
-  const flat = clamp(100 - state.warp, 0, 100) / 100;
-  const cool = clamp(state.cooling, 0, 100) / 100;
-  const score = accuracy * 0.42 + heatScore * 0.36 + flat * 0.14 + cool * 0.08;
-  if (score >= 0.93) return "S";
-  if (score >= 0.84) return "A";
-  if (score >= 0.72) return "B";
-  if (score >= 0.58) return "C";
-  return "D";
-}
-
-export function statusText() {
-  const phase = state.phase;
-  if (state.sandboxMode && phase === "place") {
-    return useMobileDirectPlacement()
-      ? "沙盒模式：自由拼摆中。从豆盒选色，直接点格子摆放。"
-      : "沙盒模式：自由拼摆中。点豆筛取豆、任意排布，不受图纸限制。";
-  }
-  if (phase === "choose") return "选择一张图纸，开始今天的手作。";
-  if (phase === "place") {
-    if (state.spill) return "有豆子倒下来卡住了。可先继续摆放，熨烫前再处理。";
-    if (useMobileDirectPlacement()) {
-      return `已选 ${beadLabel(state.selectedColor)} · 点格子放置或替换。${state.lampOn ? " 投影开" : ""}`;
-    }
-    if (state.tool === "needle") {
-      if (!state.trayColor) return `针工具需要先把某个色号倒入豆筛。${state.lampOn ? " 投影色稿已开启。" : " 可打开工作灯查看投影色稿。"} `;
-      return `豆筛 ${state.trayBeans} 颗 ${beadIds[state.trayColor]} · ${state.lampOn ? "投影开" : "投影关"}`;
-    }
-    return state.tweezerBead
-      ? `镊子夹着 ${beadLabel(state.tweezerBead)} · ${state.lampOn ? "投影开" : "投影关"}`
-      : `点豆筛夹一颗，或从板面取一颗，再放到板上。${state.lampOn ? " 投影色稿已开启。" : ""}`;
-  }
-  if (phase === "inspect") {
-    if (state.spill) return "还有倒下的豆子未处理。继续熨烫会糊坏该位置。";
-    return state.errors.length ? "检查到需要修正的位置。" : "板面检查通过，可以盖纸熨烫。";
-  }
-  if (phase === "iron") return "慢慢移动熨斗，让豆子刚好粘连。";
-  if (phase === "cool") return "等待冷却，压平边缘，再准备取下作品。";
-  return `${state.selectedPattern.name}完成，已进入收藏阶段。`;
-}
+// scoreLabel, finalGrade, statusText moved to ./render-stats.js.
