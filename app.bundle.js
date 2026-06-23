@@ -3113,6 +3113,266 @@
     ctx2.textAlign = "left";
   }
 
+  // src/render-inspect.js
+  function updateInspectAssistCanvases() {
+    if (!els.colorPalette || state.phase !== "inspect") return;
+    const zoomCanvas = els.colorPalette.querySelector(".inspect-zoom");
+    const fuseCanvas = els.colorPalette.querySelector(".inspect-fuse");
+    if (!zoomCanvas || !fuseCanvas) return;
+    drawInspectZoomCanvas(zoomCanvas);
+    drawInspectFusePreviewCanvas(fuseCanvas);
+  }
+  function inspectFocusCell() {
+    const pointerCell = boardCellFromPoint(state.pointer.x, state.pointer.y);
+    if (pointerCell) return pointerCell;
+    const cols = boardCols();
+    if (state.spill) {
+      const index3 = state.spill.index;
+      return { x: index3 % cols, y: Math.floor(index3 / cols) };
+    }
+    if (state.errors.length) {
+      const index3 = state.errors[0].index;
+      return { x: index3 % cols, y: Math.floor(index3 / cols) };
+    }
+    const index2 = state.placed.findIndex(Boolean);
+    if (index2 >= 0) {
+      return { x: index2 % cols, y: Math.floor(index2 / cols) };
+    }
+    return { x: Math.floor((cols - 1) / 2), y: Math.floor((boardRows() - 1) / 2) };
+  }
+  function drawInspectZoomCanvas(canvas) {
+    const ctx2 = canvas.getContext("2d");
+    if (!ctx2) return;
+    setupHiDpiCanvas(canvas, ctx2);
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    ctx2.clearRect(0, 0, w, h);
+    const focus = inspectFocusCell();
+    const cols = boardCols();
+    const rows = boardRows();
+    const radius = 3;
+    const gridCount = radius * 2 + 1;
+    const padding = 10;
+    const cell = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
+    if (!Number.isFinite(cell) || cell <= 0) return;
+    const gridW = cell * gridCount;
+    const gridH = cell * gridCount;
+    const x0 = Math.floor((w - gridW) / 2);
+    const y0 = Math.floor((h - gridH) / 2);
+    const errorMap = new Map(state.errors.map((error) => [error.index, error.type]));
+    ctx2.fillStyle = "#eef2f4";
+    roundedPath(ctx2, 0.5, 0.5, w - 1, h - 1, 10);
+    ctx2.fill();
+    ctx2.strokeStyle = "rgba(101, 115, 130, 0.28)";
+    ctx2.lineWidth = 1;
+    ctx2.stroke();
+    const boardPad = 4;
+    ctx2.fillStyle = "#cfd7d9";
+    roundedPath(ctx2, x0 - boardPad, y0 - boardPad, gridW + boardPad * 2, gridH + boardPad * 2, 6);
+    ctx2.fill();
+    ctx2.strokeStyle = "rgba(99, 112, 132, 0.32)";
+    ctx2.stroke();
+    for (let gy = 0; gy < gridCount; gy += 1) {
+      for (let gx = 0; gx < gridCount; gx += 1) {
+        const bx = focus.x + gx - radius;
+        const by = focus.y + gy - radius;
+        const px = x0 + gx * cell;
+        const py = y0 + gy * cell;
+        const inRange = bx >= 0 && by >= 0 && bx < cols && by < rows;
+        if (!inRange) continue;
+        const index2 = indexFor(bx, by);
+        const placed = state.placed[index2];
+        const target = targetAt(bx, by);
+        const cx = px + cell / 2;
+        const cy = py + cell / 2;
+        ctx2.fillStyle = "rgba(120, 128, 140, 0.28)";
+        ctx2.beginPath();
+        ctx2.arc(cx, cy, cell * 0.18, 0, Math.PI * 2);
+        ctx2.fill();
+        if (target && !placed) {
+          ctx2.strokeStyle = palette[target] || "#bbb";
+          ctx2.globalAlpha = 0.55;
+          ctx2.lineWidth = Math.max(1.4, cell * 0.05);
+          ctx2.beginPath();
+          ctx2.arc(cx, cy, cell * 0.36, 0, Math.PI * 2);
+          ctx2.stroke();
+          ctx2.globalAlpha = 1;
+        }
+        if (placed) {
+          const beadR = cell * 0.42;
+          ctx2.fillStyle = "rgba(0,0,0,0.16)";
+          ctx2.beginPath();
+          ctx2.arc(cx + cell * 0.04, cy + cell * 0.06, beadR, 0, Math.PI * 2);
+          ctx2.fill();
+          ctx2.fillStyle = palette[placed] || "#bbb";
+          ctx2.beginPath();
+          ctx2.arc(cx, cy, beadR, 0, Math.PI * 2);
+          ctx2.fill();
+          ctx2.strokeStyle = "rgba(0,0,0,0.18)";
+          ctx2.lineWidth = Math.max(1, cell * 0.04);
+          ctx2.beginPath();
+          ctx2.arc(cx, cy, beadR, 0, Math.PI * 2);
+          ctx2.stroke();
+          ctx2.fillStyle = "rgba(255,255,255,0.34)";
+          ctx2.beginPath();
+          ctx2.arc(cx - beadR * 0.28, cy - beadR * 0.28, beadR * 0.22, 0, Math.PI * 2);
+          ctx2.fill();
+          ctx2.fillStyle = "rgba(60, 68, 80, 0.36)";
+          ctx2.beginPath();
+          ctx2.arc(cx, cy, beadR * 0.24, 0, Math.PI * 2);
+          ctx2.fill();
+        }
+        if (state.showHints && errorMap.has(index2)) {
+          const type = errorMap.get(index2);
+          ctx2.strokeStyle = type === "wrong" ? "rgba(220, 68, 76, 0.9)" : "rgba(217, 143, 48, 0.92)";
+          ctx2.lineWidth = 2;
+          ctx2.strokeRect(px + 1.5, py + 1.5, cell - 3, cell - 3);
+        }
+      }
+    }
+    const centerX = x0 + radius * cell + cell / 2;
+    const centerY = y0 + radius * cell + cell / 2;
+    ctx2.strokeStyle = "rgba(66, 96, 131, 0.85)";
+    ctx2.lineWidth = 2;
+    ctx2.strokeRect(centerX - cell / 2 + 1, centerY - cell / 2 + 1, cell - 2, cell - 2);
+  }
+  function drawInspectFusePreviewCanvas(canvas) {
+    const ctx2 = canvas.getContext("2d");
+    if (!ctx2) return;
+    setupHiDpiCanvas(canvas, ctx2);
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    ctx2.clearRect(0, 0, w, h);
+    const bg = ctx2.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, "#fbfcfe");
+    bg.addColorStop(1, "#edf2f7");
+    ctx2.fillStyle = bg;
+    roundedPath(ctx2, 0.5, 0.5, w - 1, h - 1, 10);
+    ctx2.fill();
+    ctx2.strokeStyle = "rgba(101, 115, 130, 0.28)";
+    ctx2.lineWidth = 1;
+    ctx2.stroke();
+    const cols = boardCols();
+    const rows = boardRows();
+    const cells = [];
+    let minX = cols;
+    let minY = rows;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const index2 = indexFor(x, y);
+        const code = state.placed[index2];
+        if (!code) continue;
+        cells.push({ x, y, index: index2, code });
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    if (!cells.length) {
+      ctx2.fillStyle = "rgba(67, 77, 91, 0.58)";
+      ctx2.font = "600 13px " + CANVAS_FONT_STACK;
+      ctx2.textAlign = "center";
+      ctx2.fillText("\u8FD8\u6CA1\u6709\u53EF\u9884\u89C8\u7684\u62FC\u8C46", w / 2, h / 2 + 4);
+      return;
+    }
+    const spanX = maxX - minX + 1;
+    const spanY = maxY - minY + 1;
+    const padding = 16;
+    const cell = Math.max(4, Math.floor(Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY)));
+    const drawW = spanX * cell;
+    const drawH = spanY * cell;
+    const x0 = Math.floor((w - drawW) / 2);
+    const y0 = Math.floor((h - drawH) / 2);
+    const placedSet = new Set(cells.map((cellData) => `${cellData.x}:${cellData.y}`));
+    const has = (x, y) => placedSet.has(`${x}:${y}`);
+    const centerMap = /* @__PURE__ */ new Map();
+    cells.forEach((cellData) => {
+      centerMap.set(`${cellData.x}:${cellData.y}`, {
+        x: x0 + (cellData.x - minX) * cell + cell / 2,
+        y: y0 + (cellData.y - minY) * cell + cell / 2
+      });
+    });
+    cells.forEach((cellData) => {
+      const { x, y, code, index: index2 } = cellData;
+      const centerA = centerMap.get(`${x}:${y}`);
+      const heatA = clamp((state.heat[index2] || 0) + 68, 0, 138);
+      const colorA = fusedColor(code, heatA);
+      const drawBridge = (nx, ny) => {
+        if (!has(nx, ny)) return;
+        const nIndex = indexFor(nx, ny);
+        const heatB = clamp((state.heat[nIndex] || 0) + 68, 0, 138);
+        const centerB = centerMap.get(`${nx}:${ny}`);
+        if (!centerB) return;
+        const colorB = fusedColor(state.placed[nIndex], heatB);
+        const gradient = ctx2.createLinearGradient(centerA.x, centerA.y, centerB.x, centerB.y);
+        gradient.addColorStop(0, colorA);
+        gradient.addColorStop(1, colorB);
+        const blendHeat = Math.min(heatA, heatB);
+        const fuse = clamp((blendHeat - 30) / 58 + 0.32, 0, 1);
+        const spread = lerp(cell * 0.44, cell * 0.86, easeOut(fuse));
+        drawGradientCapsuleBridge(ctx2, centerA, centerB, spread, spread * 0.38, gradient, 0.96);
+      };
+      drawBridge(x + 1, y);
+      drawBridge(x, y + 1);
+    });
+    cells.forEach((cellData) => {
+      const { x, y, code, index: index2 } = cellData;
+      const center = centerMap.get(`${x}:${y}`);
+      const heat = clamp((state.heat[index2] || 0) + 68, 0, 138);
+      const color = fusedColor(code, heat);
+      const edge = mixColor(color, "#ffffff", 0.18);
+      const shape = boardFusionShapeProfile(x, y);
+      const edges = shape.edges;
+      const halfConnected = cell * 0.5;
+      const halfExposed = cell * 0.62;
+      const halfL = edges.left ? halfExposed : halfConnected;
+      const halfR = edges.right ? halfExposed : halfConnected;
+      const halfU = edges.up ? halfExposed : halfConnected;
+      const halfD = edges.down ? halfExposed : halfConnected;
+      const cornerFor = (sideA, sideB, hA, hB) => {
+        const a = edges[sideA];
+        const b = edges[sideB];
+        const cap = Math.min(hA, hB);
+        if (a && b) return cap;
+        if (a || b) return cap * 0.55;
+        return cap * 0.08;
+      };
+      const rTL = cornerFor("up", "left", halfU, halfL);
+      const rTR = cornerFor("up", "right", halfU, halfR);
+      const rBR = cornerFor("down", "right", halfD, halfR);
+      const rBL = cornerFor("down", "left", halfD, halfL);
+      const buildPath = () => {
+        const left = center.x - halfL;
+        const right = center.x + halfR;
+        const top = center.y - halfU;
+        const bottom = center.y + halfD;
+        ctx2.beginPath();
+        ctx2.moveTo(left + rTL, top);
+        ctx2.lineTo(right - rTR, top);
+        ctx2.arcTo(right, top, right, top + rTR, rTR);
+        ctx2.lineTo(right, bottom - rBR);
+        ctx2.arcTo(right, bottom, right - rBR, bottom, rBR);
+        ctx2.lineTo(left + rBL, bottom);
+        ctx2.arcTo(left, bottom, left, bottom - rBL, rBL);
+        ctx2.lineTo(left, top + rTL);
+        ctx2.arcTo(left, top, left + rTL, top, rTL);
+        ctx2.closePath();
+      };
+      ctx2.fillStyle = color;
+      buildPath();
+      ctx2.fill();
+      ctx2.strokeStyle = edge;
+      ctx2.lineWidth = Math.max(0.9, cell * 0.052);
+      buildPath();
+      ctx2.stroke();
+    });
+  }
+
   // src/render.js
   var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -6196,264 +6456,6 @@
       x: clamp(Math.floor((x - layout.x0) / layout.cell), 0, layout.cols - 1),
       y: clamp(Math.floor((y - layout.y0) / layout.cell), 0, layout.rows - 1)
     };
-  }
-  function updateInspectAssistCanvases() {
-    if (!els.colorPalette || state.phase !== "inspect") return;
-    const zoomCanvas = els.colorPalette.querySelector(".inspect-zoom");
-    const fuseCanvas = els.colorPalette.querySelector(".inspect-fuse");
-    if (!zoomCanvas || !fuseCanvas) return;
-    drawInspectZoomCanvas(zoomCanvas);
-    drawInspectFusePreviewCanvas(fuseCanvas);
-  }
-  function inspectFocusCell() {
-    const pointerCell = boardCellFromPoint(state.pointer.x, state.pointer.y);
-    if (pointerCell) return pointerCell;
-    const cols = boardCols();
-    if (state.spill) {
-      const index3 = state.spill.index;
-      return { x: index3 % cols, y: Math.floor(index3 / cols) };
-    }
-    if (state.errors.length) {
-      const index3 = state.errors[0].index;
-      return { x: index3 % cols, y: Math.floor(index3 / cols) };
-    }
-    const index2 = state.placed.findIndex(Boolean);
-    if (index2 >= 0) {
-      return { x: index2 % cols, y: Math.floor(index2 / cols) };
-    }
-    return { x: Math.floor((cols - 1) / 2), y: Math.floor((boardRows() - 1) / 2) };
-  }
-  function drawInspectZoomCanvas(canvas) {
-    const ctx2 = canvas.getContext("2d");
-    if (!ctx2) return;
-    setupHiDpiCanvas(canvas, ctx2);
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, rect.width);
-    const h = Math.max(1, rect.height);
-    ctx2.clearRect(0, 0, w, h);
-    const focus = inspectFocusCell();
-    const cols = boardCols();
-    const rows = boardRows();
-    const radius = 3;
-    const gridCount = radius * 2 + 1;
-    const padding = 10;
-    const cell = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
-    if (!Number.isFinite(cell) || cell <= 0) return;
-    const gridW = cell * gridCount;
-    const gridH = cell * gridCount;
-    const x0 = Math.floor((w - gridW) / 2);
-    const y0 = Math.floor((h - gridH) / 2);
-    const errorMap = new Map(state.errors.map((error) => [error.index, error.type]));
-    ctx2.fillStyle = "#eef2f4";
-    roundedPath(ctx2, 0.5, 0.5, w - 1, h - 1, 10);
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(101, 115, 130, 0.28)";
-    ctx2.lineWidth = 1;
-    ctx2.stroke();
-    const boardPad = 4;
-    ctx2.fillStyle = "#cfd7d9";
-    roundedPath(ctx2, x0 - boardPad, y0 - boardPad, gridW + boardPad * 2, gridH + boardPad * 2, 6);
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(99, 112, 132, 0.32)";
-    ctx2.stroke();
-    for (let gy = 0; gy < gridCount; gy += 1) {
-      for (let gx = 0; gx < gridCount; gx += 1) {
-        const bx = focus.x + gx - radius;
-        const by = focus.y + gy - radius;
-        const px = x0 + gx * cell;
-        const py = y0 + gy * cell;
-        const inRange = bx >= 0 && by >= 0 && bx < cols && by < rows;
-        if (!inRange) continue;
-        const index2 = indexFor(bx, by);
-        const placed = state.placed[index2];
-        const target = targetAt(bx, by);
-        const cx = px + cell / 2;
-        const cy = py + cell / 2;
-        ctx2.fillStyle = "rgba(120, 128, 140, 0.28)";
-        ctx2.beginPath();
-        ctx2.arc(cx, cy, cell * 0.18, 0, Math.PI * 2);
-        ctx2.fill();
-        if (target && !placed) {
-          ctx2.strokeStyle = palette[target] || "#bbb";
-          ctx2.globalAlpha = 0.55;
-          ctx2.lineWidth = Math.max(1.4, cell * 0.05);
-          ctx2.beginPath();
-          ctx2.arc(cx, cy, cell * 0.36, 0, Math.PI * 2);
-          ctx2.stroke();
-          ctx2.globalAlpha = 1;
-        }
-        if (placed) {
-          const beadR = cell * 0.42;
-          ctx2.fillStyle = "rgba(0,0,0,0.16)";
-          ctx2.beginPath();
-          ctx2.arc(cx + cell * 0.04, cy + cell * 0.06, beadR, 0, Math.PI * 2);
-          ctx2.fill();
-          ctx2.fillStyle = palette[placed] || "#bbb";
-          ctx2.beginPath();
-          ctx2.arc(cx, cy, beadR, 0, Math.PI * 2);
-          ctx2.fill();
-          ctx2.strokeStyle = "rgba(0,0,0,0.18)";
-          ctx2.lineWidth = Math.max(1, cell * 0.04);
-          ctx2.beginPath();
-          ctx2.arc(cx, cy, beadR, 0, Math.PI * 2);
-          ctx2.stroke();
-          ctx2.fillStyle = "rgba(255,255,255,0.34)";
-          ctx2.beginPath();
-          ctx2.arc(cx - beadR * 0.28, cy - beadR * 0.28, beadR * 0.22, 0, Math.PI * 2);
-          ctx2.fill();
-          ctx2.fillStyle = "rgba(60, 68, 80, 0.36)";
-          ctx2.beginPath();
-          ctx2.arc(cx, cy, beadR * 0.24, 0, Math.PI * 2);
-          ctx2.fill();
-        }
-        if (state.showHints && errorMap.has(index2)) {
-          const type = errorMap.get(index2);
-          ctx2.strokeStyle = type === "wrong" ? "rgba(220, 68, 76, 0.9)" : "rgba(217, 143, 48, 0.92)";
-          ctx2.lineWidth = 2;
-          ctx2.strokeRect(px + 1.5, py + 1.5, cell - 3, cell - 3);
-        }
-      }
-    }
-    const centerX = x0 + radius * cell + cell / 2;
-    const centerY = y0 + radius * cell + cell / 2;
-    ctx2.strokeStyle = "rgba(66, 96, 131, 0.85)";
-    ctx2.lineWidth = 2;
-    ctx2.strokeRect(centerX - cell / 2 + 1, centerY - cell / 2 + 1, cell - 2, cell - 2);
-  }
-  function drawInspectFusePreviewCanvas(canvas) {
-    const ctx2 = canvas.getContext("2d");
-    if (!ctx2) return;
-    setupHiDpiCanvas(canvas, ctx2);
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.max(1, rect.width);
-    const h = Math.max(1, rect.height);
-    ctx2.clearRect(0, 0, w, h);
-    const bg = ctx2.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#fbfcfe");
-    bg.addColorStop(1, "#edf2f7");
-    ctx2.fillStyle = bg;
-    roundedPath(ctx2, 0.5, 0.5, w - 1, h - 1, 10);
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(101, 115, 130, 0.28)";
-    ctx2.lineWidth = 1;
-    ctx2.stroke();
-    const cols = boardCols();
-    const rows = boardRows();
-    const cells = [];
-    let minX = cols;
-    let minY = rows;
-    let maxX = -1;
-    let maxY = -1;
-    for (let y = 0; y < rows; y += 1) {
-      for (let x = 0; x < cols; x += 1) {
-        const index2 = indexFor(x, y);
-        const code = state.placed[index2];
-        if (!code) continue;
-        cells.push({ x, y, index: index2, code });
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
-    if (!cells.length) {
-      ctx2.fillStyle = "rgba(67, 77, 91, 0.58)";
-      ctx2.font = "600 13px " + CANVAS_FONT_STACK;
-      ctx2.textAlign = "center";
-      ctx2.fillText("\u8FD8\u6CA1\u6709\u53EF\u9884\u89C8\u7684\u62FC\u8C46", w / 2, h / 2 + 4);
-      return;
-    }
-    const spanX = maxX - minX + 1;
-    const spanY = maxY - minY + 1;
-    const padding = 16;
-    const cell = Math.max(4, Math.floor(Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY)));
-    const drawW = spanX * cell;
-    const drawH = spanY * cell;
-    const x0 = Math.floor((w - drawW) / 2);
-    const y0 = Math.floor((h - drawH) / 2);
-    const placedSet = new Set(cells.map((cellData) => `${cellData.x}:${cellData.y}`));
-    const has = (x, y) => placedSet.has(`${x}:${y}`);
-    const centerMap = /* @__PURE__ */ new Map();
-    cells.forEach((cellData) => {
-      centerMap.set(`${cellData.x}:${cellData.y}`, {
-        x: x0 + (cellData.x - minX) * cell + cell / 2,
-        y: y0 + (cellData.y - minY) * cell + cell / 2
-      });
-    });
-    cells.forEach((cellData) => {
-      const { x, y, code, index: index2 } = cellData;
-      const centerA = centerMap.get(`${x}:${y}`);
-      const heatA = clamp((state.heat[index2] || 0) + 68, 0, 138);
-      const colorA = fusedColor(code, heatA);
-      const drawBridge = (nx, ny) => {
-        if (!has(nx, ny)) return;
-        const nIndex = indexFor(nx, ny);
-        const heatB = clamp((state.heat[nIndex] || 0) + 68, 0, 138);
-        const centerB = centerMap.get(`${nx}:${ny}`);
-        if (!centerB) return;
-        const colorB = fusedColor(state.placed[nIndex], heatB);
-        const gradient = ctx2.createLinearGradient(centerA.x, centerA.y, centerB.x, centerB.y);
-        gradient.addColorStop(0, colorA);
-        gradient.addColorStop(1, colorB);
-        const blendHeat = Math.min(heatA, heatB);
-        const fuse = clamp((blendHeat - 30) / 58 + 0.32, 0, 1);
-        const spread = lerp(cell * 0.44, cell * 0.86, easeOut(fuse));
-        drawGradientCapsuleBridge(ctx2, centerA, centerB, spread, spread * 0.38, gradient, 0.96);
-      };
-      drawBridge(x + 1, y);
-      drawBridge(x, y + 1);
-    });
-    cells.forEach((cellData) => {
-      const { x, y, code, index: index2 } = cellData;
-      const center = centerMap.get(`${x}:${y}`);
-      const heat = clamp((state.heat[index2] || 0) + 68, 0, 138);
-      const color = fusedColor(code, heat);
-      const edge = mixColor(color, "#ffffff", 0.18);
-      const shape = boardFusionShapeProfile(x, y);
-      const edges = shape.edges;
-      const halfConnected = cell * 0.5;
-      const halfExposed = cell * 0.62;
-      const halfL = edges.left ? halfExposed : halfConnected;
-      const halfR = edges.right ? halfExposed : halfConnected;
-      const halfU = edges.up ? halfExposed : halfConnected;
-      const halfD = edges.down ? halfExposed : halfConnected;
-      const cornerFor = (sideA, sideB, hA, hB) => {
-        const a = edges[sideA];
-        const b = edges[sideB];
-        const cap = Math.min(hA, hB);
-        if (a && b) return cap;
-        if (a || b) return cap * 0.55;
-        return cap * 0.08;
-      };
-      const rTL = cornerFor("up", "left", halfU, halfL);
-      const rTR = cornerFor("up", "right", halfU, halfR);
-      const rBR = cornerFor("down", "right", halfD, halfR);
-      const rBL = cornerFor("down", "left", halfD, halfL);
-      const buildPath = () => {
-        const left = center.x - halfL;
-        const right = center.x + halfR;
-        const top = center.y - halfU;
-        const bottom = center.y + halfD;
-        ctx2.beginPath();
-        ctx2.moveTo(left + rTL, top);
-        ctx2.lineTo(right - rTR, top);
-        ctx2.arcTo(right, top, right, top + rTR, rTR);
-        ctx2.lineTo(right, bottom - rBR);
-        ctx2.arcTo(right, bottom, right - rBR, bottom, rBR);
-        ctx2.lineTo(left + rBL, bottom);
-        ctx2.arcTo(left, bottom, left, bottom - rBL, rBL);
-        ctx2.lineTo(left, top + rTL);
-        ctx2.arcTo(left, top, left + rTL, top, rTL);
-        ctx2.closePath();
-      };
-      ctx2.fillStyle = color;
-      buildPath();
-      ctx2.fill();
-      ctx2.strokeStyle = edge;
-      ctx2.lineWidth = Math.max(0.9, cell * 0.052);
-      buildPath();
-      ctx2.stroke();
-    });
   }
   function pointerToCanvas(event) {
     const rect = sceneCanvas.getBoundingClientRect();
