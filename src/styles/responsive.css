@@ -265,6 +265,13 @@
     scrollbar-width: none;
     margin-top: 0;
     gap: var(--sp-2);
+    /* Soft right-edge fade: this 6-button strip always overflows on phones and
+       the scrollbar is hidden, so without a hint the off-screen actions (图片印章 /
+       导入图纸 / 清空) are undiscoverable. Mirrors the vertical .pattern-list /
+       .color-palette fade — a partially-cut, faded trailing button reads as
+       "more →" instead of a blunt edge. Position-independent, same as the list. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
 
   .drawing-footer-actions::-webkit-scrollbar {

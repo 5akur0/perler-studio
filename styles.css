@@ -4087,6 +4087,16 @@ body.admin-page {
     scrollbar-width: none;
     margin-top: 0;
     gap: var(--sp-2);
+    -webkit-mask-image:
+      linear-gradient(
+        to right,
+        #000 calc(100% - 28px),
+        transparent);
+    mask-image:
+      linear-gradient(
+        to right,
+        #000 calc(100% - 28px),
+        transparent);
   }
   .drawing-footer-actions::-webkit-scrollbar {
     display: none;
