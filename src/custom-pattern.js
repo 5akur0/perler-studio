@@ -68,8 +68,12 @@ async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false
   }
 }
 
-// Guards against accidental main-thread OOM: image conversion runs
-// synchronously, so an enormous file or pixel count would freeze the tab.
+// Bounds the synchronous conversion stage: an enormous file or pixel count
+// would freeze the tab once getImageData/color-mapping runs. Note the pixel
+// check happens after decode, so it does not prevent the browser's own decode
+// from spiking memory on a decompression bomb within the 8MB budget — moving to
+// createImageBitmap in a worker would close that gap. The byte cap is the main
+// line of defense there for now.
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_SOURCE_PIXELS = 24_000_000;
 

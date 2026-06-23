@@ -97,6 +97,16 @@ function hashText(value) {
   return crypto.createHash("sha256").update(String(value || "")).digest("hex");
 }
 
+// Keyed hash for stored client IPs. A bare SHA-256 over IPv4 (≈4B values) is
+// brute-forceable, so HMAC with a server secret blocks dictionary reversal. If
+// IP_HASH_SECRET is unset we fall back to the plain hash — still better than the
+// previous plaintext, and avoids hard-failing submissions on a missing env var.
+function hashIp(value) {
+  const secret = String(process.env.IP_HASH_SECRET || "");
+  if (!secret) return hashText(value);
+  return crypto.createHmac("sha256", secret).update(String(value || "")).digest("hex");
+}
+
 function rateLimitDocId(scope, ip) {
   return `${scope}_${hashText(ip).slice(0, 32)}`;
 }
@@ -249,10 +259,15 @@ function normalizeAuthor(value) {
   return cleaned;
 }
 
-// Rectangle-friendly validation for share codes. Unlike parsePatternCodeMeta
-// (square, 12–100, used by the curated gallery) this accepts any board the
-// studio can produce, including multi-tile rectangles like 90×30, and bounds
-// the cell total so a hostile code cannot be stored and later expand on decode.
+// Single bounds/semantic check shared by share-create AND gallery-submit so the
+// server never accepts a code the client (src/pattern-code.js, same 90×90 /
+// 8100-cell limit) would refuse to decode. Rectangles are allowed: boards are
+// 30×30 tiles snapped together into any bounding box up to 3×3 tiles, so a
+// finished work can legitimately be 90×30. The pattern code always serialises
+// that bounding rectangle (absent tiles are empty cells), which is exactly what
+// these dimensions bound — capping width*height also disarms RLE expansion on
+// decode. `width`/`height` are returned so callers can persist the true shape
+// instead of a single lossy `size`.
 function parseShareCode(patternCode) {
   const code = normalizePatternCode(patternCode);
   const match = code.match(/^BEAM1:(\d+)x(\d+):[^:]{1,4096}:[0-9A-Za-z.]+$/);
@@ -269,18 +284,6 @@ function parseShareCode(patternCode) {
     throw new Error("Invalid pattern size.");
   }
   return { patternCode: code, width, height, size: Math.max(width, height) };
-}
-
-function parsePatternCodeMeta(patternCode) {
-  const code = normalizePatternCode(patternCode);
-  const match = code.match(/^BEAM1:(\d+)x(\d+):[^:]{1,4096}:[0-9A-Za-z.]+$/);
-  if (!match) throw new Error("Invalid pattern code.");
-  const width = Number.parseInt(match[1], 10);
-  const height = Number.parseInt(match[2], 10);
-  if (!width || !height || width !== height || width < 12 || width > 100) {
-    throw new Error("Invalid pattern size.");
-  }
-  return { patternCode: code, size: width };
 }
 
 function normalizeShortId(value) {
@@ -451,7 +454,13 @@ async function requireAdmin(event, payload, context) {
   const configured = String(process.env.ADMIN_TOKEN || "").trim();
   if (!configured) throw new Error("Admin token is not configured.");
   const headers = event?.headers || {};
-  const provided = String(payload.adminToken || headers["x-admin-token"] || headers["X-Admin-Token"] || "").trim();
+  // The token must travel in the header, never the JSON body — body payloads are
+  // the thing gateways and function logs capture. Reject body tokens outright so
+  // a stale client can't silently leak the secret into logs.
+  if (payload && payload.adminToken != null) {
+    throw createHttpError(400, "admin_token_in_body", "Send the admin token in the x-admin-token header, not the body.");
+  }
+  const provided = String(headers["x-admin-token"] || headers["X-Admin-Token"] || "").trim();
   const ip = clientIp(event, context);
   await consumeAdminRequestBudget(ip);
   const guard = await readAdminGuard(ip);
@@ -491,6 +500,9 @@ function publicGalleryItem(row) {
     author: row.author || "",
     patternCode: row.patternCode,
     size: row.size,
+    // Persisted shape; fall back to the square `size` for legacy rows.
+    width: row.width ?? row.size,
+    height: row.height ?? row.size,
     publishedAt: row.publishedAt,
   };
 }
@@ -498,19 +510,22 @@ function publicGalleryItem(row) {
 async function submitGallery(payload, event, context) {
   const name = normalizeName(payload.name || "投稿图纸");
   const author = normalizeAuthor(payload.author);
-  const { patternCode, size } = parsePatternCodeMeta(payload.patternCode);
+  // Same bounds as share-create and the client decoder; rectangles preserved.
+  const { patternCode, width, height, size } = parseShareCode(payload.patternCode);
   const createdAt = nowIso();
   const result = await db.collection(GALLERY_SUBMISSIONS).add({
     name,
     author,
     patternCode,
     size,
+    width,
+    height,
     status: "pending",
     createdAt,
     updatedAt: createdAt,
-    // Store a hash, not the raw IP — abuse triage only needs to correlate, and
-    // plaintext IPs on long-lived submission records are a needless privacy load.
-    clientIpHash: hashText(clientIp(event, context)),
+    // Store a keyed hash, not the raw IP — abuse triage only needs to correlate,
+    // and a bare SHA-256 over the tiny IPv4 space is trivially reversed.
+    clientIpHash: hashIp(clientIp(event, context)),
   });
   return { id: result?.id || result?._id || "", status: "pending", createdAt };
 }
@@ -549,6 +564,8 @@ async function listPendingGallery(payload, event, context) {
         author: row.author || "",
         patternCode: row.patternCode,
         size: row.size,
+        width: row.width ?? row.size,
+        height: row.height ?? row.size,
         status: row.status,
         createdAt: row.createdAt,
       })),
@@ -572,18 +589,33 @@ async function approveGallery(payload, event, context) {
     .update({ status: "approved", reviewedAt: now, updatedAt: now });
   if (!claim || !claim.updated) throw new Error("Submission already processed.");
   const publicId = `gal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  await db.collection(GALLERY_ITEMS).add({
-    publicId,
-    submissionId: id,
-    name: submission.name,
-    author: submission.author || "",
-    patternCode: submission.patternCode,
-    size: submission.size,
-    status: "published",
-    createdAt: submission.createdAt,
-    publishedAt: now,
-    updatedAt: now,
-  });
+  try {
+    await db.collection(GALLERY_ITEMS).add({
+      publicId,
+      submissionId: id,
+      name: submission.name,
+      author: submission.author || "",
+      patternCode: submission.patternCode,
+      size: submission.size,
+      width: submission.width ?? submission.size,
+      height: submission.height ?? submission.size,
+      status: "published",
+      createdAt: submission.createdAt,
+      publishedAt: now,
+      updatedAt: now,
+    });
+  } catch (publishError) {
+    // The claim already flipped the submission to "approved". If publishing the
+    // public item fails we'd otherwise leave an "approved" submission with no
+    // gallery item — lost, not just unpublished. Compensate by releasing the
+    // claim back to "pending" so the next review attempt can retry cleanly.
+    await db.collection(GALLERY_SUBMISSIONS).doc(id).update({
+      status: "pending",
+      reviewedAt: "",
+      updatedAt: nowIso(),
+    });
+    throw publishError;
+  }
   return { id, publicId, status: "approved" };
 }
 
