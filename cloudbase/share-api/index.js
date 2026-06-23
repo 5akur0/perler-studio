@@ -117,8 +117,32 @@ function hashIp(value) {
   return crypto.createHmac("sha256", secret).update(String(value || "")).digest("hex");
 }
 
+// Bucket key for per-IP limits. A single IPv6 customer is routinely handed a
+// whole /64 (or larger), so keying on the full address lets one attacker rotate
+// through billions of source IPs to defeat the limiter. Collapse IPv6 to its /64
+// prefix (first 4 hextets, after expanding any "::") so the whole allocation
+// shares one bucket; IPv4 is left untouched. Used for both rate_limits and the
+// admin lockout so neither is evadable by intra-/64 rotation.
+function rateLimitIpKey(ip) {
+  const value = String(ip || "").trim().toLowerCase();
+  if (!value) return "unknown";
+  if (!value.includes(":")) return value; // IPv4 (or "unknown")
+  const addr = value.split("%")[0]; // strip any zone id
+  const halves = addr.split("::");
+  let groups;
+  if (halves.length === 2) {
+    const head = halves[0] ? halves[0].split(":") : [];
+    const tail = halves[1] ? halves[1].split(":") : [];
+    const missing = Math.max(0, 8 - head.length - tail.length);
+    groups = [...head, ...Array(missing).fill("0"), ...tail];
+  } else {
+    groups = addr.split(":");
+  }
+  return `v6/${groups.slice(0, 4).map((g) => g || "0").join(":")}`;
+}
+
 function rateLimitDocId(scope, ip) {
-  return `${scope}_${hashText(ip).slice(0, 32)}`;
+  return `${scope}_${hashText(rateLimitIpKey(ip)).slice(0, 32)}`;
 }
 
 function firstDoc(result) {
