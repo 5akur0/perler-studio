@@ -91,16 +91,35 @@ function patternFromGalleryItem(item) {
 
 // ─── Gallery rendering ────────────────────────────────────────────────────────
 
+// Count the grid's resolved auto-fill columns so skeletons (and any whole-row
+// math) fill complete rows instead of leaving an orphaned remainder.
+function galleryColumnCount(fallback = 4) {
+  if (!els.galleryGrid) return fallback;
+  const tracks = getComputedStyle(els.galleryGrid).gridTemplateColumns;
+  // A laid-out grid resolves to a pixel track list ("200px 200px …"); if it's
+  // still the unresolved function form (contains "(") or "none" — e.g. measured
+  // while hidden — fall back rather than miscount the tokens.
+  if (!tracks || tracks === "none" || tracks.includes("(")) return fallback;
+  const n = tracks.split(" ").filter(Boolean).length;
+  return n > 0 ? n : fallback;
+}
+
 export function renderGallery() {
   if (!els.galleryGrid || !els.galleryEmpty) return;
   els.galleryGrid.innerHTML = "";
   const items = Array.isArray(galleryItems) ? galleryItems : [];
+  // The empty-state CTA carries its own "投稿图纸" button, so hide the toolbar's
+  // duplicate while that CTA is on screen; keep it for the populated and error
+  // states where it's the only submit entry point.
+  if (els.gallerySubmitButton) {
+    els.gallerySubmitButton.hidden = items.length === 0 && galleryLoaded && !galleryError;
+  }
   // While loading, fill the grid with glass skeleton tiles so the wait reads as
   // "content arriving" rather than a bare status line (product register: skeletons,
-  // not spinners/text).
+  // not spinners/text). Render two full rows so there's no ragged orphan row.
   if (items.length === 0 && !galleryLoaded) {
     els.galleryEmpty.hidden = true;
-    els.galleryGrid.innerHTML = Array.from({ length: 8 }, () => `
+    els.galleryGrid.innerHTML = Array.from({ length: galleryColumnCount() * 2 }, () => `
       <article class="gallery-card gallery-card-skeleton" aria-hidden="true">
         <div class="gallery-skeleton-thumb"></div>
         <div class="gallery-skeleton-meta">
@@ -113,11 +132,12 @@ export function renderGallery() {
   els.galleryEmpty.hidden = items.length > 0;
   if (items.length === 0) {
     const galleryIcon = icon("image", { size: 40, strokeWidth: 1.8, class: "gallery-empty-icon" });
+    const galleryBadge = `<span class="gallery-empty-badge">${galleryIcon}</span>`;
     if (galleryError) {
-      els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">画廊读取失败</p><button type="button" class="ghost-button" data-gallery-retry>点此重试</button>`;
+      els.galleryEmpty.innerHTML = `${galleryBadge}<p class="gallery-empty-text">画廊读取失败</p><button type="button" class="ghost-button" data-gallery-retry>点此重试</button>`;
       els.galleryEmpty.querySelector("[data-gallery-retry]")?.addEventListener("click", () => { void loadGallery(); });
     } else {
-      els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">画廊还没有公开图纸</p><p class="gallery-empty-sub">来当第一个投稿的人吧</p><button type="button" class="primary-button" data-gallery-submit>投稿图纸</button>`;
+      els.galleryEmpty.innerHTML = `${galleryBadge}<p class="gallery-empty-text">画廊还没有公开图纸</p><p class="gallery-empty-sub">来当第一个投稿的人吧</p><button type="button" class="primary-button" data-gallery-submit>投稿图纸</button>`;
       els.galleryEmpty.querySelector("[data-gallery-submit]")?.addEventListener("click", () => openGallerySubmitModal());
     }
   }

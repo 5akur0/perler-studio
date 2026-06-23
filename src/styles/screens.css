@@ -557,18 +557,36 @@
   padding: var(--sp-6) var(--sp-4);
   border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--line));
   border-radius: var(--r-md);
-  background:
-    radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--brand) 12%, transparent) 0 74px, transparent 75px),
-    color-mix(in srgb, var(--surface) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
   color: var(--muted);
   font-weight: 750;
   text-align: center;
 }
 
+/* Soft clay-pastel disc that hosts the icon. Built as a layout element (not a
+   background circle) so it is always concentric with the icon, and styled with
+   a diffuse inner highlight to match the cozy register rather than a flat ring. */
+.gallery-empty-badge {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--r-pill);
+  background: radial-gradient(
+    circle at 50% 38%,
+    color-mix(in srgb, var(--brand) 22%, var(--surface)),
+    color-mix(in srgb, var(--brand) 11%, var(--surface))
+  );
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 60%, transparent),
+    var(--sh-1);
+}
+
 .gallery-empty-icon {
-  width: 44px;
-  height: 44px;
-  color: color-mix(in srgb, var(--brand-ink) 72%, var(--muted));
+  width: 40px;
+  height: 40px;
+  color: color-mix(in srgb, var(--brand-ink) 76%, var(--muted));
 }
 
 .gallery-empty-text,

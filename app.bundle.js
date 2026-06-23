@@ -8150,13 +8150,23 @@
       craft: decoded.craft || "\u539F\u7248"
     };
   }
+  function galleryColumnCount(fallback = 4) {
+    if (!els.galleryGrid) return fallback;
+    const tracks = getComputedStyle(els.galleryGrid).gridTemplateColumns;
+    if (!tracks || tracks === "none" || tracks.includes("(")) return fallback;
+    const n = tracks.split(" ").filter(Boolean).length;
+    return n > 0 ? n : fallback;
+  }
   function renderGallery() {
     if (!els.galleryGrid || !els.galleryEmpty) return;
     els.galleryGrid.innerHTML = "";
     const items = Array.isArray(galleryItems) ? galleryItems : [];
+    if (els.gallerySubmitButton) {
+      els.gallerySubmitButton.hidden = items.length === 0 && galleryLoaded && !galleryError;
+    }
     if (items.length === 0 && !galleryLoaded) {
       els.galleryEmpty.hidden = true;
-      els.galleryGrid.innerHTML = Array.from({ length: 8 }, () => `
+      els.galleryGrid.innerHTML = Array.from({ length: galleryColumnCount() * 2 }, () => `
       <article class="gallery-card gallery-card-skeleton" aria-hidden="true">
         <div class="gallery-skeleton-thumb"></div>
         <div class="gallery-skeleton-meta">
@@ -8169,13 +8179,14 @@
     els.galleryEmpty.hidden = items.length > 0;
     if (items.length === 0) {
       const galleryIcon = icon("image", { size: 40, strokeWidth: 1.8, class: "gallery-empty-icon" });
+      const galleryBadge = `<span class="gallery-empty-badge">${galleryIcon}</span>`;
       if (galleryError) {
-        els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">\u753B\u5ECA\u8BFB\u53D6\u5931\u8D25</p><button type="button" class="ghost-button" data-gallery-retry>\u70B9\u6B64\u91CD\u8BD5</button>`;
+        els.galleryEmpty.innerHTML = `${galleryBadge}<p class="gallery-empty-text">\u753B\u5ECA\u8BFB\u53D6\u5931\u8D25</p><button type="button" class="ghost-button" data-gallery-retry>\u70B9\u6B64\u91CD\u8BD5</button>`;
         els.galleryEmpty.querySelector("[data-gallery-retry]")?.addEventListener("click", () => {
           void loadGallery();
         });
       } else {
-        els.galleryEmpty.innerHTML = `${galleryIcon}<p class="gallery-empty-text">\u753B\u5ECA\u8FD8\u6CA1\u6709\u516C\u5F00\u56FE\u7EB8</p><p class="gallery-empty-sub">\u6765\u5F53\u7B2C\u4E00\u4E2A\u6295\u7A3F\u7684\u4EBA\u5427</p><button type="button" class="primary-button" data-gallery-submit>\u6295\u7A3F\u56FE\u7EB8</button>`;
+        els.galleryEmpty.innerHTML = `${galleryBadge}<p class="gallery-empty-text">\u753B\u5ECA\u8FD8\u6CA1\u6709\u516C\u5F00\u56FE\u7EB8</p><p class="gallery-empty-sub">\u6765\u5F53\u7B2C\u4E00\u4E2A\u6295\u7A3F\u7684\u4EBA\u5427</p><button type="button" class="primary-button" data-gallery-submit>\u6295\u7A3F\u56FE\u7EB8</button>`;
         els.galleryEmpty.querySelector("[data-gallery-submit]")?.addEventListener("click", () => openGallerySubmitModal());
       }
     }
