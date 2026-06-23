@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const [renderSource, primitivesSource, stateSource, uiSource, mainSource] = await Promise.all([
+const [renderSource, primitivesSource, fusionSource, stateSource, uiSource, mainSource] = await Promise.all([
   read("src/render.js"),
   read("src/render-primitives.js"),
+  read("src/render-fusion.js"),
   read("src/state.js"),
   read("src/ui.js"),
   read("src/main.js"),
@@ -19,7 +20,8 @@ assert.match(
   /const showcase = computeShowcaseLayout\(sceneRect\);[\s\S]*drawFinishShowcase\(showcase\);[\s\S]*drawFinishLayer\(showcase\);/,
   "finish should use a dedicated centered layout",
 );
-assert.match(renderSource, /export function getShowcaseBounds\(pieces/);
+// getShowcaseBounds now lives in the extracted render-fusion.js module.
+assert.match(fusionSource, /export function getShowcaseBounds\(pieces/);
 // softShadow now lives in the extracted render-primitives.js leaf module.
 assert.match(primitivesSource, /export function softShadow\(ctx/);
 assert.match(renderSource, /function drawAcrylicPlate\(/);
@@ -45,8 +47,9 @@ assert.match(figurineSource, /material:\s*"wax"/);
 assert.match(renderSource, /drawBead\([^)]*material = null\)/);
 const beadSource = functionSource("drawBead", "drawPegInBead");
 assert.doesNotMatch(beadSource, /const waxSurface = ctx\.createLinearGradient/);
-assert.match(renderSource, /function drawWaxSheenForPiece\(/);
-assert.match(renderSource, /if \(material === "wax"\) drawWaxSheenForPiece\(/);
+// drawWaxSheenForPiece + its caller (drawFusedPieceTransformed) moved to render-fusion.js.
+assert.match(fusionSource, /function drawWaxSheenForPiece\(/);
+assert.match(fusionSource, /if \(material === "wax"\) drawWaxSheenForPiece\(/);
 
 assert.match(stateSource, /craftSwitchAt:\s*0/);
 assert.match(uiSource, /state\.craftSwitchAt\s*=\s*performance\.now\(\)/);
