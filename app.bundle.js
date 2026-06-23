@@ -9988,15 +9988,15 @@
       for (let i = 0; i <= T; i++) {
         const offset = i * cell;
         ctx2.beginPath();
-        ctx2.moveTo(tileBoardX + offset + 0.5, tileBoardY + 0.5);
-        ctx2.lineTo(tileBoardX + offset + 0.5, tileBoardY + tileH + 0.5);
+        ctx2.moveTo(tileBoardX + offset, tileBoardY);
+        ctx2.lineTo(tileBoardX + offset, tileBoardY + tileH);
         ctx2.stroke();
       }
       for (let i = 0; i <= T; i++) {
         const offset = i * cell;
         ctx2.beginPath();
-        ctx2.moveTo(tileBoardX + 0.5, tileBoardY + offset + 0.5);
-        ctx2.lineTo(tileBoardX + tileW + 0.5, tileBoardY + offset + 0.5);
+        ctx2.moveTo(tileBoardX, tileBoardY + offset);
+        ctx2.lineTo(tileBoardX + tileW, tileBoardY + offset);
         ctx2.stroke();
       }
       drawBoardGuides(ctx2, tileLayout, T, T, v.scale);

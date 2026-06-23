@@ -813,18 +813,22 @@ export function paintDrawCanvas() {
     }
     ctx.strokeStyle = "rgba(70, 84, 96, 0.08)";
     ctx.lineWidth = 1 / v.scale;
+    // No +0.5 pixel-snap: these lines live inside the zoom/pan transform, so a
+    // half-pixel logical nudge scales to 0.5*v.scale device px and drifts the thin
+    // cell grid off the pegs (cell centers) and the major guides (cell boundaries),
+    // which becomes a visible misalignment when zoomed in. Share the exact origin.
     for (let i = 0; i <= T; i++) {
       const offset = i * cell;
       ctx.beginPath();
-      ctx.moveTo(tileBoardX + offset + 0.5, tileBoardY + 0.5);
-      ctx.lineTo(tileBoardX + offset + 0.5, tileBoardY + tileH + 0.5);
+      ctx.moveTo(tileBoardX + offset, tileBoardY);
+      ctx.lineTo(tileBoardX + offset, tileBoardY + tileH);
       ctx.stroke();
     }
     for (let i = 0; i <= T; i++) {
       const offset = i * cell;
       ctx.beginPath();
-      ctx.moveTo(tileBoardX + 0.5, tileBoardY + offset + 0.5);
-      ctx.lineTo(tileBoardX + tileW + 0.5, tileBoardY + offset + 0.5);
+      ctx.moveTo(tileBoardX, tileBoardY + offset);
+      ctx.lineTo(tileBoardX + tileW, tileBoardY + offset);
       ctx.stroke();
     }
     drawBoardGuides(ctx, tileLayout, T, T, v.scale);
