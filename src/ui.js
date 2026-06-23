@@ -987,7 +987,7 @@ export function renderCollection() {
           <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
           <div class="collection-tile-meta">
             <strong>${safeItemName}</strong>
-            <span>${normalizeCraft(item.craft)} · 评级 ${item.grade} · ${item.date}</span>
+            <span>${normalizeCraft(item.craft)} · 评级 ${escapeHtml(item.grade)} · ${escapeHtml(item.date)}</span>
           </div>
         </button>
         <button type="button" class="collection-tile-delete" aria-label="删除这件作品" title="删除">

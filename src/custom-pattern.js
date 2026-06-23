@@ -68,14 +68,33 @@ async function reconvertCustomPatternAtSize(basePattern, size, keepPhase = false
   }
 }
 
+// Guards against accidental main-thread OOM: image conversion runs
+// synchronously, so an enormous file or pixel count would freeze the tab.
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_SOURCE_PIXELS = 24_000_000;
+
 function handleCustomImage(event) {
   const file = event.target.files?.[0];
   if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    showToast("请选择图片文件。");
+    event.target.value = "";
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    showToast("图片太大，请选择 8MB 以内的图片。");
+    event.target.value = "";
+    return;
+  }
   const reader = new FileReader();
   reader.onload = async () => {
     try {
       const sourceImageDataUrl = String(reader.result || "");
       const image = await loadImageFromDataUrl(sourceImageDataUrl);
+      if (image.naturalWidth * image.naturalHeight > MAX_SOURCE_PIXELS) {
+        showToast("图片像素太多，请换一张更小的图片。");
+        return;
+      }
       const size = normalizePatternSize();
       const removeWhite = els.customWhiteToggle.checked;
       const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);

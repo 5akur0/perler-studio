@@ -14,7 +14,13 @@ const MAX_SHORT_ID_ATTEMPTS = 8;
 const DEFAULT_NAME = "Untitled Pattern";
 const MAX_NAME_LENGTH = 40;
 const MAX_AUTHOR_LENGTH = 24;
-const MAX_PATTERN_CODE_LENGTH = 200 * 1024;
+// 64KB covers the worst-case 90×90 board (RLE ≈ 32KB + a 4096-char palette
+// header + headroom) while denying multi-hundred-KB storage-abuse payloads.
+const MAX_PATTERN_CODE_LENGTH = 64 * 1024;
+// Largest snap-together board the studio renders (3×3 tiles of 30). Mirrors
+// MAX_PATTERN_DIMENSION in src/pattern-code.js; rectangles are legal.
+const MAX_PATTERN_DIMENSION = 90;
+const MAX_PATTERN_CELLS = MAX_PATTERN_DIMENSION * MAX_PATTERN_DIMENSION;
 const SHARE_TTL_DAYS = 7;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_PER_IP = 12;
@@ -243,6 +249,28 @@ function normalizeAuthor(value) {
   return cleaned;
 }
 
+// Rectangle-friendly validation for share codes. Unlike parsePatternCodeMeta
+// (square, 12–100, used by the curated gallery) this accepts any board the
+// studio can produce, including multi-tile rectangles like 90×30, and bounds
+// the cell total so a hostile code cannot be stored and later expand on decode.
+function parseShareCode(patternCode) {
+  const code = normalizePatternCode(patternCode);
+  const match = code.match(/^BEAM1:(\d+)x(\d+):[^:]{1,4096}:[0-9A-Za-z.]+$/);
+  if (!match) throw new Error("Invalid pattern code.");
+  const width = Number.parseInt(match[1], 10);
+  const height = Number.parseInt(match[2], 10);
+  if (
+    !width ||
+    !height ||
+    width > MAX_PATTERN_DIMENSION ||
+    height > MAX_PATTERN_DIMENSION ||
+    width * height > MAX_PATTERN_CELLS
+  ) {
+    throw new Error("Invalid pattern size.");
+  }
+  return { patternCode: code, width, height, size: Math.max(width, height) };
+}
+
 function parsePatternCodeMeta(patternCode) {
   const code = normalizePatternCode(patternCode);
   const match = code.match(/^BEAM1:(\d+)x(\d+):[^:]{1,4096}:[0-9A-Za-z.]+$/);
@@ -373,7 +401,7 @@ async function maybeCleanupExpiredShares() {
 
 async function createShare(payload) {
   const name = normalizeName(payload.name);
-  const patternCode = normalizePatternCode(payload.patternCode);
+  const { patternCode } = parseShareCode(payload.patternCode);
 
   for (let i = 0; i < MAX_SHORT_ID_ATTEMPTS; i += 1) {
     const shortId = randomShortId();
@@ -480,15 +508,21 @@ async function submitGallery(payload, event, context) {
     status: "pending",
     createdAt,
     updatedAt: createdAt,
-    clientIp: clientIp(event, context),
+    // Store a hash, not the raw IP — abuse triage only needs to correlate, and
+    // plaintext IPs on long-lived submission records are a needless privacy load.
+    clientIpHash: hashText(clientIp(event, context)),
   });
   return { id: result?.id || result?._id || "", status: "pending", createdAt };
 }
 
 async function listGallery(payload) {
   const limit = Math.max(1, Math.min(96, Number.parseInt(payload.limit, 10) || 48));
+  // Order in the DB so .limit() keeps the newest rows, not an arbitrary slice.
+  // The JS sort stays as a defensive fallback in case CloudBase ignores orderBy
+  // without a matching index.
   const result = await db.collection(GALLERY_ITEMS)
     .where({ status: "published" })
+    .orderBy("publishedAt", "desc")
     .limit(limit)
     .get();
   const rows = (result.data || [])
@@ -499,8 +533,11 @@ async function listGallery(payload) {
 async function listPendingGallery(payload, event, context) {
   await requireAdmin(event, payload, context);
   const limit = Math.max(1, Math.min(96, Number.parseInt(payload.limit, 10) || 48));
+  // Newest-first in the DB so .limit() keeps the most recent submissions;
+  // JS sort remains as a defensive fallback (see listGallery).
   const result = await db.collection(GALLERY_SUBMISSIONS)
     .where({ status: "pending" })
+    .orderBy("createdAt", "desc")
     .limit(limit)
     .get();
   return {
@@ -526,6 +563,14 @@ async function approveGallery(payload, event, context) {
   const submission = result.data && (Array.isArray(result.data) ? result.data[0] : result.data);
   if (!submission || submission.status !== "pending") throw new Error("Submission not found.");
   const now = nowIso();
+  // Atomically claim the submission before publishing. The conditional update
+  // only matches while status is still "pending", so concurrent double-clicks or
+  // retries lose the race (updated === 0) and cannot create duplicate public
+  // items. Publish only after winning the claim.
+  const claim = await db.collection(GALLERY_SUBMISSIONS)
+    .where({ _id: id, status: "pending" })
+    .update({ status: "approved", reviewedAt: now, updatedAt: now });
+  if (!claim || !claim.updated) throw new Error("Submission already processed.");
   const publicId = `gal-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   await db.collection(GALLERY_ITEMS).add({
     publicId,
@@ -537,11 +582,6 @@ async function approveGallery(payload, event, context) {
     status: "published",
     createdAt: submission.createdAt,
     publishedAt: now,
-    updatedAt: now,
-  });
-  await db.collection(GALLERY_SUBMISSIONS).doc(id).update({
-    status: "approved",
-    reviewedAt: now,
     updatedAt: now,
   });
   return { id, publicId, status: "approved" };

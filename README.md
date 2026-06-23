@@ -4,7 +4,7 @@
 
 ## 开源与协议
 
-- 本项目采用 [AGPL-3.0](</Users/Sakuro/beam/LICENSE>) 协议发布。
+- 本项目采用 [AGPL-3.0](./LICENSE) 协议发布。
 
 
 - 在线版本用户可通过仓库获取完整对应源码：<https://github.com/5akur0/perler-studio>
@@ -51,8 +51,8 @@ node scripts/session-regression.mjs
 
 ## 公开测试发布
 
-- Cloudflare Pages 上线步骤见 [DEPLOY_CLOUDFLARE_PAGES.md](/Users/Sakuro/beam/DEPLOY_CLOUDFLARE_PAGES.md)。
-- Figma 协作规范见 [FIGMA_HANDOFF.md](/Users/Sakuro/beam/FIGMA_HANDOFF.md)。
+- Cloudflare Pages 上线步骤见 [DEPLOY_CLOUDFLARE_PAGES.md](./DEPLOY_CLOUDFLARE_PAGES.md)。
+- Figma 协作规范见 [FIGMA_HANDOFF.md](./FIGMA_HANDOFF.md)。
 
 ## 图纸画廊审核
 
@@ -62,7 +62,7 @@ node scripts/session-regression.mjs
 - 审核接口：`POST /api/gallery/pending`、`POST /api/gallery/approve`、`POST /api/gallery/reject`。
 - 管理审核页是 `admin.html`，需要输入云端环境变量 `ADMIN_TOKEN` 才能读取、通过或拒绝投稿。
 - 不要把真实 `ADMIN_TOKEN` 提交到 GitHub；本仓库只提供 `.env.example` 里的变量名示例。
-- CloudBase 数据集合：`gallery_submissions`（待审/拒绝/通过记录）、`gallery_items`（公开发布图纸）、`shares`（云端短码）、`rate_limits`（按 IP 限流计数）、`admin_guards`（管理员失败锁定）。后端部署见 [DEPLOY_CLOUDFLARE_PAGES.md](/Users/Sakuro/beam/DEPLOY_CLOUDFLARE_PAGES.md) 的「后端」一节。
+- CloudBase 数据集合：`gallery_submissions`（待审/拒绝/通过记录）、`gallery_items`（公开发布图纸）、`shares`（云端短码）、`rate_limits`（按 IP 限流计数）、`admin_guards`（管理员失败锁定）。后端部署见 [DEPLOY_CLOUDFLARE_PAGES.md](./DEPLOY_CLOUDFLARE_PAGES.md) 的「后端」一节。
 
 ## 安全
 

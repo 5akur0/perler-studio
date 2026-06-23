@@ -21,7 +21,14 @@ const MIME = {
 };
 
 function safePath(urlPath) {
-  const pathname = decodeURIComponent((urlPath || "/").split("?")[0]);
+  let pathname;
+  try {
+    pathname = decodeURIComponent((urlPath || "/").split("?")[0]);
+  } catch {
+    // Malformed percent-encoding would otherwise throw URIError and crash the
+    // request handler; treat it as a bad request instead.
+    return null;
+  }
   const normalized = path.normalize(pathname).replace(/^(\.\.[/\\])+/, "");
   const target = normalized === "/" ? "/index.html" : normalized;
   return path.join(ROOT, target);
@@ -37,6 +44,10 @@ function send(res, status, body, type = "text/plain; charset=utf-8") {
 
 const server = http.createServer((req, res) => {
   const filePath = safePath(req.url);
+  if (!filePath) {
+    send(res, 400, "Bad Request");
+    return;
+  }
   if (!filePath.startsWith(ROOT)) {
     send(res, 403, "Forbidden");
     return;

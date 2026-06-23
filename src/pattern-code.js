@@ -8,6 +8,29 @@ const PALETTE_SEPARATOR = "_";
 const EMPTY_PALETTE = "-";
 const EMPTY_CELL = ".";
 
+// Largest snap-together board the studio renders (3×3 tiles of BOARD_SIZE=30).
+// Rectangles are legal (e.g. 90×30), so the bound caps each side and the cell
+// total independently rather than assuming a square. Capping cells also disarms
+// the RLE expansion in decodeRuns: a hostile code like
+// `BEAM1:100000x100000:-:ZZZZZZ0` would otherwise push billions of cells and
+// freeze the main thread before any dimension was ever drawn.
+export const MAX_PATTERN_DIMENSION = 90;
+export const MAX_PATTERN_CELLS = MAX_PATTERN_DIMENSION * MAX_PATTERN_DIMENSION;
+
+function assertPatternBounds(width, height) {
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > MAX_PATTERN_DIMENSION ||
+    height > MAX_PATTERN_DIMENSION ||
+    width * height > MAX_PATTERN_CELLS
+  ) {
+    throw new Error("Pattern code dimensions are out of range.");
+  }
+}
+
 function valueTokenWidth(maxValue) {
   let width = 1;
   let capacity = VALUE_ALPHABET.length;
@@ -170,6 +193,8 @@ export function decodePatternCode(input, options = {}) {
   const width = Number.parseInt(sizeMatch[1], 10);
   const height = Number.parseInt(sizeMatch[2], 10);
   if (!width || !height) throw new Error("Pattern code has invalid dimensions.");
+  // Reject oversized/hostile dimensions before allocating or decoding cells.
+  assertPatternBounds(width, height);
   const paletteCodes = parts[2] === EMPTY_PALETTE
     ? []
     : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);

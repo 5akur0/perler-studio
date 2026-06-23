@@ -23,10 +23,15 @@ function setStatus(text, tone = "") {
 }
 
 async function request(path, payload = {}) {
+  // Send the admin token as a header, not in the JSON body, so gateways and
+  // function logs that capture request bodies don't record the secret.
   const response = await fetch(`${apiBase}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ ...payload, adminToken: tokenInput.value.trim() }),
+    headers: {
+      "content-type": "application/json",
+      "x-admin-token": tokenInput.value.trim(),
+    },
+    body: JSON.stringify(payload),
   });
   const json = await response.json().catch(() => null);
   if (!response.ok || !json?.ok) {

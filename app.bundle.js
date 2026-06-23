@@ -7571,7 +7571,7 @@
           <canvas class="collection-thumb" width="${thumbSize}" height="${thumbSize}" aria-hidden="true"></canvas>
           <div class="collection-tile-meta">
             <strong>${safeItemName}</strong>
-            <span>${normalizeCraft(item.craft)} \xB7 \u8BC4\u7EA7 ${item.grade} \xB7 ${item.date}</span>
+            <span>${normalizeCraft(item.craft)} \xB7 \u8BC4\u7EA7 ${escapeHtml(item.grade)} \xB7 ${escapeHtml(item.date)}</span>
           </div>
         </button>
         <button type="button" class="collection-tile-delete" aria-label="\u5220\u9664\u8FD9\u4EF6\u4F5C\u54C1" title="\u5220\u9664">
@@ -7904,6 +7904,13 @@
   var PALETTE_SEPARATOR = "_";
   var EMPTY_PALETTE = "-";
   var EMPTY_CELL = ".";
+  var MAX_PATTERN_DIMENSION = 90;
+  var MAX_PATTERN_CELLS = MAX_PATTERN_DIMENSION * MAX_PATTERN_DIMENSION;
+  function assertPatternBounds(width, height) {
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > MAX_PATTERN_DIMENSION || height > MAX_PATTERN_DIMENSION || width * height > MAX_PATTERN_CELLS) {
+      throw new Error("Pattern code dimensions are out of range.");
+    }
+  }
   function valueTokenWidth(maxValue) {
     let width = 1;
     let capacity = VALUE_ALPHABET.length;
@@ -8054,6 +8061,7 @@
     const width = Number.parseInt(sizeMatch[1], 10);
     const height = Number.parseInt(sizeMatch[2], 10);
     if (!width || !height) throw new Error("Pattern code has invalid dimensions.");
+    assertPatternBounds(width, height);
     const paletteCodes = parts[2] === EMPTY_PALETTE ? [] : parts[2].split(PALETTE_SEPARATOR).map(normalizeMardCode);
     const values = decodeRuns(parts[3], paletteCodes.length, width * height);
     const rows = [];
@@ -10554,14 +10562,30 @@
       showToast("\u56FE\u7247\u91CD\u65B0\u8BC6\u522B\u5931\u8D25\u3002");
     }
   }
+  var MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+  var MAX_SOURCE_PIXELS = 24e6;
   function handleCustomImage(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("\u8BF7\u9009\u62E9\u56FE\u7247\u6587\u4EF6\u3002");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      showToast("\u56FE\u7247\u592A\u5927\uFF0C\u8BF7\u9009\u62E9 8MB \u4EE5\u5185\u7684\u56FE\u7247\u3002");
+      event.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         const sourceImageDataUrl = String(reader.result || "");
         const image = await loadImageFromDataUrl(sourceImageDataUrl);
+        if (image.naturalWidth * image.naturalHeight > MAX_SOURCE_PIXELS) {
+          showToast("\u56FE\u7247\u50CF\u7D20\u592A\u591A\uFF0C\u8BF7\u6362\u4E00\u5F20\u66F4\u5C0F\u7684\u56FE\u7247\u3002");
+          return;
+        }
         const size = normalizePatternSize();
         const removeWhite = els.customWhiteToggle.checked;
         const denoiseLevel = setCustomDenoiseControls(els.customDenoiseSlider?.value ?? state.customDenoiseLevel);
