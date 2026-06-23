@@ -2916,6 +2916,203 @@
     return "D";
   }
 
+  // src/render-export.js
+  var SHARE_SLOGANS = [
+    "\u60F3\u62FC\u5C31\u62FC\uFF0C\u8D70\u5230\u54EA\u62FC\u5230\u54EA",
+    "\u788E\u7247\u65F6\u95F4\uFF0C\u73A9\u4F1A\u8D5B\u535A\u62FC\u8C46",
+    "\u4E00\u90E8\u624B\u673A\uFF0C\u968F\u8EAB\u7684\u62FC\u8C46\u53F0"
+  ];
+  function sharePalette() {
+    const t = currentBackgroundTheme() || backgroundThemes.mist;
+    const ink = mixColor(t.brandInk, "#2c2630", 0.5);
+    return {
+      pageA: t.pageBase,
+      pageB: mixColor(t.pageBase, t.brand, 0.12),
+      well: "#ffffff",
+      wellEdge: t.brandTintStrong,
+      chip: "rgba(255, 255, 255, 0.82)",
+      chipEdge: t.brandTint,
+      glow: t.brandTint,
+      accent: t.brand,
+      accentDeep: t.brandEdge,
+      ink,
+      muted: mixColor(ink, "#ffffff", 0.46)
+    };
+  }
+  function drawShareGrid(ctx2, x, y, size) {
+    const pattern = state.selectedPattern;
+    const cols = boardCols(pattern);
+    const rows = boardRows(pattern);
+    const cell = size / Math.max(cols, rows);
+    const gx = x + (size - cell * cols) / 2;
+    const gy = y + (size - cell * rows) / 2;
+    const hasPlaced = placedCount2() > 0;
+    for (let py = 0; py < rows; py += 1) {
+      for (let px = 0; px < cols; px += 1) {
+        const index2 = indexFor(px, py);
+        const code = hasPlaced ? state.placed[index2] : targetAt(px, py);
+        if (!code) continue;
+        const cx = gx + px * cell + cell / 2;
+        const cy = gy + py * cell + cell / 2;
+        const heat = state.heat[index2] || (state.phase === "finish" ? 66 : 0);
+        if (heat > 34 || state.phase === "finish") {
+          ctx2.fillStyle = fusedColor(code, Math.max(heat, 58));
+          roundedPath(ctx2, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.18);
+          ctx2.fill();
+        } else {
+          drawBead(ctx2, cx, cy, cell * 0.42, code, heat, false, null, index2);
+        }
+      }
+    }
+  }
+  function drawShareImage(ctx2, w, h, portrait, qrImg = null) {
+    const p = sharePalette();
+    const PAD = 80;
+    const innerW = w - PAD * 2;
+    const bg = ctx2.createLinearGradient(0, 0, w * 0.4, h);
+    bg.addColorStop(0, p.pageA);
+    bg.addColorStop(1, p.pageB);
+    ctx2.fillStyle = bg;
+    ctx2.fillRect(0, 0, w, h);
+    const glowA = ctx2.createRadialGradient(w * 0.84, h * 0.06, 0, w * 0.84, h * 0.06, 560);
+    glowA.addColorStop(0, p.glow);
+    glowA.addColorStop(1, "rgba(0,0,0,0)");
+    ctx2.fillStyle = glowA;
+    ctx2.fillRect(0, 0, w, h);
+    const glowB = ctx2.createRadialGradient(w * 0.06, h * 0.96, 0, w * 0.06, h * 0.96, 540);
+    glowB.addColorStop(0, p.glow);
+    glowB.addColorStop(1, "rgba(0,0,0,0)");
+    ctx2.fillStyle = glowB;
+    ctx2.fillRect(0, 0, w, h);
+    const top = 80;
+    const badgeSize = 148;
+    const badgeX = w - PAD - badgeSize;
+    ctx2.textBaseline = "alphabetic";
+    const badgeGrad = ctx2.createLinearGradient(badgeX, top, badgeX, top + badgeSize);
+    badgeGrad.addColorStop(0, p.accent);
+    badgeGrad.addColorStop(1, p.accentDeep);
+    ctx2.fillStyle = badgeGrad;
+    roundedPath(ctx2, badgeX, top, badgeSize, badgeSize, 34);
+    ctx2.fill();
+    ctx2.fillStyle = "#ffffff";
+    ctx2.textAlign = "center";
+    ctx2.font = `84px ${CANVAS_CUTE_FONT}`;
+    ctx2.fillText(finalGrade(), badgeX + badgeSize / 2, top + 96);
+    ctx2.font = `500 24px ${CANVAS_CLEAR_FONT}`;
+    ctx2.globalAlpha = 0.92;
+    ctx2.fillText("\u8BC4\u7EA7", badgeX + badgeSize / 2, top + 128);
+    ctx2.globalAlpha = 1;
+    const titleMaxW = badgeX - PAD - 28;
+    ctx2.textAlign = "left";
+    ctx2.fillStyle = p.ink;
+    let titleSize = 92;
+    ctx2.font = `${titleSize}px ${CANVAS_CUTE_FONT}`;
+    while (titleSize > 52 && ctx2.measureText(state.selectedPattern.name).width > titleMaxW) {
+      titleSize -= 4;
+      ctx2.font = `${titleSize}px ${CANVAS_CUTE_FONT}`;
+    }
+    ctx2.fillText(fitText(ctx2, state.selectedPattern.name, titleMaxW), PAD, top + badgeSize / 2 + titleSize * 0.34);
+    const gap = 32;
+    const kpiH = 116;
+    const footerH = 210;
+    const wellTop = top + badgeSize + 40;
+    const wellBottom = h - 64 - footerH - gap - kpiH - gap;
+    const wellH = wellBottom - wellTop;
+    ctx2.save();
+    ctx2.shadowColor = "rgba(49, 54, 68, 0.13)";
+    ctx2.shadowBlur = 48;
+    ctx2.shadowOffsetY = 24;
+    ctx2.fillStyle = p.well;
+    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 40);
+    ctx2.fill();
+    ctx2.restore();
+    ctx2.strokeStyle = p.wellEdge;
+    ctx2.lineWidth = 2;
+    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 40);
+    ctx2.stroke();
+    const wellPad = 40;
+    const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
+    drawShareGrid(ctx2, PAD + (innerW - gridSize) / 2, wellTop + (wellH - gridSize) / 2, gridSize);
+    const craft = state.craft || state.selectedPattern.craft || "\u94A5\u5319\u6263";
+    ctx2.font = `26px ${CANVAS_CUTE_FONT}`;
+    const craftW = ctx2.measureText(craft).width + 40;
+    const craftH = 46;
+    const craftX = PAD + innerW - 30 - craftW;
+    const craftY = wellTop + wellH - 30 - craftH;
+    ctx2.fillStyle = p.chip;
+    roundedPath(ctx2, craftX, craftY, craftW, craftH, craftH / 2);
+    ctx2.fill();
+    ctx2.strokeStyle = p.chipEdge;
+    ctx2.lineWidth = 1.5;
+    roundedPath(ctx2, craftX, craftY, craftW, craftH, craftH / 2);
+    ctx2.stroke();
+    ctx2.fillStyle = p.accentDeep;
+    ctx2.textAlign = "center";
+    ctx2.fillText(craft, craftX + craftW / 2, craftY + craftH / 2 + 9);
+    const kpis = [
+      [`${boardCols(state.selectedPattern)}\xD7${boardRows(state.selectedPattern)}`, "\u5C3A\u5BF8"],
+      [`${getTargetTotal()}`, "\u9897\u6570"],
+      [`${getPatternColors().length}`, "\u8272\u53F7"],
+      [state.buildMs > 0 ? formatBuildTime(state.buildMs) : "\u2014", "\u7528\u65F6"]
+    ];
+    const kpiGap = 16;
+    const kpiW = (innerW - kpiGap * 3) / 4;
+    const kpiY = wellBottom + gap;
+    kpis.forEach(([value, label], i) => {
+      const kx = PAD + i * (kpiW + kpiGap);
+      ctx2.fillStyle = p.chip;
+      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, 22);
+      ctx2.fill();
+      ctx2.strokeStyle = p.chipEdge;
+      ctx2.lineWidth = 1.5;
+      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, 22);
+      ctx2.stroke();
+      ctx2.textAlign = "center";
+      ctx2.fillStyle = p.ink;
+      ctx2.font = `700 42px ${CANVAS_CLEAR_FONT}`;
+      ctx2.fillText(value, kx + kpiW / 2, kpiY + 60);
+      ctx2.fillStyle = p.muted;
+      ctx2.font = `26px ${CANVAS_CLEAR_FONT}`;
+      ctx2.fillText(label, kx + kpiW / 2, kpiY + 96);
+    });
+    const footTop = kpiY + kpiH + gap;
+    const qrBox = footerH;
+    ctx2.save();
+    ctx2.shadowColor = "rgba(49, 54, 68, 0.10)";
+    ctx2.shadowBlur = 24;
+    ctx2.shadowOffsetY = 10;
+    ctx2.fillStyle = "#ffffff";
+    roundedPath(ctx2, PAD, footTop, qrBox, qrBox, 24);
+    ctx2.fill();
+    ctx2.restore();
+    ctx2.strokeStyle = p.chipEdge;
+    ctx2.lineWidth = 1.5;
+    roundedPath(ctx2, PAD, footTop, qrBox, qrBox, 24);
+    ctx2.stroke();
+    const qrImgSize = 150;
+    if (qrImg) {
+      ctx2.drawImage(qrImg, PAD + (qrBox - qrImgSize) / 2, footTop + 18, qrImgSize, qrImgSize);
+    }
+    ctx2.fillStyle = p.ink;
+    ctx2.textAlign = "center";
+    ctx2.font = `26px ${CANVAS_CUTE_FONT}`;
+    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", PAD + qrBox / 2, footTop + qrBox - 18);
+    const signX = PAD + qrBox + 30;
+    ctx2.textAlign = "left";
+    ctx2.fillStyle = p.ink;
+    ctx2.font = `52px ${CANVAS_CUTE_FONT}`;
+    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", signX, footTop + 56);
+    ctx2.fillStyle = p.accentDeep;
+    ctx2.font = `34px ${CANVAS_CUTE_FONT}`;
+    const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];
+    ctx2.fillText(slogan, signX, footTop + 108);
+    ctx2.fillStyle = p.muted;
+    ctx2.font = `26px ${CANVAS_CLEAR_FONT}`;
+    ctx2.fillText("\u626B\u7801 \xB7 \u5F00\u59CB\u4F60\u7684\u62FC\u8C46", signX, footTop + 150);
+    ctx2.textBaseline = "alphabetic";
+    ctx2.textAlign = "left";
+  }
+
   // src/render.js
   var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -6298,201 +6495,6 @@
   function pointInTrayDumpButton(x, y) {
     const rect = trayDumpButtonRect();
     return x >= rect.x && y >= rect.y && x <= rect.x + rect.w && y <= rect.y + rect.h;
-  }
-  var SHARE_SLOGANS = [
-    "\u60F3\u62FC\u5C31\u62FC\uFF0C\u8D70\u5230\u54EA\u62FC\u5230\u54EA",
-    "\u788E\u7247\u65F6\u95F4\uFF0C\u73A9\u4F1A\u8D5B\u535A\u62FC\u8C46",
-    "\u4E00\u90E8\u624B\u673A\uFF0C\u968F\u8EAB\u7684\u62FC\u8C46\u53F0"
-  ];
-  function sharePalette() {
-    const t = currentBackgroundTheme() || backgroundThemes.mist;
-    const ink = mixColor(t.brandInk, "#2c2630", 0.5);
-    return {
-      pageA: t.pageBase,
-      pageB: mixColor(t.pageBase, t.brand, 0.12),
-      well: "#ffffff",
-      wellEdge: t.brandTintStrong,
-      chip: "rgba(255, 255, 255, 0.82)",
-      chipEdge: t.brandTint,
-      glow: t.brandTint,
-      accent: t.brand,
-      accentDeep: t.brandEdge,
-      ink,
-      muted: mixColor(ink, "#ffffff", 0.46)
-    };
-  }
-  function drawShareGrid(ctx2, x, y, size) {
-    const pattern = state.selectedPattern;
-    const cols = boardCols(pattern);
-    const rows = boardRows(pattern);
-    const cell = size / Math.max(cols, rows);
-    const gx = x + (size - cell * cols) / 2;
-    const gy = y + (size - cell * rows) / 2;
-    const hasPlaced = placedCount2() > 0;
-    for (let py = 0; py < rows; py += 1) {
-      for (let px = 0; px < cols; px += 1) {
-        const index2 = indexFor(px, py);
-        const code = hasPlaced ? state.placed[index2] : targetAt(px, py);
-        if (!code) continue;
-        const cx = gx + px * cell + cell / 2;
-        const cy = gy + py * cell + cell / 2;
-        const heat = state.heat[index2] || (state.phase === "finish" ? 66 : 0);
-        if (heat > 34 || state.phase === "finish") {
-          ctx2.fillStyle = fusedColor(code, Math.max(heat, 58));
-          roundedPath(ctx2, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.18);
-          ctx2.fill();
-        } else {
-          drawBead(ctx2, cx, cy, cell * 0.42, code, heat, false, null, index2);
-        }
-      }
-    }
-  }
-  function drawShareImage(ctx2, w, h, portrait, qrImg = null) {
-    const p = sharePalette();
-    const PAD = 80;
-    const innerW = w - PAD * 2;
-    const bg = ctx2.createLinearGradient(0, 0, w * 0.4, h);
-    bg.addColorStop(0, p.pageA);
-    bg.addColorStop(1, p.pageB);
-    ctx2.fillStyle = bg;
-    ctx2.fillRect(0, 0, w, h);
-    const glowA = ctx2.createRadialGradient(w * 0.84, h * 0.06, 0, w * 0.84, h * 0.06, 560);
-    glowA.addColorStop(0, p.glow);
-    glowA.addColorStop(1, "rgba(0,0,0,0)");
-    ctx2.fillStyle = glowA;
-    ctx2.fillRect(0, 0, w, h);
-    const glowB = ctx2.createRadialGradient(w * 0.06, h * 0.96, 0, w * 0.06, h * 0.96, 540);
-    glowB.addColorStop(0, p.glow);
-    glowB.addColorStop(1, "rgba(0,0,0,0)");
-    ctx2.fillStyle = glowB;
-    ctx2.fillRect(0, 0, w, h);
-    const top = 80;
-    const badgeSize = 148;
-    const badgeX = w - PAD - badgeSize;
-    ctx2.textBaseline = "alphabetic";
-    const badgeGrad = ctx2.createLinearGradient(badgeX, top, badgeX, top + badgeSize);
-    badgeGrad.addColorStop(0, p.accent);
-    badgeGrad.addColorStop(1, p.accentDeep);
-    ctx2.fillStyle = badgeGrad;
-    roundedPath(ctx2, badgeX, top, badgeSize, badgeSize, 34);
-    ctx2.fill();
-    ctx2.fillStyle = "#ffffff";
-    ctx2.textAlign = "center";
-    ctx2.font = `84px ${CANVAS_CUTE_FONT}`;
-    ctx2.fillText(finalGrade(), badgeX + badgeSize / 2, top + 96);
-    ctx2.font = `500 24px ${CANVAS_CLEAR_FONT}`;
-    ctx2.globalAlpha = 0.92;
-    ctx2.fillText("\u8BC4\u7EA7", badgeX + badgeSize / 2, top + 128);
-    ctx2.globalAlpha = 1;
-    const titleMaxW = badgeX - PAD - 28;
-    ctx2.textAlign = "left";
-    ctx2.fillStyle = p.ink;
-    let titleSize = 92;
-    ctx2.font = `${titleSize}px ${CANVAS_CUTE_FONT}`;
-    while (titleSize > 52 && ctx2.measureText(state.selectedPattern.name).width > titleMaxW) {
-      titleSize -= 4;
-      ctx2.font = `${titleSize}px ${CANVAS_CUTE_FONT}`;
-    }
-    ctx2.fillText(fitText(ctx2, state.selectedPattern.name, titleMaxW), PAD, top + badgeSize / 2 + titleSize * 0.34);
-    const gap = 32;
-    const kpiH = 116;
-    const footerH = 210;
-    const wellTop = top + badgeSize + 40;
-    const wellBottom = h - 64 - footerH - gap - kpiH - gap;
-    const wellH = wellBottom - wellTop;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(49, 54, 68, 0.13)";
-    ctx2.shadowBlur = 48;
-    ctx2.shadowOffsetY = 24;
-    ctx2.fillStyle = p.well;
-    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 40);
-    ctx2.fill();
-    ctx2.restore();
-    ctx2.strokeStyle = p.wellEdge;
-    ctx2.lineWidth = 2;
-    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 40);
-    ctx2.stroke();
-    const wellPad = 40;
-    const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
-    drawShareGrid(ctx2, PAD + (innerW - gridSize) / 2, wellTop + (wellH - gridSize) / 2, gridSize);
-    const craft = state.craft || state.selectedPattern.craft || "\u94A5\u5319\u6263";
-    ctx2.font = `26px ${CANVAS_CUTE_FONT}`;
-    const craftW = ctx2.measureText(craft).width + 40;
-    const craftH = 46;
-    const craftX = PAD + innerW - 30 - craftW;
-    const craftY = wellTop + wellH - 30 - craftH;
-    ctx2.fillStyle = p.chip;
-    roundedPath(ctx2, craftX, craftY, craftW, craftH, craftH / 2);
-    ctx2.fill();
-    ctx2.strokeStyle = p.chipEdge;
-    ctx2.lineWidth = 1.5;
-    roundedPath(ctx2, craftX, craftY, craftW, craftH, craftH / 2);
-    ctx2.stroke();
-    ctx2.fillStyle = p.accentDeep;
-    ctx2.textAlign = "center";
-    ctx2.fillText(craft, craftX + craftW / 2, craftY + craftH / 2 + 9);
-    const kpis = [
-      [`${boardCols(state.selectedPattern)}\xD7${boardRows(state.selectedPattern)}`, "\u5C3A\u5BF8"],
-      [`${getTargetTotal()}`, "\u9897\u6570"],
-      [`${getPatternColors().length}`, "\u8272\u53F7"],
-      [state.buildMs > 0 ? formatBuildTime(state.buildMs) : "\u2014", "\u7528\u65F6"]
-    ];
-    const kpiGap = 16;
-    const kpiW = (innerW - kpiGap * 3) / 4;
-    const kpiY = wellBottom + gap;
-    kpis.forEach(([value, label], i) => {
-      const kx = PAD + i * (kpiW + kpiGap);
-      ctx2.fillStyle = p.chip;
-      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, 22);
-      ctx2.fill();
-      ctx2.strokeStyle = p.chipEdge;
-      ctx2.lineWidth = 1.5;
-      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, 22);
-      ctx2.stroke();
-      ctx2.textAlign = "center";
-      ctx2.fillStyle = p.ink;
-      ctx2.font = `700 42px ${CANVAS_CLEAR_FONT}`;
-      ctx2.fillText(value, kx + kpiW / 2, kpiY + 60);
-      ctx2.fillStyle = p.muted;
-      ctx2.font = `26px ${CANVAS_CLEAR_FONT}`;
-      ctx2.fillText(label, kx + kpiW / 2, kpiY + 96);
-    });
-    const footTop = kpiY + kpiH + gap;
-    const qrBox = footerH;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(49, 54, 68, 0.10)";
-    ctx2.shadowBlur = 24;
-    ctx2.shadowOffsetY = 10;
-    ctx2.fillStyle = "#ffffff";
-    roundedPath(ctx2, PAD, footTop, qrBox, qrBox, 24);
-    ctx2.fill();
-    ctx2.restore();
-    ctx2.strokeStyle = p.chipEdge;
-    ctx2.lineWidth = 1.5;
-    roundedPath(ctx2, PAD, footTop, qrBox, qrBox, 24);
-    ctx2.stroke();
-    const qrImgSize = 150;
-    if (qrImg) {
-      ctx2.drawImage(qrImg, PAD + (qrBox - qrImgSize) / 2, footTop + 18, qrImgSize, qrImgSize);
-    }
-    ctx2.fillStyle = p.ink;
-    ctx2.textAlign = "center";
-    ctx2.font = `26px ${CANVAS_CUTE_FONT}`;
-    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", PAD + qrBox / 2, footTop + qrBox - 18);
-    const signX = PAD + qrBox + 30;
-    ctx2.textAlign = "left";
-    ctx2.fillStyle = p.ink;
-    ctx2.font = `52px ${CANVAS_CUTE_FONT}`;
-    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", signX, footTop + 56);
-    ctx2.fillStyle = p.accentDeep;
-    ctx2.font = `34px ${CANVAS_CUTE_FONT}`;
-    const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];
-    ctx2.fillText(slogan, signX, footTop + 108);
-    ctx2.fillStyle = p.muted;
-    ctx2.font = `26px ${CANVAS_CLEAR_FONT}`;
-    ctx2.fillText("\u626B\u7801 \xB7 \u5F00\u59CB\u4F60\u7684\u62FC\u8C46", signX, footTop + 150);
-    ctx2.textBaseline = "alphabetic";
-    ctx2.textAlign = "left";
   }
 
   // src/modal-controller.js
