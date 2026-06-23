@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const [renderSource, stateSource, uiSource, mainSource] = await Promise.all([
+const [renderSource, primitivesSource, stateSource, uiSource, mainSource] = await Promise.all([
   read("src/render.js"),
+  read("src/render-primitives.js"),
   read("src/state.js"),
   read("src/ui.js"),
   read("src/main.js"),
@@ -19,7 +20,8 @@ assert.match(
   "finish should use a dedicated centered layout",
 );
 assert.match(renderSource, /export function getShowcaseBounds\(pieces/);
-assert.match(renderSource, /export function softShadow\(ctx/);
+// softShadow now lives in the extracted render-primitives.js leaf module.
+assert.match(primitivesSource, /export function softShadow\(ctx/);
 assert.match(renderSource, /function drawAcrylicPlate\(/);
 assert.match(renderSource, /function drawMaterialHighlight\(/);
 assert.match(renderSource, /function finishMaterialColor\(color, material\)/);

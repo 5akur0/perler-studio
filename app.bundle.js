@@ -2764,6 +2764,76 @@
     return { width, height, rows: fittedRows };
   }
 
+  // src/render-primitives.js
+  function softShadow(ctx2, {
+    blur = 20,
+    dy = 10,
+    color = "rgba(38,36,43,0.14)"
+  } = {}) {
+    ctx2.shadowColor = color;
+    ctx2.shadowBlur = blur;
+    ctx2.shadowOffsetX = 0;
+    ctx2.shadowOffsetY = dy;
+  }
+  function fusedColor(code, heat) {
+    const base = palette[code] || "#999";
+    const hotAmount = clamp((heat - 105) / 60, 0, 0.34);
+    return heat > 105 ? mixColor(base, "#e8a472", hotAmount) : base;
+  }
+  function roundedRect(x, y, w, h, r) {
+    const ctx2 = scene;
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx2.beginPath();
+    ctx2.moveTo(x + radius, y);
+    ctx2.lineTo(x + w - radius, y);
+    ctx2.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx2.lineTo(x + w, y + h - radius);
+    ctx2.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx2.lineTo(x + radius, y + h);
+    ctx2.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx2.lineTo(x, y + radius);
+    ctx2.quadraticCurveTo(x, y, x + radius, y);
+  }
+  function roundedPath(ctx2, x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx2.beginPath();
+    ctx2.moveTo(x + radius, y);
+    ctx2.lineTo(x + w - radius, y);
+    ctx2.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx2.lineTo(x + w, y + h - radius);
+    ctx2.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx2.lineTo(x + radius, y + h);
+    ctx2.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx2.lineTo(x, y + radius);
+    ctx2.quadraticCurveTo(x, y, x + radius, y);
+  }
+  function wrapText(text, x, y, maxWidth, lineHeight) {
+    const ctx2 = scene;
+    let line = "";
+    const chars = [...text];
+    chars.forEach((char) => {
+      const test = line + char;
+      if (ctx2.measureText(test).width > maxWidth && line) {
+        ctx2.fillText(line, x, y);
+        line = char;
+        y += lineHeight;
+      } else {
+        line = test;
+      }
+    });
+    if (line) ctx2.fillText(line, x, y);
+  }
+  function fitText(ctx2, text, maxWidth) {
+    if (maxWidth <= 0) return "";
+    if (ctx2.measureText(text).width <= maxWidth) return text;
+    const ellipsis = "\u2026";
+    let out = text;
+    while (out.length > 0 && ctx2.measureText(`${out}${ellipsis}`).width > maxWidth) {
+      out = out.slice(0, -1);
+    }
+    return out ? `${out}${ellipsis}` : ellipsis;
+  }
+
   // src/render.js
   var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -4332,16 +4402,6 @@
       centerY: (bounds.minY + bounds.maxY) / 2
     };
   }
-  function softShadow(ctx2, {
-    blur = 20,
-    dy = 10,
-    color = "rgba(38,36,43,0.14)"
-  } = {}) {
-    ctx2.shadowColor = color;
-    ctx2.shadowBlur = blur;
-    ctx2.shadowOffsetX = 0;
-    ctx2.shadowOffsetY = dy;
-  }
   function getFinishCardRect(layout, craft = state.craft) {
     const { boardX, boardY, boardW, boardH } = layout;
     if (craft === "\u94A5\u5319\u6263") {
@@ -5808,64 +5868,6 @@
     ctx2.arc(x - pegR * 0.22, y - pegR * 0.22, pegR * 0.36, 0, Math.PI * 2);
     ctx2.fill();
     ctx2.restore();
-  }
-  function fusedColor(code, heat) {
-    const base = palette[code] || "#999";
-    const hotAmount = clamp((heat - 105) / 60, 0, 0.34);
-    return heat > 105 ? mixColor(base, "#e8a472", hotAmount) : base;
-  }
-  function roundedRect(x, y, w, h, r) {
-    const ctx2 = scene;
-    const radius = Math.min(r, w / 2, h / 2);
-    ctx2.beginPath();
-    ctx2.moveTo(x + radius, y);
-    ctx2.lineTo(x + w - radius, y);
-    ctx2.quadraticCurveTo(x + w, y, x + w, y + radius);
-    ctx2.lineTo(x + w, y + h - radius);
-    ctx2.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    ctx2.lineTo(x + radius, y + h);
-    ctx2.quadraticCurveTo(x, y + h, x, y + h - radius);
-    ctx2.lineTo(x, y + radius);
-    ctx2.quadraticCurveTo(x, y, x + radius, y);
-  }
-  function roundedPath(ctx2, x, y, w, h, r) {
-    const radius = Math.min(r, w / 2, h / 2);
-    ctx2.beginPath();
-    ctx2.moveTo(x + radius, y);
-    ctx2.lineTo(x + w - radius, y);
-    ctx2.quadraticCurveTo(x + w, y, x + w, y + radius);
-    ctx2.lineTo(x + w, y + h - radius);
-    ctx2.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    ctx2.lineTo(x + radius, y + h);
-    ctx2.quadraticCurveTo(x, y + h, x, y + h - radius);
-    ctx2.lineTo(x, y + radius);
-    ctx2.quadraticCurveTo(x, y, x + radius, y);
-  }
-  function wrapText(text, x, y, maxWidth, lineHeight) {
-    const ctx2 = scene;
-    let line = "";
-    const chars = [...text];
-    chars.forEach((char) => {
-      const test = line + char;
-      if (ctx2.measureText(test).width > maxWidth && line) {
-        ctx2.fillText(line, x, y);
-        line = char;
-        y += lineHeight;
-      } else {
-        line = test;
-      }
-    });
-    if (line) ctx2.fillText(line, x, y);
-  }
-  function fitText(ctx2, text, maxWidth) {
-    if (maxWidth <= 0) return "";
-    if (ctx2.measureText(text).width <= maxWidth) return text;
-    const ellipsis = "\u2026";
-    let out = text;
-    while (out.length > 0 && ctx2.measureText(`${out}${ellipsis}`).width > maxWidth) {
-      out = out.slice(0, -1);
-    }
-    return out ? `${out}${ellipsis}` : ellipsis;
   }
   function drawPreview() {
     setupHiDpiCanvas(previewCanvas, preview);

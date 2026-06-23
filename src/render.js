@@ -20,6 +20,15 @@ import {
   drawBoardGuides, drawBoardSkin, drawPixelPatternPreview, pixelPatternPreviewLayout,
 } from './board-skin.js';
 import { shouldUseBoardPegCache, visibleBoardCellRange } from './board-layout.js';
+// Pure ctx/text primitives live in their own leaf module. Import them back for
+// this file's many internal call-sites and re-export so existing consumers
+// (main.js, ui.js, …) keep importing them from './render.js'.
+import {
+  softShadow, fusedColor, roundedRect, roundedPath, wrapText, fitText,
+} from './render-primitives.js';
+export {
+  softShadow, fusedColor, roundedRect, roundedPath, wrapText, fitText,
+};
 
 const CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 const CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
@@ -1809,16 +1818,7 @@ export function getShowcaseBounds(pieces) {
   };
 }
 
-export function softShadow(ctx, {
-  blur = 20,
-  dy = 10,
-  color = "rgba(38,36,43,0.14)",
-} = {}) {
-  ctx.shadowColor = color;
-  ctx.shadowBlur = blur;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = dy;
-}
+// softShadow moved to ./render-primitives.js (imported back near the top).
 
 function getFinishCardRect(layout, craft = state.craft) {
   const { boardX, boardY, boardW, boardH } = layout;
@@ -3494,70 +3494,8 @@ export function drawPegInBead(ctx, x, y, r, heat = 0, fused = false) {
   ctx.restore();
 }
 
-export function fusedColor(code, heat) {
-  const base = palette[code] || "#999";
-  // Only beads that are really cooked start tinting — real perler beads keep
-  // their color through most of the iron pass and only yellow when scorched.
-  const hotAmount = clamp((heat - 105) / 60, 0, 0.34);
-  return heat > 105 ? mixColor(base, "#e8a472", hotAmount) : base;
-}
-
-export function roundedRect(x, y, w, h, r) {
-  const ctx = scene;
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-  ctx.lineTo(x + w, y + h - radius);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-  ctx.lineTo(x + radius, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-}
-
-export function roundedPath(ctx, x, y, w, h, r) {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-  ctx.lineTo(x + w, y + h - radius);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-  ctx.lineTo(x + radius, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-}
-
-export function wrapText(text, x, y, maxWidth, lineHeight) {
-  const ctx = scene;
-  let line = "";
-  const chars = [...text];
-  chars.forEach((char) => {
-    const test = line + char;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, y);
-      line = char;
-      y += lineHeight;
-    } else {
-      line = test;
-    }
-  });
-  if (line) ctx.fillText(line, x, y);
-}
-
-export function fitText(ctx, text, maxWidth) {
-  if (maxWidth <= 0) return "";
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  const ellipsis = "…";
-  let out = text;
-  while (out.length > 0 && ctx.measureText(`${out}${ellipsis}`).width > maxWidth) {
-    out = out.slice(0, -1);
-  }
-  return out ? `${out}${ellipsis}` : ellipsis;
-}
+// fusedColor, roundedRect, roundedPath, wrapText, fitText moved to
+// ./render-primitives.js (imported back near the top of this file).
 
 export function drawPreview() {
   setupHiDpiCanvas(previewCanvas, preview);
