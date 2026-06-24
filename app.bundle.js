@@ -1391,6 +1391,7 @@
   var TRAY_MOBILE_ROWS = 5;
   var TRAY_MOBILE_COLS = 24;
   var APP_VERSION = "1.0.0";
+  var clientIdKey = "beadWorkshopClientId.v1";
   var collectionKey = "beadWorkshopCollection.v1";
   var sessionKey = "beadWorkshopSession.v1";
   var collectionLimit = 24;
@@ -1631,6 +1632,14 @@
     currentPatternName: $("#currentPatternName"),
     currentPatternMeta: $("#currentPatternMeta"),
     collectionButton: $("#collectionButton"),
+    startCommunityButton: $("#startCommunityButton"),
+    communityScreen: $("#communityScreen"),
+    communityBackButton: $("#communityBackButton"),
+    communityRefreshButton: $("#communityRefreshButton"),
+    communityTabMessages: $("#communityTabMessages"),
+    communityTabRoadmap: $("#communityTabRoadmap"),
+    communityMessages: $("#communityMessages"),
+    communityRoadmap: $("#communityRoadmap"),
     settingsButton: $("#settingsButton"),
     settingsDot: $("#settingsDot"),
     settingsModal: $("#settingsModal"),
@@ -6729,6 +6738,8 @@
     pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497zM15 5l4 4"/>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
     "clipboard-list": '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2m4 7h4m-4 5h4m-8-5h.01M8 16h.01"/>',
+    "message-circle": '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/>',
+    heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2c-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
     // —— Drawing studio tools ——
     paintbrush: '<path d="m14.622 17.897l-10.68-2.913M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0zM9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/>',
     eraser: '<path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21m-7.752-9.91l8.828 8.828"/>',
@@ -8196,6 +8207,9 @@
       throw new Error(json?.error?.message || "Share request failed.");
     }
     return json.data;
+  }
+  function shareApiConfigured() {
+    return Boolean(shareApiBase);
   }
   async function requestGalleryApi(path, payload = {}, options = {}) {
     return requestShareApi(path, payload, options);
@@ -11168,6 +11182,223 @@
     ].join("\n");
   }
 
+  // src/community-api.js
+  function getClientId() {
+    try {
+      let id = localStorage.getItem(clientIdKey);
+      if (!id) {
+        id = crypto?.randomUUID?.() || `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(clientIdKey, id);
+      }
+      return id;
+    } catch {
+      return `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+  }
+  function submitMessage({ nickname, content }) {
+    return requestShareApi("/api/messages/submit", { nickname, content });
+  }
+  function listMessages({ limit = 20 } = {}) {
+    return requestShareApi("/api/messages/list", { limit });
+  }
+  function listRoadmap() {
+    return requestShareApi("/api/roadmap/list", { clientId: getClientId() });
+  }
+  function voteRoadmap(itemId) {
+    return requestShareApi("/api/roadmap/vote", { itemId, clientId: getClientId() });
+  }
+
+  // src/community.js
+  var ANON = "\u533F\u540D\u8C46\u53CB";
+  var STATUS_LABEL = { planned: "\u8BA1\u5212\u4E2D", in_progress: "\u5F00\u53D1\u4E2D", shipped: "\u5DF2\u53D1\u5E03" };
+  var messagesEl = null;
+  var roadmapEl = null;
+  var loadedMessages = false;
+  var loadedRoadmap = false;
+  function relativeTime(iso) {
+    const then = new Date(iso).getTime();
+    if (!Number.isFinite(then)) return "";
+    const diff = Date.now() - then;
+    const min = Math.floor(diff / 6e4);
+    if (min < 1) return "\u521A\u521A";
+    if (min < 60) return `${min} \u5206\u949F\u524D`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} \u5C0F\u65F6\u524D`;
+    const day = Math.floor(hr / 24);
+    if (day < 30) return `${day} \u5929\u524D`;
+    return new Date(then).toLocaleDateString("zh-CN");
+  }
+  function notConfiguredHtml(text) {
+    return `<div class="community-empty"><p class="community-empty-text">${escapeHtml(text)}</p></div>`;
+  }
+  function messageItemHtml(m) {
+    const name = m.nickname ? escapeHtml(m.nickname) : ANON;
+    return `<li class="community-message">
+    <div class="community-message-head">
+      <strong class="community-message-name">${name}</strong>
+      <span class="community-message-time">${escapeHtml(relativeTime(m.createdAt))}</span>
+    </div>
+    <p class="community-message-body">${escapeHtml(m.content)}</p>
+  </li>`;
+  }
+  function renderMessagesShell() {
+    messagesEl.innerHTML = `
+    <form class="community-compose" id="communityCompose" novalidate>
+      <input class="community-nickname" id="communityNickname" type="text" maxlength="16"
+        placeholder="\u6635\u79F0\uFF08\u53EF\u4E0D\u586B\uFF0C\u9ED8\u8BA4${ANON}\uFF09" aria-label="\u6635\u79F0\uFF0C\u53EF\u4E0D\u586B" />
+      <textarea class="community-textarea" id="communityContent" maxlength="200" rows="3"
+        placeholder="\u7559\u4E2A\u8A00\u5427\uFF5E\u60F3\u770B\u4EC0\u4E48\u56FE\u7EB8\u3001\u54EA\u91CC\u4E0D\u597D\u7528\u90FD\u53EF\u4EE5\u8BF4" aria-label="\u7559\u8A00\u5185\u5BB9"></textarea>
+      <div class="community-compose-foot">
+        <span class="community-count" id="communityCount">0/200</span>
+        <button class="primary-button" id="communitySendButton" type="submit">\u53D1\u9001\u7559\u8A00</button>
+      </div>
+    </form>
+    <ul class="community-message-list" id="communityMessageList"></ul>
+    <div class="community-list-state" id="communityMessagesState"></div>`;
+    const content = messagesEl.querySelector("#communityContent");
+    const count = messagesEl.querySelector("#communityCount");
+    content.addEventListener("input", () => {
+      count.textContent = `${content.value.length}/200`;
+    });
+    messagesEl.querySelector("#communityCompose").addEventListener("submit", onSubmitMessage);
+  }
+  async function onSubmitMessage(event) {
+    event.preventDefault();
+    const nickname = messagesEl.querySelector("#communityNickname").value.trim();
+    const content = messagesEl.querySelector("#communityContent").value.trim();
+    const button = messagesEl.querySelector("#communitySendButton");
+    if (!content) {
+      showToast("\u7559\u8A00\u4E0D\u80FD\u662F\u7A7A\u7684\u54E6\u3002");
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "\u53D1\u9001\u4E2D";
+    try {
+      await submitMessage({ nickname, content });
+      messagesEl.querySelector("#communityContent").value = "";
+      messagesEl.querySelector("#communityNickname").value = "";
+      messagesEl.querySelector("#communityCount").textContent = "0/200";
+      showToast("\u7559\u8A00\u5DF2\u63D0\u4EA4\uFF0C\u5BA1\u6838\u901A\u8FC7\u540E\u5C31\u4F1A\u51FA\u73B0\uFF5E");
+    } catch (err) {
+      showToast(err?.message || "\u53D1\u9001\u5931\u8D25\uFF0C\u7A0D\u540E\u518D\u8BD5\u3002");
+    } finally {
+      button.disabled = false;
+      button.textContent = "\u53D1\u9001\u7559\u8A00";
+    }
+  }
+  async function loadMessages() {
+    const list = messagesEl.querySelector("#communityMessageList");
+    const stateEl = messagesEl.querySelector("#communityMessagesState");
+    stateEl.textContent = "\u52A0\u8F7D\u4E2D\u2026";
+    try {
+      const data = await listMessages({ limit: 20 });
+      const items = data?.items || [];
+      list.innerHTML = items.map(messageItemHtml).join("");
+      stateEl.textContent = items.length ? "" : "\u8FD8\u6CA1\u6709\u7559\u8A00\uFF0C\u6765\u5F53\u7B2C\u4E00\u4E2A\u5427\uFF5E";
+    } catch (err) {
+      stateEl.textContent = err?.message || "\u52A0\u8F7D\u5931\u8D25\uFF0C\u4E0B\u62C9\u5237\u65B0\u8BD5\u8BD5\u3002";
+    }
+  }
+  function roadmapItemHtml(item) {
+    const status = STATUS_LABEL[item.status] || STATUS_LABEL.planned;
+    const ver = item.status === "shipped" && item.version ? ` v${escapeHtml(item.version)}` : "";
+    const likeIcon = icon("heart", { size: 16 });
+    return `<li class="community-road-item" data-road-id="${escapeHtml(item.id)}">
+    <div class="community-road-main">
+      <div class="community-road-head">
+        <span class="community-road-pill community-road-pill-${escapeHtml(item.status)}">${status}${ver}</span>
+        <strong class="community-road-title">${escapeHtml(item.title)}</strong>
+      </div>
+      ${item.desc ? `<p class="community-road-desc">${escapeHtml(item.desc)}</p>` : ""}
+    </div>
+    <button class="community-like ${item.voted ? "is-voted" : ""}" type="button"
+      data-road-vote="${escapeHtml(item.id)}" aria-pressed="${item.voted ? "true" : "false"}"
+      aria-label="\u70B9\u8D5E\u8FD9\u6761\u66F4\u65B0">${likeIcon}<span class="community-like-count">${Number(item.votes) || 0}</span></button>
+  </li>`;
+  }
+  async function loadRoadmap() {
+    roadmapEl.innerHTML = `
+    <p class="community-road-version">\u5F53\u524D\u7248\u672C v${escapeHtml(APP_VERSION)}</p>
+    <ul class="community-road-list" id="communityRoadList"></ul>
+    <div class="community-list-state" id="communityRoadState">\u52A0\u8F7D\u4E2D\u2026</div>`;
+    const list = roadmapEl.querySelector("#communityRoadList");
+    const stateEl = roadmapEl.querySelector("#communityRoadState");
+    try {
+      const data = await listRoadmap();
+      const items = data?.items || [];
+      list.innerHTML = items.map(roadmapItemHtml).join("");
+      stateEl.textContent = items.length ? "" : "\u66F4\u65B0\u8BA1\u5212\u9A6C\u4E0A\u5C31\u6765\uFF5E";
+      list.querySelectorAll("[data-road-vote]").forEach((btn) => {
+        btn.addEventListener("click", () => onVote(btn));
+      });
+    } catch (err) {
+      stateEl.textContent = err?.message || "\u52A0\u8F7D\u5931\u8D25\uFF0C\u7A0D\u540E\u518D\u8BD5\u3002";
+    }
+  }
+  async function onVote(button) {
+    const id = button.dataset.roadVote;
+    const countEl = button.querySelector(".community-like-count");
+    const wasVoted = button.classList.contains("is-voted");
+    button.classList.toggle("is-voted", !wasVoted);
+    button.setAttribute("aria-pressed", String(!wasVoted));
+    countEl.textContent = String((Number(countEl.textContent) || 0) + (wasVoted ? -1 : 1));
+    button.disabled = true;
+    try {
+      const res = await voteRoadmap(id);
+      button.classList.toggle("is-voted", Boolean(res?.voted));
+      button.setAttribute("aria-pressed", String(Boolean(res?.voted)));
+      if (typeof res?.votes === "number") countEl.textContent = String(res.votes);
+    } catch (err) {
+      button.classList.toggle("is-voted", wasVoted);
+      button.setAttribute("aria-pressed", String(wasVoted));
+      countEl.textContent = String((Number(countEl.textContent) || 0) + (wasVoted ? 1 : -1));
+      showToast(err?.message || "\u64CD\u4F5C\u5931\u8D25\uFF0C\u7A0D\u540E\u518D\u8BD5\u3002");
+    } finally {
+      button.disabled = false;
+    }
+  }
+  function initCommunity(els2) {
+    messagesEl = els2.communityMessages;
+    roadmapEl = els2.communityRoadmap;
+    if (!messagesEl || !roadmapEl) return;
+    const tabMsg = els2.communityTabMessages;
+    const tabRoad = els2.communityTabRoadmap;
+    const select = (which) => {
+      const isMsg = which === "messages";
+      tabMsg.setAttribute("aria-selected", String(isMsg));
+      tabRoad.setAttribute("aria-selected", String(!isMsg));
+      messagesEl.hidden = !isMsg;
+      roadmapEl.hidden = isMsg;
+      if (!isMsg && !loadedRoadmap) {
+        loadedRoadmap = true;
+        loadRoadmap();
+      }
+      if (isMsg && !loadedMessages) {
+        loadedMessages = true;
+        loadMessages();
+      }
+    };
+    tabMsg?.addEventListener("click", () => select("messages"));
+    tabRoad?.addEventListener("click", () => select("roadmap"));
+    els2.communityRefreshButton?.addEventListener("click", () => {
+      if (roadmapEl.hidden) loadMessages();
+      else loadRoadmap();
+    });
+  }
+  function enterCommunity() {
+    if (!messagesEl) return;
+    if (!shareApiConfigured()) {
+      messagesEl.innerHTML = notConfiguredHtml("\u7559\u8A00\u670D\u52A1\u8FD8\u6CA1\u914D\u7F6E\uFF0C\u7A0D\u540E\u518D\u6765\u770B\u770B\uFF5E");
+      roadmapEl.innerHTML = notConfiguredHtml("\u66F4\u65B0\u677F\u8FD8\u6CA1\u914D\u7F6E\u3002");
+      return;
+    }
+    if (!messagesEl.querySelector("#communityCompose")) renderMessagesShell();
+    if (!loadedMessages) {
+      loadedMessages = true;
+      loadMessages();
+    }
+  }
+
   // src/main.js
   hydrateIcons(document);
   var collection = readCollection();
@@ -11221,6 +11452,7 @@
       [els.startScreen, mode === "home"],
       [els.galleryScreen, mode === "gallery"],
       [els.collectionScreen, mode === "collection"],
+      [els.communityScreen, mode === "community"],
       [els.drawingStudio, mode === "draw"],
       [document.querySelector(".bead-topbar"), beadActive],
       [els.studioGrid, beadActive]
@@ -11239,7 +11471,8 @@
   var MODE_BG = {
     draw: "--bg-draw-image",
     gallery: "--bg-gallery-image",
-    collection: "--bg-collection-image"
+    collection: "--bg-collection-image",
+    community: "--bg-gallery-image"
   };
   function updateFullBg() {
     const v = state.appMode === "bead" ? PHASE_BG[state.phase] : MODE_BG[state.appMode];
@@ -11268,7 +11501,7 @@
   }
   function setAppMode(mode) {
     const prevMode = state.appMode;
-    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
+    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : mode === "community" ? "community" : "home";
     if (prevMode && prevMode !== state.appMode) playSfx("nav");
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
@@ -11297,6 +11530,9 @@
     if (state.appMode === "collection") {
       state.collectionPageOpen = true;
       renderCollection();
+    }
+    if (state.appMode === "community") {
+      enterCommunity();
     }
   }
   function loadPattern(pattern, keepPhase = false) {
@@ -12721,6 +12957,9 @@
   els.settingsButton?.addEventListener("click", () => openSettingsModal());
   var settingsVersionEl = document.getElementById("settingsVersion");
   if (settingsVersionEl) settingsVersionEl.textContent = `\u62FC\u8C46\u5DE5\u574A v${APP_VERSION}`;
+  initCommunity(els);
+  els.startCommunityButton?.addEventListener("click", () => setAppMode("community"));
+  els.communityBackButton?.addEventListener("click", () => setAppMode("home"));
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();

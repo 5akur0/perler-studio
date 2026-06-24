@@ -68,6 +68,12 @@ export async function requestShareApi(path, payload, options = {}) {
   return json.data;
 }
 
+// Whether a backend base URL is configured. Community/gallery UIs use this to
+// show a graceful "service not configured" state on offline file:// builds.
+export function shareApiConfigured() {
+  return Boolean(shareApiBase);
+}
+
 async function requestGalleryApi(path, payload = {}, options = {}) {
   return requestShareApi(path, payload, options);
 }

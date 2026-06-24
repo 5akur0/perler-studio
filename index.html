@@ -113,6 +113,15 @@
               </span>
               <strong class="start-row-count" id="collectionCount">0</strong>
             </button>
+            <button class="start-row start-row-community" id="startCommunityButton" type="button">
+              <span class="start-row-icon" aria-hidden="true">
+                <span data-lucide-icon="message-circle" data-icon-size="22"></span>
+              </span>
+              <span class="start-row-body">
+                <strong>社区</strong>
+                <small>留言板和更新板，一起把工坊做得更好。</small>
+              </span>
+            </button>
           </div>
           </div>
           <button class="start-showcase" id="startShowcaseButton" type="button" aria-label="用这张图纸开始拼豆">
@@ -196,6 +205,40 @@
           </header>
           <main class="collection-layout" aria-live="polite">
             <div id="collectionPanel" class="collection-panel"></div>
+          </main>
+        </div>
+      </section>
+
+      <section class="community-screen" id="communityScreen" aria-labelledby="communityTitle" aria-hidden="true">
+        <div class="community-studio-card">
+          <header class="topbar community-topbar">
+            <div class="topbar-lead">
+              <div class="brand">
+                <div class="brand-mark" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                <div class="brand-text">
+                  <h1 id="communityTitle">拼豆工坊</h1>
+                  <span class="work-mode-chip">社区</span>
+                </div>
+              </div>
+            </div>
+            <div class="top-stats community-top-actions">
+              <button class="icon-only-button" id="communityBackButton" type="button" title="返回入口" aria-label="返回入口">
+                <span data-lucide-icon="arrow-left" data-icon-size="18"></span>
+              </button>
+              <button class="icon-only-button" id="communityRefreshButton" type="button" title="刷新" aria-label="刷新">
+                <span data-lucide-icon="refresh-cw" data-icon-size="18"></span>
+              </button>
+            </div>
+          </header>
+          <div class="community-tabs" role="tablist" aria-label="社区分区">
+            <button class="community-tab" id="communityTabMessages" type="button" role="tab" aria-selected="true" aria-controls="communityMessages">留言板</button>
+            <button class="community-tab" id="communityTabRoadmap" type="button" role="tab" aria-selected="false" aria-controls="communityRoadmap">更新板</button>
+          </div>
+          <main class="community-layout" aria-live="polite">
+            <section class="community-pane" id="communityMessages" role="tabpanel" aria-labelledby="communityTabMessages"></section>
+            <section class="community-pane" id="communityRoadmap" role="tabpanel" aria-labelledby="communityTabRoadmap" hidden></section>
           </main>
         </div>
       </section>

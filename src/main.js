@@ -92,6 +92,7 @@ import {
 } from './build-timer.js';
 import { SHARE_QR_DATA_URL } from './share-qr.js';
 import { buildShareText } from './share-copy.js';
+import { initCommunity, enterCommunity } from './community.js';
 
   hydrateIcons(document);
 
@@ -154,6 +155,7 @@ import { buildShareText } from './share-copy.js';
       [els.startScreen, mode === "home"],
       [els.galleryScreen, mode === "gallery"],
       [els.collectionScreen, mode === "collection"],
+      [els.communityScreen, mode === "community"],
       [els.drawingStudio, mode === "draw"],
       [document.querySelector(".bead-topbar"), beadActive],
       [els.studioGrid, beadActive],
@@ -168,6 +170,7 @@ import { buildShareText } from './share-copy.js';
   };
   const MODE_BG = {
     draw: "--bg-draw-image", gallery: "--bg-gallery-image", collection: "--bg-collection-image",
+    community: "--bg-gallery-image",
   };
   // Full-window background layer (body::before): choose the image var for current mode/phase.
   function updateFullBg() {
@@ -203,7 +206,7 @@ import { buildShareText } from './share-copy.js';
 
   function setAppMode(mode) {
     const prevMode = state.appMode;
-    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : "home";
+    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : mode === "community" ? "community" : "home";
     if (prevMode && prevMode !== state.appMode) playSfx("nav"); // soft swish on real page switches only
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
@@ -232,6 +235,9 @@ import { buildShareText } from './share-copy.js';
     if (state.appMode === "collection") {
       state.collectionPageOpen = true;
       uiRenderCollection();
+    }
+    if (state.appMode === "community") {
+      enterCommunity();
     }
   }
 
@@ -1829,6 +1835,9 @@ import { buildShareText } from './share-copy.js';
   els.settingsButton?.addEventListener("click", () => openSettingsModal());
   const settingsVersionEl = document.getElementById("settingsVersion");
   if (settingsVersionEl) settingsVersionEl.textContent = `拼豆工坊 v${APP_VERSION}`;
+  initCommunity(els);
+  els.startCommunityButton?.addEventListener("click", () => setAppMode("community"));
+  els.communityBackButton?.addEventListener("click", () => setAppMode("home"));
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();
