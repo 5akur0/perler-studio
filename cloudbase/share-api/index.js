@@ -45,6 +45,22 @@ let lastCleanupAt = 0;
 const RATE_LIMITS = "rate_limits";
 const ADMIN_GUARDS = "admin_guards";
 
+// ── Community: message board (pre-moderated) + update board (admin-authored) ──
+const MESSAGES = "messages"; // public, approved only
+const MESSAGES_SUBMISSIONS = "messages_submissions"; // pending review queue
+const ROADMAP_ITEMS = "roadmap_items"; // admin-authored, public read
+const ROADMAP_VOTES = "roadmap_votes"; // one row per (itemId, clientId)
+const MAX_MESSAGE_LEN = 200;
+const MAX_NICKNAME_LEN = 16;
+const MAX_CLIENT_ID_LEN = 64;
+const MAX_ROADMAP_TITLE_LEN = 60;
+const MAX_ROADMAP_DESC_LEN = 280;
+const MAX_ROADMAP_VERSION_LEN = 16;
+const ROADMAP_STATUSES = ["planned", "in_progress", "shipped"];
+// Tighter write cap than gallery: free-text UGC is the highest-abuse surface.
+const MESSAGE_WRITE_MAX_PER_IP = 6;
+const VOTE_WRITE_MAX_PER_IP = 30;
+
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://beam-prod-d7g2xz88ee6532631-1438742199.ap-shanghai.app.tcloudbase.com",
   "https://beam-prod-d7g2xz88ee6532631-1438742199.tcloudbaseapp.com",
@@ -391,6 +407,10 @@ function isGalleryUnpublishPath(path) {
 
 function isGalleryDeletePath(path) {
   return path.endsWith("/api/gallery/delete") || path.endsWith("/gallery/delete");
+}
+
+function pathIs(path, suffix) {
+  return path.endsWith(`/api/${suffix}`) || path.endsWith(`/${suffix}`);
 }
 
 function nowIso() {
@@ -752,6 +772,222 @@ async function deleteGallery(payload, event, context) {
   return { removed, status: "deleted" };
 }
 
+// ── Community helpers ────────────────────────────────────────────────────────
+
+function normalizeNickname(value) {
+  const cleaned = String(value || "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, MAX_NICKNAME_LEN);
+  if (/[<>"'`\\]/.test(cleaned)) {
+    throw new Error("nickname contains unsafe characters.");
+  }
+  return cleaned; // may be empty → client renders the anonymous label
+}
+
+function normalizeMessageContent(value) {
+  const cleaned = String(value || "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim();
+  if (!cleaned) throw new Error("content is required.");
+  // Deny links: cuts the main spam vector on an anonymous public board.
+  if (/https?:\/\/|www\.|\.com|\.cn|\.net|\.xyz/i.test(cleaned)) {
+    throw createHttpError(400, "no_links", "留言里不能带网址哦。");
+  }
+  if (/[<>`\\]/.test(cleaned)) {
+    throw new Error("content contains unsafe characters.");
+  }
+  return cleaned.slice(0, MAX_MESSAGE_LEN);
+}
+
+function normalizeClientId(value) {
+  const cleaned = String(value || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, MAX_CLIENT_ID_LEN);
+  if (!cleaned) throw new Error("clientId is required.");
+  return cleaned;
+}
+
+function publicMessage(row) {
+  return {
+    id: row.publicId || row._id || "",
+    nickname: row.nickname || "",
+    content: row.content,
+    createdAt: row.createdAt,
+  };
+}
+
+async function submitMessage(payload, event, context) {
+  const nickname = normalizeNickname(payload.nickname);
+  const content = normalizeMessageContent(payload.content);
+  const createdAt = nowIso();
+  const result = await db.collection(MESSAGES_SUBMISSIONS).add({
+    nickname,
+    content,
+    status: "pending",
+    createdAt,
+    updatedAt: createdAt,
+    clientIpHash: hashIp(clientIp(event, context)),
+  });
+  return { id: result?.id || result?._id || "", status: "pending", createdAt };
+}
+
+async function listMessages(payload) {
+  const limit = Math.max(1, Math.min(20, Number.parseInt(payload.limit, 10) || 20));
+  const result = await db.collection(MESSAGES)
+    .where({ status: "approved" })
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+  const rows = (result.data || [])
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  return { items: rows.map(publicMessage) };
+}
+
+async function listPendingMessages(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const limit = Math.max(1, Math.min(96, Number.parseInt(payload.limit, 10) || 48));
+  const result = await db.collection(MESSAGES_SUBMISSIONS)
+    .where({ status: "pending" })
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+  return {
+    items: (result.data || [])
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+      .map((row) => ({
+        id: row._id,
+        nickname: row.nickname || "",
+        content: row.content,
+        status: row.status,
+        createdAt: row.createdAt,
+      })),
+  };
+}
+
+async function approveMessage(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const id = String(payload.id || "").trim();
+  if (!id) throw new Error("id is required.");
+  const now = nowIso();
+  // Atomic claim — concurrent double-clicks can't double-publish (see approveGallery).
+  const claim = await db.collection(MESSAGES_SUBMISSIONS)
+    .where({ _id: id, status: "pending" })
+    .update({ status: "approved", reviewedAt: now, updatedAt: now });
+  if (!claim || !claim.updated) throw new Error("Submission already processed.");
+  const source = await getDoc(MESSAGES_SUBMISSIONS, id);
+  const publicId = `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  await db.collection(MESSAGES).add({
+    publicId,
+    submissionId: id,
+    nickname: source?.nickname || "",
+    content: source?.content || "",
+    status: "approved",
+    createdAt: source?.createdAt || now,
+    publishedAt: now,
+  });
+  return { publicId, status: "approved" };
+}
+
+async function deleteMessage(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const publicId = String(payload.publicId || "").trim();
+  const submissionId = String(payload.id || "").trim();
+  if (!publicId && !submissionId) throw new Error("id or publicId is required.");
+  let removed = 0;
+  if (publicId) {
+    const result = await db.collection(MESSAGES).where({ publicId }).limit(1).get();
+    const item = (result.data || [])[0];
+    if (item?._id) { await db.collection(MESSAGES).doc(item._id).remove(); removed += 1; }
+  }
+  if (submissionId) {
+    const items = await db.collection(MESSAGES).where({ submissionId }).get();
+    await Promise.all((items.data || []).map((row) => (row?._id ? db.collection(MESSAGES).doc(row._id).remove() : null)));
+    removed += (items.data || []).length;
+    if (await removeDocIfExists(MESSAGES_SUBMISSIONS, submissionId)) removed += 1;
+  }
+  return { removed, status: "deleted" };
+}
+
+function publicRoadmapItem(row, votedSet) {
+  return {
+    id: row.itemId || row._id || "",
+    title: row.title,
+    desc: row.desc || "",
+    status: ROADMAP_STATUSES.includes(row.status) ? row.status : "planned",
+    version: row.version || "",
+    order: Number(row.order) || 0,
+    votes: Number(row.votes) || 0,
+    voted: votedSet ? votedSet.has(row.itemId || row._id || "") : false,
+  };
+}
+
+async function listRoadmap(payload) {
+  const result = await db.collection(ROADMAP_ITEMS).orderBy("order", "asc").limit(100).get();
+  const rows = (result.data || []).sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+  let votedSet = null;
+  const clientId = String(payload.clientId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, MAX_CLIENT_ID_LEN);
+  if (clientId) {
+    const votes = await db.collection(ROADMAP_VOTES).where({ clientId }).limit(200).get();
+    votedSet = new Set((votes.data || []).map((v) => v.itemId));
+  }
+  return { items: rows.map((row) => publicRoadmapItem(row, votedSet)) };
+}
+
+async function voteRoadmap(payload, event, context) {
+  const itemId = String(payload.itemId || "").trim();
+  const clientId = normalizeClientId(payload.clientId);
+  if (!itemId) throw new Error("itemId is required.");
+  const itemResult = await db.collection(ROADMAP_ITEMS).where({ itemId }).limit(1).get();
+  const item = (itemResult.data || [])[0];
+  if (!item?._id) throw new Error("roadmap item not found.");
+  const existing = await db.collection(ROADMAP_VOTES).where({ itemId, clientId }).limit(1).get();
+  const prior = (existing.data || [])[0];
+  const ipHash = hashIp(clientIp(event, context));
+  if (prior?._id) {
+    await db.collection(ROADMAP_VOTES).doc(prior._id).remove();
+    await db.collection(ROADMAP_ITEMS).doc(item._id).update({ votes: _.inc(-1) });
+    return { itemId, voted: false, votes: Math.max(0, (Number(item.votes) || 0) - 1) };
+  }
+  await db.collection(ROADMAP_VOTES).add({ itemId, clientId, ipHash, createdAt: nowIso() });
+  await db.collection(ROADMAP_ITEMS).doc(item._id).update({ votes: _.inc(1) });
+  return { itemId, voted: true, votes: (Number(item.votes) || 0) + 1 };
+}
+
+async function upsertRoadmap(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const title = String(payload.title || "").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, MAX_ROADMAP_TITLE_LEN);
+  if (!title) throw new Error("title is required.");
+  if (/[<>`\\]/.test(title)) throw new Error("title contains unsafe characters.");
+  const desc = String(payload.desc || "").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, MAX_ROADMAP_DESC_LEN);
+  if (/[<>`\\]/.test(desc)) throw new Error("desc contains unsafe characters.");
+  const status = ROADMAP_STATUSES.includes(payload.status) ? payload.status : "planned";
+  const version = String(payload.version || "").replace(/[^0-9A-Za-z.\-]/g, "").slice(0, MAX_ROADMAP_VERSION_LEN);
+  const order = Number.parseInt(payload.order, 10) || 0;
+  const now = nowIso();
+  const existingId = String(payload.itemId || "").trim();
+  if (existingId) {
+    const found = await db.collection(ROADMAP_ITEMS).where({ itemId: existingId }).limit(1).get();
+    const doc = (found.data || [])[0];
+    if (!doc?._id) throw new Error("roadmap item not found.");
+    await db.collection(ROADMAP_ITEMS).doc(doc._id).update({ title, desc, status, version, order, updatedAt: now });
+    return { itemId: existingId, status: "updated" };
+  }
+  const itemId = `road-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  await db.collection(ROADMAP_ITEMS).add({ itemId, title, desc, status, version, order, votes: 0, createdAt: now, updatedAt: now });
+  return { itemId, status: "created" };
+}
+
+async function deleteRoadmap(payload, event, context) {
+  await requireAdmin(event, payload, context);
+  const itemId = String(payload.itemId || "").trim();
+  if (!itemId) throw new Error("itemId is required.");
+  const found = await db.collection(ROADMAP_ITEMS).where({ itemId }).limit(1).get();
+  const doc = (found.data || [])[0];
+  if (doc?._id) await db.collection(ROADMAP_ITEMS).doc(doc._id).remove();
+  const votes = await db.collection(ROADMAP_VOTES).where({ itemId }).get();
+  await Promise.all((votes.data || []).map((v) => (v?._id ? db.collection(ROADMAP_VOTES).doc(v._id).remove() : null)));
+  return { status: "deleted" };
+}
+
 exports.main = async (event, context) => {
   const method = String(event?.httpMethod || context?.httpContext?.httpMethod || "").toUpperCase();
   const path = getPath(event, context);
@@ -813,6 +1049,54 @@ exports.main = async (event, context) => {
 
     if (isGalleryDeletePath(path)) {
       const data = await deleteGallery(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+
+    // ── Community: message board ──
+    if (pathIs(path, "messages/submit")) {
+      const ip = clientIp(event, context);
+      await consumeRateLimit("messages_submit", ip, RATE_LIMIT_WINDOW_MS, MESSAGE_WRITE_MAX_PER_IP);
+      const data = await submitMessage(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "messages/list")) {
+      const ip = clientIp(event, context);
+      await consumeRateLimit("messages_list", ip, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_READ_MAX_PER_IP);
+      const data = await listMessages(payload);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "messages/pending")) {
+      const data = await listPendingMessages(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "messages/approve")) {
+      const data = await approveMessage(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "messages/delete")) {
+      const data = await deleteMessage(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+
+    // ── Community: update board ──
+    if (pathIs(path, "roadmap/list")) {
+      const ip = clientIp(event, context);
+      await consumeRateLimit("roadmap_list", ip, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_READ_MAX_PER_IP);
+      const data = await listRoadmap(payload);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "roadmap/vote")) {
+      const ip = clientIp(event, context);
+      await consumeRateLimit("roadmap_vote", ip, RATE_LIMIT_WINDOW_MS, VOTE_WRITE_MAX_PER_IP);
+      const data = await voteRoadmap(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "roadmap/upsert")) {
+      const data = await upsertRoadmap(payload, event, context);
+      return json(event, { ok: true, data });
+    }
+    if (pathIs(path, "roadmap/delete")) {
+      const data = await deleteRoadmap(payload, event, context);
       return json(event, { ok: true, data });
     }
 
