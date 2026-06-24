@@ -91,6 +91,7 @@ import {
   resetBuildTimer, startBuildTimer, pauseBuildTimer, buildElapsedMs, setBuildElapsedMs, formatBuildTime,
 } from './build-timer.js';
 import { SHARE_QR_DATA_URL } from './share-qr.js';
+import { buildShareText } from './share-copy.js';
 
   hydrateIcons(document);
 
@@ -1518,15 +1519,14 @@ import { SHARE_QR_DATA_URL } from './share-qr.js';
   }
 
   function copyShareText() {
-    const slogans = ["想拼就拼，走到哪拼到哪", "碎片时间，玩会赛博拼豆", "一部手机，随身的拼豆台"];
-    const slogan = slogans[Math.floor(Math.random() * slogans.length)];
     const timeText = state.buildMs > 0 ? `，花了 ${formatBuildTime(state.buildMs)}` : "";
-    const text = [
-      `赛博拼豆，${slogan}。`,
-      `今天拼了「${state.selectedPattern.name}」，${getTargetTotal()}颗、${getPatternColors().length}个色号，最后评级 ${finalGrade()}${timeText}。`,
-      `一部手机就能拼，碎片时间随手来一块。`,
-      `#拼豆 #手作 #像素画 #解压 #小游戏`,
-    ].join("\n");
+    const text = buildShareText({
+      name: state.selectedPattern.name,
+      total: getTargetTotal(),
+      colors: getPatternColors().length,
+      grade: finalGrade(),
+      timeText,
+    });
     autoCopyText(text, "文案已复制。", "复制失败，请手动复制。");
   }
 
