@@ -4,10 +4,8 @@
 
 ## 开源与协议
 
-- 本项目采用 [AGPL-3.0](./LICENSE) 协议发布。
-
-
-- 在线版本用户可通过仓库获取完整对应源码：<https://github.com/5akur0/perler-studio>
+- 本项目采用 [MIT](./LICENSE) 协议发布。
+- 仓库地址：<https://github.com/5akur0/perler-studio>
 
 ## 运行
 
