@@ -177,7 +177,7 @@ components:
 
 ### Named Rules
 **The Round-Only Rule（只用圆体）.** 字族锁定 clear = Noto Sans SC、cute = LXGW 霞鹜记号体，二者皆配中文圆黑回退。**禁止衬线、禁止再引入第三款字体**。一律走 `var(--font-clear)` / `var(--font-cute)` token，不要再写死字族；改字族同步 `tokens.css` 与本文件。
-> 注：画布出片图（`render.js` 的 `ctx.font`）仍是独立体系（Avenir Next / PingFang），未并入这两款 token——如需统一，需先 `document.fonts.ready` 再绘制以避免 canvas FOUT。
+> 注：画布出片图（`render.js` 的 `ctx.font`）已收敛为**与 DOM 同构的两常量系统**——`CANVAS_CLEAR_FONT` / `CANVAS_CUTE_FONT`（`render.js` 单一来源，`render-export/-tray/-inspect/-finish` 共用），角色判定同 clear/cute。二者刻意前置 `Avenir Next` 作画布拉丁字面（数字 / 色号 / 年份），并都含已加载的 `Noto Sans SC` webfont，使中文在各平台一致（旧的第三套"legacy"栈缺 Noto、非 Apple 端会掉到系统中文字体，现已删除）。出片位图（`drawShareImage`）在 `main.js` 绘制前已 `document.fonts.ready` 把关防 canvas FOUT；finish 展示是实时画布、重绘自愈。
 
 **The Title-Tier Rule（标题分档）.** 中层标题用 `--fs-title 16` 与正文 `base 14` 拉开一档——**不要让标题与正文同号、只靠字重区分**。
 
@@ -260,7 +260,7 @@ components:
 
 **The Board-Viewport Rule（棋盘视窗规则）.** 手机与平板的 canvas 是观察和操作棋盘的**有界视窗**，不是必须完整包住棋盘的内容盒。棋盘可以超出当前取景，但绘制、命中测试、缩放和平移必须共享同一坐标变换，保证任意有效格子均可到达。页面级 canvas DOM 盒不得随图纸长宽比无限扩张，也不得把阶段操作或豆盒推出视口；超出部分由画布内部导航处理。手机初始不要求全览，平板横屏长方形图纸也必须受工作区可用高度约束。输入字号继续保持 ≥16px，触控目标继续保持 ≥44×44px。
 - 自检：改动布局后跑 `grep -rnP ': ?[0-9]+px' src/styles/ | grep -iE 'sidebar|canvas|modal|tile|topbar'` 确认没有新的裸魔法数。
-- **遗留（TODO）**：`gap`/`padding` 大多仍是 8/10/12/16 裸值，未并入 `--sp-*` 尺度；off-scale（5/7/9/10/14）待对齐。需一次专门的「spacing 扫描 + 截图复核」pass。
+- **Spacing 尺度分工（2026-06-24 扫描收尾）**：`--sp-*`（4/8/12/16/24/32）治理**布局级**间距——外壳 / 栏 / 面板 / 卡片之间的 `gap`/`padding`/`margin`，凡裸值等于某 token 的已全部并入（扫描确认 0 残留）。**药丸 / 徽标 / chip / 计数标签**自带一档**微间距**（1/2/3px 纵向、5/6/7/9/10/11px 横向），刻意落在 `--sp-*` 之下与之间，用来贴合小字；这些**不是 drift，不要强并入** `--sp-*`（会把紧凑药丸撑变形）。另有 `clamp()` 流式表达式与图标内缩 padding（如 `0 … 0 32px` 给图标让位）属 bespoke，同样不并入。自检脚本命中这类微间距时按本条豁免。
 
 ### Inputs / Fields
 - **Style:** 白底、`--r-sm`、`min-height: var(--field-h)`（行）/ `var(--tap-min)`（按钮触控）、1px `--line` 描边、字号 ≥16px。

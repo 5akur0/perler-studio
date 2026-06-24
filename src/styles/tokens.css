@@ -53,7 +53,11 @@
   --r-lg: 20px;
   --r-pill: 999px;
 
-  /* —— Spacing scale —— */
+  /* —— Spacing scale (layout-level: shells / rails / panels / cards) ——
+     Pills, badges, chips & count tags intentionally tune their own sub-scale
+     micro-padding (1/2/3px vertical, 5/6/7/9/10/11px horizontal) to hug small
+     text; that tier sits below this scale on purpose and is NOT drift — see
+     DESIGN.md §5. Don't force those onto --sp-*; it deforms tight pills. */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
