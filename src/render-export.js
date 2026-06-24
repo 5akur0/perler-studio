@@ -79,7 +79,7 @@ function drawShareGrid(ctx, x, y, size) {
 // New pastel social card (A3 port). All chrome is canvas-drawn; the only raster is
 // the optional pre-decoded QR Image (`qrImg`) composited in the footer. Caller is
 // responsible for awaiting `document.fonts.ready` before drawing (LXGW gate).
-export function drawShareImage(ctx, w, h, portrait, qrImg = null) {
+export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "card") {
   const p = sharePalette();
   const PAD = 80;
   const innerW = w - PAD * 2;
@@ -100,6 +100,16 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null) {
   glowB.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glowB;
   ctx.fillRect(0, 0, w, h);
+
+  // ── clean variant: artwork-as-object, no stats chrome ────────────────────────
+  // For people who just want a clean pixel-art post. One big well, the artwork,
+  // a whisper-quiet brand watermark + optional corner QR. No badge/KPI/slogan.
+  if (variant === "clean") {
+    drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg);
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left";
+    return;
+  }
 
   // ── header: pattern name (hero) + grade badge ────────────────────────────────
   const top = 80;
@@ -249,4 +259,53 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null) {
 
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
+}
+
+// Minimal "纯作品图" layout: a single centered white well holding the artwork,
+// with a quiet brand watermark and (if available) a small corner QR. Shares the
+// page wash painted by the caller. Square canvases look best here (1080×1080).
+function drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg) {
+  const wellTop = PAD;
+  const wellBottom = h - PAD;
+  const wellH = wellBottom - wellTop;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(49, 54, 68, 0.13)";
+  ctx.shadowBlur = 48;
+  ctx.shadowOffsetY = 24;
+  ctx.fillStyle = p.well;
+  roundedPath(ctx, PAD, wellTop, innerW, wellH, 44);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = p.wellEdge;
+  ctx.lineWidth = 2;
+  roundedPath(ctx, PAD, wellTop, innerW, wellH, 44);
+  ctx.stroke();
+
+  // artwork centered, leaving a bottom band for the watermark
+  const wellPad = 56;
+  const bottomBand = 64;
+  const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2 - bottomBand);
+  drawShareGrid(
+    ctx,
+    PAD + (innerW - gridSize) / 2,
+    wellTop + (wellH - bottomBand - gridSize) / 2,
+    gridSize,
+  );
+
+  // quiet brand watermark, centered in the bottom band
+  const markY = wellBottom - 34;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "center";
+  ctx.fillStyle = p.muted;
+  ctx.font = `28px ${CANVAS_CUTE_FONT}`;
+  ctx.fillText("拼豆工坊 · 扫码同款", w / 2, markY);
+
+  // small corner QR (optional)
+  if (qrImg) {
+    const qrSize = 96;
+    ctx.globalAlpha = 0.92;
+    ctx.drawImage(qrImg, PAD + innerW - qrSize - 28, wellBottom - qrSize - 28, qrSize, qrSize);
+    ctx.globalAlpha = 1;
+  }
 }

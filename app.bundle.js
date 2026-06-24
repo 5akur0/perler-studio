@@ -2966,7 +2966,7 @@
       }
     }
   }
-  function drawShareImage(ctx2, w, h, portrait, qrImg = null) {
+  function drawShareImage(ctx2, w, h, portrait, qrImg = null, variant = "card") {
     const p = sharePalette();
     const PAD = 80;
     const innerW = w - PAD * 2;
@@ -2985,6 +2985,12 @@
     glowB.addColorStop(1, "rgba(0,0,0,0)");
     ctx2.fillStyle = glowB;
     ctx2.fillRect(0, 0, w, h);
+    if (variant === "clean") {
+      drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg);
+      ctx2.textBaseline = "alphabetic";
+      ctx2.textAlign = "left";
+      return;
+    }
     const top = 80;
     const badgeSize = 148;
     const badgeX = w - PAD - badgeSize;
@@ -3116,6 +3122,44 @@
     ctx2.fillText("\u626B\u7801 \xB7 \u5F00\u59CB\u4F60\u7684\u62FC\u8C46", signX, footTop + 150);
     ctx2.textBaseline = "alphabetic";
     ctx2.textAlign = "left";
+  }
+  function drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg) {
+    const wellTop = PAD;
+    const wellBottom = h - PAD;
+    const wellH = wellBottom - wellTop;
+    ctx2.save();
+    ctx2.shadowColor = "rgba(49, 54, 68, 0.13)";
+    ctx2.shadowBlur = 48;
+    ctx2.shadowOffsetY = 24;
+    ctx2.fillStyle = p.well;
+    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 44);
+    ctx2.fill();
+    ctx2.restore();
+    ctx2.strokeStyle = p.wellEdge;
+    ctx2.lineWidth = 2;
+    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 44);
+    ctx2.stroke();
+    const wellPad = 56;
+    const bottomBand = 64;
+    const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2 - bottomBand);
+    drawShareGrid(
+      ctx2,
+      PAD + (innerW - gridSize) / 2,
+      wellTop + (wellH - bottomBand - gridSize) / 2,
+      gridSize
+    );
+    const markY = wellBottom - 34;
+    ctx2.textBaseline = "alphabetic";
+    ctx2.textAlign = "center";
+    ctx2.fillStyle = p.muted;
+    ctx2.font = `28px ${CANVAS_CUTE_FONT}`;
+    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A \xB7 \u626B\u7801\u540C\u6B3E", w / 2, markY);
+    if (qrImg) {
+      const qrSize = 96;
+      ctx2.globalAlpha = 0.92;
+      ctx2.drawImage(qrImg, PAD + innerW - qrSize - 28, wellBottom - qrSize - 28, qrSize, qrSize);
+      ctx2.globalAlpha = 1;
+    }
   }
 
   // src/render-inspect.js
@@ -7492,7 +7536,8 @@
     row.className = "control-row";
     [
       ["\u5BFC\u51FA\u7AD6\u56FE", () => uiActions.exportShareImage("portrait")],
-      ["\u5BFC\u51FA\u65B9\u56FE", () => uiActions.exportShareImage("square")]
+      ["\u5BFC\u51FA\u65B9\u56FE", () => uiActions.exportShareImage("square")],
+      ["\u7EAF\u4F5C\u54C1\u56FE", () => uiActions.exportShareImage("clean")]
     ].forEach(([label, handler]) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -12368,14 +12413,16 @@
     return shareQrPromise;
   }
   async function exportShareImage(format) {
-    const portrait = format !== "square";
+    const clean = format === "clean";
+    const portrait = !clean && format !== "square";
     const [, qrImg] = await Promise.all([ensureShareFonts(), loadShareQR()]);
     const canvas = document.createElement("canvas");
     canvas.width = 1080;
     canvas.height = portrait ? 1440 : 1080;
     const ctx2 = canvas.getContext("2d");
-    drawShareImage(ctx2, canvas.width, canvas.height, portrait, qrImg);
-    const filename = `\u62FC\u8C46\u5DE5\u574A-${state.selectedPattern.name}-${portrait ? "\u7AD6\u56FE" : "\u65B9\u56FE"}.png`;
+    drawShareImage(ctx2, canvas.width, canvas.height, portrait, qrImg, clean ? "clean" : "card");
+    const variantLabel = clean ? "\u4F5C\u54C1\u56FE" : portrait ? "\u7AD6\u56FE" : "\u65B9\u56FE";
+    const filename = `\u62FC\u8C46\u5DE5\u574A-${state.selectedPattern.name}-${variantLabel}.png`;
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!blob) {
       showToast("\u5BFC\u51FA\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5\u3002");

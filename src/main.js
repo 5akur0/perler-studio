@@ -1482,15 +1482,17 @@ import { buildShareText } from './share-copy.js';
   }
 
   async function exportShareImage(format) {
-    const portrait = format !== "square";
+    const clean = format === "clean";
+    const portrait = !clean && format !== "square";
     const [, qrImg] = await Promise.all([ensureShareFonts(), loadShareQR()]);
     const canvas = document.createElement("canvas");
     canvas.width = 1080;
     canvas.height = portrait ? 1440 : 1080;
     const ctx = canvas.getContext("2d");
-    drawShareImage(ctx, canvas.width, canvas.height, portrait, qrImg);
+    drawShareImage(ctx, canvas.width, canvas.height, portrait, qrImg, clean ? "clean" : "card");
 
-    const filename = `拼豆工坊-${state.selectedPattern.name}-${portrait ? "竖图" : "方图"}.png`;
+    const variantLabel = clean ? "作品图" : portrait ? "竖图" : "方图";
+    const filename = `拼豆工坊-${state.selectedPattern.name}-${variantLabel}.png`;
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     if (!blob) {
       showToast("导出失败，请重试。");

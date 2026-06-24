@@ -886,6 +886,7 @@ export function renderSharePanel() {
   [
     ["导出竖图", () => uiActions.exportShareImage("portrait")],
     ["导出方图", () => uiActions.exportShareImage("square")],
+    ["纯作品图", () => uiActions.exportShareImage("clean")],
   ].forEach(([label, handler]) => {
     const button = document.createElement("button");
     button.type = "button";
