@@ -42,17 +42,18 @@ export {
 // Re-exported so main.js keeps importing sharePalette/drawShareImage from here.
 export { sharePalette, drawShareImage } from './render-export.js';
 
-// Exported so the extracted render-export.js share card can reuse the exact same
-// canvas font stacks (single source stays here; see the brand-font merge note below).
+// The canvas/share-image font system mirrors the DOM's two-token system
+// (--font-clear / --font-cute, see DESIGN.md §3): CLEAR for data / labels / body,
+// CUTE for titles / brand moments. Both prepend "Avenir Next" as the canvas's
+// deliberate Latin face (numbers, color codes, year) and include the loaded
+// "Noto Sans SC" webfont so CJK renders identically on every platform (the old
+// third "legacy" stack omitted Noto and fell back to system CJK off-Apple — now
+// removed). Single source: render-export / -tray / -inspect / -finish reuse these.
 export const CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 export const CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-// Legacy canvas/share-image family stack (no Noto Sans SC). Single source for the
-// many `ctx.font = "<weight> <size>px " + CANVAS_FONT_STACK` callers below; the
-// pending brand-font merge (see DESIGN.md §3) only has to touch this one line.
-export const CANVAS_FONT_STACK = "Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
 
 // Inspect-assist mini-canvases (zoom loupe + fuse preview). render-inspect.js
-// imports board/layout helpers + CANVAS_FONT_STACK back from this file (call-time
+// imports board/layout helpers + CANVAS_CLEAR_FONT back from this file (call-time
 // cycle, safe in the single IIFE). updateInspectAssistCanvases is also called
 // internally (inspect phase), so it is imported here too.
 import { updateInspectAssistCanvases } from './render-inspect.js';
@@ -1093,10 +1094,10 @@ export function drawChooseScene(layout) {
   ctx.save();
   drawPaper(x, y, cardW, 230);
   ctx.fillStyle = "#26242b";
-  ctx.font = "700 28px " + CANVAS_FONT_STACK;
+  ctx.font = "700 28px " + CANVAS_CLEAR_FONT;
   ctx.fillText("今天的工作台已经清空", x + 28, y + 48);
   ctx.fillStyle = "#686572";
-  ctx.font = "15px " + CANVAS_FONT_STACK;
+  ctx.font = "15px " + CANVAS_CLEAR_FONT;
   wrapText("从左侧挑一张图纸，照着色号从豆盒取豆。豆筛只有一个，针工具从豆筛取豆，镊子必须先夹住一颗再放下。", x + 28, y + 82, cardW - 56, 25);
   drawMiniSupplies(x + 32, y + 145, cardW - 64, 54);
   ctx.restore();
@@ -2364,7 +2365,7 @@ export function drawFinishLayer(layout) {
   roundedRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1, 7.5);
   ctx.stroke();
   ctx.fillStyle = "#26242b";
-  ctx.font = "800 14px " + CANVAS_FONT_STACK;
+  ctx.font = "800 14px " + CANVAS_CLEAR_FONT;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(`评级 ${finalGrade()}`, bx + badgeW / 2, by + badgeH / 2 + 0.5);

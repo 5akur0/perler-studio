@@ -14,7 +14,7 @@ import { boardCols, boardRows, indexFor, targetAt } from './pattern.js';
 import { roundedPath, fusedColor } from './render-primitives.js';
 import {
   boardCellFromPoint, setupHiDpiCanvas, boardFusionShapeProfile,
-  drawGradientCapsuleBridge, CANVAS_FONT_STACK,
+  drawGradientCapsuleBridge, CANVAS_CLEAR_FONT,
 } from './render.js';
 
 export function updateInspectAssistCanvases() {
@@ -204,7 +204,7 @@ export function drawInspectFusePreviewCanvas(canvas) {
 
   if (!cells.length) {
     ctx.fillStyle = "rgba(67, 77, 91, 0.58)";
-    ctx.font = "600 13px " + CANVAS_FONT_STACK;
+    ctx.font = "600 13px " + CANVAS_CLEAR_FONT;
     ctx.textAlign = "center";
     ctx.fillText("还没有可预览的拼豆", w / 2, h / 2 + 4);
     return;

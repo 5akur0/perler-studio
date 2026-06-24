@@ -3275,7 +3275,7 @@
     }
     if (!cells.length) {
       ctx2.fillStyle = "rgba(67, 77, 91, 0.58)";
-      ctx2.font = "600 13px " + CANVAS_FONT_STACK;
+      ctx2.font = "600 13px " + CANVAS_CLEAR_FONT;
       ctx2.textAlign = "center";
       ctx2.fillText("\u8FD8\u6CA1\u6709\u53EF\u9884\u89C8\u7684\u62FC\u8C46", w / 2, h / 2 + 4);
       return;
@@ -3755,16 +3755,16 @@
   function buildConceptLabelMetrics(type, labelW) {
     const title = type === "full" ? "\u300A\u6EE1\u683C\u6784\u56FE\u300B" : "\u300A\u65E0\u9898\u300B";
     const paragraphs = type === "full" ? [
-      { text: "2026", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
-      { text: "\u5851\u6599\u62FC\u8C46\u3001\u7F51\u683C\u3001\u5B8C\u5168\u5360\u636E\u7684\u8868\u9762", font: "500 14px " + CANVAS_FONT_STACK, color: "#4f5560", lineHeight: 22 },
+      { text: "2026", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
+      { text: "\u5851\u6599\u62FC\u8C46\u3001\u7F51\u683C\u3001\u5B8C\u5168\u5360\u636E\u7684\u8868\u9762", font: "500 14px " + CANVAS_CLEAR_FONT, color: "#4f5560", lineHeight: 22 },
       { gap: 10 },
-      { text: "\u8FD9\u4EF6\u4F5C\u54C1\u62D2\u7EDD\u7559\u767D\uFF0C\u6574\u5757\u677F\u9762\u6210\u4E3A\u56FE\u50CF\u672C\u8EAB\u3002", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
-      { text: "\u6BCF\u4E2A\u5B54\u4F4D\u90FD\u88AB\u5360\u636E\uFF0C\u6BCF\u4E2A\u4F4D\u7F6E\u90FD\u540C\u7B49\u91CD\u8981\u3002", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 }
+      { text: "\u8FD9\u4EF6\u4F5C\u54C1\u62D2\u7EDD\u7559\u767D\uFF0C\u6574\u5757\u677F\u9762\u6210\u4E3A\u56FE\u50CF\u672C\u8EAB\u3002", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
+      { text: "\u6BCF\u4E2A\u5B54\u4F4D\u90FD\u88AB\u5360\u636E\uFF0C\u6BCF\u4E2A\u4F4D\u7F6E\u90FD\u540C\u7B49\u91CD\u8981\u3002", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 }
     ] : [
-      { text: "2026", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
-      { text: "\u7A7A\u767D\u62FC\u8C46\u677F\u3001\u672A\u653E\u7F6E\u7684\u5851\u6599\u8C46\u3001\u73A9\u5BB6\u7684\u89C2\u770B", font: "500 14px " + CANVAS_FONT_STACK, color: "#4f5560", lineHeight: 22 },
+      { text: "2026", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
+      { text: "\u7A7A\u767D\u62FC\u8C46\u677F\u3001\u672A\u653E\u7F6E\u7684\u5851\u6599\u8C46\u3001\u73A9\u5BB6\u7684\u89C2\u770B", font: "500 14px " + CANVAS_CLEAR_FONT, color: "#4f5560", lineHeight: 22 },
       { gap: 10 },
-      { text: "\u6CA1\u6709\u989C\u8272\uFF0C\u4E5F\u662F\u4E00\u79CD\u7ED3\u6784\u3002", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 }
+      { text: "\u6CA1\u6709\u989C\u8272\uFF0C\u4E5F\u662F\u4E00\u79CD\u7ED3\u6784\u3002", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 }
     ];
     const bodyMaxW = labelW - 36;
     const rows = [];
@@ -3802,7 +3802,7 @@
     roundedRect(labelX, labelY, labelW, boxH, 6);
     ctx2.stroke();
     ctx2.fillStyle = "#22242a";
-    ctx2.font = "700 23px " + CANVAS_FONT_STACK;
+    ctx2.font = "700 23px " + CANVAS_CLEAR_FONT;
     ctx2.fillText(title, labelX + 18, labelY + 36);
     let cursorY = labelY + 66;
     rows.forEach((row) => {
@@ -4270,7 +4270,7 @@
     if (!color) {
       ctx2.save();
       ctx2.fillStyle = "rgba(63, 81, 91, 0.46)";
-      ctx2.font = "600 12px " + CANVAS_FONT_STACK;
+      ctx2.font = "600 12px " + CANVAS_CLEAR_FONT;
       ctx2.textAlign = "center";
       ctx2.textBaseline = "middle";
       ctx2.fillText("\u70B9\u8272\u53F7\u5012\u8C46", trayX + trayW / 2, trayY + trayH / 2 - 8);
@@ -4354,7 +4354,6 @@
   // src/render.js
   var CANVAS_CLEAR_FONT = "Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   var CANVAS_CUTE_FONT = "LXGW Marker Gothic, Avenir Next, Noto Sans SC, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
-  var CANVAS_FONT_STACK = "Avenir Next, PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif";
   function useMobileDirectPlacement() {
     return isTouchDevice() || useStackedMobileLayout();
   }
@@ -5193,10 +5192,10 @@
     ctx2.save();
     drawPaper(x, y, cardW, 230);
     ctx2.fillStyle = "#26242b";
-    ctx2.font = "700 28px " + CANVAS_FONT_STACK;
+    ctx2.font = "700 28px " + CANVAS_CLEAR_FONT;
     ctx2.fillText("\u4ECA\u5929\u7684\u5DE5\u4F5C\u53F0\u5DF2\u7ECF\u6E05\u7A7A", x + 28, y + 48);
     ctx2.fillStyle = "#686572";
-    ctx2.font = "15px " + CANVAS_FONT_STACK;
+    ctx2.font = "15px " + CANVAS_CLEAR_FONT;
     wrapText("\u4ECE\u5DE6\u4FA7\u6311\u4E00\u5F20\u56FE\u7EB8\uFF0C\u7167\u7740\u8272\u53F7\u4ECE\u8C46\u76D2\u53D6\u8C46\u3002\u8C46\u7B5B\u53EA\u6709\u4E00\u4E2A\uFF0C\u9488\u5DE5\u5177\u4ECE\u8C46\u7B5B\u53D6\u8C46\uFF0C\u954A\u5B50\u5FC5\u987B\u5148\u5939\u4F4F\u4E00\u9897\u518D\u653E\u4E0B\u3002", x + 28, y + 82, cardW - 56, 25);
     drawMiniSupplies(x + 32, y + 145, cardW - 64, 54);
     ctx2.restore();
@@ -6259,7 +6258,7 @@
     roundedRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1, 7.5);
     ctx2.stroke();
     ctx2.fillStyle = "#26242b";
-    ctx2.font = "800 14px " + CANVAS_FONT_STACK;
+    ctx2.font = "800 14px " + CANVAS_CLEAR_FONT;
     ctx2.textAlign = "center";
     ctx2.textBaseline = "middle";
     ctx2.fillText(`\u8BC4\u7EA7 ${finalGrade()}`, bx + badgeW / 2, by + badgeH / 2 + 0.5);

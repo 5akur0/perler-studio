@@ -18,7 +18,7 @@ import { getTargetCounts } from './pattern.js';
 import { roundedPath, roundedRect } from './render-primitives.js';
 import {
   currentLayout, useMobileDirectPlacement, pseudoRandom,
-  pointInTray, pointInTrayDumpButton, trayDumpButtonRect, CANVAS_FONT_STACK,
+  pointInTray, pointInTrayDumpButton, trayDumpButtonRect, CANVAS_CLEAR_FONT,
 } from './render.js';
 
 export function useMobileTrayGrid() {
@@ -221,7 +221,7 @@ export function drawTray(layout, compact = false) {
   if (!color) {
     ctx.save();
     ctx.fillStyle = "rgba(63, 81, 91, 0.46)";
-    ctx.font = "600 12px " + CANVAS_FONT_STACK;
+    ctx.font = "600 12px " + CANVAS_CLEAR_FONT;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("点色号倒豆", trayX + trayW / 2, trayY + trayH / 2 - 8);

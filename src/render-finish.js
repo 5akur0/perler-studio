@@ -3,7 +3,7 @@
 // These draw the framed "finished craft" presentations (keychain / original /
 // coaster / figurine) and the hidden concept-museum scene. They import pure helpers
 // from render-primitives.js, the fused-piece model from render-fusion.js, and
-// drawBead/pseudoRandom/getFinishCardRect/CANVAS_FONT_STACK back from render.js (a
+// drawBead/pseudoRandom/getFinishCardRect/CANVAS_CLEAR_FONT back from render.js (a
 // call-time cycle, safe in the single esbuild IIFE). render.js re-exports the scene
 // entry points so render()'s scene loop and main.js keep importing from './render.js'.
 
@@ -16,7 +16,7 @@ import { softShadow, roundedPath, roundedRect } from './render-primitives.js';
 import {
   getFusedPieces, pieceSortByArea, getShowcaseBounds, drawFusedPieceTransformed,
 } from './render-fusion.js';
-import { drawBead, pseudoRandom, getFinishCardRect, CANVAS_FONT_STACK } from './render.js';
+import { drawBead, pseudoRandom, getFinishCardRect, CANVAS_CLEAR_FONT } from './render.js';
 
 function drawMaterialHighlight(ctx, { x, y, w, h, r, alpha = 0.18 }) {
   ctx.save();
@@ -183,17 +183,17 @@ export function buildConceptLabelMetrics(type, labelW) {
   const title = type === "full" ? "《满格构图》" : "《无题》";
   const paragraphs = type === "full"
     ? [
-      { text: "2026", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
-      { text: "塑料拼豆、网格、完全占据的表面", font: "500 14px " + CANVAS_FONT_STACK, color: "#4f5560", lineHeight: 22 },
+      { text: "2026", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
+      { text: "塑料拼豆、网格、完全占据的表面", font: "500 14px " + CANVAS_CLEAR_FONT, color: "#4f5560", lineHeight: 22 },
       { gap: 10 },
-      { text: "这件作品拒绝留白，整块板面成为图像本身。", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
-      { text: "每个孔位都被占据，每个位置都同等重要。", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
+      { text: "这件作品拒绝留白，整块板面成为图像本身。", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
+      { text: "每个孔位都被占据，每个位置都同等重要。", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
     ]
     : [
-      { text: "2026", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
-      { text: "空白拼豆板、未放置的塑料豆、玩家的观看", font: "500 14px " + CANVAS_FONT_STACK, color: "#4f5560", lineHeight: 22 },
+      { text: "2026", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
+      { text: "空白拼豆板、未放置的塑料豆、玩家的观看", font: "500 14px " + CANVAS_CLEAR_FONT, color: "#4f5560", lineHeight: 22 },
       { gap: 10 },
-      { text: "没有颜色，也是一种结构。", font: "500 15px " + CANVAS_FONT_STACK, color: "#2f333b", lineHeight: 22 },
+      { text: "没有颜色，也是一种结构。", font: "500 15px " + CANVAS_CLEAR_FONT, color: "#2f333b", lineHeight: 22 },
     ];
   const bodyMaxW = labelW - 36;
   const rows = [];
@@ -232,7 +232,7 @@ export function drawConceptMuseumLabel({ x, y, w, type, maxBottom }) {
   roundedRect(labelX, labelY, labelW, boxH, 6);
   ctx.stroke();
   ctx.fillStyle = "#22242a";
-  ctx.font = "700 23px " + CANVAS_FONT_STACK;
+  ctx.font = "700 23px " + CANVAS_CLEAR_FONT;
   ctx.fillText(title, labelX + 18, labelY + 36);
   let cursorY = labelY + 66;
   rows.forEach((row) => {
