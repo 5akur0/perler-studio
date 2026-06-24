@@ -1390,6 +1390,7 @@
   var TRAY_DESKTOP_COLS = 12;
   var TRAY_MOBILE_ROWS = 5;
   var TRAY_MOBILE_COLS = 24;
+  var APP_VERSION = "1.0.0";
   var collectionKey = "beadWorkshopCollection.v1";
   var sessionKey = "beadWorkshopSession.v1";
   var collectionLimit = 24;
@@ -3102,6 +3103,10 @@
     ctx2.fillStyle = p.ink;
     ctx2.font = `52px ${CANVAS_CUTE_FONT}`;
     ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", signX, footTop + 56);
+    const brandW = ctx2.measureText("\u62FC\u8C46\u5DE5\u574A").width;
+    ctx2.fillStyle = p.muted;
+    ctx2.font = `22px ${CANVAS_CLEAR_FONT}`;
+    ctx2.fillText(`v${APP_VERSION}`, signX + brandW + 14, footTop + 56);
     ctx2.fillStyle = p.accentDeep;
     ctx2.font = `34px ${CANVAS_CUTE_FONT}`;
     const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];
@@ -12638,6 +12643,8 @@
     if (event.target === els.remapModal) closeRemapModal();
   });
   els.settingsButton?.addEventListener("click", () => openSettingsModal());
+  var settingsVersionEl = document.getElementById("settingsVersion");
+  if (settingsVersionEl) settingsVersionEl.textContent = `\u62FC\u8C46\u5DE5\u574A v${APP_VERSION}`;
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();

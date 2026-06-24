@@ -7,6 +7,7 @@ import {
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
   collectionKey, collectionLimit, achievementKey,
   conceptAchievement, fullBoardAchievement, needleLoadSortThreshold,
+  APP_VERSION,
 } from './constants.js';
 import {
   clamp, lerp, easeOut, mixColor, rgbToOklab, oklabDistance,
@@ -1824,6 +1825,8 @@ import { SHARE_QR_DATA_URL } from './share-qr.js';
     if (event.target === els.remapModal) closeRemapModal();
   });
   els.settingsButton?.addEventListener("click", () => openSettingsModal());
+  const settingsVersionEl = document.getElementById("settingsVersion");
+  if (settingsVersionEl) settingsVersionEl.textContent = `拼豆工坊 v${APP_VERSION}`;
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();

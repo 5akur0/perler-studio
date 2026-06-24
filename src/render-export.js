@@ -11,7 +11,7 @@
 import { state } from './state.js';
 import { mixColor } from './color-utils.js';
 import { currentBackgroundTheme } from './theme.js';
-import { backgroundThemes } from './constants.js';
+import { backgroundThemes, APP_VERSION } from './constants.js';
 import {
   boardCols, boardRows, indexFor, targetAt, getTargetTotal, getPatternColors,
 } from './pattern.js';
@@ -234,6 +234,11 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null) {
   ctx.fillStyle = p.ink;
   ctx.font = `52px ${CANVAS_CUTE_FONT}`;
   ctx.fillText("拼豆工坊", signX, footTop + 56);
+  // tiny version tag so Xiaohongshu readers can cite which build this is
+  const brandW = ctx.measureText("拼豆工坊").width;
+  ctx.fillStyle = p.muted;
+  ctx.font = `22px ${CANVAS_CLEAR_FONT}`;
+  ctx.fillText(`v${APP_VERSION}`, signX + brandW + 14, footTop + 56);
   ctx.fillStyle = p.accentDeep;
   ctx.font = `34px ${CANVAS_CUTE_FONT}`;
   const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];

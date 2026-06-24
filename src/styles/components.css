@@ -1737,6 +1737,15 @@
   font-size: var(--fs-sm);
 }
 
+.settings-version {
+  margin: var(--sp-1) 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--font-clear);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+}
+
 .settings-toggle-row {
   display: flex;
   align-items: center;

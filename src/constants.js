@@ -139,6 +139,13 @@ export const TRAY_MOBILE_ROWS = 5;
 export const TRAY_MOBILE_COLS = 24;
 
 // localStorage keys and limits
+// Single source of truth for the build's version. Bump manually per release,
+// then `npm run build`. Surfaced on the update board header, the settings modal,
+// and (tiny) on the share-card footer so Xiaohongshu readers can cite a version.
+export const APP_VERSION = "1.0.0";
+// Stable per-device id (localStorage) used to dedup update-board votes without
+// any account system. Generated lazily on first community interaction.
+export const clientIdKey = "beadWorkshopClientId.v1";
 export const collectionKey = "beadWorkshopCollection.v1";
 export const sessionKey = "beadWorkshopSession.v1";
 export const collectionLimit = 24;

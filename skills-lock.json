@@ -7,6 +7,12 @@
       "skillPath": "skills/SKILL.md",
       "computedHash": "656a618d6d5d5e9c567253eff57a06bee3be5d4fb983bdc401a46a209c5b76de"
     },
+    "guizang-social-card-skill": {
+      "source": "op7418/guizang-social-card-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "52b3bd3cd788e52c3e0e6f943d6735032ef2fe400cc7b75dbabed2e504c8d851"
+    },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
