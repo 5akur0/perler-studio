@@ -167,7 +167,24 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   // artwork centered in the well, inset by 40
   const wellPad = 40;
   const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
-  drawShareGrid(ctx, PAD + (innerW - gridSize) / 2, wellTop + (wellH - gridSize) / 2, gridSize);
+  const artX = PAD + (innerW - gridSize) / 2;
+  const artY = wellTop + (wellH - gridSize) / 2;
+  drawShareGrid(ctx, artX, artY, gridSize);
+  // Finished-keepsake cue: a soft acrylic sheen laminating the artwork so it
+  // reads as a made object (钥匙扣 / 杯垫 / 摆件), not a flat grid. 原版 stays matte.
+  const craftName = state.craft || state.selectedPattern.craft || "";
+  if (craftName && craftName !== "原版") {
+    ctx.save();
+    roundedPath(ctx, artX, artY, gridSize, gridSize, 26);
+    ctx.clip();
+    const sheen = ctx.createLinearGradient(artX, artY, artX + gridSize * 0.7, artY + gridSize * 0.62);
+    sheen.addColorStop(0, "rgba(255,255,255,0.26)");
+    sheen.addColorStop(0.38, "rgba(255,255,255,0.09)");
+    sheen.addColorStop(0.6, "rgba(255,255,255,0)");
+    ctx.fillStyle = sheen;
+    ctx.fillRect(artX, artY, gridSize, gridSize);
+    ctx.restore();
+  }
   // craft capsule, bottom-right of the well
   const craft = state.craft || state.selectedPattern.craft || "钥匙扣";
   ctx.font = `26px ${CANVAS_CUTE_FONT}`;
@@ -198,20 +215,18 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   const kpiY = wellBottom + gap;
   kpis.forEach(([value, label], i) => {
     const kx = PAD + i * (kpiW + kpiGap);
-    ctx.fillStyle = p.chip;
-    roundedPath(ctx, kx, kpiY, kpiW, kpiH, 22);
+    // Softer than a stats dashboard: warm brand-tint pills, label riding above a
+    // lighter-weight value, so the strip reads as a cozy keepsake tag, not a KPI row.
+    ctx.fillStyle = p.glow;
+    roundedPath(ctx, kx, kpiY, kpiW, kpiH, kpiH / 2);
     ctx.fill();
-    ctx.strokeStyle = p.chipEdge;
-    ctx.lineWidth = 1.5;
-    roundedPath(ctx, kx, kpiY, kpiW, kpiH, 22);
-    ctx.stroke();
     ctx.textAlign = "center";
+    ctx.fillStyle = p.accentDeep;
+    ctx.font = `24px ${CANVAS_CLEAR_FONT}`;
+    ctx.fillText(label, kx + kpiW / 2, kpiY + 42);
     ctx.fillStyle = p.ink;
-    ctx.font = `700 42px ${CANVAS_CLEAR_FONT}`;
-    ctx.fillText(value, kx + kpiW / 2, kpiY + 60);
-    ctx.fillStyle = p.muted;
-    ctx.font = `26px ${CANVAS_CLEAR_FONT}`;
-    ctx.fillText(label, kx + kpiW / 2, kpiY + 96);
+    ctx.font = `600 40px ${CANVAS_CLEAR_FONT}`;
+    ctx.fillText(value, kx + kpiW / 2, kpiY + 88);
   });
 
   // ── footer: QR + brand + random slogan + CTA ─────────────────────────────────

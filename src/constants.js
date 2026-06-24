@@ -151,6 +151,9 @@ export const sessionKey = "beadWorkshopSession.v1";
 export const collectionLimit = 24;
 export const achievementKey = "beadWorkshopAchievements.v1";
 export const onboardingKey = "beadWorkshopOnboarding.v1";
+// One-time inline coachmark shown the first time a player reaches the place phase
+// (teaches the core 选色→放豆 action without a workbench-covering modal).
+export const placeCoachKey = "beadWorkshopPlaceCoach.v1";
 export const conceptAchievement = "观念先于熨烫";
 export const fullBoardAchievement = "没有一个孔位是无辜的";
 export const needleLoadSortThreshold = 70;

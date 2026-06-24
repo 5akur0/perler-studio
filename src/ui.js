@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { palette, beadIds } from './palette.js';
-import { phases, toolStyles, craftOptions, backgroundThemes } from './constants.js';
+import { phases, toolStyles, craftOptions, backgroundThemes, placeCoachKey } from './constants.js';
 import { patterns } from './patterns-data.js';
 import {
   allColorCodes, beadLabel, getTargetCounts, getTargetTotal, getSourceCounts,
@@ -22,6 +22,10 @@ import { icon } from './icons.js';
 import { workflowSummary } from './workflow.js';
 import { currentBackgroundTheme } from './theme.js';
 import { drawPixelPatternPreview } from './board-skin.js';
+
+// WS4: whether the first-time mobile placement coachmark has been retired.
+let placeCoachSeen = false;
+try { placeCoachSeen = localStorage.getItem(placeCoachKey) === "seen"; } catch { placeCoachSeen = false; }
 
 let uiActions = {
   getCollection: () => [],
@@ -448,6 +452,15 @@ export function renderControls() {
         : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`);
     if (!useMobileDirectPlacement() || state.spill) {
       showPlaceHint(placeHintText, placeHintKey);
+    } else if (!placeCoachSeen) {
+      // WS4: first-time mobile players get the placement teach hint (it's hidden
+      // for returning users to keep the workbench clean). Retire it for good once
+      // they've placed their first bead — by then they've got it.
+      showPlaceHint(placeHintText, placeHintKey);
+      if (placedCount() > 0) {
+        placeCoachSeen = true;
+        try { localStorage.setItem(placeCoachKey, "seen"); } catch { /* storage blocked */ }
+      }
     } else {
       hidePlaceHint();
     }

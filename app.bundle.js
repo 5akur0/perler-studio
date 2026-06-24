@@ -1397,6 +1397,7 @@
   var collectionLimit = 24;
   var achievementKey = "beadWorkshopAchievements.v1";
   var onboardingKey = "beadWorkshopOnboarding.v1";
+  var placeCoachKey = "beadWorkshopPlaceCoach.v1";
   var conceptAchievement = "\u89C2\u5FF5\u5148\u4E8E\u71A8\u70EB";
   var fullBoardAchievement = "\u6CA1\u6709\u4E00\u4E2A\u5B54\u4F4D\u662F\u65E0\u8F9C\u7684";
   var needleLoadSortThreshold = 70;
@@ -3048,7 +3049,22 @@
     ctx2.stroke();
     const wellPad = 40;
     const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
-    drawShareGrid(ctx2, PAD + (innerW - gridSize) / 2, wellTop + (wellH - gridSize) / 2, gridSize);
+    const artX = PAD + (innerW - gridSize) / 2;
+    const artY = wellTop + (wellH - gridSize) / 2;
+    drawShareGrid(ctx2, artX, artY, gridSize);
+    const craftName = state.craft || state.selectedPattern.craft || "";
+    if (craftName && craftName !== "\u539F\u7248") {
+      ctx2.save();
+      roundedPath(ctx2, artX, artY, gridSize, gridSize, 26);
+      ctx2.clip();
+      const sheen = ctx2.createLinearGradient(artX, artY, artX + gridSize * 0.7, artY + gridSize * 0.62);
+      sheen.addColorStop(0, "rgba(255,255,255,0.26)");
+      sheen.addColorStop(0.38, "rgba(255,255,255,0.09)");
+      sheen.addColorStop(0.6, "rgba(255,255,255,0)");
+      ctx2.fillStyle = sheen;
+      ctx2.fillRect(artX, artY, gridSize, gridSize);
+      ctx2.restore();
+    }
     const craft = state.craft || state.selectedPattern.craft || "\u94A5\u5319\u6263";
     ctx2.font = `26px ${CANVAS_CUTE_FONT}`;
     const craftW = ctx2.measureText(craft).width + 40;
@@ -3076,20 +3092,16 @@
     const kpiY = wellBottom + gap;
     kpis.forEach(([value, label], i) => {
       const kx = PAD + i * (kpiW + kpiGap);
-      ctx2.fillStyle = p.chip;
-      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, 22);
+      ctx2.fillStyle = p.glow;
+      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, kpiH / 2);
       ctx2.fill();
-      ctx2.strokeStyle = p.chipEdge;
-      ctx2.lineWidth = 1.5;
-      roundedPath(ctx2, kx, kpiY, kpiW, kpiH, 22);
-      ctx2.stroke();
       ctx2.textAlign = "center";
+      ctx2.fillStyle = p.accentDeep;
+      ctx2.font = `24px ${CANVAS_CLEAR_FONT}`;
+      ctx2.fillText(label, kx + kpiW / 2, kpiY + 42);
       ctx2.fillStyle = p.ink;
-      ctx2.font = `700 42px ${CANVAS_CLEAR_FONT}`;
-      ctx2.fillText(value, kx + kpiW / 2, kpiY + 60);
-      ctx2.fillStyle = p.muted;
-      ctx2.font = `26px ${CANVAS_CLEAR_FONT}`;
-      ctx2.fillText(label, kx + kpiW / 2, kpiY + 96);
+      ctx2.font = `600 40px ${CANVAS_CLEAR_FONT}`;
+      ctx2.fillText(value, kx + kpiW / 2, kpiY + 88);
     });
     const footTop = kpiY + kpiH + gap;
     const qrBox = footerH;
@@ -6823,6 +6835,12 @@
   }
 
   // src/ui.js
+  var placeCoachSeen = false;
+  try {
+    placeCoachSeen = localStorage.getItem(placeCoachKey) === "seen";
+  } catch {
+    placeCoachSeen = false;
+  }
   var uiActions = {
     getCollection: () => [],
     updateCollection: () => {
@@ -7182,6 +7200,15 @@
       const placeHintKey = state.spill ? `spill:${state.spill.index}:${state.spill.code}` : useMobileDirectPlacement() ? `mobile:${state.selectedColor}` : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`;
       if (!useMobileDirectPlacement() || state.spill) {
         showPlaceHint(placeHintText, placeHintKey);
+      } else if (!placeCoachSeen) {
+        showPlaceHint(placeHintText, placeHintKey);
+        if (placedCount2() > 0) {
+          placeCoachSeen = true;
+          try {
+            localStorage.setItem(placeCoachKey, "seen");
+          } catch {
+          }
+        }
       } else {
         hidePlaceHint();
       }
