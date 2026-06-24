@@ -683,6 +683,42 @@ body.admin-page {
   font-weight: 800;
 }
 
+.admin-page h2 {
+  margin: 0 0 var(--sp-1);
+  font-family: var(--font-cute, inherit);
+  font-size: var(--fs-lg);
+  font-weight: 800;
+}
+
+.admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+
+.admin-roadmap-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0;
+}
+
+.admin-roadmap-form input,
+.admin-roadmap-form select {
+  min-height: var(--field-h);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-md);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.admin-roadmap-form input[type="text"] { flex: 1 1 160px; }
+.admin-roadmap-form input[type="number"] { width: 90px; }
+
 .admin-page p {
   margin: 0;
   color: var(--muted);

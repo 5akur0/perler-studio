@@ -44,6 +44,46 @@
 
       <div id="status" class="admin-status" role="status" aria-live="polite">输入 token 后点击「读取」。</div>
       <section id="grid" class="admin-grid" aria-live="polite"></section>
+
+      <header class="admin-header admin-section-head">
+        <div class="admin-header-text">
+          <h2>留言审核</h2>
+          <p>先审后发：通过后才会出现在公开留言板。</p>
+        </div>
+        <button id="loadMessagesButton" class="primary icon-text-button" type="button">
+          <span class="btn-glyph" data-lucide-icon="refresh-cw" data-icon-size="16"></span>
+          <span class="btn-label">读取留言</span>
+        </button>
+      </header>
+      <div id="messagesStatus" class="admin-status" role="status" aria-live="polite"></div>
+      <section id="messagesGrid" class="admin-grid" aria-live="polite"></section>
+
+      <header class="admin-header admin-section-head">
+        <div class="admin-header-text">
+          <h2>更新板管理</h2>
+          <p>你写条目，用户点赞。状态：planned / in_progress / shipped。</p>
+        </div>
+        <button id="loadRoadmapButton" class="primary icon-text-button" type="button">
+          <span class="btn-glyph" data-lucide-icon="refresh-cw" data-icon-size="16"></span>
+          <span class="btn-label">读取更新</span>
+        </button>
+      </header>
+      <form id="roadmapForm" class="admin-roadmap-form">
+        <input id="roadmapItemId" type="hidden" />
+        <input id="roadmapTitle" type="text" maxlength="60" placeholder="标题" aria-label="标题" />
+        <input id="roadmapDesc" type="text" maxlength="280" placeholder="描述（可选）" aria-label="描述" />
+        <select id="roadmapStatus" aria-label="状态">
+          <option value="planned">planned 计划中</option>
+          <option value="in_progress">in_progress 开发中</option>
+          <option value="shipped">shipped 已发布</option>
+        </select>
+        <input id="roadmapVersion" type="text" maxlength="16" placeholder="版本（如 1.1.0）" aria-label="版本" />
+        <input id="roadmapOrder" type="number" placeholder="排序" aria-label="排序" />
+        <button id="roadmapSaveButton" class="primary" type="submit">保存条目</button>
+        <button id="roadmapResetButton" class="ghost-button" type="button">清空表单</button>
+      </form>
+      <div id="roadmapStatusEl" class="admin-status" role="status" aria-live="polite"></div>
+      <section id="roadmapGrid" class="admin-grid" aria-live="polite"></section>
     </main>
 
     <script type="module" src="./admin.js"></script>

@@ -253,3 +253,162 @@ tokenInput.addEventListener("keydown", (event) => {
 });
 
 render();
+
+// ── 留言审核 ────────────────────────────────────────────────────────────────
+const messagesStatusEl = document.querySelector("#messagesStatus");
+const messagesGrid = document.querySelector("#messagesGrid");
+const loadMessagesButton = document.querySelector("#loadMessagesButton");
+
+function setMessagesStatus(text, tone = "") {
+  messagesStatusEl.textContent = text;
+  messagesStatusEl.dataset.tone = tone;
+}
+
+function renderMessages(list) {
+  if (!list.length) { messagesGrid.innerHTML = "<p class='admin-empty'>没有待审核留言。</p>"; return; }
+  messagesGrid.innerHTML = list.map((m) => `
+    <div class="admin-card" data-msg-id="${escapeHtml(m.id)}">
+      <div class="admin-card-body">
+        <strong>${m.nickname ? escapeHtml(m.nickname) : "匿名豆友"}</strong>
+        <p>${escapeHtml(m.content)}</p>
+        <small>${escapeHtml(m.createdAt || "")}</small>
+      </div>
+      <div class="admin-actions">
+        <button class="admin-act admin-act-add" type="button" data-msg-approve="${escapeHtml(m.id)}" aria-label="通过">${icon("badge-check", { size: 18 })}</button>
+        <button class="admin-act admin-act-del" type="button" data-msg-delete="${escapeHtml(m.id)}" aria-label="删除">${icon("trash-2", { size: 18 })}</button>
+      </div>
+    </div>`).join("");
+  messagesGrid.querySelectorAll("[data-msg-approve]").forEach((b) =>
+    b.addEventListener("click", () => moderateMessage("/api/messages/approve", { id: b.dataset.msgApprove })));
+  messagesGrid.querySelectorAll("[data-msg-delete]").forEach((b) =>
+    b.addEventListener("click", () => moderateMessage("/api/messages/delete", { id: b.dataset.msgDelete })));
+}
+
+async function loadMessages() {
+  if (!tokenInput.value.trim()) { setMessagesStatus("请先输入 ADMIN_TOKEN。", "err"); return; }
+  setMessagesStatus("正在读取…");
+  loadMessagesButton.disabled = true;
+  try {
+    const data = await request("/api/messages/pending", { limit: 96 });
+    const list = Array.isArray(data?.items) ? data.items : [];
+    setMessagesStatus(`待审核 ${list.length}`, "ok");
+    renderMessages(list);
+  } catch (err) {
+    setMessagesStatus(err.message || "读取失败。", "err");
+  } finally {
+    loadMessagesButton.disabled = false;
+  }
+}
+
+async function moderateMessage(path, payload) {
+  try {
+    await request(path, payload);
+    loadMessages();
+  } catch (err) {
+    setMessagesStatus(err.message || "操作失败。", "err");
+  }
+}
+
+loadMessagesButton.addEventListener("click", loadMessages);
+
+// ── 更新板管理 ──────────────────────────────────────────────────────────────
+const roadmapStatusElNode = document.querySelector("#roadmapStatusEl");
+const roadmapGrid = document.querySelector("#roadmapGrid");
+const loadRoadmapButton = document.querySelector("#loadRoadmapButton");
+const roadmapForm = document.querySelector("#roadmapForm");
+const roadmapFields = {
+  itemId: document.querySelector("#roadmapItemId"),
+  title: document.querySelector("#roadmapTitle"),
+  desc: document.querySelector("#roadmapDesc"),
+  status: document.querySelector("#roadmapStatus"),
+  version: document.querySelector("#roadmapVersion"),
+  order: document.querySelector("#roadmapOrder"),
+};
+
+function setRoadmapStatus(text, tone = "") {
+  roadmapStatusElNode.textContent = text;
+  roadmapStatusElNode.dataset.tone = tone;
+}
+
+function resetRoadmapForm() {
+  roadmapFields.itemId.value = "";
+  roadmapFields.title.value = "";
+  roadmapFields.desc.value = "";
+  roadmapFields.status.value = "planned";
+  roadmapFields.version.value = "";
+  roadmapFields.order.value = "";
+}
+
+function renderRoadmap(list) {
+  if (!list.length) { roadmapGrid.innerHTML = "<p class='admin-empty'>还没有更新条目。</p>"; return; }
+  roadmapGrid.innerHTML = list.map((it) => `
+    <div class="admin-card" data-road-id="${escapeHtml(it.id)}">
+      <div class="admin-card-body">
+        <strong>${escapeHtml(it.title)} <small>[${escapeHtml(it.status)}${it.version ? " v" + escapeHtml(it.version) : ""}]</small></strong>
+        <p>${escapeHtml(it.desc || "")}</p>
+        <small>赞 ${Number(it.votes) || 0} · 排序 ${Number(it.order) || 0}</small>
+      </div>
+      <div class="admin-actions">
+        <button class="admin-act" type="button" data-road-edit="${escapeHtml(it.id)}" aria-label="编辑">${icon("pencil", { size: 18 })}</button>
+        <button class="admin-act admin-act-del" type="button" data-road-delete="${escapeHtml(it.id)}" aria-label="删除">${icon("trash-2", { size: 18 })}</button>
+      </div>
+    </div>`).join("");
+  roadmapGrid.querySelectorAll("[data-road-edit]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const it = list.find((x) => x.id === b.dataset.roadEdit);
+      if (!it) return;
+      roadmapFields.itemId.value = it.id;
+      roadmapFields.title.value = it.title;
+      roadmapFields.desc.value = it.desc || "";
+      roadmapFields.status.value = it.status;
+      roadmapFields.version.value = it.version || "";
+      roadmapFields.order.value = Number(it.order) || 0;
+      setRoadmapStatus("已载入条目，修改后保存。", "ok");
+    }));
+  roadmapGrid.querySelectorAll("[data-road-delete]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try { await request("/api/roadmap/delete", { itemId: b.dataset.roadDelete }); loadRoadmap(); }
+      catch (err) { setRoadmapStatus(err.message || "删除失败。", "err"); }
+    }));
+}
+
+async function loadRoadmap() {
+  setRoadmapStatus("正在读取…");
+  loadRoadmapButton.disabled = true;
+  try {
+    const data = await request("/api/roadmap/list", {});
+    const list = Array.isArray(data?.items) ? data.items : [];
+    setRoadmapStatus(`共 ${list.length} 条`, "ok");
+    renderRoadmap(list);
+  } catch (err) {
+    setRoadmapStatus(err.message || "读取失败。", "err");
+  } finally {
+    loadRoadmapButton.disabled = false;
+  }
+}
+
+roadmapForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!tokenInput.value.trim()) { setRoadmapStatus("请先输入 ADMIN_TOKEN。", "err"); return; }
+  if (!roadmapFields.title.value.trim()) { setRoadmapStatus("标题不能为空。", "err"); return; }
+  try {
+    await request("/api/roadmap/upsert", {
+      itemId: roadmapFields.itemId.value || undefined,
+      title: roadmapFields.title.value.trim(),
+      desc: roadmapFields.desc.value.trim(),
+      status: roadmapFields.status.value,
+      version: roadmapFields.version.value.trim(),
+      order: Number(roadmapFields.order.value) || 0,
+    });
+    resetRoadmapForm();
+    setRoadmapStatus("已保存。", "ok");
+    loadRoadmap();
+  } catch (err) {
+    setRoadmapStatus(err.message || "保存失败。", "err");
+  }
+});
+
+document.querySelector("#roadmapResetButton").addEventListener("click", () => { resetRoadmapForm(); setRoadmapStatus(""); });
+loadRoadmapButton.addEventListener("click", loadRoadmap);
+
+hydrateIcons(document);
