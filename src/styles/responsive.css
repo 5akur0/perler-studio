@@ -68,6 +68,16 @@
     overscroll-behavior: contain;
   }
 
+  /* Full-bleed mobile surfaces fill the viewport flush inside overflow:hidden
+     containers, so a drop shadow would be hard-clipped into a square edge along
+     the flush sides. These are full-bleed surfaces, not floating cards — drop the
+     shadow (the glass border still defines them). */
+  .gallery-layout,
+  .collection-layout,
+  .community-layout {
+    box-shadow: none;
+  }
+
   /* Browse grids: force two columns on phones so each square tile stays a
      thumbnail (~160px) instead of collapsing to one full-width 340px block. */
   .gallery-grid,
@@ -83,9 +93,15 @@
     flex-direction: column;
     gap: var(--sp-4);
     padding: var(--sp-4);
+    /* The card fills the viewport flush inside .start-screen (overflow:hidden),
+       so its soft drop-shadow would be hard-clipped into a square edge. A card
+       that spans the whole screen needs no drop shadow — drop it; the 1px border
+       defines the edge cleanly. */
+    box-shadow: none;
   }
 
-  /* Aside grows to fill; rows spread evenly so tall phones use the whole height. */
+  /* Aside grows to fill; the entry rows themselves grow to take the height
+     (instead of spreading empty space between them with space-evenly). */
   .start-aside {
     flex: 1 1 auto;
     min-height: 0;
@@ -93,7 +109,24 @@
 
   .start-rows {
     flex: 1 1 auto;
-    justify-content: space-evenly;
+  }
+
+  /* Each entry shares the spare height equally and grows taller; the bead
+     medallion (the row's graphic) scales up to stay balanced in the taller row. */
+  .start-row {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .start-row-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--r-md);
+  }
+
+  .start-row-icon svg {
+    width: 26px;
+    height: 26px;
   }
 
   .start-showcase {
@@ -1528,10 +1561,8 @@
     padding: var(--sp-4) var(--sp-3);
   }
 
-  .start-row-icon {
-    width: 38px;
-    height: 38px;
-  }
+  /* Narrow phones keep the enlarged medallion from the ≤860 rule (the taller
+     rows have room for it); only the very short-height query below pulls it back. */
 
   .start-row-arrow {
     display: none;
@@ -1621,6 +1652,22 @@
 
   .start-showcase {
     min-height: 80px;
+  }
+
+  /* Short phones can't afford the taller rows + enlarged medallion: pull the
+     row padding and graphic back so the five entries + showcase still fit. */
+  .start-row {
+    padding: var(--sp-2) var(--sp-4);
+  }
+
+  .start-row-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .start-row-icon svg {
+    width: 22px;
+    height: 22px;
   }
 
   .start-brand h1 {
