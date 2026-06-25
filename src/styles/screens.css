@@ -38,12 +38,6 @@
   gap: var(--sp-3);
 }
 
-.start-tagline {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--fs-md);
-  line-height: var(--lh-body);
-}
 
 /* Showcase: a finished bead board framed like a polaroid pinned to the desk. */
 .start-showcase {
@@ -200,35 +194,6 @@
 .start-showcase-dot.is-active {
   width: 18px;
   background: var(--brand);
-}
-
-.start-kicker {
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: var(--sp-1) var(--sp-3) var(--sp-1) 9px;
-  border: 1px solid var(--brand-tint-strong);
-  border-radius: var(--r-pill);
-  color: var(--brand-ink);
-  background: var(--brand-tint);
-  font-family: var(--font-cute);
-  font-size: var(--fs-xs);
-  font-weight: 800;
-}
-
-/* A tiny 2x2 candy-bead mark — turns the wordmark into a small logo lockup that
-   echoes the "糖豆 / pastel bead tray" North Star. */
-.start-kicker::before {
-  content: "";
-  width: 15px;
-  height: 15px;
-  border-radius: 4px;
-  background:
-    radial-gradient(circle at 30% 30%, var(--coral) 0 38%, transparent 40%),
-    radial-gradient(circle at 72% 30%, var(--amber) 0 38%, transparent 40%),
-    radial-gradient(circle at 30% 72%, var(--blue) 0 38%, transparent 40%),
-    radial-gradient(circle at 72% 72%, var(--brand) 0 38%, transparent 40%);
 }
 
 .start-brand h1 {

@@ -194,35 +194,40 @@ function rectangularTabletSession() {
   };
 }
 
-async function assertHomeShowcaseReachable(baseUrl) {
+// The home screen fills the viewport exactly and never scrolls (the brand kicker
+// and tagline were removed so the title + entries + showcase distribute over the
+// full height). On common phones the showcase stays fully visible; on very short
+// legacy viewports the content is clipped rather than scrolled — that is the
+// intended contract, so we only require "no scroll" there.
+async function assertHomeFillsWithoutScroll(baseUrl) {
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   try {
-    await page.goto(baseUrl, { waitUntil: "networkidle" });
-    const result = await page.evaluate(() => {
+    // Common phone: must not scroll AND the showcase must be fully visible.
+    const tall = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await tall.goto(baseUrl, { waitUntil: "networkidle" });
+    const tallResult = await tall.evaluate(() => {
       const screen = document.querySelector(".start-screen");
       const showcase = document.querySelector(".start-showcase");
-      const screenRect = screen.getBoundingClientRect();
-      const showcaseRect = showcase.getBoundingClientRect();
       const style = getComputedStyle(screen);
-      const canScroll = ["auto", "scroll"].includes(style.overflowY) && screen.scrollHeight > screen.clientHeight;
-      if (canScroll) {
-        screen.scrollTop = screen.scrollHeight;
-      }
-      const after = showcase.getBoundingClientRect();
       return {
         overflowY: style.overflowY,
-        canScroll,
-        screenBottom: screenRect.bottom,
-        showcaseBottom: showcaseRect.bottom,
-        afterBottom: after.bottom,
+        scrolls: screen.scrollHeight > screen.clientHeight + 1,
+        showcaseBottom: showcase.getBoundingClientRect().bottom,
         viewportHeight: window.innerHeight,
       };
     });
+    assert.equal(tallResult.overflowY, "hidden", `home must not scroll on mobile; got ${JSON.stringify(tallResult)}`);
+    assert.ok(!tallResult.scrolls, `home must fill without scrolling at 390x844; got ${JSON.stringify(tallResult)}`);
     assert.ok(
-      result.afterBottom <= result.viewportHeight + 1,
-      `home showcase must be fully reachable at 320x568; got ${JSON.stringify(result)}`,
+      tallResult.showcaseBottom <= tallResult.viewportHeight + 1,
+      `home showcase must be fully visible at 390x844; got ${JSON.stringify(tallResult)}`,
     );
+
+    // Tiny legacy viewport: clipping is accepted, but it must still never scroll.
+    const small = await browser.newPage({ viewport: { width: 320, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await small.goto(baseUrl, { waitUntil: "networkidle" });
+    const smallOverflow = await small.evaluate(() => getComputedStyle(document.querySelector(".start-screen")).overflowY);
+    assert.equal(smallOverflow, "hidden", `home must not scroll at 320x568; got ${smallOverflow}`);
   } finally {
     await browser.close();
   }
@@ -472,7 +477,7 @@ assertHeatModelIsUnified();
 assertMobileCssDefinesLayoutContract();
 const { server, url } = await startServer();
 try {
-  await assertHomeShowcaseReachable(url);
+  await assertHomeFillsWithoutScroll(url);
   await assertMobilePhasePanelsAndControls(url);
   await assertIronHasNoEmptyMobilePanel(url);
   await assertRectangularTabletCanvasIsBounded(url);
