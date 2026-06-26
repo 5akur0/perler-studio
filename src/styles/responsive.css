@@ -363,12 +363,69 @@
     gap: var(--sp-2);
   }
 
-  .drawing-palette-panel {
+  /* The palette becomes a bottom sheet opened by the 选颜色 trigger, freeing the
+     screen for a bigger canvas. It leaves the flex flow (position:fixed) and
+     slides up over a backdrop; .color-palette renders full height and the sheet
+     scrolls so all 221 colors are easy to browse. */
+  .draw-color-trigger {
+    display: flex;
     order: 2;
-    flex: 1 1 auto;
-    min-height: 0;
+  }
+
+  /* :not([hidden]) so the `hidden` attribute (UA display:none) still wins when
+     closed — otherwise this display:block would override it and the invisible
+     backdrop would keep intercepting taps across the whole app. */
+  .drawing-palette-backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    background: rgba(38, 36, 43, 0.32);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .drawing-palette-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-modal-high);
+    max-height: 78dvh;
+    padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top-left-radius: var(--r-lg);
+    border-top-right-radius: var(--r-lg);
+    box-shadow: var(--sh-pop);
     overflow-y: auto;
     overscroll-behavior: contain;
+    transform: translateY(101%);
+    transition: transform 0.24s ease;
+  }
+
+  .drawing-palette-panel.is-open {
+    transform: translateY(0);
+  }
+
+  .drawing-palette-sheet-handle {
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 0 auto var(--sp-2);
+    border-radius: var(--r-pill);
+    background: var(--line);
+  }
+
+  .drawing-palette-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .drawing-palette-close {
+    display: inline-flex;
+    margin-left: auto;
   }
 
   .drawing-palette-panel section {
@@ -979,11 +1036,8 @@
   }
 
   .brand-mark {
-    grid-template-columns: repeat(2, 12px);
-    grid-auto-rows: 12px;
-    gap: 3px;
-    padding: var(--sp-1);
-    border-radius: var(--r-xs);
+    width: 36px;
+    height: 36px;
   }
 
   .brand h1 {

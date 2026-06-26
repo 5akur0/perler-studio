@@ -11,9 +11,14 @@ const [exporter, main, ui] = await Promise.all([
 // drawShareImage carries a variant param with a default.
 assert.match(
   exporter,
-  /export function drawShareImage\(ctx, w, h, portrait, qrImg = null, variant = "card"\)/,
-  "drawShareImage must accept variant",
+  /export function drawShareImage\(ctx, w, h, portrait, qrImg = null, variant = "card", logoImg = null\)/,
+  "drawShareImage must accept variant + logo image",
 );
+// The SVG brand logo is drawn onto the card (both the footer sign block and the
+// clean watermark), loaded as an untainted data-URL image from logo.js.
+assert.match(exporter, /if \(logoImg\) \{[\s\S]*?drawImage\(logoImg/, "share card must draw the logo image");
+assert.match(main, /loadLogoImage\(\)/, "exportShareImage must load the logo image");
+assert.match(main, /drawShareImage\([^)]*logoImg\)/, "exportShareImage must pass the logo through");
 // Clean branch returns early and uses a dedicated helper.
 assert.match(exporter, /if \(variant === "clean"\)/, "clean branch must exist");
 assert.match(exporter, /function drawCleanVariant\(/, "drawCleanVariant helper must exist");

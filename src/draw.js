@@ -960,9 +960,36 @@ export function paintDrawCanvas() {
   ctx.restore();
 }
 
+// ── Mobile color sheet ───────────────────────────────────────────────────────
+// On phones the palette is a bottom sheet opened by the 选颜色 trigger, so the
+// canvas + tools own the screen. The trigger shows the current color. (On desktop
+// the palette is a permanent side column; these toggles are harmless there.)
+function openDrawPaletteSheet() {
+  els.drawingPalettePanel?.classList.add("is-open");
+  if (els.drawPaletteBackdrop) els.drawPaletteBackdrop.hidden = false;
+  els.drawColorTrigger?.setAttribute("aria-expanded", "true");
+}
+
+function closeDrawPaletteSheet() {
+  els.drawingPalettePanel?.classList.remove("is-open");
+  if (els.drawPaletteBackdrop) els.drawPaletteBackdrop.hidden = true;
+  els.drawColorTrigger?.setAttribute("aria-expanded", "false");
+}
+
+function updateDrawColorTrigger() {
+  const code = drawState.selectedColor;
+  const isTransparent = beadIds[code] === "H1";
+  if (els.drawColorTriggerSwatch) {
+    els.drawColorTriggerSwatch.style.background = isTransparent ? "" : (palette[code] || "#9aa4b3");
+    els.drawColorTriggerSwatch.classList.toggle("is-transparent", isTransparent);
+  }
+  if (els.drawColorTriggerCode) els.drawColorTriggerCode.textContent = beadIds[code] || code || "";
+}
+
 function renderDrawPalette() {
   if (!els.drawPalette) return;
   ensureDrawPaletteColor();
+  updateDrawColorTrigger();
   const allCodes = allColorCodes();
   const query = (drawState.paletteQuery || "").trim().toUpperCase().replace(/\s+/g, "");
   const codes = query
@@ -1105,9 +1132,14 @@ export function initDrawingStudioEvents() {
         drawState.selectedColor = code;
         drawRenderKey = "";
         renderDrawPalette();
+        closeDrawPaletteSheet();
       }
     }
   });
+  // Mobile color sheet: the palette is a bottom sheet opened by the 选颜色 trigger.
+  els.drawColorTrigger?.addEventListener("click", openDrawPaletteSheet);
+  els.drawPaletteCloseButton?.addEventListener("click", closeDrawPaletteSheet);
+  els.drawPaletteBackdrop?.addEventListener("click", closeDrawPaletteSheet);
   els.drawPaletteSearch?.addEventListener("input", (event) => {
     drawState.paletteQuery = event.target.value || "";
     drawRenderKey = "";

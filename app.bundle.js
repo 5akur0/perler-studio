@@ -1597,6 +1597,12 @@
     drawRecentColors: $("#drawRecentColors"),
     drawPalette: $("#drawPalette"),
     drawPaletteSearch: $("#drawPaletteSearch"),
+    drawColorTrigger: $("#drawColorTrigger"),
+    drawColorTriggerSwatch: $("#drawColorTriggerSwatch"),
+    drawColorTriggerCode: $("#drawColorTriggerCode"),
+    drawingPalettePanel: $("#drawingPalettePanel"),
+    drawPaletteBackdrop: $("#drawPaletteBackdrop"),
+    drawPaletteCloseButton: $("#drawPaletteCloseButton"),
     beadBackButton: $("#beadBackButton"),
     patternMeta: $("#patternMeta"),
     patternList: $("#patternList"),
@@ -2976,7 +2982,7 @@
       }
     }
   }
-  function drawShareImage(ctx2, w, h, portrait, qrImg = null, variant = "card") {
+  function drawShareImage(ctx2, w, h, portrait, qrImg = null, variant = "card", logoImg = null) {
     const p = sharePalette();
     const PAD = 80;
     const innerW = w - PAD * 2;
@@ -2996,7 +3002,7 @@
     ctx2.fillStyle = glowB;
     ctx2.fillRect(0, 0, w, h);
     if (variant === "clean") {
-      drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg);
+      drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg, logoImg);
       ctx2.textBaseline = "alphabetic";
       ctx2.textAlign = "left";
       return;
@@ -3125,26 +3131,32 @@
     ctx2.textAlign = "center";
     ctx2.font = `26px ${CANVAS_CUTE_FONT}`;
     ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", PAD + qrBox / 2, footTop + qrBox - 18);
-    const signX = PAD + qrBox + 30;
+    const blockX = PAD + qrBox + 30;
     ctx2.textAlign = "left";
+    let textX = blockX;
+    if (logoImg) {
+      const logoSize = 60;
+      ctx2.drawImage(logoImg, blockX, footTop + 4, logoSize, logoSize);
+      textX = blockX + logoSize + 18;
+    }
     ctx2.fillStyle = p.ink;
     ctx2.font = `52px ${CANVAS_CUTE_FONT}`;
-    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", signX, footTop + 56);
+    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A", textX, footTop + 56);
     const brandW = ctx2.measureText("\u62FC\u8C46\u5DE5\u574A").width;
     ctx2.fillStyle = p.muted;
     ctx2.font = `22px ${CANVAS_CLEAR_FONT}`;
-    ctx2.fillText(`v${APP_VERSION}`, signX + brandW + 14, footTop + 56);
+    ctx2.fillText(`v${APP_VERSION}`, textX + brandW + 14, footTop + 56);
     ctx2.fillStyle = p.accentDeep;
     ctx2.font = `34px ${CANVAS_CUTE_FONT}`;
     const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];
-    ctx2.fillText(slogan, signX, footTop + 108);
+    ctx2.fillText(slogan, textX, footTop + 108);
     ctx2.fillStyle = p.muted;
     ctx2.font = `26px ${CANVAS_CLEAR_FONT}`;
-    ctx2.fillText("\u626B\u7801 \xB7 \u5F00\u59CB\u4F60\u7684\u62FC\u8C46", signX, footTop + 150);
+    ctx2.fillText("\u626B\u7801 \xB7 \u5F00\u59CB\u4F60\u7684\u62FC\u8C46", textX, footTop + 150);
     ctx2.textBaseline = "alphabetic";
     ctx2.textAlign = "left";
   }
-  function drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg) {
+  function drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg, logoImg = null) {
     const wellTop = PAD;
     const wellBottom = h - PAD;
     const wellH = wellBottom - wellTop;
@@ -3171,10 +3183,19 @@
     );
     const markY = wellBottom - 34;
     ctx2.textBaseline = "alphabetic";
-    ctx2.textAlign = "center";
-    ctx2.fillStyle = p.muted;
     ctx2.font = `28px ${CANVAS_CUTE_FONT}`;
-    ctx2.fillText("\u62FC\u8C46\u5DE5\u574A \xB7 \u626B\u7801\u540C\u6B3E", w / 2, markY);
+    const markText = "\u62FC\u8C46\u5DE5\u574A \xB7 \u626B\u7801\u540C\u6B3E";
+    const markTextW = ctx2.measureText(markText).width;
+    const markLogo = logoImg ? 34 : 0;
+    const markGap = logoImg ? 12 : 0;
+    let markX = (w - (markLogo + markGap + markTextW)) / 2;
+    if (logoImg) {
+      ctx2.drawImage(logoImg, markX, markY - 27, markLogo, markLogo);
+      markX += markLogo + markGap;
+    }
+    ctx2.textAlign = "left";
+    ctx2.fillStyle = p.muted;
+    ctx2.fillText(markText, markX, markY);
     if (qrImg) {
       const qrSize = 96;
       ctx2.globalAlpha = 0.92;
@@ -10237,9 +10258,29 @@
     }
     ctx2.restore();
   }
+  function openDrawPaletteSheet() {
+    els.drawingPalettePanel?.classList.add("is-open");
+    if (els.drawPaletteBackdrop) els.drawPaletteBackdrop.hidden = false;
+    els.drawColorTrigger?.setAttribute("aria-expanded", "true");
+  }
+  function closeDrawPaletteSheet() {
+    els.drawingPalettePanel?.classList.remove("is-open");
+    if (els.drawPaletteBackdrop) els.drawPaletteBackdrop.hidden = true;
+    els.drawColorTrigger?.setAttribute("aria-expanded", "false");
+  }
+  function updateDrawColorTrigger() {
+    const code = drawState.selectedColor;
+    const isTransparent = beadIds[code] === "H1";
+    if (els.drawColorTriggerSwatch) {
+      els.drawColorTriggerSwatch.style.background = isTransparent ? "" : palette[code] || "#9aa4b3";
+      els.drawColorTriggerSwatch.classList.toggle("is-transparent", isTransparent);
+    }
+    if (els.drawColorTriggerCode) els.drawColorTriggerCode.textContent = beadIds[code] || code || "";
+  }
   function renderDrawPalette() {
     if (!els.drawPalette) return;
     ensureDrawPaletteColor();
+    updateDrawColorTrigger();
     const allCodes = allColorCodes();
     const query = (drawState.paletteQuery || "").trim().toUpperCase().replace(/\s+/g, "");
     const codes = query ? allCodes.filter((code) => (beadIds[code] || code).toUpperCase().includes(query)) : allCodes;
@@ -10378,9 +10419,13 @@
           drawState.selectedColor = code;
           drawRenderKey = "";
           renderDrawPalette();
+          closeDrawPaletteSheet();
         }
       }
     });
+    els.drawColorTrigger?.addEventListener("click", openDrawPaletteSheet);
+    els.drawPaletteCloseButton?.addEventListener("click", closeDrawPaletteSheet);
+    els.drawPaletteBackdrop?.addEventListener("click", closeDrawPaletteSheet);
     els.drawPaletteSearch?.addEventListener("input", (event) => {
       drawState.paletteQuery = event.target.value || "";
       drawRenderKey = "";
@@ -11153,6 +11198,43 @@
     }
   }
 
+  // src/logo.js
+  var LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+  <rect width="64" height="64" rx="14" fill="#F8FBF9"/>
+  <path d="M17 18c0-4.4 3.6-8 8-8h14c4.4 0 8 3.6 8 8v28c0 4.4-3.6 8-8 8H25c-4.4 0-8-3.6-8-8V18z" fill="#DDEBE7"/>
+  <circle cx="26" cy="22" r="9" fill="#57B8A7"/>
+  <circle cx="40" cy="22" r="9" fill="#E7645F"/>
+  <circle cx="26" cy="40" r="9" fill="#D99B3D"/>
+  <circle cx="40" cy="40" r="9" fill="#4D77B8"/>
+  <circle cx="26" cy="22" r="3.4" fill="#F8FBF9"/>
+  <circle cx="40" cy="22" r="3.4" fill="#F8FBF9"/>
+  <circle cx="26" cy="40" r="3.4" fill="#F8FBF9"/>
+  <circle cx="40" cy="40" r="3.4" fill="#F8FBF9"/>
+  <path d="M49 13l4 4-4 4-4-4 4-4z" fill="#FFF0A8" stroke="#D99B3D" stroke-width="1.5"/>
+</svg>`;
+  var LOGO_DATA_URL = `data:image/svg+xml,${encodeURIComponent(LOGO_SVG)}`;
+  function hydrateLogo(root = document) {
+    if (!root?.querySelectorAll) return 0;
+    let count = 0;
+    root.querySelectorAll(".brand-mark").forEach((node) => {
+      node.innerHTML = LOGO_SVG;
+      count += 1;
+    });
+    return count;
+  }
+  var logoImagePromise = null;
+  function loadLogoImage() {
+    if (!logoImagePromise) {
+      logoImagePromise = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = LOGO_DATA_URL;
+      });
+    }
+    return logoImagePromise;
+  }
+
   // src/keyboard-grid.js
   function normalizeGridCursor(cursor, cols, rows = cols) {
     const maxX = Math.max(0, Number(cols) - 1);
@@ -11428,6 +11510,7 @@
 
   // src/main.js
   hydrateIcons(document);
+  hydrateLogo(document);
   var collection = readCollection();
   state.achievements = readAchievements();
   var lastFrame = performance.now();
@@ -12678,12 +12761,12 @@
   async function exportShareImage(format) {
     const clean = format === "clean";
     const portrait = !clean && format !== "square";
-    const [, qrImg] = await Promise.all([ensureShareFonts(), loadShareQR()]);
+    const [, qrImg, logoImg] = await Promise.all([ensureShareFonts(), loadShareQR(), loadLogoImage()]);
     const canvas = document.createElement("canvas");
     canvas.width = 1080;
     canvas.height = portrait ? 1440 : 1080;
     const ctx2 = canvas.getContext("2d");
-    drawShareImage(ctx2, canvas.width, canvas.height, portrait, qrImg, clean ? "clean" : "card");
+    drawShareImage(ctx2, canvas.width, canvas.height, portrait, qrImg, clean ? "clean" : "card", logoImg);
     const variantLabel = clean ? "\u4F5C\u54C1\u56FE" : portrait ? "\u7AD6\u56FE" : "\u65B9\u56FE";
     const filename = `\u62FC\u8C46\u5DE5\u574A-${state.selectedPattern.name}-${variantLabel}.png`;
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));

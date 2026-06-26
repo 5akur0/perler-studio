@@ -148,9 +148,7 @@
           <header class="topbar gallery-topbar">
             <div class="topbar-lead">
               <div class="brand">
-                <div class="brand-mark" aria-hidden="true">
-                  <span></span><span></span><span></span><span></span>
-                </div>
+                <div class="brand-mark" aria-hidden="true"></div>
                 <div class="brand-text">
                   <h1 id="galleryTitle">拼豆工坊</h1>
                   <span class="work-mode-chip">图纸画廊</span>
@@ -184,9 +182,7 @@
           <header class="topbar collection-topbar">
             <div class="topbar-lead">
               <div class="brand">
-                <div class="brand-mark" aria-hidden="true">
-                  <span></span><span></span><span></span><span></span>
-                </div>
+                <div class="brand-mark" aria-hidden="true"></div>
                 <div class="brand-text">
                   <h1 id="collectionTitle">拼豆工坊</h1>
                   <span class="work-mode-chip">作品集</span>
@@ -216,9 +212,7 @@
           <header class="topbar community-topbar">
             <div class="topbar-lead">
               <div class="brand">
-                <div class="brand-mark" aria-hidden="true">
-                  <span></span><span></span><span></span><span></span>
-                </div>
+                <div class="brand-mark" aria-hidden="true"></div>
                 <div class="brand-text">
                   <h1 id="communityTitle">拼豆工坊</h1>
                   <span class="work-mode-chip">社区</span>
@@ -250,9 +244,7 @@
           <header class="topbar drawing-topbar">
             <div class="topbar-lead">
               <div class="brand">
-                <div class="brand-mark" aria-hidden="true">
-                  <span></span><span></span><span></span><span></span>
-                </div>
+                <div class="brand-mark" aria-hidden="true"></div>
                 <div class="brand-text">
                   <h1 id="drawingStudioTitle">拼豆工坊</h1>
                   <span class="work-mode-chip">绘图台</span>
@@ -303,6 +295,11 @@
                     </button>
                   </div>
                 </div>
+                <button type="button" id="drawColorTrigger" class="draw-color-trigger" aria-haspopup="dialog" aria-expanded="false" aria-label="选择颜色">
+                  <span class="draw-color-trigger-swatch" id="drawColorTriggerSwatch" aria-hidden="true"></span>
+                  <span class="draw-color-trigger-text">选颜色</span>
+                  <span class="draw-color-trigger-code" id="drawColorTriggerCode"></span>
+                </button>
                 <div class="drawing-footer-actions">
                   <button type="button" class="ghost-button drawing-image-stamp" id="drawImageStampButton">
                     <span class="btn-glyph" aria-hidden="true"><span data-lucide-icon="image" data-icon-size="16"></span></span>
@@ -338,11 +335,16 @@
                 </div>
               </section>
             </section>
-            <aside class="side-panel right-panel drawing-palette-panel" aria-label="颜色面板">
+            <div class="drawing-palette-backdrop" id="drawPaletteBackdrop" hidden></div>
+            <aside class="side-panel right-panel drawing-palette-panel" id="drawingPalettePanel" aria-label="颜色面板">
               <section>
                 <div class="section-title drawing-palette-head">
+                  <span class="drawing-palette-sheet-handle" aria-hidden="true"></span>
                   <span>豆盒</span>
                   <small id="drawPaletteMeta"></small>
+                  <button type="button" id="drawPaletteCloseButton" class="drawing-palette-close icon-only-button" aria-label="关闭颜色面板">
+                    <span data-lucide-icon="x" data-icon-size="18"></span>
+                  </button>
                 </div>
                 <div class="palette-search">
                   <span class="palette-search-icon" aria-hidden="true" data-lucide-icon="search" data-icon-size="15"></span>
@@ -359,9 +361,7 @@
       <header class="topbar bead-topbar">
         <div class="topbar-lead">
           <div class="brand">
-            <div class="brand-mark" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
-            </div>
+            <div class="brand-mark" aria-hidden="true"></div>
             <div class="brand-text">
               <h1>拼豆工坊</h1>
               <span class="work-mode-chip">拼豆台</span>

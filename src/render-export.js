@@ -79,7 +79,7 @@ function drawShareGrid(ctx, x, y, size) {
 // New pastel social card (A3 port). All chrome is canvas-drawn; the only raster is
 // the optional pre-decoded QR Image (`qrImg`) composited in the footer. Caller is
 // responsible for awaiting `document.fonts.ready` before drawing (LXGW gate).
-export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "card") {
+export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "card", logoImg = null) {
   const p = sharePalette();
   const PAD = 80;
   const innerW = w - PAD * 2;
@@ -105,7 +105,7 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   // For people who just want a clean pixel-art post. One big well, the artwork,
   // a whisper-quiet brand watermark + optional corner QR. No badge/KPI/slogan.
   if (variant === "clean") {
-    drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg);
+    drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg, logoImg);
     ctx.textBaseline = "alphabetic";
     ctx.textAlign = "left";
     return;
@@ -253,24 +253,30 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   ctx.textAlign = "center";
   ctx.font = `26px ${CANVAS_CUTE_FONT}`;
   ctx.fillText("拼豆工坊", PAD + qrBox / 2, footTop + qrBox - 18);
-  // sign block
-  const signX = PAD + qrBox + 30;
+  // sign block: SVG logo mark badges the wordmark, then version / slogan / CTA
+  const blockX = PAD + qrBox + 30;
   ctx.textAlign = "left";
+  let textX = blockX;
+  if (logoImg) {
+    const logoSize = 60;
+    ctx.drawImage(logoImg, blockX, footTop + 4, logoSize, logoSize);
+    textX = blockX + logoSize + 18;
+  }
   ctx.fillStyle = p.ink;
   ctx.font = `52px ${CANVAS_CUTE_FONT}`;
-  ctx.fillText("拼豆工坊", signX, footTop + 56);
+  ctx.fillText("拼豆工坊", textX, footTop + 56);
   // tiny version tag so Xiaohongshu readers can cite which build this is
   const brandW = ctx.measureText("拼豆工坊").width;
   ctx.fillStyle = p.muted;
   ctx.font = `22px ${CANVAS_CLEAR_FONT}`;
-  ctx.fillText(`v${APP_VERSION}`, signX + brandW + 14, footTop + 56);
+  ctx.fillText(`v${APP_VERSION}`, textX + brandW + 14, footTop + 56);
   ctx.fillStyle = p.accentDeep;
   ctx.font = `34px ${CANVAS_CUTE_FONT}`;
   const slogan = SHARE_SLOGANS[Math.floor(Math.random() * SHARE_SLOGANS.length)];
-  ctx.fillText(slogan, signX, footTop + 108);
+  ctx.fillText(slogan, textX, footTop + 108);
   ctx.fillStyle = p.muted;
   ctx.font = `26px ${CANVAS_CLEAR_FONT}`;
-  ctx.fillText("扫码 · 开始你的拼豆", signX, footTop + 150);
+  ctx.fillText("扫码 · 开始你的拼豆", textX, footTop + 150);
 
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
@@ -279,7 +285,7 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
 // Minimal "纯作品图" layout: a single centered white well holding the artwork,
 // with a quiet brand watermark and (if available) a small corner QR. Shares the
 // page wash painted by the caller. Square canvases look best here (1080×1080).
-function drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg) {
+function drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg, logoImg = null) {
   const wellTop = PAD;
   const wellBottom = h - PAD;
   const wellH = wellBottom - wellTop;
@@ -308,13 +314,22 @@ function drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg) {
     gridSize,
   );
 
-  // quiet brand watermark, centered in the bottom band
+  // quiet brand watermark (SVG logo + wordmark), centered in the bottom band
   const markY = wellBottom - 34;
   ctx.textBaseline = "alphabetic";
-  ctx.textAlign = "center";
-  ctx.fillStyle = p.muted;
   ctx.font = `28px ${CANVAS_CUTE_FONT}`;
-  ctx.fillText("拼豆工坊 · 扫码同款", w / 2, markY);
+  const markText = "拼豆工坊 · 扫码同款";
+  const markTextW = ctx.measureText(markText).width;
+  const markLogo = logoImg ? 34 : 0;
+  const markGap = logoImg ? 12 : 0;
+  let markX = (w - (markLogo + markGap + markTextW)) / 2;
+  if (logoImg) {
+    ctx.drawImage(logoImg, markX, markY - 27, markLogo, markLogo);
+    markX += markLogo + markGap;
+  }
+  ctx.textAlign = "left";
+  ctx.fillStyle = p.muted;
+  ctx.fillText(markText, markX, markY);
 
   // small corner QR (optional)
   if (qrImg) {

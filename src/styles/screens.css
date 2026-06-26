@@ -221,6 +221,7 @@
   .start-row-draw { animation-delay: 0.1s; }
   .start-row-gallery { animation-delay: 0.16s; }
   .start-row-collection { animation-delay: 0.22s; }
+  .start-row-community { animation-delay: 0.28s; }
   .start-showcase { animation-delay: 0.12s; }
 
   @keyframes start-rise {
