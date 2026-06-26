@@ -93,11 +93,17 @@
     flex-direction: column;
     gap: var(--sp-4);
     padding: var(--sp-4);
-    /* The card fills the viewport flush inside .start-screen (overflow:hidden),
-       so its soft drop-shadow would be hard-clipped into a square edge. A card
-       that spans the whole screen needs no drop shadow — drop it; the 1px border
-       defines the edge cleanly. */
+    /* On mobile the glass card spans the whole viewport, so its border / shadow /
+       backdrop only show up as a faint square edge where the rounded card meets
+       the surrounding overflow:hidden box — and a full-screen "card" frame adds
+       nothing anyway. Dissolve it into a plain transparent container; the entry
+       rows and the showcase are their own cards, floating on the page wash. */
+    background: transparent;
+    border: none;
+    border-radius: 0;
     box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   /* Aside grows to fill; the entry rows themselves grow to take the height
@@ -119,14 +125,14 @@
   }
 
   .start-row-icon {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border-radius: var(--r-md);
   }
 
   .start-row-icon svg {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
   }
 
   .start-showcase {
@@ -160,7 +166,7 @@
   }
 
   .start-brand h1 {
-    font-size: 28px;
+    font-size: 32px;
   }
 
   .drawing-studio-grid {
@@ -1661,16 +1667,16 @@
   }
 
   .start-row-icon {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
   }
 
   .start-row-icon svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
   }
 
   .start-brand h1 {
-    font-size: 24px;
+    font-size: 26px;
   }
 }
