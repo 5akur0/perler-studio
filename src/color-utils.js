@@ -12,18 +12,34 @@ export function easeOut(t) {
   return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 }
 
+// Parse either a #rrggbb hex string or an "rgb(r, g, b)" string into {r,g,b}.
+// mixColor returns rgb(...), so its own output (and any other rgb() color) must
+// round-trip back through here — otherwise re-mixing a previously mixed color
+// (e.g. a burnt/fused bead color re-tinted for a wax-finish craft) silently
+// parses to NaN and renders black.
+export function parseColor(color) {
+  if (typeof color === "string") {
+    const rgbMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (rgbMatch) {
+      return { r: +rgbMatch[1], g: +rgbMatch[2], b: +rgbMatch[3] };
+    }
+    if (color[0] === "#") {
+      const value = parseInt(color.slice(1), 16);
+      if (Number.isFinite(value)) {
+        return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+      }
+    }
+  }
+  // Unparseable input: fall back to a neutral grey rather than NaN→black.
+  return { r: 153, g: 153, b: 153 };
+}
+
 export function mixColor(hex, target, amount) {
-  const a = parseInt(hex.slice(1), 16);
-  const b = parseInt(target.slice(1), 16);
-  const ar = (a >> 16) & 255;
-  const ag = (a >> 8) & 255;
-  const ab = a & 255;
-  const br = (b >> 16) & 255;
-  const bg = (b >> 8) & 255;
-  const bb = b & 255;
-  const rr = Math.round(lerp(ar, br, amount));
-  const rg = Math.round(lerp(ag, bg, amount));
-  const rb = Math.round(lerp(ab, bb, amount));
+  const a = parseColor(hex);
+  const b = parseColor(target);
+  const rr = Math.round(lerp(a.r, b.r, amount));
+  const rg = Math.round(lerp(a.g, b.g, amount));
+  const rb = Math.round(lerp(a.b, b.b, amount));
   return `rgb(${rr}, ${rg}, ${rb})`;
 }
 
@@ -61,12 +77,7 @@ export function oklabDistance(a, b) {
 }
 
 export function hexToRgb(hex) {
-  const value = parseInt(hex.slice(1), 16);
-  return {
-    r: (value >> 16) & 255,
-    g: (value >> 8) & 255,
-    b: value & 255,
-  };
+  return parseColor(hex);
 }
 
 const beadOklabCache = {};
