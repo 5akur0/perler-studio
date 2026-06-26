@@ -290,6 +290,32 @@ body[data-app-mode="community"] .collection-screen {
   line-height: var(--lh-body);
 }
 
+.draw-code-title-field {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.draw-code-title-field[hidden] {
+  display: none;
+}
+
+.draw-code-title-field label {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+
+.draw-code-title-input {
+  width: 100%;
+  min-height: var(--field-h);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: #fff;
+  color: var(--ink);
+  font-size: var(--fs-title);
+}
+
 .drawing-palette-panel {
   min-height: 0;
 }

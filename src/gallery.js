@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { els } from './dom.js';
 import { patterns } from './patterns-data.js';
-import { decodePatternCode, extractPatternCode, encodePatternCode } from './pattern-code.js';
+import { decodePatternCode, encodePatternCode } from './pattern-code.js';
 import { showToast } from './notify.js';
 import { escapeHtml, stableHash, pickCustomPatternNote } from './utils.js';
 import { drawPatternThumb } from './ui.js';
@@ -212,11 +212,6 @@ export function enterGalleryMode() {
 }
 
 async function resolvePatternCodeInput(raw) {
-  const extracted = extractPatternCode(raw);
-  if (extracted) {
-    decodePatternCode(extracted);
-    return extracted;
-  }
   const shortId = extractCloudShortId(raw);
   if (!shortId) throw new Error("missing_pattern_code");
   const share = await requestShareApi("/api/share/open", { shortId });
@@ -257,7 +252,7 @@ export async function submitGalleryPattern() {
   const author = normalizeGalleryText(els.gallerySubmitAuthor?.value);
   const raw = els.gallerySubmitCode?.value || "";
   if (!name) { showToast("请填写图纸名称。"); return; }
-  if (!raw.trim()) { showToast("请粘贴图纸码或短码。"); return; }
+  if (!raw.trim()) { showToast("请粘贴分享码。"); return; }
   if (!shareApiBase) { showToast("投稿服务还没有配置。"); return; }
   if (button) { button.disabled = true; button.textContent = "提交中"; }
   try {
@@ -267,7 +262,7 @@ export async function submitGalleryPattern() {
     closeGallerySubmitModal();
     showToast("投稿已进入审核队列。");
   } catch {
-    showToast("投稿失败，请检查图纸码或稍后再试。");
+    showToast("投稿失败，请检查分享码或稍后再试。");
   } finally {
     if (button) { button.disabled = false; button.textContent = "提交审核"; }
   }
@@ -349,15 +344,19 @@ async function createCloudShareForPattern(pattern) {
   try {
     const share = await requestCloudShareForPattern(pattern);
     if (share?.shortId) {
+      // Keep the shared string self-describing: 【title】+short code, matching the
+      // draw studio. The title rides along server-side as `name` already.
+      const title = String(pattern?.name || "").trim().slice(0, 10);
+      const display = title ? `【${title}】${share.shortId}` : share.shortId;
       await autoCopyText(
-        share.shortId,
-        `短码已复制：${share.shortId}`,
-        `短码已生成：${share.shortId}（复制失败，请手动复制）`,
+        display,
+        `分享码已复制：${display}`,
+        `分享码已生成：${display}（复制失败，请手动复制）`,
       );
     }
     return share;
   } catch {
-    showToast("短码服务暂时不可用。");
+    showToast("服务器繁忙，请稍后再试。");
     return null;
   }
 }
@@ -378,20 +377,9 @@ export function submitCurrentToGallery() {
 }
 
 export async function importPatternCode(raw) {
-  const localCode = extractPatternCode(raw);
-  if (localCode) {
-    try {
-      const decoded = decodePatternCode(localCode);
-      applyImportedPattern(decoded);
-      return true;
-    } catch {
-      showToast("短码无效，导入失败。");
-      return false;
-    }
-  }
   const shortId = extractCloudShortId(raw);
   if (!shortId) {
-    showToast("短码无效。");
+    showToast("分享码无效。");
     return false;
   }
   try {
@@ -400,7 +388,7 @@ export async function importPatternCode(raw) {
     applyImportedPattern(decoded, share.name || "导入图纸");
     return true;
   } catch {
-    showToast("短码无效或已过期。");
+    showToast("分享码无效或已过期。");
     return false;
   }
 }

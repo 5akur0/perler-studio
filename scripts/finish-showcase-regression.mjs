@@ -78,4 +78,18 @@ assert.match(
 );
 assert.match(uiSource, /els\.sideReference\.style\.display = visible \? "" : "none"/);
 
+// Burnt/fused bead colors are rgb() strings (fusedColor mixes once); wax-finish
+// crafts (杯垫/摆件) re-tint them via finishMaterialColor → mixColor a second
+// time. mixColor must therefore round-trip its own rgb() output instead of
+// parsing it to NaN and rendering the bead black. Guard the round-trip directly.
+const { mixColor } = await import("../src/color-utils.js");
+const fusedHot = mixColor("#57b8a7", "#e8a472", 0.3); // a "burnt" bead color (rgb())
+assert.match(fusedHot, /^rgb\(/, "fusedColor output should be an rgb() string");
+const waxed = mixColor(fusedHot, "#8f877c", 0.11); // finishMaterialColor("wax") re-mix
+const [wr, wg, wb] = waxed.match(/\d+/g).map(Number);
+assert.ok(
+  wr + wg + wb > 120,
+  `re-mixing a burnt bead for a wax craft must not collapse to black; got ${waxed}`,
+);
+
 console.log("Finish showcase regression checks passed.");

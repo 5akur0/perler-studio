@@ -591,18 +591,27 @@
   function easeOut(t) {
     return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
   }
+  function parseColor(color) {
+    if (typeof color === "string") {
+      const rgbMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (rgbMatch) {
+        return { r: +rgbMatch[1], g: +rgbMatch[2], b: +rgbMatch[3] };
+      }
+      if (color[0] === "#") {
+        const value = parseInt(color.slice(1), 16);
+        if (Number.isFinite(value)) {
+          return { r: value >> 16 & 255, g: value >> 8 & 255, b: value & 255 };
+        }
+      }
+    }
+    return { r: 153, g: 153, b: 153 };
+  }
   function mixColor(hex, target, amount) {
-    const a = parseInt(hex.slice(1), 16);
-    const b = parseInt(target.slice(1), 16);
-    const ar = a >> 16 & 255;
-    const ag = a >> 8 & 255;
-    const ab = a & 255;
-    const br = b >> 16 & 255;
-    const bg = b >> 8 & 255;
-    const bb = b & 255;
-    const rr = Math.round(lerp(ar, br, amount));
-    const rg = Math.round(lerp(ag, bg, amount));
-    const rb = Math.round(lerp(ab, bb, amount));
+    const a = parseColor(hex);
+    const b = parseColor(target);
+    const rr = Math.round(lerp(a.r, b.r, amount));
+    const rg = Math.round(lerp(a.g, b.g, amount));
+    const rb = Math.round(lerp(a.b, b.b, amount));
     return `rgb(${rr}, ${rg}, ${rb})`;
   }
   function fadedPrintColor(hex) {
@@ -635,12 +644,7 @@
     return dl * dl + da * da + db * db;
   }
   function hexToRgb(hex) {
-    const value = parseInt(hex.slice(1), 16);
-    return {
-      r: value >> 16 & 255,
-      g: value >> 8 & 255,
-      b: value & 255
-    };
+    return parseColor(hex);
   }
   var beadOklabCache = {};
   function beadOklab(code) {
@@ -1583,7 +1587,10 @@
     drawCodeCloseBtn: $("#drawCodeCloseBtn"),
     drawCodeCancelBtn: $("#drawCodeCancelBtn"),
     drawCodeCopyBtn: $("#drawCodeCopyBtn"),
+    drawCodeGenerateBtn: $("#drawCodeGenerateBtn"),
     drawCodeImportConfirmBtn: $("#drawCodeImportConfirmBtn"),
+    drawCodeTitleField: $("#drawCodeTitleField"),
+    drawCodeTitleInput: $("#drawCodeTitleInput"),
     drawClearButton: $("#drawClearButton"),
     drawImportButton: $("#drawImportButton"),
     drawShortCodeButton: $("#drawShortCodeButton"),
@@ -2483,7 +2490,7 @@
       ...sharedNotes
     ],
     imported: [
-      { text: "\u77ED\u7801\u5BFC\u5165\u6210\u529F", weight: 45 },
+      { text: "\u5206\u4EAB\u7801\u5BFC\u5165\u6210\u529F", weight: 45 },
       { text: "\u65B0\u56FE\u7EB8\u5DF2\u5C31\u4F4D", weight: 35 },
       { text: "\u8FD9\u5F20\u5148\u653E\u5230\u5F85\u62FC", weight: 20 },
       ...sharedNotes
@@ -2547,22 +2554,22 @@
     ctx2.quadraticCurveTo(boardX, boardY, boardX + r, boardY);
   }
   function drawBoardGuides(ctx2, layout, cols, rows, scale = 1) {
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
     ctx2.save();
     const stroke = (n, vertical) => {
       const major = n % 10 === 0;
       ctx2.strokeStyle = major ? "rgba(70, 84, 96, 0.5)" : "rgba(70, 84, 96, 0.26)";
-      ctx2.lineWidth = major ? Math.max(1.2 / scale, cell * 0.07) : 1 / scale;
-      ctx2.setLineDash(major ? [] : [cell * 0.32, cell * 0.32]);
+      ctx2.lineWidth = major ? Math.max(1.2 / scale, cell2 * 0.07) : 1 / scale;
+      ctx2.setLineDash(major ? [] : [cell2 * 0.32, cell2 * 0.32]);
       ctx2.beginPath();
       if (vertical) {
-        const px = boardX + n * cell;
+        const px = boardX + n * cell2;
         ctx2.moveTo(px, boardY);
         ctx2.lineTo(px, boardY + boardH);
       } else {
-        const py = boardY + n * cell;
+        const py = boardY + n * cell2;
         ctx2.moveTo(boardX, py);
         ctx2.lineTo(boardX + boardW, py);
       }
@@ -2586,7 +2593,7 @@
       blockOffsetX = 0,
       blockOffsetY = 0
     } = options;
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
     ctx2.save();
@@ -2627,10 +2634,10 @@
     for (let by = 0; by * 10 < rows; by += 1) {
       for (let bx = 0; bx * 10 < cols; bx += 1) {
         ctx2.fillStyle = (blockOffsetX + bx + blockOffsetY + by) % 2 ? tintDark : tintLight;
-        const px = boardX + bx * 10 * cell;
-        const py = boardY + by * 10 * cell;
-        const pw = Math.min(10, cols - bx * 10) * cell;
-        const ph = Math.min(10, rows - by * 10) * cell;
+        const px = boardX + bx * 10 * cell2;
+        const py = boardY + by * 10 * cell2;
+        const pw = Math.min(10, cols - bx * 10) * cell2;
+        const ph = Math.min(10, rows - by * 10) * cell2;
         ctx2.fillRect(px, py, pw, ph);
       }
     }
@@ -2645,16 +2652,16 @@
     const padding = options.padding ?? (compact ? Math.max(1, minSide * 0.025) : Math.max(8, minSide * 0.025));
     const availableW = Math.max(1, width - (padding + frameInset) * 2);
     const availableH = Math.max(1, height - (padding + frameInset) * 2);
-    const cell = Math.max(0.01, Math.min(availableW / cols, availableH / rows));
-    const boardW = cell * cols;
-    const boardH = cell * rows;
+    const cell2 = Math.max(0.01, Math.min(availableW / cols, availableH / rows));
+    const boardW = cell2 * cols;
+    const boardH = cell2 * rows;
     return {
       boardX: (width - boardW) / 2,
       boardY: (height - boardH) / 2,
       boardW,
       boardH,
       boardSize: Math.max(boardW, boardH),
-      cell,
+      cell: cell2,
       frameInset,
       compact
     };
@@ -2742,7 +2749,7 @@
     const cy = Number(view?.cy) || 0;
     const panX = Number(view?.panX) || 0;
     const panY = Number(view?.panY) || 0;
-    const cell = Math.max(1e-4, Number(layout?.cell) || 1);
+    const cell2 = Math.max(1e-4, Number(layout?.cell) || 1);
     const boardX = Number(layout?.boardX) || 0;
     const boardY = Number(layout?.boardY) || 0;
     const viewportW = Math.max(0, Number(layout?.w) || 0);
@@ -2755,10 +2762,10 @@
     const localBottom = (viewportH - cy - panY) / scale + cy;
     const clampIndex = (value, max) => Math.min(max, Math.max(0, value));
     return {
-      startCol: clampIndex(Math.floor((localLeft - boardX) / cell), columnCount),
-      endCol: clampIndex(Math.ceil((localRight - boardX) / cell), columnCount),
-      startRow: clampIndex(Math.floor((localTop - boardY) / cell), rowCount),
-      endRow: clampIndex(Math.ceil((localBottom - boardY) / cell), rowCount)
+      startCol: clampIndex(Math.floor((localLeft - boardX) / cell2), columnCount),
+      endCol: clampIndex(Math.ceil((localRight - boardX) / cell2), columnCount),
+      startRow: clampIndex(Math.floor((localTop - boardY) / cell2), rowCount),
+      endRow: clampIndex(Math.ceil((localBottom - boardY) / cell2), rowCount)
     };
   }
   function fitGridToBoardTiles(rows, sourceWidth, sourceHeight, tileSize, maxDimension) {
@@ -2960,24 +2967,24 @@
     const pattern = state.selectedPattern;
     const cols = boardCols(pattern);
     const rows = boardRows(pattern);
-    const cell = size / Math.max(cols, rows);
-    const gx = x + (size - cell * cols) / 2;
-    const gy = y + (size - cell * rows) / 2;
+    const cell2 = size / Math.max(cols, rows);
+    const gx = x + (size - cell2 * cols) / 2;
+    const gy = y + (size - cell2 * rows) / 2;
     const hasPlaced = placedCount2() > 0;
     for (let py = 0; py < rows; py += 1) {
       for (let px = 0; px < cols; px += 1) {
         const index2 = indexFor(px, py);
         const code = hasPlaced ? state.placed[index2] : targetAt(px, py);
         if (!code) continue;
-        const cx = gx + px * cell + cell / 2;
-        const cy = gy + py * cell + cell / 2;
+        const cx = gx + px * cell2 + cell2 / 2;
+        const cy = gy + py * cell2 + cell2 / 2;
         const heat = state.heat[index2] || (state.phase === "finish" ? 66 : 0);
         if (heat > 34 || state.phase === "finish") {
           ctx2.fillStyle = fusedColor(code, Math.max(heat, 58));
-          roundedPath(ctx2, gx + px * cell + cell * 0.04, gy + py * cell + cell * 0.04, cell * 0.92, cell * 0.92, cell * 0.18);
+          roundedPath(ctx2, gx + px * cell2 + cell2 * 0.04, gy + py * cell2 + cell2 * 0.04, cell2 * 0.92, cell2 * 0.92, cell2 * 0.18);
           ctx2.fill();
         } else {
-          drawBead(ctx2, cx, cy, cell * 0.42, code, heat, false, null, index2);
+          drawBead(ctx2, cx, cy, cell2 * 0.42, code, heat, false, null, index2);
         }
       }
     }
@@ -3245,10 +3252,10 @@
     const radius = 3;
     const gridCount = radius * 2 + 1;
     const padding = 10;
-    const cell = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
-    if (!Number.isFinite(cell) || cell <= 0) return;
-    const gridW = cell * gridCount;
-    const gridH = cell * gridCount;
+    const cell2 = Math.floor(Math.min((w - padding * 2) / gridCount, (h - padding * 2) / gridCount));
+    if (!Number.isFinite(cell2) || cell2 <= 0) return;
+    const gridW = cell2 * gridCount;
+    const gridH = cell2 * gridCount;
     const x0 = Math.floor((w - gridW) / 2);
     const y0 = Math.floor((h - gridH) / 2);
     const errorMap = new Map(state.errors.map((error) => [error.index, error.type]));
@@ -3268,40 +3275,40 @@
       for (let gx = 0; gx < gridCount; gx += 1) {
         const bx = focus.x + gx - radius;
         const by = focus.y + gy - radius;
-        const px = x0 + gx * cell;
-        const py = y0 + gy * cell;
+        const px = x0 + gx * cell2;
+        const py = y0 + gy * cell2;
         const inRange = bx >= 0 && by >= 0 && bx < cols && by < rows;
         if (!inRange) continue;
         const index2 = indexFor(bx, by);
         const placed = state.placed[index2];
         const target = targetAt(bx, by);
-        const cx = px + cell / 2;
-        const cy = py + cell / 2;
+        const cx = px + cell2 / 2;
+        const cy = py + cell2 / 2;
         ctx2.fillStyle = "rgba(120, 128, 140, 0.28)";
         ctx2.beginPath();
-        ctx2.arc(cx, cy, cell * 0.18, 0, Math.PI * 2);
+        ctx2.arc(cx, cy, cell2 * 0.18, 0, Math.PI * 2);
         ctx2.fill();
         if (target && !placed) {
           ctx2.strokeStyle = palette[target] || "#bbb";
           ctx2.globalAlpha = 0.55;
-          ctx2.lineWidth = Math.max(1.4, cell * 0.05);
+          ctx2.lineWidth = Math.max(1.4, cell2 * 0.05);
           ctx2.beginPath();
-          ctx2.arc(cx, cy, cell * 0.36, 0, Math.PI * 2);
+          ctx2.arc(cx, cy, cell2 * 0.36, 0, Math.PI * 2);
           ctx2.stroke();
           ctx2.globalAlpha = 1;
         }
         if (placed) {
-          const beadR = cell * 0.42;
+          const beadR = cell2 * 0.42;
           ctx2.fillStyle = "rgba(0,0,0,0.16)";
           ctx2.beginPath();
-          ctx2.arc(cx + cell * 0.04, cy + cell * 0.06, beadR, 0, Math.PI * 2);
+          ctx2.arc(cx + cell2 * 0.04, cy + cell2 * 0.06, beadR, 0, Math.PI * 2);
           ctx2.fill();
           ctx2.fillStyle = palette[placed] || "#bbb";
           ctx2.beginPath();
           ctx2.arc(cx, cy, beadR, 0, Math.PI * 2);
           ctx2.fill();
           ctx2.strokeStyle = "rgba(0,0,0,0.18)";
-          ctx2.lineWidth = Math.max(1, cell * 0.04);
+          ctx2.lineWidth = Math.max(1, cell2 * 0.04);
           ctx2.beginPath();
           ctx2.arc(cx, cy, beadR, 0, Math.PI * 2);
           ctx2.stroke();
@@ -3318,15 +3325,15 @@
           const type = errorMap.get(index2);
           ctx2.strokeStyle = type === "wrong" ? "rgba(220, 68, 76, 0.9)" : "rgba(217, 143, 48, 0.92)";
           ctx2.lineWidth = 2;
-          ctx2.strokeRect(px + 1.5, py + 1.5, cell - 3, cell - 3);
+          ctx2.strokeRect(px + 1.5, py + 1.5, cell2 - 3, cell2 - 3);
         }
       }
     }
-    const centerX = x0 + radius * cell + cell / 2;
-    const centerY = y0 + radius * cell + cell / 2;
+    const centerX = x0 + radius * cell2 + cell2 / 2;
+    const centerY = y0 + radius * cell2 + cell2 / 2;
     ctx2.strokeStyle = "rgba(66, 96, 131, 0.85)";
     ctx2.lineWidth = 2;
-    ctx2.strokeRect(centerX - cell / 2 + 1, centerY - cell / 2 + 1, cell - 2, cell - 2);
+    ctx2.strokeRect(centerX - cell2 / 2 + 1, centerY - cell2 / 2 + 1, cell2 - 2, cell2 - 2);
   }
   function drawInspectFusePreviewCanvas(canvas) {
     const ctx2 = canvas.getContext("2d");
@@ -3374,9 +3381,9 @@
     const spanX = maxX - minX + 1;
     const spanY = maxY - minY + 1;
     const padding = 16;
-    const cell = Math.max(4, Math.floor(Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY)));
-    const drawW = spanX * cell;
-    const drawH = spanY * cell;
+    const cell2 = Math.max(4, Math.floor(Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY)));
+    const drawW = spanX * cell2;
+    const drawH = spanY * cell2;
     const x0 = Math.floor((w - drawW) / 2);
     const y0 = Math.floor((h - drawH) / 2);
     const placedSet = new Set(cells.map((cellData) => `${cellData.x}:${cellData.y}`));
@@ -3384,8 +3391,8 @@
     const centerMap = /* @__PURE__ */ new Map();
     cells.forEach((cellData) => {
       centerMap.set(`${cellData.x}:${cellData.y}`, {
-        x: x0 + (cellData.x - minX) * cell + cell / 2,
-        y: y0 + (cellData.y - minY) * cell + cell / 2
+        x: x0 + (cellData.x - minX) * cell2 + cell2 / 2,
+        y: y0 + (cellData.y - minY) * cell2 + cell2 / 2
       });
     });
     cells.forEach((cellData) => {
@@ -3405,7 +3412,7 @@
         gradient.addColorStop(1, colorB);
         const blendHeat = Math.min(heatA, heatB);
         const fuse = clamp((blendHeat - 30) / 58 + 0.32, 0, 1);
-        const spread = lerp(cell * 0.44, cell * 0.86, easeOut(fuse));
+        const spread = lerp(cell2 * 0.44, cell2 * 0.86, easeOut(fuse));
         drawGradientCapsuleBridge(ctx2, centerA, centerB, spread, spread * 0.38, gradient, 0.96);
       };
       drawBridge(x + 1, y);
@@ -3419,8 +3426,8 @@
       const edge = mixColor(color, "#ffffff", 0.18);
       const shape = boardFusionShapeProfile(x, y);
       const edges = shape.edges;
-      const halfConnected = cell * 0.5;
-      const halfExposed = cell * 0.62;
+      const halfConnected = cell2 * 0.5;
+      const halfExposed = cell2 * 0.62;
       const halfL = edges.left ? halfExposed : halfConnected;
       const halfR = edges.right ? halfExposed : halfConnected;
       const halfU = edges.up ? halfExposed : halfConnected;
@@ -3458,7 +3465,7 @@
       buildPath();
       ctx2.fill();
       ctx2.strokeStyle = edge;
-      ctx2.lineWidth = Math.max(0.9, cell * 0.052);
+      ctx2.lineWidth = Math.max(0.9, cell2 * 0.052);
       buildPath();
       ctx2.stroke();
     });
@@ -3525,12 +3532,12 @@
       const offsetY = clamp(dy / dist * 0.02 + jitterY, -0.06, 0.06);
       const lift = 0.14 + pseudoRandom(`${seed}-lift`) * 0.08;
       const map = {};
-      const relCells = cells.map((cell) => {
-        map[`${cell.x},${cell.y}`] = cell;
+      const relCells = cells.map((cell2) => {
+        map[`${cell2.x},${cell2.y}`] = cell2;
         return {
-          ...cell,
-          rx: cell.x - minX,
-          ry: cell.y - minY
+          ...cell2,
+          rx: cell2.x - minX,
+          ry: cell2.y - minY
         };
       });
       pieces.push({
@@ -3559,16 +3566,16 @@
       const dy = (piece.offsetY - piece.lift - clamp(state.flattening / 100, 0, 1) * 0.09) * layout.cell;
       drawFusedPieceTransformed(layout, piece, {
         scale: 1,
-        resolveCenter: (cell) => ({
-          x: layout.boardX + cell.x * layout.cell + layout.cell / 2 + dx,
-          y: layout.boardY + cell.y * layout.cell + layout.cell / 2 + dy
+        resolveCenter: (cell2) => ({
+          x: layout.boardX + cell2.x * layout.cell + layout.cell / 2 + dx,
+          y: layout.boardY + cell2.y * layout.cell + layout.cell / 2 + dy
         })
       });
     });
   }
   function drawWaxSheenForPiece(layout, piece, { scale, resolveCenter }) {
     const ctx2 = scene;
-    const centers = piece.cells.map((cell) => ({ cell, center: resolveCenter(cell, piece) }));
+    const centers = piece.cells.map((cell2) => ({ cell: cell2, center: resolveCenter(cell2, piece) }));
     if (!centers.length) return;
     const radius = layout.cell * scale * 0.52;
     const bridgeHalf = layout.cell * scale * 0.36;
@@ -3580,15 +3587,15 @@
     const bottom = Math.max(...ys) + radius;
     ctx2.save();
     ctx2.beginPath();
-    centers.forEach(({ cell, center }) => {
+    centers.forEach(({ cell: cell2, center }) => {
       ctx2.moveTo(center.x + radius, center.y);
       ctx2.arc(center.x, center.y, radius, 0, Math.PI * 2);
-      const rightCell = piece.map[`${cell.x + 1},${cell.y}`];
+      const rightCell = piece.map[`${cell2.x + 1},${cell2.y}`];
       if (rightCell) {
         const next = resolveCenter(rightCell, piece);
         ctx2.rect(center.x, center.y - bridgeHalf, next.x - center.x, bridgeHalf * 2);
       }
-      const downCell = piece.map[`${cell.x},${cell.y + 1}`];
+      const downCell = piece.map[`${cell2.x},${cell2.y + 1}`];
       if (downCell) {
         const next = resolveCenter(downCell, piece);
         ctx2.rect(center.x - bridgeHalf, center.y, bridgeHalf * 2, next.y - center.y);
@@ -3623,39 +3630,39 @@
     const resolveCenter = options.resolveCenter;
     const material = options.material || null;
     if (!resolveCenter) return;
-    piece.cells.forEach((cell) => {
-      const right = piece.map[`${cell.x + 1},${cell.y}`];
+    piece.cells.forEach((cell2) => {
+      const right = piece.map[`${cell2.x + 1},${cell2.y}`];
       if (right) {
-        const centerA = resolveCenter(cell, piece);
+        const centerA = resolveCenter(cell2, piece);
         const centerB = resolveCenter(right, piece);
-        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell, right, centerA, centerB, material);
+        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell2, right, centerA, centerB, material);
       }
-      const down = piece.map[`${cell.x},${cell.y + 1}`];
+      const down = piece.map[`${cell2.x},${cell2.y + 1}`];
       if (down) {
-        const centerA = resolveCenter(cell, piece);
+        const centerA = resolveCenter(cell2, piece);
         const centerB = resolveCenter(down, piece);
-        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell, down, centerA, centerB, material);
+        drawDetachedFusionBridgeByCenters(ctx2, layout.cell * scale, cell2, down, centerA, centerB, material);
       }
     });
-    piece.cells.forEach((cell) => {
-      const center = resolveCenter(cell, piece);
-      const shapeProfile = pieceFusionShapeProfile(piece, cell);
-      if (isSpillDamagedIndex(cell.index)) {
-        drawDamagedBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile);
+    piece.cells.forEach((cell2) => {
+      const center = resolveCenter(cell2, piece);
+      const shapeProfile = pieceFusionShapeProfile(piece, cell2);
+      if (isSpillDamagedIndex(cell2.index)) {
+        drawDamagedBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell2.code, cell2.heat, true, shapeProfile);
       } else {
-        drawBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell.code, cell.heat, true, shapeProfile, cell.index, material);
+        drawBead(ctx2, center.x, center.y, layout.cell * 0.43 * scale, cell2.code, cell2.heat, true, shapeProfile, cell2.index, material);
       }
     });
     if (material === "wax") drawWaxSheenForPiece(layout, piece, { scale, resolveCenter });
   }
-  function pieceFusionShapeProfile(piece, cell) {
+  function pieceFusionShapeProfile(piece, cell2) {
     const has = (x, y) => Boolean(piece.map[`${x},${y}`]);
-    const orth = Number(has(cell.x - 1, cell.y)) + Number(has(cell.x + 1, cell.y)) + Number(has(cell.x, cell.y - 1)) + Number(has(cell.x, cell.y + 1));
+    const orth = Number(has(cell2.x - 1, cell2.y)) + Number(has(cell2.x + 1, cell2.y)) + Number(has(cell2.x, cell2.y - 1)) + Number(has(cell2.x, cell2.y + 1));
     const edges = {
-      left: !has(cell.x - 1, cell.y),
-      right: !has(cell.x + 1, cell.y),
-      up: !has(cell.x, cell.y - 1),
-      down: !has(cell.x, cell.y + 1)
+      left: !has(cell2.x - 1, cell2.y),
+      right: !has(cell2.x + 1, cell2.y),
+      up: !has(cell2.x, cell2.y - 1),
+      down: !has(cell2.x, cell2.y + 1)
     };
     const cluster = clamp(orth / 4, 0, 1);
     const edgeExposure = 1 - clamp(orth / 4, 0, 1);
@@ -3910,18 +3917,18 @@
   }
   function drawFinishKeychain(layout, pieces) {
     const ctx2 = scene;
-    const { boardX, boardY, boardW, boardH, cell } = layout;
+    const { boardX, boardY, boardW, boardH, cell: cell2 } = layout;
     const selected = pieceSortByArea(pieces).slice(0, 2);
     const centerX = boardX + boardW / 2;
     const slots = selected.length === 1 ? [boardY + boardH * 0.57] : [boardY + boardH * 0.38, boardY + boardH * 0.73];
     const placed = [];
     selected.forEach((piece, index2) => {
-      const pieceW = (piece.maxX - piece.minX + 1) * cell;
-      const pieceH = (piece.maxY - piece.minY + 1) * cell;
+      const pieceW = (piece.maxX - piece.minX + 1) * cell2;
+      const pieceH = (piece.maxY - piece.minY + 1) * cell2;
       const maxW = boardW * (selected.length === 1 ? 0.58 : 0.46);
       const maxH = boardH * (selected.length === 1 ? 0.48 : 0.25);
       const scale = clamp(Math.min(maxW / pieceW, maxH / pieceH, 1.22), 0.48, 1.22);
-      const pad = Math.max(cell * 0.68, 12);
+      const pad = Math.max(cell2 * 0.68, 12);
       const plateW = pieceW * scale + pad * 2;
       const plateH = pieceH * scale + pad * 2.15;
       const target = { x: centerX, y: slots[index2] + pad * 0.2 };
@@ -3930,7 +3937,7 @@
         y: slots[index2] - plateH / 2,
         w: plateW,
         h: plateH,
-        r: Math.max(12, cell * 0.72)
+        r: Math.max(12, cell2 * 0.72)
       };
       placed.push({ piece, scale, target, plate, pad });
       drawAcrylicPlate(ctx2, plate);
@@ -3938,17 +3945,17 @@
       ctx2.save();
       ctx2.fillStyle = "rgba(124,136,147,0.22)";
       ctx2.strokeStyle = "rgba(83,94,105,0.68)";
-      ctx2.lineWidth = Math.max(1.5, cell * 0.09);
+      ctx2.lineWidth = Math.max(1.5, cell2 * 0.09);
       ctx2.beginPath();
-      ctx2.arc(centerX, holeY, Math.max(4, cell * 0.22), 0, Math.PI * 2);
+      ctx2.arc(centerX, holeY, Math.max(4, cell2 * 0.22), 0, Math.PI * 2);
       ctx2.fill();
       ctx2.stroke();
       ctx2.restore();
       drawFusedPieceTransformed(layout, piece, {
         scale,
         resolveCenter: (cellData) => ({
-          x: target.x + (cellData.x - piece.centerX) * cell * scale,
-          y: target.y + (cellData.y - piece.centerY) * cell * scale
+          x: target.x + (cellData.x - piece.centerX) * cell2 * scale,
+          y: target.y + (cellData.y - piece.centerY) * cell2 * scale
         })
       });
       drawMaterialHighlight(ctx2, { ...plate, alpha: 0.14 });
@@ -3961,12 +3968,12 @@
     metal.addColorStop(0.46, "#aab4c0");
     metal.addColorStop(1, "#7c8893");
     ctx2.strokeStyle = metal;
-    ctx2.lineWidth = Math.max(5, cell * 0.28);
+    ctx2.lineWidth = Math.max(5, cell2 * 0.28);
     ctx2.beginPath();
     ctx2.arc(centerX, ringY, ringR, 0, Math.PI * 2);
     ctx2.stroke();
     ctx2.strokeStyle = "rgba(255,255,255,0.82)";
-    ctx2.lineWidth = Math.max(1.4, cell * 0.075);
+    ctx2.lineWidth = Math.max(1.4, cell2 * 0.075);
     ctx2.beginPath();
     ctx2.arc(centerX, ringY, ringR, Math.PI * 1.08, Math.PI * 1.76);
     ctx2.stroke();
@@ -3974,9 +3981,9 @@
       const first = placed[0];
       const holeY = first.plate.y + first.pad * 0.52;
       const connectorTop = ringY + ringR * 0.76;
-      const connectorH = Math.max(8, holeY - connectorTop + cell * 0.1);
+      const connectorH = Math.max(8, holeY - connectorTop + cell2 * 0.1);
       ctx2.fillStyle = metal;
-      roundedPath(ctx2, centerX - Math.max(3, cell * 0.14), connectorTop, Math.max(6, cell * 0.28), connectorH, Math.max(3, cell * 0.14));
+      roundedPath(ctx2, centerX - Math.max(3, cell2 * 0.14), connectorTop, Math.max(6, cell2 * 0.28), connectorH, Math.max(3, cell2 * 0.14));
       ctx2.fill();
     }
     if (placed.length > 1) {
@@ -3986,17 +3993,17 @@
       const bottomTopY = bottom.plate.y;
       ctx2.strokeStyle = metal;
       ctx2.lineCap = "round";
-      ctx2.lineWidth = Math.max(2.8, cell * 0.16);
+      ctx2.lineWidth = Math.max(2.8, cell2 * 0.16);
       ctx2.beginPath();
-      ctx2.moveTo(centerX, topBottomY + cell * 0.06);
-      ctx2.lineTo(centerX, bottomTopY - cell * 0.06);
+      ctx2.moveTo(centerX, topBottomY + cell2 * 0.06);
+      ctx2.lineTo(centerX, bottomTopY - cell2 * 0.06);
       ctx2.stroke();
     }
     ctx2.restore();
   }
   function drawFinishOriginal(layout, pieces) {
     const ctx2 = scene;
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
     const frame = 14;
@@ -4023,12 +4030,12 @@
       for (let x = 0; x < cols; x += 1) {
         const index2 = indexFor(x, y);
         if (index2 === spillIndex) continue;
-        const px = boardX + x * cell;
-        const py = boardY + y * cell;
-        const pegR = cell * 0.138;
+        const px = boardX + x * cell2;
+        const py = boardY + y * cell2;
+        const pegR = cell2 * 0.138;
         ctx2.fillStyle = "rgba(91, 104, 118, 0.16)";
         ctx2.beginPath();
-        ctx2.arc(px + cell / 2, py + cell / 2, pegR, 0, Math.PI * 2);
+        ctx2.arc(px + cell2 / 2, py + cell2 / 2, pegR, 0, Math.PI * 2);
         ctx2.fill();
       }
     }
@@ -4036,9 +4043,9 @@
     pieces.forEach((piece) => {
       drawFusedPieceTransformed(layout, piece, {
         scale: 1,
-        resolveCenter: (cell2) => ({
-          x: layout.boardX + cell2.x * layout.cell + layout.cell / 2,
-          y: layout.boardY + cell2.y * layout.cell + layout.cell / 2
+        resolveCenter: (cell3) => ({
+          x: layout.boardX + cell3.x * layout.cell + layout.cell / 2,
+          y: layout.boardY + cell3.y * layout.cell + layout.cell / 2
         })
       });
     });
@@ -4055,18 +4062,18 @@
     const ctx2 = scene;
     const bounds = getShowcaseBounds(pieces);
     if (!bounds) return;
-    const { boardX, boardY, boardW, boardH, cell } = layout;
+    const { boardX, boardY, boardW, boardH, cell: cell2 } = layout;
     const side = Math.min(boardW, boardH) * 0.84;
-    const pad = Math.max(cell * 1.05, side * 0.055);
+    const pad = Math.max(cell2 * 1.05, side * 0.055);
     const scale = clamp(Math.min(
-      (side - pad * 2) / (bounds.width * cell),
-      (side - pad * 2) / (bounds.height * cell),
+      (side - pad * 2) / (bounds.width * cell2),
+      (side - pad * 2) / (bounds.height * cell2),
       1.08
     ), 0.42, 1.08);
     const left = boardX + (boardW - side) / 2;
     const top = boardY + (boardH - side) / 2;
-    const thickness = Math.max(7, cell * 0.35);
-    const radius = Math.max(18, cell * 0.9);
+    const thickness = Math.max(7, cell2 * 0.35);
+    const radius = Math.max(18, cell2 * 0.9);
     ctx2.save();
     softShadow(ctx2, { blur: 24, dy: 13, color: "rgba(38,36,43,0.18)" });
     const edge = ctx2.createLinearGradient(left, top + thickness, left, top + side + thickness);
@@ -4102,8 +4109,8 @@
         scale,
         material: "wax",
         resolveCenter: (cellData) => ({
-          x: centerX + (cellData.x - bounds.centerX) * cell * scale,
-          y: centerY + (cellData.y - bounds.centerY) * cell * scale
+          x: centerX + (cellData.x - bounds.centerX) * cell2 * scale,
+          y: centerY + (cellData.y - bounds.centerY) * cell2 * scale
         })
       });
     });
@@ -4114,33 +4121,33 @@
     const count = selected.length;
     if (!count) return;
     const ctx2 = scene;
-    const { boardX, boardY, boardW, boardH, cell } = layout;
+    const { boardX, boardY, boardW, boardH, cell: cell2 } = layout;
     const baseline = boardY + boardH * 0.66;
     const slotW = boardW / count;
     selected.forEach((piece, i) => {
       const targetX = boardX + slotW * (i + 0.5);
-      const pieceW = (piece.maxX - piece.minX + 1) * cell;
-      const pieceH = (piece.maxY - piece.minY + 1) * cell;
+      const pieceW = (piece.maxX - piece.minX + 1) * cell2;
+      const pieceH = (piece.maxY - piece.minY + 1) * cell2;
       const maxW = slotW * (count === 1 ? 0.7 : 0.72);
       const maxH = boardH * (count === 1 ? 0.48 : 0.38);
       const scale = clamp(Math.min(maxW / pieceW, maxH / pieceH, count === 1 ? 1.22 : 1), 0.4, count === 1 ? 1.22 : 1);
       const pieceWidth = pieceW * scale;
       const pieceHeight = pieceH * scale;
-      const platePad = Math.max(7, cell * 0.44);
+      const platePad = Math.max(7, cell2 * 0.44);
       const plateW = pieceWidth + platePad * 2;
       const plateH = pieceHeight + platePad * 1.65;
-      const plateBottom = baseline + cell * 0.18;
+      const plateBottom = baseline + cell2 * 0.18;
       const plate = {
         x: targetX - plateW / 2,
         y: plateBottom - plateH,
         w: plateW,
         h: plateH,
-        r: Math.max(9, cell * 0.52)
+        r: Math.max(9, cell2 * 0.52)
       };
       const targetY = plateBottom - platePad * 0.72 - pieceHeight / 2;
-      const baseW = clamp(pieceWidth * 1.05 + cell * 1.05, cell * 2.3, slotW * 0.9);
-      const baseH = clamp(cell * 0.72, 12, 24);
-      const baseY = baseline + cell * 0.12;
+      const baseW = clamp(pieceWidth * 1.05 + cell2 * 1.05, cell2 * 2.3, slotW * 0.9);
+      const baseH = clamp(cell2 * 0.72, 12, 24);
+      const baseY = baseline + cell2 * 0.12;
       ctx2.save();
       ctx2.fillStyle = "rgba(38,36,43,0.16)";
       ctx2.shadowColor = "rgba(38,36,43,0.16)";
@@ -4154,8 +4161,8 @@
         scale,
         material: "wax",
         resolveCenter: (cellData) => ({
-          x: targetX + (cellData.x - piece.centerX) * cell * scale,
-          y: targetY + (cellData.y - piece.centerY) * cell * scale
+          x: targetX + (cellData.x - piece.centerX) * cell2 * scale,
+          y: targetY + (cellData.y - piece.centerY) * cell2 * scale
         })
       });
       drawMaterialHighlight(ctx2, { ...plate, alpha: 0.13 });
@@ -4175,7 +4182,7 @@
       ctx2.ellipse(targetX, baseY, baseW / 2, Math.max(4, baseH * 0.34), 0, 0, Math.PI * 2);
       ctx2.fill();
       ctx2.strokeStyle = "rgba(61,37,25,0.72)";
-      ctx2.lineWidth = Math.max(1.4, cell * 0.08);
+      ctx2.lineWidth = Math.max(1.4, cell2 * 0.08);
       ctx2.beginPath();
       ctx2.moveTo(targetX - Math.min(plateW * 0.38, baseW * 0.34), baseY - 0.5);
       ctx2.lineTo(targetX + Math.min(plateW * 0.38, baseW * 0.34), baseY - 0.5);
@@ -4455,12 +4462,12 @@
     return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
   }
   function maxBoardScale(layout = null) {
-    const cell = Number(layout?.cell || 0);
-    if (!Number.isFinite(cell) || cell <= 0) {
+    const cell2 = Number(layout?.cell || 0);
+    if (!Number.isFinite(cell2) || cell2 <= 0) {
       return isTouchDevice() ? 6 : 2.8;
     }
     const targetCellPx = isTouchDevice() ? 56 : 48;
-    return clamp(targetCellPx / cell, 1, isTouchDevice() ? 10 : 8);
+    return clamp(targetCellPx / cell2, 1, isTouchDevice() ? 10 : 8);
   }
   function pseudoRandom(seed) {
     let h = 2166136261;
@@ -4636,7 +4643,9 @@
       const rows = boardRows();
       if (useStackedMobileLayout()) {
         const marginX = 16;
-        const restGap = 14;
+        const frameInset2 = 14;
+        const visualDeskGap = 8;
+        const restGap = frameInset2 + visualDeskGap;
         const floorTop2 = Math.round(h * 0.8);
         const availW2 = Math.max(1, w - marginX * 2);
         const availH2 = Math.max(1, floorTop2 - restGap * 2);
@@ -4699,9 +4708,9 @@
     const maxBoardForTray = w - boardX - trayGap - minTrayW - trayRightMargin;
     const rawBoard = Math.min(h - 78, w * 0.64, 590, maxBoardForTray);
     const boardSize = Math.floor(rawBoard / 8) * 8;
-    const cell = boardSize / Math.max(boardCols(), boardRows());
-    const boardW = cell * boardCols();
-    const boardH = cell * boardRows();
+    const cell2 = boardSize / Math.max(boardCols(), boardRows());
+    const boardW = cell2 * boardCols();
+    const boardH = cell2 * boardRows();
     const trayX = boardX + boardSize + trayGap;
     const naturalTrayW = w - trayX - trayRightMargin;
     const trayW = Math.max(minTrayW, naturalTrayW);
@@ -4723,7 +4732,7 @@
       boardSize,
       boardW,
       boardH,
-      cell,
+      cell: cell2,
       refX: trayX,
       refY,
       refW: trayW,
@@ -4746,9 +4755,9 @@
     const availW = w - marginX * 2;
     const availH = h - marginTop - marginBottom;
     const display = clamp(Math.min(availW, availH), 240, 760);
-    const cell = display / Math.max(cols, rows);
-    const boardW = cell * cols;
-    const boardH = cell * rows;
+    const cell2 = display / Math.max(cols, rows);
+    const boardW = cell2 * cols;
+    const boardH = cell2 * rows;
     const boardX = Math.round((w - boardW) / 2);
     const boardY = Math.round(marginTop + (availH - boardH) / 2);
     return {
@@ -4759,7 +4768,7 @@
       boardSize: display,
       boardW,
       boardH,
-      cell,
+      cell: cell2,
       refX: 0,
       refY: 0,
       refW: 0,
@@ -5329,10 +5338,10 @@
   function getBoardPegCache(layout, cols, rows, patTiles) {
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
-    const cell = layout.cell;
+    const cell2 = layout.cell;
     const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     const tileSig = patTiles ? `${state.selectedPattern?.tileOriginX ?? 0},${state.selectedPattern?.tileOriginY ?? 0}:${[...patTiles].sort().join("|")}` : "";
-    const key = `${cols}x${rows}|${Math.round(boardW)}x${Math.round(boardH)}|${Math.round(cell * 100)}|${dpr}|${tileSig}`;
+    const key = `${cols}x${rows}|${Math.round(boardW)}x${Math.round(boardH)}|${Math.round(cell2 * 100)}|${dpr}|${tileSig}`;
     if (_boardPegCache && _boardPegCache.key === key) return _boardPegCache.canvas;
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(boardW * dpr));
@@ -5343,12 +5352,12 @@
       return null;
     }
     ctx2.scale(dpr, dpr);
-    const pegR = cell * 0.138;
+    const pegR = cell2 * 0.138;
     for (let y = 0; y < rows; y += 1) {
       for (let x = 0; x < cols; x += 1) {
         if (patTiles && !isActiveTileCell(x, y)) continue;
-        const cx = x * cell + cell / 2;
-        const cy = y * cell + cell / 2;
+        const cx = x * cell2 + cell2 / 2;
+        const cy = y * cell2 + cell2 / 2;
         ctx2.fillStyle = "rgba(91, 104, 118, 0.32)";
         ctx2.beginPath();
         ctx2.arc(cx, cy, pegR, 0, Math.PI * 2);
@@ -5364,13 +5373,13 @@
   }
   function drawVisibleBoardPegs(ctx2, layout, view, cols, rows, patTiles) {
     const { startCol, endCol, startRow, endRow } = visibleBoardCellRange(layout, view, cols, rows);
-    const { boardX, boardY, cell } = layout;
-    const pegR = cell * 0.138;
+    const { boardX, boardY, cell: cell2 } = layout;
+    const pegR = cell2 * 0.138;
     for (let y = startRow; y < endRow; y += 1) {
       for (let x = startCol; x < endCol; x += 1) {
         if (patTiles && !isActiveTileCell(x, y)) continue;
-        const cx = boardX + x * cell + cell / 2;
-        const cy = boardY + y * cell + cell / 2;
+        const cx = boardX + x * cell2 + cell2 / 2;
+        const cy = boardY + y * cell2 + cell2 / 2;
         ctx2.fillStyle = "rgba(91, 104, 118, 0.32)";
         ctx2.beginPath();
         ctx2.arc(cx, cy, pegR, 0, Math.PI * 2);
@@ -5384,7 +5393,7 @@
   }
   function drawBoard(layout) {
     const ctx2 = scene;
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
     const cols = boardCols();
@@ -5397,8 +5406,8 @@
     const patOriginY = state.selectedPattern?.tileOriginY ?? 0;
     const T = BOARD_SIZE;
     if (patTiles) {
-      const tileW = T * cell;
-      const tileH = T * cell;
+      const tileW = T * cell2;
+      const tileH = T * cell2;
       const tintLight = mixColor("#ffffff", brand, 0.06);
       const tintDark = mixColor("#ffffff", brand, 0.15);
       const blocksPerTile = T / 10;
@@ -5411,7 +5420,7 @@
         for (let by = 0; by < blocksPerTile; by++) {
           for (let bx = 0; bx < blocksPerTile; bx++) {
             ctx2.fillStyle = (bx + by) % 2 ? tintDark : tintLight;
-            ctx2.fillRect(tbx + bx * 10 * cell, tby + by * 10 * cell, 10 * cell, 10 * cell);
+            ctx2.fillRect(tbx + bx * 10 * cell2, tby + by * 10 * cell2, 10 * cell2, 10 * cell2);
           }
         }
       }
@@ -5461,13 +5470,13 @@
       drawVisibleBoardPegs(ctx2, layout, boardView, cols, rows, patTiles);
     }
     if (patTiles) {
-      const tileW = T * cell;
-      const tileH = T * cell;
+      const tileW = T * cell2;
+      const tileH = T * cell2;
       for (const key of patTiles) {
         const [tx, ty] = key.split(",").map(Number);
         const tbx = boardX + (tx - patOriginX) * tileW;
         const tby = boardY + (ty - patOriginY) * tileH;
-        drawBoardGuides(ctx2, { boardX: tbx, boardY: tby, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell }, T, T, boardView.scale);
+        drawBoardGuides(ctx2, { boardX: tbx, boardY: tby, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell: cell2 }, T, T, boardView.scale);
       }
     } else {
       drawBoardGuides(ctx2, layout, cols, rows, boardView.scale);
@@ -5483,10 +5492,10 @@
         const x = index2 % cols;
         const y = Math.floor(index2 / cols);
         const heat = state.heat[index2] || 0;
-        const cx = boardX + x * cell + cell / 2;
-        const cy = boardY + y * cell + cell / 2;
+        const cx = boardX + x * cell2 + cell2 / 2;
+        const cy = boardY + y * cell2 + cell2 / 2;
         if (state.spill && state.spill.index === index2) {
-          drawFallenBead(ctx2, cx, cy, cell, code, state.spill.orientation || "h");
+          drawFallenBead(ctx2, cx, cy, cell2, code, state.spill.orientation || "h");
           return;
         }
         const shapeProfile = boardFusionShapeProfile(x, y);
@@ -5500,11 +5509,11 @@
           ctx2.translate(-cx, -cy);
         }
         if (isSpillDamagedIndex(index2)) {
-          drawDamagedBead(ctx2, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile);
+          drawDamagedBead(ctx2, cx, cy, cell2 * 0.43, code, heat, boardFusedPhase, shapeProfile);
         } else {
-          drawBead(ctx2, cx, cy, cell * 0.43, code, heat, boardFusedPhase, shapeProfile, index2);
+          drawBead(ctx2, cx, cy, cell2 * 0.43, code, heat, boardFusedPhase, shapeProfile, index2);
         }
-        drawPegInBead(ctx2, cx, cy, cell * 0.43, heat, boardFusedPhase);
+        drawPegInBead(ctx2, cx, cy, cell2 * 0.43, heat, boardFusedPhase);
         if (settle) {
           ctx2.restore();
           if (settleElapsed >= settle.duration) state.mobileBeadSettle = null;
@@ -5517,15 +5526,15 @@
     if (state.phase === "place" && state.keyboardGrid.visible) {
       const x = clamp(state.keyboardGrid.x, 0, cols - 1);
       const y = clamp(state.keyboardGrid.y, 0, rows - 1);
-      const px = boardX + x * cell;
-      const py = boardY + y * cell;
+      const px = boardX + x * cell2;
+      const py = boardY + y * cell2;
       ctx2.save();
       ctx2.strokeStyle = "rgba(31, 97, 83, 0.96)";
-      ctx2.lineWidth = Math.max(2, cell * 0.09);
-      ctx2.strokeRect(px + 2, py + 2, Math.max(1, cell - 4), Math.max(1, cell - 4));
+      ctx2.lineWidth = Math.max(2, cell2 * 0.09);
+      ctx2.strokeRect(px + 2, py + 2, Math.max(1, cell2 - 4), Math.max(1, cell2 - 4));
       ctx2.strokeStyle = "rgba(255, 255, 255, 0.96)";
-      ctx2.lineWidth = Math.max(1, cell * 0.04);
-      ctx2.strokeRect(px + 5, py + 5, Math.max(1, cell - 10), Math.max(1, cell - 10));
+      ctx2.lineWidth = Math.max(1, cell2 * 0.04);
+      ctx2.strokeRect(px + 5, py + 5, Math.max(1, cell2 - 10), Math.max(1, cell2 - 10));
       ctx2.restore();
     }
   }
@@ -5570,16 +5579,16 @@
     if (lightness >= 205) return Math.min(alpha * 1.7, 0.5);
     return alpha;
   }
-  function drawProjectedTemplateLayer(ctx2, cols, rows, cell, templateOpacity) {
+  function drawProjectedTemplateLayer(ctx2, cols, rows, cell2, templateOpacity) {
     if (templateOpacity <= 0) return;
-    const projectedBeadRadius = cell * 0.49;
+    const projectedBeadRadius = cell2 * 0.49;
     ctx2.save();
     for (let y = 0; y < rows; y += 1) {
       for (let x = 0; x < cols; x += 1) {
         const code = targetAt(x, y);
         if (!code) continue;
-        const cx = x * cell + cell / 2;
-        const cy = y * cell + cell / 2;
+        const cx = x * cell2 + cell2 / 2;
+        const cy = y * cell2 + cell2 / 2;
         ctx2.fillStyle = projectedGuideColor(code);
         ctx2.globalAlpha = projectedGuideAlpha(code, templateOpacity);
         ctx2.beginPath();
@@ -5592,7 +5601,7 @@
   function buildProjectedGuideCache(layout, key, templateOpacity = 0) {
     const cols = boardCols();
     const rows = boardRows();
-    const cell = (layout.boardW || layout.boardSize) / cols;
+    const cell2 = (layout.boardW || layout.boardSize) / cols;
     const canvasW = Math.max(1, Math.round(layout.boardW || layout.boardSize));
     const canvasH = Math.max(1, Math.round(layout.boardH || layout.boardSize));
     const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
@@ -5602,8 +5611,8 @@
     const ctx2 = canvas.getContext("2d");
     if (!ctx2) return { key, canvas: null };
     ctx2.scale(dpr, dpr);
-    const blur = Math.max(1.45, cell * 0.24);
-    const projectedBeadRadius = cell * 0.49;
+    const blur = Math.max(1.45, cell2 * 0.24);
+    const projectedBeadRadius = cell2 * 0.49;
     const spotCx = canvasW / 2;
     const spotCy = canvasH / 2;
     const spotRadius = Math.min(canvasW, canvasH) * 0.425;
@@ -5615,8 +5624,8 @@
       for (let x = 0; x < cols; x += 1) {
         const code = targetAt(x, y);
         if (!code) continue;
-        const cx = x * cell + cell / 2;
-        const cy = y * cell + cell / 2;
+        const cx = x * cell2 + cell2 / 2;
+        const cy = y * cell2 + cell2 / 2;
         ctx2.fillStyle = projectedGuideColor(code);
         ctx2.globalAlpha = projectedGuideAlpha(code, 0.28);
         ctx2.beginPath();
@@ -5630,8 +5639,8 @@
       for (let x = 0; x < cols; x += 1) {
         const code = targetAt(x, y);
         if (!code) continue;
-        const cx = x * cell + cell / 2;
-        const cy = y * cell + cell / 2;
+        const cx = x * cell2 + cell2 / 2;
+        const cy = y * cell2 + cell2 / 2;
         ctx2.fillStyle = projectedGuideColor(code);
         ctx2.globalAlpha = projectedGuideAlpha(code, 0.14);
         ctx2.beginPath();
@@ -5640,7 +5649,7 @@
       }
     }
     ctx2.restore();
-    drawProjectedTemplateLayer(ctx2, cols, rows, cell, templateOpacity);
+    drawProjectedTemplateLayer(ctx2, cols, rows, cell2, templateOpacity);
     ctx2.save();
     ctx2.globalCompositeOperation = "destination-in";
     ctx2.fillStyle = "#000";
@@ -5723,16 +5732,16 @@
     const pressBoost = state.phase === "cool" || state.phase === "finish" ? clamp(state.flattening / 100, 0, 1) : 0;
     const fuse = clamp((heat - 36) / 56 + pressBoost * 0.42, 0, 1);
     if (fuse <= 0) return;
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const centerA = {
-      x: boardX + x1 * cell + cell / 2,
-      y: boardY + y1 * cell + cell / 2
+      x: boardX + x1 * cell2 + cell2 / 2,
+      y: boardY + y1 * cell2 + cell2 / 2
     };
     const centerB = {
-      x: boardX + x2 * cell + cell / 2,
-      y: boardY + y2 * cell + cell / 2
+      x: boardX + x2 * cell2 + cell2 / 2,
+      y: boardY + y2 * cell2 + cell2 / 2
     };
-    const spread = lerp(cell * 0.24, cell * (0.8 + pressBoost * 0.1), easeOut(fuse));
+    const spread = lerp(cell2 * 0.24, cell2 * (0.8 + pressBoost * 0.1), easeOut(fuse));
     const over = clamp((heat - 88) / 34, 0, 1);
     const colorA = fusedColor(codeA, heat);
     const colorB = fusedColor(codeB, heat);
@@ -5758,15 +5767,15 @@
   }
   function drawInspectionHints(layout) {
     const ctx2 = scene;
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const limit = state.errors.length > 22 ? 22 : state.errors.length;
     ctx2.save();
-    ctx2.lineWidth = Math.max(2, cell * 0.08);
+    ctx2.lineWidth = Math.max(2, cell2 * 0.08);
     state.errors.slice(0, limit).forEach((error) => {
       const x = error.index % boardCols();
       const y = Math.floor(error.index / boardCols());
       ctx2.strokeStyle = error.type === "missing" ? "#d99b3d" : "#e7645f";
-      ctx2.strokeRect(boardX + x * cell + 2, boardY + y * cell + 2, cell - 4, cell - 4);
+      ctx2.strokeRect(boardX + x * cell2 + 2, boardY + y * cell2 + 2, cell2 - 4, cell2 - 4);
     });
     ctx2.restore();
   }
@@ -5800,9 +5809,9 @@
     ctx2.stroke();
     ctx2.restore();
   }
-  function drawFallenBead(ctx2, x, y, cell, code, orientation = "h") {
+  function drawFallenBead(ctx2, x, y, cell2, code, orientation = "h") {
     const base = palette[code] || "#999";
-    const diameter = cell * 0.8;
+    const diameter = cell2 * 0.8;
     const length = diameter * 1.22;
     const thickness = diameter;
     const angle = orientation === "v" ? Math.PI * 0.5 : 0;
@@ -5817,7 +5826,7 @@
     roundedPath(ctx2, -length * 0.42, -thickness * 0.34, length * 0.84, thickness * 0.18, Math.max(1.2, corner * 0.45));
     ctx2.fill();
     ctx2.strokeStyle = "rgba(0,0,0,0.16)";
-    ctx2.lineWidth = Math.max(1, cell * 0.045);
+    ctx2.lineWidth = Math.max(1, cell2 * 0.045);
     roundedPath(ctx2, -length / 2, -thickness / 2, length, thickness, corner);
     ctx2.stroke();
     ctx2.restore();
@@ -6005,9 +6014,9 @@
     const gridSize = Math.min(contentH, refW * 0.4);
     const cols = boardCols(pattern);
     const rowCount = boardRows(pattern);
-    const cell = gridSize / Math.max(cols, rowCount);
-    const gridW = cell * cols;
-    const gridH = cell * rowCount;
+    const cell2 = gridSize / Math.max(cols, rowCount);
+    const gridW = cell2 * cols;
+    const gridH = cell2 * rowCount;
     const gridX = refX + pad + (gridSize - gridW) / 2;
     const gridY = contentTop + (contentH - gridH) / 2;
     const px = refX + 5;
@@ -6047,7 +6056,7 @@
       [...row].forEach((code, x) => {
         if (code === ".") return;
         ctx2.fillStyle = fadedPrintColor(palette[code]);
-        ctx2.fillRect(gridX + x * cell, gridY + y * cell, cell + 0.4, cell + 0.4);
+        ctx2.fillRect(gridX + x * cell2, gridY + y * cell2, cell2 + 0.4, cell2 + 0.4);
       });
     });
     ctx2.restore();
@@ -6068,7 +6077,7 @@
       ctx2.fillStyle = patch;
       ctx2.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
     }
-    const dotSize = Math.max(1.1, Math.min(1.7, cell * 0.25));
+    const dotSize = Math.max(1.1, Math.min(1.7, cell2 * 0.25));
     ctx2.fillStyle = "rgba(62, 50, 34, 0.12)";
     for (let yy = gridY + 1; yy < gridY + gridH; yy += 3) {
       for (let xx = gridX + 1; xx < gridX + gridW; xx += 3) {
@@ -6081,29 +6090,29 @@
     for (let gx = 0; gx <= cols; gx += 1) {
       if (gx % 10 === 0) continue;
       ctx2.beginPath();
-      ctx2.moveTo(gridX + gx * cell, gridY);
-      ctx2.lineTo(gridX + gx * cell, gridY + gridH);
+      ctx2.moveTo(gridX + gx * cell2, gridY);
+      ctx2.lineTo(gridX + gx * cell2, gridY + gridH);
       ctx2.stroke();
     }
     for (let gy = 0; gy <= rowCount; gy += 1) {
       if (gy % 10 === 0) continue;
       ctx2.beginPath();
-      ctx2.moveTo(gridX, gridY + gy * cell);
-      ctx2.lineTo(gridX + gridW, gridY + gy * cell);
+      ctx2.moveTo(gridX, gridY + gy * cell2);
+      ctx2.lineTo(gridX + gridW, gridY + gy * cell2);
       ctx2.stroke();
     }
     ctx2.strokeStyle = "rgba(54, 42, 26, 0.58)";
     ctx2.lineWidth = 1.05;
     for (let gx = 0; gx <= cols; gx += 10) {
       ctx2.beginPath();
-      ctx2.moveTo(gridX + gx * cell, gridY);
-      ctx2.lineTo(gridX + gx * cell, gridY + gridH);
+      ctx2.moveTo(gridX + gx * cell2, gridY);
+      ctx2.lineTo(gridX + gx * cell2, gridY + gridH);
       ctx2.stroke();
     }
     for (let gy = 0; gy <= rowCount; gy += 10) {
       ctx2.beginPath();
-      ctx2.moveTo(gridX, gridY + gy * cell);
-      ctx2.lineTo(gridX + gridW, gridY + gy * cell);
+      ctx2.moveTo(gridX, gridY + gy * cell2);
+      ctx2.lineTo(gridX + gridW, gridY + gy * cell2);
       ctx2.stroke();
     }
     const textX = gridX + gridW + 18;
@@ -6173,7 +6182,7 @@
   }
   function drawIronLayer(layout) {
     const ctx2 = scene;
-    const { boardX, boardY, boardSize, cell } = layout;
+    const { boardX, boardY, boardSize, cell: cell2 } = layout;
     ctx2.save();
     ctx2.fillStyle = "rgba(255, 255, 255, 0.42)";
     roundedRect(boardX - 2, boardY - 2, boardSize + 4, boardSize + 4, 7);
@@ -6195,7 +6204,7 @@
         if (heat < HEAT_LEVELS.visible) continue;
         ctx2.globalAlpha = clamp(heat / 140, 0, 0.5);
         ctx2.fillStyle = heat >= HEAT_LEVELS.scorched ? "#e7645f" : heat > HEAT_LEVELS.idealMax ? "#d99b3d" : "#57b8a7";
-        ctx2.fillRect(boardX + x * cell + 2, boardY + y * cell + 2, cell - 4, cell - 4);
+        ctx2.fillRect(boardX + x * cell2 + 2, boardY + y * cell2 + 2, cell2 - 4, cell2 - 4);
       }
     }
     ctx2.globalAlpha = 1;
@@ -6565,16 +6574,16 @@
     const view = boardViewTransform(layout);
     const ux = (x - (view.cx + view.panX)) / view.scale + view.cx;
     const uy = (y - (view.cy + view.panY)) / view.scale + view.cy;
-    const { boardX, boardY, cell } = layout;
+    const { boardX, boardY, cell: cell2 } = layout;
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
-    const pad = Math.max(5, cell * 0.24);
+    const pad = Math.max(5, cell2 * 0.24);
     if (ux < boardX - pad || uy < boardY - pad || ux > boardX + boardW + pad || uy > boardY + boardH + pad) return null;
     const clampedX = clamp(ux, boardX, boardX + boardW - 0.01);
     const clampedY = clamp(uy, boardY, boardY + boardH - 0.01);
     return {
-      x: clamp(Math.floor((clampedX - boardX) / cell), 0, boardCols() - 1),
-      y: clamp(Math.floor((clampedY - boardY) / cell), 0, boardRows() - 1)
+      x: clamp(Math.floor((clampedX - boardX) / cell2), 0, boardCols() - 1),
+      y: clamp(Math.floor((clampedY - boardY) / cell2), 0, boardRows() - 1)
     };
   }
   function pointInTray(x, y) {
@@ -7045,7 +7054,7 @@
     const codeButton = document.createElement("button");
     codeButton.className = "pattern-import-half";
     codeButton.type = "button";
-    codeButton.textContent = "\u5BFC\u5165\u77ED\u7801";
+    codeButton.textContent = "\u5BFC\u5165\u5206\u4EAB\u7801";
     codeButton.addEventListener("click", () => {
       uiActions.openImportCodeModal();
     });
@@ -7610,7 +7619,7 @@
     const cloudButton = document.createElement("button");
     cloudButton.type = "button";
     cloudButton.className = "primary-button";
-    cloudButton.textContent = "\u751F\u6210\u77ED\u7801";
+    cloudButton.textContent = "\u751F\u6210\u5206\u4EAB\u7801";
     cloudButton.addEventListener("click", async () => {
       cloudButton.disabled = true;
       cloudButton.textContent = "\u751F\u6210\u4E2D";
@@ -7618,11 +7627,13 @@
       try {
         const share = await uiActions.createCloudShare();
         if (share?.shortId) {
-          cloudResult.innerHTML = `<strong>${share.shortId}</strong><span>7\u5929\u5185\u6709\u6548</span>`;
+          const title = String(share.name || state.selectedPattern?.name || "").trim().slice(0, 10);
+          const display = title ? `\u3010${title}\u3011${share.shortId}` : share.shortId;
+          cloudResult.innerHTML = `<strong>${escapeHtml(display)}</strong><span>7\u5929\u5185\u6709\u6548</span>`;
         }
       } finally {
         cloudButton.disabled = false;
-        cloudButton.textContent = "\u751F\u6210\u77ED\u7801";
+        cloudButton.textContent = "\u751F\u6210\u5206\u4EAB\u7801";
       }
     });
     els.sharePanel.appendChild(cloudButton);
@@ -7728,9 +7739,9 @@
     const placed = item.placed || [];
     const fallback = !placed.length ? patterns.find((p) => p.id === (item.id || "").split("-").slice(1).join("-")) : null;
     const pad = 10;
-    const cell = Math.floor(Math.min((w - pad * 2) / cols, (h - pad * 2) / rowCount));
-    const gridW = cell * cols;
-    const gridH = cell * rowCount;
+    const cell2 = Math.floor(Math.min((w - pad * 2) / cols, (h - pad * 2) / rowCount));
+    const gridW = cell2 * cols;
+    const gridH = cell2 * rowCount;
     const x0 = Math.floor((w - gridW) / 2);
     const y0 = Math.floor((h - gridH) / 2);
     const cellCode = (x, y) => {
@@ -7749,18 +7760,18 @@
       for (let x = 0; x < cols; x += 1) {
         const code = cellCode(x, y);
         if (!code) continue;
-        const px = x0 + x * cell;
-        const py = y0 + y * cell;
-        const cx = px + cell / 2;
-        const cy = py + cell / 2;
+        const px = x0 + x * cell2;
+        const py = y0 + y * cell2;
+        const cx = px + cell2 / 2;
+        const cy = py + cell2 / 2;
         const edges = {
           left: !cellCode(x - 1, y),
           right: !cellCode(x + 1, y),
           up: !cellCode(x, y - 1),
           down: !cellCode(x, y + 1)
         };
-        const halfConnected = cell * 0.5;
-        const halfExposed = cell * 0.6;
+        const halfConnected = cell2 * 0.5;
+        const halfExposed = cell2 * 0.6;
         const halfL = edges.left ? halfExposed : halfConnected;
         const halfR = edges.right ? halfExposed : halfConnected;
         const halfU = edges.up ? halfExposed : halfConnected;
@@ -7794,13 +7805,13 @@
         ctx2.fill();
         ctx2.fillStyle = "rgba(255,255,255,0.16)";
         ctx2.beginPath();
-        ctx2.arc(cx - cell * 0.18, cy - cell * 0.18, cell * 0.12, 0, Math.PI * 2);
+        ctx2.arc(cx - cell2 * 0.18, cy - cell2 * 0.18, cell2 * 0.12, 0, Math.PI * 2);
         ctx2.fill();
         const exposedCount = (edges.left ? 1 : 0) + (edges.right ? 1 : 0) + (edges.up ? 1 : 0) + (edges.down ? 1 : 0);
-        if (exposedCount >= 3 && cell >= 8) {
+        if (exposedCount >= 3 && cell2 >= 8) {
           ctx2.fillStyle = "rgba(0,0,0,0.18)";
           ctx2.beginPath();
-          ctx2.arc(cx, cy, cell * 0.14, 0, Math.PI * 2);
+          ctx2.arc(cx, cy, cell2 * 0.14, 0, Math.PI * 2);
           ctx2.fill();
         }
       }
@@ -8085,17 +8096,17 @@
     });
     return { width, height, rows };
   }
-  function cellToMardCode(cell) {
-    if (!cell || cell === EMPTY_CELL) return null;
-    if (palette[cell]) {
-      const beadId = beadIds[cell];
-      if (!beadId) throw new Error(`Pattern colour ${cell} has no MARD bead id.`);
+  function cellToMardCode(cell2) {
+    if (!cell2 || cell2 === EMPTY_CELL) return null;
+    if (palette[cell2]) {
+      const beadId = beadIds[cell2];
+      if (!beadId) throw new Error(`Pattern colour ${cell2} has no MARD bead id.`);
       return normalizeMardCode(beadId);
     }
-    const normalized = normalizeMardCode(cell);
+    const normalized = normalizeMardCode(cell2);
     const workshopCode = workshopCodeForMard(normalized);
     if (palette[workshopCode]) return normalized;
-    throw new Error(`Pattern colour ${cell} is not available in the palette.`);
+    throw new Error(`Pattern colour ${cell2} is not available in the palette.`);
   }
   function mardCodeToCell(code) {
     const normalized = normalizeMardCode(code);
@@ -8151,8 +8162,8 @@
     const paletteIndex = /* @__PURE__ */ new Map();
     const values = [];
     rows.forEach((row) => {
-      rowToCells(row).forEach((cell) => {
-        const mardCode = cellToMardCode(cell);
+      rowToCells(row).forEach((cell2) => {
+        const mardCode = cellToMardCode(cell2);
         if (!mardCode) {
           values.push(0);
           return;
@@ -8376,11 +8387,6 @@
     if (!galleryLoaded) void loadGallery({ silent: true });
   }
   async function resolvePatternCodeInput(raw) {
-    const extracted = extractPatternCode(raw);
-    if (extracted) {
-      decodePatternCode(extracted);
-      return extracted;
-    }
     const shortId = extractCloudShortId(raw);
     if (!shortId) throw new Error("missing_pattern_code");
     const share = await requestShareApi("/api/share/open", { shortId });
@@ -8420,7 +8426,7 @@
       return;
     }
     if (!raw.trim()) {
-      showToast("\u8BF7\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
+      showToast("\u8BF7\u7C98\u8D34\u5206\u4EAB\u7801\u3002");
       return;
     }
     if (!shareApiBase) {
@@ -8438,7 +8444,7 @@
       closeGallerySubmitModal();
       showToast("\u6295\u7A3F\u5DF2\u8FDB\u5165\u5BA1\u6838\u961F\u5217\u3002");
     } catch {
-      showToast("\u6295\u7A3F\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u56FE\u7EB8\u7801\u6216\u7A0D\u540E\u518D\u8BD5\u3002");
+      showToast("\u6295\u7A3F\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u5206\u4EAB\u7801\u6216\u7A0D\u540E\u518D\u8BD5\u3002");
     } finally {
       if (button) {
         button.disabled = false;
@@ -8513,15 +8519,17 @@
     try {
       const share = await requestCloudShareForPattern(pattern);
       if (share?.shortId) {
+        const title = String(pattern?.name || "").trim().slice(0, 10);
+        const display = title ? `\u3010${title}\u3011${share.shortId}` : share.shortId;
         await autoCopyText(
-          share.shortId,
-          `\u77ED\u7801\u5DF2\u590D\u5236\uFF1A${share.shortId}`,
-          `\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
+          display,
+          `\u5206\u4EAB\u7801\u5DF2\u590D\u5236\uFF1A${display}`,
+          `\u5206\u4EAB\u7801\u5DF2\u751F\u6210\uFF1A${display}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
         );
       }
       return share;
     } catch {
-      showToast("\u77ED\u7801\u670D\u52A1\u6682\u65F6\u4E0D\u53EF\u7528\u3002");
+      showToast("\u670D\u52A1\u5668\u7E41\u5FD9\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
       return null;
     }
   }
@@ -8539,20 +8547,9 @@
     }
   }
   async function importPatternCode(raw) {
-    const localCode = extractPatternCode(raw);
-    if (localCode) {
-      try {
-        const decoded = decodePatternCode(localCode);
-        applyImportedPattern(decoded);
-        return true;
-      } catch {
-        showToast("\u77ED\u7801\u65E0\u6548\uFF0C\u5BFC\u5165\u5931\u8D25\u3002");
-        return false;
-      }
-    }
     const shortId = extractCloudShortId(raw);
     if (!shortId) {
-      showToast("\u77ED\u7801\u65E0\u6548\u3002");
+      showToast("\u5206\u4EAB\u7801\u65E0\u6548\u3002");
       return false;
     }
     try {
@@ -8561,7 +8558,7 @@
       applyImportedPattern(decoded, share.name || "\u5BFC\u5165\u56FE\u7EB8");
       return true;
     } catch {
-      showToast("\u77ED\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
+      showToast("\u5206\u4EAB\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
       return false;
     }
   }
@@ -8723,8 +8720,8 @@
       return { grid: Array(targetSize * targetSize).fill("."), activeCells, lockedPalette: [] };
     }
     const grid = Array(targetSize * targetSize).fill(".");
-    activeCells.forEach((cell) => {
-      grid[cell.index] = nearestCodeFromSet2(cell.lab, lockedPalette, effectiveExcluded);
+    activeCells.forEach((cell2) => {
+      grid[cell2.index] = nearestCodeFromSet2(cell2.lab, lockedPalette, effectiveExcluded);
     });
     return { grid, activeCells, lockedPalette };
   }
@@ -9461,15 +9458,15 @@
     const width = drawWidth();
     const height = drawHeight();
     const tabSpace = 44;
-    const cell = Math.max(1, Math.floor(Math.min((cssW - tabSpace * 2) / width, (cssH - tabSpace * 2) / height)));
-    const gridW = cell * width;
-    const gridH = cell * height;
+    const cell2 = Math.max(1, Math.floor(Math.min((cssW - tabSpace * 2) / width, (cssH - tabSpace * 2) / height)));
+    const gridW = cell2 * width;
+    const gridH = cell2 * height;
     const gridSize = Math.max(gridW, gridH);
     const x0 = Math.floor((cssW - gridW) / 2);
     const y0 = Math.floor((cssH - gridH) / 2);
     const cx = x0 + gridW / 2;
     const cy = y0 + gridH / 2;
-    return { cssW, cssH, width, height, size: Math.max(width, height), cell, gridW, gridH, gridSize, x0, y0, cx, cy };
+    return { cssW, cssH, width, height, size: Math.max(width, height), cell: cell2, gridW, gridH, gridSize, x0, y0, cx, cy };
   }
   function isCellActive(x, y) {
     const tx = Math.floor(x / BOARD_SIZE) + drawState.tileOriginX;
@@ -9510,12 +9507,13 @@
   }
   function drawBoardTabRects(geometry = getDrawGeometry()) {
     if (!geometry) return [];
-    const { x0, y0, cell } = geometry;
+    const { x0, y0, cell: cell2 } = geometry;
     const T = BOARD_SIZE;
-    const tileW = T * cell;
-    const tileH = T * cell;
-    const long = Math.max(30, Math.min(56, cell * 3));
-    const short = Math.max(16, Math.min(24, cell * 1.1));
+    const tileW = T * cell2;
+    const tileH = T * cell2;
+    const long = cell2 * 3;
+    const short = cell2 * 1.1;
+    const tabOverlap = cell2 * 0.22;
     const tabs = [];
     const curMaxTx = drawState.tileOriginX + drawWidth() / T - 1;
     const curMaxTy = drawState.tileOriginY + drawHeight() / T - 1;
@@ -9527,22 +9525,22 @@
         {
           targetTx: tx,
           targetTy: ty - 1,
-          rect: { x: bx + tileW / 2 - long / 2, y: by - short, w: long, h: short + 4 }
+          rect: { x: bx + tileW / 2 - long / 2, y: by - short, w: long, h: short + tabOverlap }
         },
         {
           targetTx: tx + 1,
           targetTy: ty,
-          rect: { x: bx + tileW - 4, y: by + tileH / 2 - long / 2, w: short + 4, h: long }
+          rect: { x: bx + tileW - tabOverlap, y: by + tileH / 2 - long / 2, w: short + tabOverlap, h: long }
         },
         {
           targetTx: tx,
           targetTy: ty + 1,
-          rect: { x: bx + tileW / 2 - long / 2, y: by + tileH - 4, w: long, h: short + 4 }
+          rect: { x: bx + tileW / 2 - long / 2, y: by + tileH - tabOverlap, w: long, h: short + tabOverlap }
         },
         {
           targetTx: tx - 1,
           targetTy: ty,
-          rect: { x: bx - short, y: by + tileH / 2 - long / 2, w: short + 4, h: long }
+          rect: { x: bx - short, y: by + tileH / 2 - long / 2, w: short + tabOverlap, h: long }
         }
       ];
       for (const { targetTx, targetTy, rect } of candidates) {
@@ -9569,7 +9567,7 @@
     const view = drawState.view;
     const x = (rawX - cx - view.panX) / view.scale + cx;
     const y = (rawY - cy - view.panY) / view.scale + cy;
-    const hitPadding = 10;
+    const hitPadding = cell * 0.6;
     const tabs = drawBoardTabRects(geometry);
     const hit = tabs.find(
       (tab) => x >= tab.x - hitPadding && x <= tab.x + tab.w + hitPadding && y >= tab.y - hitPadding && y <= tab.y + tab.h + hitPadding
@@ -9689,19 +9687,22 @@
     const isBead = mode === "import-bead";
     if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "\u5BFC\u51FA\u56FE\u7EB8" : "\u5BFC\u5165\u56FE\u7EB8";
     if (els.drawCodeHint) {
-      els.drawCodeHint.textContent = isExport ? "\u5DF2\u751F\u6210\u56FE\u7EB8\u77ED\u7801\u6216\u56FE\u7EB8\u7801\uFF0C\u53EF\u76F4\u63A5\u590D\u5236\u5206\u4EAB\u3002" : isBead ? "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u5BFC\u5165\u5230\u62FC\u8C46\u53F0\u3002" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\uFF0C\u7136\u540E\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0\u3002";
+      els.drawCodeHint.textContent = isExport ? "\u7ED9\u56FE\u7EB8\u8D77\u4E2A\u540D\u5B57\uFF0C\u751F\u6210\u5206\u4EAB\u7801\u540E\u590D\u5236\u7ED9\u670B\u53CB\u3002" : isBead ? "\u7C98\u8D34\u5206\u4EAB\u7801\uFF0C\u5BFC\u5165\u5230\u62FC\u8C46\u53F0\u3002" : "\u7C98\u8D34\u5206\u4EAB\u7801\uFF0C\u7136\u540E\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0\u3002";
     }
+    if (els.drawCodeTitleField) els.drawCodeTitleField.hidden = !isExport;
+    if (isExport && els.drawCodeTitleInput) els.drawCodeTitleInput.value = "";
     if (els.drawCodeInput) {
       els.drawCodeInput.value = value;
       els.drawCodeInput.readOnly = isExport;
-      els.drawCodeInput.placeholder = isExport ? "\u8FD9\u91CC\u4F1A\u663E\u793A\u5BFC\u51FA\u7684\u56FE\u7EB8\u7801\u6216\u77ED\u7801" : "\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801";
+      els.drawCodeInput.placeholder = isExport ? "\u751F\u6210\u540E\u8FD9\u91CC\u663E\u793A\u5206\u4EAB\u7801" : "\u7C98\u8D34\u5206\u4EAB\u7801";
     }
-    if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = !isExport;
+    if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = isExport ? !value : true;
+    if (els.drawCodeGenerateBtn) els.drawCodeGenerateBtn.hidden = !isExport;
     if (els.drawCodeImportConfirmBtn) els.drawCodeImportConfirmBtn.hidden = isExport;
     els.drawCodeModal.classList.add("show");
     els.drawCodeModal.setAttribute("aria-hidden", "false");
     requestAnimationFrame(() => {
-      if (isExport) els.drawCodeCopyBtn?.focus();
+      if (isExport) els.drawCodeTitleInput?.focus();
       else els.drawCodeInput?.focus();
     });
   }
@@ -9741,12 +9742,8 @@
     };
   }
   function showDrawCodeOutput(value) {
-    openDrawCodeModal("export", value);
-  }
-  async function exportDrawPatternCode(pattern, successMessage = "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002") {
-    const code = encodePatternCode(pattern);
-    showDrawCodeOutput(code);
-    await drawActions.autoCopyText(code, successMessage, "\u56FE\u7EB8\u7801\u5DF2\u751F\u6210\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09\u3002");
+    if (els.drawCodeInput) els.drawCodeInput.value = value;
+    if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = false;
   }
   function loadDrawPattern(pattern) {
     const rows = Array.isArray(pattern?.rows) ? pattern.rows : [];
@@ -9781,14 +9778,14 @@
     if (!rect.width || !rect.height) return null;
     const g = getDrawGeometry();
     if (!g) return null;
-    const { x0, y0, cell, width, height, cx, cy } = g;
+    const { x0, y0, cell: cell2, width, height, cx, cy } = g;
     const v = drawState.view;
     const rawX = event.clientX - rect.left;
     const rawY = event.clientY - rect.top;
     const logX = (rawX - cx - v.panX) / v.scale + cx;
     const logY = (rawY - cy - v.panY) / v.scale + cy;
-    const x = clamp(Math.floor((logX - x0) / cell), 0, width - 1);
-    const y = clamp(Math.floor((logY - y0) / cell), 0, height - 1);
+    const x = clamp(Math.floor((logX - x0) / cell2), 0, width - 1);
+    const y = clamp(Math.floor((logY - y0) / cell2), 0, height - 1);
     return { x, y };
   }
   function paintDrawCell(x, y, code) {
@@ -10008,7 +10005,7 @@
     const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
     const geometry = getDrawGeometry();
     if (!geometry) return;
-    const { cssW, cssH, width, height, cell, gridW, gridH, x0, y0, cx, cy } = geometry;
+    const { cssW, cssH, width, height, cell: cell2, gridW, gridH, x0, y0, cx, cy } = geometry;
     const pxW = Math.round(cssW * dpr);
     const pxH = Math.round(cssH * dpr);
     if (canvas.width !== pxW || canvas.height !== pxH) {
@@ -10031,8 +10028,8 @@
     ctx2.scale(v.scale, v.scale);
     ctx2.translate(-cx, -cy);
     const T = BOARD_SIZE;
-    const tileW = T * cell;
-    const tileH = T * cell;
+    const tileW = T * cell2;
+    const tileH = T * cell2;
     const blocksPerTile = T / 10;
     for (const key of drawState.tiles) {
       const [tx, ty] = key.split(",").map(Number);
@@ -10044,7 +10041,7 @@
         boardW: tileW,
         boardH: tileH,
         boardSize: Math.max(tileW, tileH),
-        cell
+        cell: cell2
       }, {
         cols: T,
         rows: T,
@@ -10058,7 +10055,7 @@
         blockOffsetY: (ty - drawState.tileOriginY) * blocksPerTile
       });
     }
-    const pegR = Math.max(0.6, cell * 0.138);
+    const pegR = cell2 * 0.138;
     const pegCenters = [];
     for (const key of drawState.tiles) {
       const [tx, ty] = key.split(",").map(Number);
@@ -10070,7 +10067,7 @@
         for (let lx = 0; lx < T; lx++) {
           const code = drawState.grid[drawIndex(startX + lx, startY + ly, width)];
           if (code && code !== ".") continue;
-          pegCenters.push([tileBoardX + lx * cell + cell / 2, tileBoardY + ly * cell + cell / 2]);
+          pegCenters.push([tileBoardX + lx * cell2 + cell2 / 2, tileBoardY + ly * cell2 + cell2 / 2]);
         }
       }
     }
@@ -10096,7 +10093,7 @@
       const [tx, ty] = key.split(",").map(Number);
       const tileBoardX = x0 + (tx - drawState.tileOriginX) * tileW;
       const tileBoardY = y0 + (ty - drawState.tileOriginY) * tileH;
-      const tileLayout = { boardX: tileBoardX, boardY: tileBoardY, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell };
+      const tileLayout = { boardX: tileBoardX, boardY: tileBoardY, boardW: tileW, boardH: tileH, boardSize: Math.max(tileW, tileH), cell: cell2 };
       const startX = (tx - drawState.tileOriginX) * T;
       const startY = (ty - drawState.tileOriginY) * T;
       for (let ly = 0; ly < T; ly++) {
@@ -10104,21 +10101,21 @@
           const code = drawState.grid[drawIndex(startX + lx, startY + ly, width)];
           if (code && code !== ".") {
             ctx2.fillStyle = palette[code] || "#9aa4b3";
-            ctx2.fillRect(tileBoardX + lx * cell, tileBoardY + ly * cell, cell, cell);
+            ctx2.fillRect(tileBoardX + lx * cell2, tileBoardY + ly * cell2, cell2, cell2);
           }
         }
       }
       ctx2.strokeStyle = "rgba(70, 84, 96, 0.08)";
       ctx2.lineWidth = 1 / v.scale;
       for (let i = 0; i <= T; i++) {
-        const offset = i * cell;
+        const offset = i * cell2;
         ctx2.beginPath();
         ctx2.moveTo(tileBoardX + offset, tileBoardY);
         ctx2.lineTo(tileBoardX + offset, tileBoardY + tileH);
         ctx2.stroke();
       }
       for (let i = 0; i <= T; i++) {
-        const offset = i * cell;
+        const offset = i * cell2;
         ctx2.beginPath();
         ctx2.moveTo(tileBoardX, tileBoardY + offset);
         ctx2.lineTo(tileBoardX + tileW, tileBoardY + offset);
@@ -10130,8 +10127,8 @@
     ctx2.strokeStyle = "rgba(70, 84, 96, 0.16)";
     ctx2.lineWidth = 1 / v.scale;
     ctx2.lineJoin = "round";
-    const tabLen = cell * 0.9;
-    const tabDepth = cell * 0.5;
+    const tabLen = cell2 * 0.9;
+    const tabDepth = cell2 * 0.5;
     for (const key of drawState.tiles) {
       const [tx, ty] = key.split(",").map(Number);
       const bx = x0 + (tx - drawState.tileOriginX) * tileW;
@@ -10206,7 +10203,7 @@
     const tabs = drawBoardTabRects(geometry);
     ctx2.fillStyle = "#ffffff";
     ctx2.strokeStyle = "rgba(69, 93, 122, 0.38)";
-    ctx2.lineWidth = 1.2 / v.scale;
+    ctx2.lineWidth = Math.max(0.45, cell2 * 0.08);
     tabs.forEach((tab) => {
       ctx2.beginPath();
       ctx2.roundRect(tab.x, tab.y, tab.w, tab.h, Math.min(tab.w, tab.h) * 0.35);
@@ -10233,17 +10230,17 @@
       ctx2.globalAlpha = 0.55;
       ctx2.fillStyle = palette[drawState.selectedColor] || "#9aa4b3";
       for (const [px, py] of previewCells) {
-        ctx2.fillRect(x0 + px * cell, y0 + py * cell, cell, cell);
+        ctx2.fillRect(x0 + px * cell2, y0 + py * cell2, cell2, cell2);
       }
       ctx2.restore();
     }
     if (drawState.tool === "image" && drawState.stampImage && drawState.shapeDrag && drawState.shapeDragEnd) {
       const box = imageStampBox(drawState.shapeDrag.x, drawState.shapeDrag.y, drawState.shapeDragEnd.x, drawState.shapeDragEnd.y);
       if (box) {
-        const px = x0 + box.x0 * cell;
-        const py = y0 + box.y0 * cell;
-        const pw = box.w * cell;
-        const ph = box.h * cell;
+        const px = x0 + box.x0 * cell2;
+        const py = y0 + box.y0 * cell2;
+        const pw = box.w * cell2;
+        const ph = box.h * cell2;
         ctx2.save();
         ctx2.globalAlpha = 0.88;
         ctx2.imageSmoothingEnabled = true;
@@ -10387,7 +10384,7 @@
     els.drawSettingsButton?.addEventListener("click", () => drawActions.openSettingsModal());
     els.drawResetButton?.addEventListener("click", async () => {
       ensureDrawGrid();
-      const hasContent = drawState.grid.some((cell) => cell && cell !== ".");
+      const hasContent = drawState.grid.some((cell2) => cell2 && cell2 !== ".");
       if (hasContent && !await confirmModal({ message: "\u6E05\u7A7A\u4F1A\u4E22\u5931\u5F53\u524D\u7ED8\u56FE\uFF0C\u786E\u5B9A\u5417\uFF1F", okText: "\u6E05\u7A7A", danger: true })) return;
       drawState.grid = createDrawGrid(drawWidth(), drawHeight());
       drawState.lastCellKey = "";
@@ -10465,12 +10462,26 @@
         showToast("\u56FE\u7247\u8BFB\u53D6\u5931\u8D25\uFF0C\u6362\u4E00\u5F20\u8BD5\u8BD5\u3002");
       }
     });
-    els.drawShortCodeButton?.addEventListener("click", async () => {
-      const button = els.drawShortCodeButton;
-      const pattern = makeDrawPattern();
+    els.drawShortCodeButton?.addEventListener("click", () => {
+      openDrawCodeModal("export");
+    });
+    els.drawCodeGenerateBtn?.addEventListener("click", async () => {
+      const title = (els.drawCodeTitleInput?.value || "").trim();
+      if (!title) {
+        showToast("\u8BF7\u5148\u7ED9\u56FE\u7EB8\u8D77\u4E2A\u540D\u5B57\uFF08\u6700\u591A 10 \u5B57\uFF09\u3002");
+        els.drawCodeTitleInput?.focus();
+        return;
+      }
+      const pattern = makeDrawPattern(title);
+      const beadCount = pattern.rows.join("").replace(/\./g, "").length;
+      if (!beadCount) {
+        showToast("\u8BF7\u5148\u5728\u7ED8\u56FE\u53F0\u653E\u4E00\u4E9B\u989C\u8272\u3002");
+        return;
+      }
+      const button = els.drawCodeGenerateBtn;
       if (button) {
         button.disabled = true;
-        button.textContent = "\u5BFC\u51FA\u4E2D";
+        button.textContent = "\u751F\u6210\u4E2D";
       }
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 5e3);
@@ -10478,22 +10489,24 @@
         const share = await drawActions.requestCloudShareForPattern(pattern, { signal: controller.signal });
         window.clearTimeout(timeout);
         if (share?.shortId) {
-          showDrawCodeOutput(share.shortId);
+          const display = `\u3010${title}\u3011${share.shortId}`;
+          showDrawCodeOutput(display);
           await drawActions.autoCopyText(
-            share.shortId,
-            `\u77ED\u7801\u5DF2\u590D\u5236\uFF1A${share.shortId}`,
-            `\u77ED\u7801\u5DF2\u751F\u6210\uFF1A${share.shortId}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
+            display,
+            `\u5206\u4EAB\u7801\u5DF2\u590D\u5236\uFF1A${display}`,
+            `\u5206\u4EAB\u7801\u5DF2\u751F\u6210\uFF1A${display}\uFF08\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u624B\u52A8\u590D\u5236\uFF09`
           );
         } else {
-          await exportDrawPatternCode(pattern, "\u56FE\u7EB8\u7801\u5DF2\u590D\u5236\u3002");
+          showToast("\u670D\u52A1\u5668\u7E41\u5FD9\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
         }
       } catch {
         window.clearTimeout(timeout);
-        await exportDrawPatternCode(pattern, "\u77ED\u7801\u8FDE\u63A5\u5931\u8D25\uFF0C\u5DF2\u6539\u4E3A\u590D\u5236\u56FE\u7EB8\u7801\u3002");
-      }
-      if (button) {
-        button.disabled = false;
-        button.textContent = "\u5BFC\u51FA\u56FE\u7EB8";
+        showToast("\u670D\u52A1\u5668\u7E41\u5FD9\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "\u751F\u6210\u5206\u4EAB\u7801";
+        }
       }
     });
     els.drawSubmitGalleryButton?.addEventListener("click", () => {
@@ -10522,20 +10535,19 @@
         if (ok) closeDrawCodeModal();
         return;
       }
-      const extracted = extractPatternCode(raw);
       const shortId = extractCloudShortId(raw);
-      if (!extracted && !shortId) {
-        showToast("\u8BF7\u5148\u7C98\u8D34\u56FE\u7EB8\u7801\u6216\u77ED\u7801\u3002");
+      if (!shortId) {
+        showToast("\u8BF7\u5148\u7C98\u8D34\u5206\u4EAB\u7801\u3002");
         return;
       }
       try {
-        const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
+        const code = (await requestShareApi("/api/share/open", { shortId })).patternCode;
         const decoded = decodePatternCode(code);
         loadDrawPattern(decoded);
         closeDrawCodeModal();
         showToast(`\u5DF2\u5BFC\u5165\u56FE\u7EB8\uFF1A${decoded.width}x${decoded.height}\u3002`);
       } catch (error) {
-        showToast("\u56FE\u7EB8\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
+        showToast("\u5206\u4EAB\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F\u3002");
       }
     });
     els.drawCodeCopyBtn?.addEventListener("click", async () => {
@@ -10545,9 +10557,9 @@
       btn?.addEventListener("click", closeDrawCodeModal);
     });
     const handleDrawPointer = (event) => {
-      const cell = drawCellFromPointer(event);
-      if (!cell) return;
-      const changed = applyDrawToolAt(cell.x, cell.y);
+      const cell2 = drawCellFromPointer(event);
+      if (!cell2) return;
+      const changed = applyDrawToolAt(cell2.x, cell2.y);
       if (changed || drawState.tool === "fill") paintDrawCanvas();
     };
     if (els.drawCanvas) {
@@ -10571,11 +10583,11 @@
           drawState.shapeDrag = null;
           startDrawGesture();
         } else if (drawState.tool === "shape" || drawState.tool === "image") {
-          const cell = drawCellFromPointer(event);
-          if (cell) {
+          const cell2 = drawCellFromPointer(event);
+          if (cell2) {
             drawState.undoStrokeSnapshotTaken = false;
-            drawState.shapeDrag = { x: cell.x, y: cell.y };
-            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
+            drawState.shapeDrag = { x: cell2.x, y: cell2.y };
+            drawState.shapeDragEnd = { x: cell2.x, y: cell2.y };
             drawState.drawing = true;
           }
         } else {
@@ -10596,9 +10608,9 @@
         }
         if (!drawState.drawing) return;
         if (drawState.tool === "shape" || drawState.tool === "image") {
-          const cell = drawCellFromPointer(event);
-          if (cell && drawState.shapeDrag) {
-            drawState.shapeDragEnd = { x: cell.x, y: cell.y };
+          const cell2 = drawCellFromPointer(event);
+          if (cell2 && drawState.shapeDrag) {
+            drawState.shapeDragEnd = { x: cell2.x, y: cell2.y };
             paintDrawCanvas();
           }
           return;
@@ -11829,9 +11841,9 @@
   }
   function handlePreviewPickRemap(event) {
     if (state.phase !== "choose") return;
-    const cell = previewCellFromPoint(event.clientX, event.clientY);
-    if (!cell) return;
-    const sourceCode = state.selectedPattern.rows[cell.y]?.[cell.x] || ".";
+    const cell2 = previewCellFromPoint(event.clientX, event.clientY);
+    if (!cell2) return;
+    const sourceCode = state.selectedPattern.rows[cell2.y]?.[cell2.x] || ".";
     if (sourceCode === ".") return;
     openRemapModal(sourceCode);
   }
@@ -11929,18 +11941,18 @@
       const swatchGrid = document.createElement("div");
       swatchGrid.className = "swatch-grid";
       allCodes.forEach((code) => {
-        const cell = document.createElement("button");
-        cell.type = "button";
+        const cell2 = document.createElement("button");
+        cell2.type = "button";
         const isCellTransparent = beadIds[code] === "H1";
-        cell.className = `swatch-cell${currentTarget === code ? " active" : ""}${isCellTransparent ? " is-transparent" : ""}`;
-        if (!isCellTransparent) cell.style.background = palette[code];
-        cell.title = beadIds[code] || code;
-        cell.setAttribute("aria-label", cell.title);
-        cell.addEventListener("click", () => {
+        cell2.className = `swatch-cell${currentTarget === code ? " active" : ""}${isCellTransparent ? " is-transparent" : ""}`;
+        if (!isCellTransparent) cell2.style.background = palette[code];
+        cell2.title = beadIds[code] || code;
+        cell2.setAttribute("aria-label", cell2.title);
+        cell2.addEventListener("click", () => {
           setPatternColorMapping(sourceCode, code);
           renderRemapModal();
         });
-        swatchGrid.appendChild(cell);
+        swatchGrid.appendChild(cell2);
       });
       card.appendChild(swatchGrid);
       els.remapModalBody.appendChild(card);
@@ -12079,7 +12091,7 @@
     if (!pos) return;
     setToolPose(pos.x, pos.y);
     const row = trayRowFromPoint(pos.x, pos.y, true);
-    const cell = trayCellFromPoint(pos.x, pos.y, true);
+    const cell2 = trayCellFromPoint(pos.x, pos.y, true);
     if (state.tool === "needle") {
       if (state.trayProgress <= needleLoadSortThreshold) {
         improveSort(7, "\u5148\u628A\u8C46\u7B5B\u6296\u6574\u9F50\uFF0C\u8C46\u9488\u624D\u80FD\u4E0A\u8C46\u3002");
@@ -12088,11 +12100,11 @@
       loadNeedleFromTray(row);
       return;
     }
-    if (!cell) {
+    if (!cell2) {
       showToast("\u7528\u954A\u5B50\u65F6\u8BF7\u70B9\u5728\u8C46\u5B50\u4E0A\u3002");
       return;
     }
-    loadTweezersFromTray(cell.row, cell.col);
+    loadTweezersFromTray(cell2.row, cell2.col);
   }
   function returnTweezerBead() {
     if (!state.tweezerBead) return false;
@@ -12239,25 +12251,25 @@
       return;
     }
     if (state.phase === "place") {
-      const cell = boardCellFromPoint(pos.x, pos.y);
-      if (cell) {
+      const cell2 = boardCellFromPoint(pos.x, pos.y);
+      if (cell2) {
         if (isTouchDevice()) {
           state.pointer.mode = "place-pending";
-          state.pointer.pendingCell = { x: cell.x, y: cell.y };
-          setToolPoseFromCell(cell.x, cell.y);
+          state.pointer.pendingCell = { x: cell2.x, y: cell2.y };
+          setToolPoseFromCell(cell2.x, cell2.y);
           return;
         }
         state.pointer.mode = "place";
-        setToolPoseFromCell(cell.x, cell.y);
-        handlePlaceAt(cell.x, cell.y, true);
+        setToolPoseFromCell(cell2.x, cell2.y);
+        handlePlaceAt(cell2.x, cell2.y, true);
       } else {
         dropHeldBeadToFloor(pos.x, pos.y);
       }
       return;
     }
     if (state.phase === "iron") {
-      const cell = boardCellFromPoint(pos.x, pos.y);
-      if (cell) {
+      const cell2 = boardCellFromPoint(pos.x, pos.y);
+      if (cell2) {
         state.pointer.mode = "iron";
         state.ironPos = pos;
         applyIronHeat(pos.x, pos.y, 16, 0);
@@ -12311,8 +12323,8 @@
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
         state.lastMoveDir = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx) || 1, y: 0 } : { x: 0, y: Math.sign(dy) || 1 };
       }
-      const cell = boardCellFromPoint(pos.x, pos.y);
-      if (cell) handlePlaceAt(cell.x, cell.y, false);
+      const cell2 = boardCellFromPoint(pos.x, pos.y);
+      if (cell2) handlePlaceAt(cell2.x, cell2.y, false);
     }
     if (state.pointer.down && state.pointer.mode === "iron") {
       state.ironPos = pos;
@@ -12607,8 +12619,8 @@
   }
   function applyIronHeat(x, y, dt, distance) {
     const layout = currentLayout();
-    const cell = boardCellFromPoint(x, y);
-    if (!cell) return;
+    const cell2 = boardCellFromPoint(x, y);
+    if (!cell2) return;
     feedback("iron");
     const speed = distance / Math.max(dt, 1);
     const speedFactor = clamp(1.42 - speed * 1.45, 0.42, 1.55);
@@ -12618,8 +12630,8 @@
     const radius = layout.cell * 1.65;
     const cols = boardCols();
     const rows = boardRows();
-    for (let cy = cell.y - 2; cy <= cell.y + 2; cy += 1) {
-      for (let cx = cell.x - 2; cx <= cell.x + 2; cx += 1) {
+    for (let cy = cell2.y - 2; cy <= cell2.y + 2; cy += 1) {
+      for (let cx = cell2.x - 2; cx <= cell2.x + 2; cx += 1) {
         if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) continue;
         const index2 = indexFor(cx, cy);
         if (!state.placed[index2]) continue;

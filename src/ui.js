@@ -222,7 +222,7 @@ export function renderPatterns() {
   const codeButton = document.createElement("button");
   codeButton.className = "pattern-import-half";
   codeButton.type = "button";
-  codeButton.textContent = "导入短码";
+  codeButton.textContent = "导入分享码";
   codeButton.addEventListener("click", () => {
     uiActions.openImportCodeModal();
   });
@@ -913,7 +913,7 @@ export function renderSharePanel() {
   const cloudButton = document.createElement("button");
   cloudButton.type = "button";
   cloudButton.className = "primary-button";
-  cloudButton.textContent = "生成短码";
+  cloudButton.textContent = "生成分享码";
   cloudButton.addEventListener("click", async () => {
     cloudButton.disabled = true;
     cloudButton.textContent = "生成中";
@@ -921,11 +921,13 @@ export function renderSharePanel() {
     try {
       const share = await uiActions.createCloudShare();
       if (share?.shortId) {
-        cloudResult.innerHTML = `<strong>${share.shortId}</strong><span>7天内有效</span>`;
+        const title = String(share.name || state.selectedPattern?.name || "").trim().slice(0, 10);
+        const display = title ? `【${title}】${share.shortId}` : share.shortId;
+        cloudResult.innerHTML = `<strong>${escapeHtml(display)}</strong><span>7天内有效</span>`;
       }
     } finally {
       cloudButton.disabled = false;
-      cloudButton.textContent = "生成短码";
+      cloudButton.textContent = "生成分享码";
     }
   });
   els.sharePanel.appendChild(cloudButton);

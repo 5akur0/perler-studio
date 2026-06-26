@@ -492,7 +492,6 @@
              keyboard (Tab) and screen-reader order. Empty + hidden on desktop,
              where the controls live in the left rail. -->
         <div id="mobileActionHost" class="mobile-action-host"></div>
-
         <aside class="side-panel right-panel">
           <section data-stage="working">
             <div class="section-title">
@@ -618,8 +617,8 @@
             <input id="gallerySubmitAuthor" type="text" maxlength="24" autocomplete="nickname" placeholder="可留空" />
           </label>
           <label class="gallery-submit-field">
-            <span>图纸码或短码</span>
-            <textarea id="gallerySubmitCode" class="drawing-code-input" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="粘贴 BEAM1 图纸码或 8 位短码"></textarea>
+            <span>分享码</span>
+            <textarea id="gallerySubmitCode" class="drawing-code-input" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="粘贴 8 位分享码"></textarea>
           </label>
           <p class="gallery-submit-note">投稿会先进入待审核队列，通过后才会出现在公开画廊。</p>
         </div>
@@ -637,11 +636,16 @@
           <button id="drawCodeCloseBtn" type="button" aria-label="关闭"><span data-lucide-icon="x" data-icon-size="18"></span></button>
         </div>
         <div class="remap-modal-body draw-code-modal-body">
-          <p id="drawCodeHint" class="draw-code-hint">粘贴图纸码或短码，然后导入到绘图台。</p>
-          <textarea id="drawCodeInput" class="drawing-code-input" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="粘贴图纸码或短码"></textarea>
+          <div id="drawCodeTitleField" class="draw-code-title-field" hidden>
+            <label for="drawCodeTitleInput">图纸名（最多 10 字）</label>
+            <input id="drawCodeTitleInput" class="draw-code-title-input" type="text" maxlength="10" autocomplete="off" spellcheck="false" placeholder="给图纸起个名字" />
+          </div>
+          <p id="drawCodeHint" class="draw-code-hint">粘贴分享码，然后导入到绘图台。</p>
+          <textarea id="drawCodeInput" class="drawing-code-input" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="粘贴分享码"></textarea>
         </div>
         <div class="remap-modal-foot">
           <button id="drawCodeCancelBtn" type="button">取消</button>
+          <button id="drawCodeGenerateBtn" type="button" class="primary-button">生成分享码</button>
           <button id="drawCodeCopyBtn" type="button" class="ghost-button">复制</button>
           <button id="drawCodeImportConfirmBtn" class="primary-button" type="button">导入图纸</button>
         </div>

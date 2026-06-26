@@ -172,15 +172,16 @@
   .drawing-studio-grid {
     display: flex;
     flex-direction: column;
-    height: auto;
+    height: 100%;
     gap: var(--sp-3);
     overflow: hidden;
   }
 
   .drawing-canvas-panel {
     order: 0;
-    flex: 0 1 auto;
-    overflow-y: visible;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .drawing-canvas-surface .section-title {
@@ -188,14 +189,16 @@
   }
 
   .drawing-canvas-wrap {
-    /* Keep roughly 120px for the palette after the fixed topbar, tool row,
-       action strip, and gaps. Tall phones still use the 48dvh cap; short
-       viewports shrink the square instead of collapsing the palette. */
-    width: min(100%, clamp(180px, calc(100dvh - 408px), 48dvh));
-    aspect-ratio: 1 / 1;
-    max-height: clamp(180px, calc(100dvh - 408px), 48dvh);
-    height: auto;
-    margin-inline: auto;
+    /* Mobile drawing treats the canvas as the bounded work viewport, not a
+       fixed square thumbnail. The panel flexes to consume all height left by
+       the tools/actions, then the canvas fills that viewport so tall phones do
+       not end with a dead blank band. The bead grid itself still fits inside
+       this measured viewport in draw.js. */
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    max-height: none;
+    margin-inline: 0;
   }
 
   /* Same pattern as bead mobile-working: dissolve the tool panel so its groups
@@ -334,7 +337,7 @@
   }
 
   #drawUsePatternButton {
-    order: 0;
+    order: -1;
     min-width: 112px;
   }
 
@@ -1124,8 +1127,23 @@
     display: none;
   }
 
+  /* The wordmark now stands alone in the lead (mark hidden, mode tag removed
+     below), so it can read a touch larger and balance the 44px action buttons. */
   .brand h1 {
-    font-size: 20px;
+    font-size: 24px;
+  }
+
+  /* On phones the screen already shows which workbench you're in (the layout and
+     topbar actions differ per mode), so the small mode tag under 拼豆工坊 is
+     redundant chrome — hide it. With it gone the lead is a single centered line,
+     so .brand-text needs no inter-row spacing. */
+  .work-mode-chip {
+    display: none;
+  }
+
+  .brand-text {
+    display: flex;
+    align-items: center;
   }
 
   /* Mobile: hide the step/progress bar by default so it doesn't eat vertical height. */
@@ -1218,41 +1236,33 @@
   /* .studio-grid gap comes from var(--panel-gap), redefined to --sp-3 (12) at ≤860 in tokens.css */
 
   .bead-studio-grid[data-phase="choose"] {
+    display: flex;
+    flex-direction: column;
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* .side-panel section padding comes from var(--panel-pad-tight) (8); no mobile override needed. */
-
-  .pattern-list {
-    max-height: 260px;
+    overflow: hidden;
   }
 
   .bead-studio-grid[data-phase="choose"] .left-panel {
-    min-height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    order: 1;
   }
 
-  .bead-studio-grid[data-phase="choose"] .left-panel .pattern-list {
-    max-height: 260px;
-  }
-
-  .mobile-selection-summary {
-    position: sticky;
-    bottom: max(8px, env(safe-area-inset-bottom, 0px));
-    z-index: var(--z-sticky);
+  .bead-studio-grid[data-phase="choose"] .left-panel section[data-stage="choose"] {
+    height: 100%;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: var(--sp-2);
-    min-width: 0;
-    padding: var(--sp-2);
-    border: 1px solid color-mix(in srgb, var(--brand) 32%, var(--line));
-    border-radius: var(--r-md);
-    background: var(--surface);
-    box-shadow: var(--sh-2);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
-  /* One primary CTA per screen: the sticky thumb-zone "开始拼豆" (mobile-selection-summary)
-     is the mobile action; drop the duplicate in-preview button on mobile. */
-  .choose-preview-actions {
+  .bead-studio-grid[data-phase="choose"] .left-panel .section-title,
+  .bead-studio-grid[data-phase="choose"] .custom-inline {
     display: none;
   }
 
@@ -1260,43 +1270,176 @@
     display: none;
   }
 
-  .mobile-selection-summary canvas {
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
-    border: 1px solid var(--line);
-    border-radius: var(--r-xs);
-    background: var(--surface-2);
-  }
-
-  .mobile-selection-copy {
+  .bead-studio-grid[data-phase="choose"] .mobile-selection-summary {
+    order: 2;
+    flex: 0 0 auto;
     display: grid;
-    gap: 2px;
-    min-width: 0;
-    flex: 1 1 auto;
+    grid-template-columns: 1fr;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
-  .mobile-selection-copy strong,
-  .mobile-selection-copy small {
+  .bead-studio-grid[data-phase="choose"] .mobile-selection-summary canvas,
+  .bead-studio-grid[data-phase="choose"] .mobile-selection-copy {
+    display: none;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .mobile-selection-summary .primary-button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-list {
+    --mobile-pattern-card-w: clamp(78px, calc((100dvh - 700px) * 0.24 + 78px), 118px);
+    flex: 1 1 auto;
+    min-height: 102px;
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-2);
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    padding: var(--sp-1) var(--sp-1) var(--sp-2);
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-import-row {
+    flex: 0 0 var(--mobile-pattern-card-w);
+    align-self: end;
+    display: flex;
+  }
+
+  /* Phone strip: the first tile is a single “+” for importing a pattern code.
+     Hide image import here to keep the strip simple: + → 小猫 → 火箭… */
+  .bead-studio-grid[data-phase="choose"] .pattern-import-half:first-child {
+    display: none;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-import-half:last-child {
+    width: 100%;
+    height: auto;
+    min-height: 90px;
+    padding: 0;
+    border-radius: var(--r-sm);
+    font-size: 0;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-import-half:last-child::before {
+    content: "+";
+    display: block;
+    color: var(--ink);
+    font-size: 34px;
+    line-height: 1;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-import-half:last-child::after {
+    content: "图纸码";
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--ink);
+    font-size: var(--fs-xs);
+    line-height: 1;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-card {
+    flex: 0 0 var(--mobile-pattern-card-w);
+    width: var(--mobile-pattern-card-w);
+    min-height: 90px;
+    align-self: end;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--sp-1);
+    padding: var(--sp-1);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-thumb {
+    width: min(100%, calc(var(--mobile-pattern-card-w) - var(--sp-4)));
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-card > span {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-card strong {
+    margin-top: 0;
+    font-size: var(--fs-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .mobile-selection-copy strong {
-    font-size: var(--fs-sm);
-    color: var(--ink);
+  .bead-studio-grid[data-phase="choose"] .pattern-card span span {
+    display: none;
   }
 
-  .mobile-selection-copy small {
-    color: var(--muted);
-    font-size: var(--fs-xs);
+  .bead-studio-grid[data-phase="choose"] .pattern-card.active::after {
+    top: 6px;
+    right: 6px;
   }
 
-  .mobile-selection-summary .primary-button {
+  .choose-preview-actions {
+    display: none;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .workbench {
     flex: 0 0 auto;
-    min-height: var(--tap-min);
-    padding-inline: 12px;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .choose-preview-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .choose-preview-main {
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .preview-canvas-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .preview-canvas-frame {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    padding: var(--sp-1);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .preview-side {
+    display: grid;
+    gap: var(--sp-2);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-color-stats,
+  .bead-studio-grid[data-phase="choose"] .custom-stats {
+    display: none;
   }
 
   .color-chip.picked {
@@ -1307,10 +1450,49 @@
     padding: var(--sp-2);
   }
 
-  /* Choose: preview before the pattern list. Working phases rely on DOM order
-     (board → actions → bean box) instead of CSS order, so Tab/AT order matches. */
   .bead-studio-grid[data-phase="choose"] .workbench {
-    order: -1;
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .choose-preview-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .choose-preview-main {
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .preview-canvas-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .preview-canvas-frame {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    padding: var(--sp-1);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .preview-side {
+    display: grid;
+    gap: var(--sp-2);
+  }
+
+  .bead-studio-grid[data-phase="choose"] .pattern-color-stats,
+  .bead-studio-grid[data-phase="choose"] .custom-stats {
+    display: none;
   }
 
   /* Mobile working fills the viewport as a flex column: the board area (workbench)
@@ -1732,5 +1914,11 @@
 
   .start-brand h1 {
     font-size: 26px;
+  }
+}
+
+@media (max-width: 860px) and (max-height: 700px) {
+  .bead-studio-grid[data-phase="choose"] .choose-preview-panel > .section-title {
+    margin-bottom: var(--sp-2);
   }
 }

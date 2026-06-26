@@ -1,7 +1,7 @@
 import { palette, beadIds } from './palette.js';
 import { patterns } from './patterns-data.js';
 import { allColorCodes } from './pattern.js';
-import { encodePatternCode, decodePatternCode, extractPatternCode } from './pattern-code.js';
+import { encodePatternCode, decodePatternCode } from './pattern-code.js';
 import { els } from './dom.js';
 import { clamp } from './color-utils.js';
 import { maxBoardScale } from './render.js';
@@ -179,8 +179,9 @@ function drawBoardTabRects(geometry = getDrawGeometry()) {
   const T = BOARD_SIZE;
   const tileW = T * cell;
   const tileH = T * cell;
-  const long = Math.max(30, Math.min(56, cell * 3));
-  const short = Math.max(16, Math.min(24, cell * 1.1));
+  const long = cell * 3;
+  const short = cell * 1.1;
+  const tabOverlap = cell * 0.22;
   const tabs = [];
   const curMaxTx = drawState.tileOriginX + drawWidth() / T - 1;
   const curMaxTy = drawState.tileOriginY + drawHeight() / T - 1;
@@ -190,13 +191,13 @@ function drawBoardTabRects(geometry = getDrawGeometry()) {
     const by = y0 + (ty - drawState.tileOriginY) * tileH;
     const candidates = [
       { targetTx: tx, targetTy: ty - 1,
-        rect: { x: bx + tileW / 2 - long / 2, y: by - short, w: long, h: short + 4 } },
+        rect: { x: bx + tileW / 2 - long / 2, y: by - short, w: long, h: short + tabOverlap } },
       { targetTx: tx + 1, targetTy: ty,
-        rect: { x: bx + tileW - 4, y: by + tileH / 2 - long / 2, w: short + 4, h: long } },
+        rect: { x: bx + tileW - tabOverlap, y: by + tileH / 2 - long / 2, w: short + tabOverlap, h: long } },
       { targetTx: tx, targetTy: ty + 1,
-        rect: { x: bx + tileW / 2 - long / 2, y: by + tileH - 4, w: long, h: short + 4 } },
+        rect: { x: bx + tileW / 2 - long / 2, y: by + tileH - tabOverlap, w: long, h: short + tabOverlap } },
       { targetTx: tx - 1, targetTy: ty,
-        rect: { x: bx - short, y: by + tileH / 2 - long / 2, w: short + 4, h: long } },
+        rect: { x: bx - short, y: by + tileH / 2 - long / 2, w: short + tabOverlap, h: long } },
     ];
     for (const { targetTx, targetTy, rect } of candidates) {
       if (drawState.tiles.has(tileKey(targetTx, targetTy))) continue;
@@ -223,7 +224,7 @@ function drawBoardTabAtPointer(event) {
   const view = drawState.view;
   const x = (rawX - cx - view.panX) / view.scale + cx;
   const y = (rawY - cy - view.panY) / view.scale + cy;
-  const hitPadding = 10;
+  const hitPadding = cell * 0.6;
   const tabs = drawBoardTabRects(geometry);
   const hit = tabs.find((tab) =>
     x >= tab.x - hitPadding && x <= tab.x + tab.w + hitPadding
@@ -358,20 +359,24 @@ export function openDrawCodeModal(mode, value = "") {
   if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "导出图纸" : "导入图纸";
   if (els.drawCodeHint) {
     els.drawCodeHint.textContent = isExport
-      ? "已生成图纸短码或图纸码，可直接复制分享。"
-      : (isBead ? "粘贴图纸码或短码，导入到拼豆台。" : "粘贴图纸码或短码，然后导入到绘图台。");
+      ? "给图纸起个名字，生成分享码后复制给朋友。"
+      : (isBead ? "粘贴分享码，导入到拼豆台。" : "粘贴分享码，然后导入到绘图台。");
   }
+  if (els.drawCodeTitleField) els.drawCodeTitleField.hidden = !isExport;
+  if (isExport && els.drawCodeTitleInput) els.drawCodeTitleInput.value = "";
   if (els.drawCodeInput) {
     els.drawCodeInput.value = value;
     els.drawCodeInput.readOnly = isExport;
-    els.drawCodeInput.placeholder = isExport ? "这里会显示导出的图纸码或短码" : "粘贴图纸码或短码";
+    els.drawCodeInput.placeholder = isExport ? "生成后这里显示分享码" : "粘贴分享码";
   }
-  if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = !isExport;
+  // Export mode: the copy button only appears once a code has been generated.
+  if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = isExport ? !value : true;
+  if (els.drawCodeGenerateBtn) els.drawCodeGenerateBtn.hidden = !isExport;
   if (els.drawCodeImportConfirmBtn) els.drawCodeImportConfirmBtn.hidden = isExport;
   els.drawCodeModal.classList.add("show");
   els.drawCodeModal.setAttribute("aria-hidden", "false");
   requestAnimationFrame(() => {
-    if (isExport) els.drawCodeCopyBtn?.focus();
+    if (isExport) els.drawCodeTitleInput?.focus();
     else els.drawCodeInput?.focus();
   });
 }
@@ -414,14 +419,11 @@ function makeDrawPattern(name = "绘制图纸") {
   };
 }
 
+// Reveal a freshly generated share code inside the already-open export modal,
+// and surface the copy button now that there is something to copy.
 function showDrawCodeOutput(value) {
-  openDrawCodeModal("export", value);
-}
-
-async function exportDrawPatternCode(pattern, successMessage = "图纸码已复制。") {
-  const code = encodePatternCode(pattern);
-  showDrawCodeOutput(code);
-  await drawActions.autoCopyText(code, successMessage, "图纸码已生成（复制失败，请手动复制）。");
+  if (els.drawCodeInput) els.drawCodeInput.value = value;
+  if (els.drawCodeCopyBtn) els.drawCodeCopyBtn.hidden = false;
 }
 
 function loadDrawPattern(pattern) {
@@ -759,7 +761,7 @@ export function paintDrawCanvas() {
 
   // Pegboard texture: a soft nub on every empty cell (matches the placing board),
   // batched into two fills so cost stays flat regardless of tile count.
-  const pegR = Math.max(0.6, cell * 0.138);
+  const pegR = cell * 0.138;
   const pegCenters = [];
   for (const key of drawState.tiles) {
     const [tx, ty] = key.split(",").map(Number);
@@ -908,7 +910,7 @@ export function paintDrawCanvas() {
   const tabs = drawBoardTabRects(geometry);
   ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "rgba(69, 93, 122, 0.38)";
-  ctx.lineWidth = 1.2 / v.scale;
+  ctx.lineWidth = Math.max(0.45, cell * 0.08);
   tabs.forEach((tab) => {
     ctx.beginPath();
     ctx.roundRect(tab.x, tab.y, tab.w, tab.h, Math.min(tab.w, tab.h) * 0.35);
@@ -1179,12 +1181,26 @@ export function initDrawingStudioEvents() {
       showToast("图片读取失败，换一张试试。");
     }
   });
-  els.drawShortCodeButton?.addEventListener("click", async () => {
-    const button = els.drawShortCodeButton;
-    const pattern = makeDrawPattern();
+  els.drawShortCodeButton?.addEventListener("click", () => {
+    openDrawCodeModal("export");
+  });
+  els.drawCodeGenerateBtn?.addEventListener("click", async () => {
+    const title = (els.drawCodeTitleInput?.value || "").trim();
+    if (!title) {
+      showToast("请先给图纸起个名字（最多 10 字）。");
+      els.drawCodeTitleInput?.focus();
+      return;
+    }
+    const pattern = makeDrawPattern(title);
+    const beadCount = pattern.rows.join("").replace(/\./g, "").length;
+    if (!beadCount) {
+      showToast("请先在绘图台放一些颜色。");
+      return;
+    }
+    const button = els.drawCodeGenerateBtn;
     if (button) {
       button.disabled = true;
-      button.textContent = "导出中";
+      button.textContent = "生成中";
     }
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 5000);
@@ -1192,22 +1208,27 @@ export function initDrawingStudioEvents() {
       const share = await drawActions.requestCloudShareForPattern(pattern, { signal: controller.signal });
       window.clearTimeout(timeout);
       if (share?.shortId) {
-        showDrawCodeOutput(share.shortId);
+        // The shared string is self-describing: 【title】+short code. The server
+        // already stores `name`, so the recipient's card stays authoritative;
+        // the bracket prefix is just the human-readable hint on the raw string.
+        const display = `【${title}】${share.shortId}`;
+        showDrawCodeOutput(display);
         await drawActions.autoCopyText(
-          share.shortId,
-          `短码已复制：${share.shortId}`,
-          `短码已生成：${share.shortId}（复制失败，请手动复制）`,
+          display,
+          `分享码已复制：${display}`,
+          `分享码已生成：${display}（复制失败，请手动复制）`,
         );
       } else {
-        await exportDrawPatternCode(pattern, "图纸码已复制。");
+        showToast("服务器繁忙，请稍后再试。");
       }
     } catch {
       window.clearTimeout(timeout);
-      await exportDrawPatternCode(pattern, "短码连接失败，已改为复制图纸码。");
-    }
-    if (button) {
-      button.disabled = false;
-      button.textContent = "导出图纸";
+      showToast("服务器繁忙，请稍后再试。");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "生成分享码";
+      }
     }
   });
   els.drawSubmitGalleryButton?.addEventListener("click", () => {
@@ -1236,20 +1257,19 @@ export function initDrawingStudioEvents() {
       if (ok) closeDrawCodeModal();
       return;
     }
-    const extracted = extractPatternCode(raw);
     const shortId = extractCloudShortId(raw);
-    if (!extracted && !shortId) {
-      showToast("请先粘贴图纸码或短码。");
+    if (!shortId) {
+      showToast("请先粘贴分享码。");
       return;
     }
     try {
-      const code = extracted || (await requestShareApi("/api/share/open", { shortId })).patternCode;
+      const code = (await requestShareApi("/api/share/open", { shortId })).patternCode;
       const decoded = decodePatternCode(code);
       loadDrawPattern(decoded);
       closeDrawCodeModal();
       showToast(`已导入图纸：${decoded.width}x${decoded.height}。`);
     } catch (error) {
-      showToast("图纸码无效或已过期。");
+      showToast("分享码无效或已过期。");
     }
   });
   els.drawCodeCopyBtn?.addEventListener("click", async () => {

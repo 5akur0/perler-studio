@@ -366,7 +366,12 @@ export function computeLayout(rect) {
       // 4/5 and the floor the bottom 1/5, with the board resting (centred) on the
       // desk so it reads as sitting ON the table.
       const marginX = 16;
-      const restGap = 14;
+      // The board skin paints a 14px frame outside boardX/Y. Keep a small
+      // visible desk gap beyond that frame so the board does not kiss the
+      // top/bottom edge of the mobile workbench.
+      const frameInset = 14;
+      const visualDeskGap = 8;
+      const restGap = frameInset + visualDeskGap;
       const floorTop = Math.round(h * 0.8);   // desk : floor = 4 : 1
       const availW = Math.max(1, w - marginX * 2);
       const availH = Math.max(1, floorTop - restGap * 2);

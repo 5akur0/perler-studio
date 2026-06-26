@@ -37,8 +37,8 @@ async function run(viewport, label) {
   try {
     await page.goto(url, { waitUntil: "networkidle" });
     await page.click("#startBeadButton");
-    await page.waitForSelector("#patternList button", { timeout: 8000 });
-    await page.click("#patternList button");
+    await page.waitForSelector("#patternList .pattern-card", { timeout: 8000 });
+    await page.click("#patternList .pattern-card");
     await page.evaluate(() => {
       const b = [document.querySelector("#mobileSelectionStartButton"), document.querySelector("#chooseStartButton")].find((x) => x && x.offsetParent !== null);
       if (b) b.click();

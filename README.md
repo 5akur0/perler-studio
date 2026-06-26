@@ -6,7 +6,7 @@
 - **移动优先**：手机强制竖屏、直接摆豆、只显示本图用色；桌面横屏保留豆筛 / 豆针 / 镊子等完整工具流。
 - **真实色卡**：221 个 MARD 色号，支持自定义尺寸（桌面最大 100×100）。
 - **可分享**：每个阶段都能单独截图，右侧可导出小红书竖图 / 方图并复制文案。
-- **零后端也能跑**：`file://` 双击即玩；画廊与短码分享由 CloudBase 提供。
+- **零后端也能跑**：`file://` 双击即玩；画廊与分享码（图纸名 + 短码）由 CloudBase 提供。
 
 ## 运行
 
@@ -45,7 +45,7 @@ node scripts/session-regression.mjs   # 单跑某一项（例：会话存档/恢
 | `src/main.js` | 主控：应用模式切换、拼豆核心玩法（倒豆 / 豆针 / 镊子 / 熨烫 / 冷却 / 检查）、输入、主循环 |
 | `src/render.js` + `render-{export,tray,inspect,finish,fusion,stats,primitives}.js` | Canvas 绘制引擎，按场景拆分（工作台 / 看板 / 豆筛 / 工具 / 出片图 / 成品展示） |
 | `src/draw.js` | 绘图台（画笔 / 橡皮 / 填充 / 吸管 / 多级撤销 / 双指缩放） |
-| `src/gallery.js` · `src/share-qr.js` | 网络层 + 图纸画廊 + 云端短码分享 / 导入；分享图与二维码生成 |
+| `src/gallery.js` · `src/share-qr.js` | 网络层 + 图纸画廊 + 云端分享码（图纸名 + 短码）分享 / 导入；分享图与二维码生成 |
 | `src/session.js` | 在制作品自动存档 / 恢复（含恢复校验加固） |
 | `src/custom-pattern.js` · `src/image-convert.js` | 导入图片 → 像素图纸转换（独立实现的转换管线） |
 | `src/ui.js` · `src/modal-controller.js` | 侧栏 / 工具栏 / 调色盘 / 作品集等 DOM 渲染；弹窗 + 焦点陷阱 |

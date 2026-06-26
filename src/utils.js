@@ -73,7 +73,7 @@ const customPatternNotePool = {
     ...sharedNotes,
   ],
   imported: [
-    { text: "短码导入成功", weight: 45 },
+    { text: "分享码导入成功", weight: 45 },
     { text: "新图纸已就位", weight: 35 },
     { text: "这张先放到待拼", weight: 20 },
     ...sharedNotes,
