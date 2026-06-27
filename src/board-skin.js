@@ -151,7 +151,45 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     table = ["#eef2f4", "#e4eceb", "#d7e2e0"],
     cellGridAlpha = 0.13,
   } = options;
-  const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
+  const flat = options.flat ?? false;
+  const layout = pixelPatternPreviewLayout(
+    width, height, cols, rows,
+    flat ? { ...options, frameInset: 0, padding: Math.max(6, Math.min(width, height) * 0.06) } : options,
+  );
+  if (flat) {
+    // Library thumbnails: one soft white plate (no frame stack, no checker, no
+    // grid) holding the artwork on the card's tinted tray. Keeps light-colored
+    // beads readable while staying clean — the artwork is the sole subject.
+    ctx.clearRect(0, 0, width, height);
+    const inset = Math.max(4, Math.min(width, height) * 0.045);
+    const plate = {
+      boardX: layout.boardX - inset,
+      boardY: layout.boardY - inset,
+      boardW: layout.boardW + inset * 2,
+      boardH: layout.boardH + inset * 2,
+    };
+    traceBoardPath(ctx, plate, Math.max(6, inset * 1.4));
+    ctx.save();
+    ctx.shadowColor = "rgba(38, 36, 43, 0.10)";
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = "rgba(70, 84, 96, 0.10)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    for (let y = 0; y < rows; y += 1) {
+      const row = pixels[y] || "";
+      for (let x = 0; x < cols; x += 1) {
+        const code = row[x] || ".";
+        if (code === ".") continue;
+        ctx.fillStyle = colors[code] || "#9aa4b3";
+        ctx.fillRect(layout.boardX + x * layout.cell, layout.boardY + y * layout.cell, layout.cell, layout.cell);
+      }
+    }
+    return;
+  }
   const showGuides = options.guides ?? layout.cell >= 4;
   const showCellGrid = options.cellGrid ?? layout.cell >= 2.5;
   const shadow = options.shadow ?? !layout.compact;

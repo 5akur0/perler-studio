@@ -2833,7 +2833,45 @@
       table = ["#eef2f4", "#e4eceb", "#d7e2e0"],
       cellGridAlpha = 0.13
     } = options;
-    const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
+    const flat = options.flat ?? false;
+    const layout = pixelPatternPreviewLayout(
+      width,
+      height,
+      cols,
+      rows,
+      flat ? { ...options, frameInset: 0, padding: Math.max(6, Math.min(width, height) * 0.06) } : options
+    );
+    if (flat) {
+      ctx2.clearRect(0, 0, width, height);
+      const inset = Math.max(4, Math.min(width, height) * 0.045);
+      const plate = {
+        boardX: layout.boardX - inset,
+        boardY: layout.boardY - inset,
+        boardW: layout.boardW + inset * 2,
+        boardH: layout.boardH + inset * 2
+      };
+      traceBoardPath(ctx2, plate, Math.max(6, inset * 1.4));
+      ctx2.save();
+      ctx2.shadowColor = "rgba(38, 36, 43, 0.10)";
+      ctx2.shadowBlur = 12;
+      ctx2.shadowOffsetY = 4;
+      ctx2.fillStyle = "#ffffff";
+      ctx2.fill();
+      ctx2.restore();
+      ctx2.strokeStyle = "rgba(70, 84, 96, 0.10)";
+      ctx2.lineWidth = 1;
+      ctx2.stroke();
+      for (let y = 0; y < rows; y += 1) {
+        const row = pixels[y] || "";
+        for (let x = 0; x < cols; x += 1) {
+          const code = row[x] || ".";
+          if (code === ".") continue;
+          ctx2.fillStyle = colors[code] || "#9aa4b3";
+          ctx2.fillRect(layout.boardX + x * layout.cell, layout.boardY + y * layout.cell, layout.cell, layout.cell);
+        }
+      }
+      return;
+    }
     const showGuides = options.guides ?? layout.cell >= 4;
     const showCellGrid = options.cellGrid ?? layout.cell >= 2.5;
     const shadow = options.shadow ?? !layout.compact;
@@ -7256,6 +7294,7 @@
     const prevScroll = els.patternList.querySelector(".library-scroll")?.scrollTop || 0;
     els.patternList.innerHTML = "";
     const view = getLibraryView();
+    if (els.patternMeta) els.patternMeta.textContent = view.length ? `${view.length} \u5F20\u56FE\u7EB8` : "";
     const scroll = document.createElement("div");
     scroll.className = "library-scroll";
     if (!view.length) {
@@ -7381,7 +7420,7 @@
       table: theme.table,
       compact: true,
       shadow: false,
-      ...subtleGrid ? { guides: false, cellGridAlpha: 0.07 } : {}
+      ...subtleGrid ? { flat: true } : {}
     });
   }
   function resetPhaseViewport() {
@@ -8125,7 +8164,7 @@
     const collection2 = uiActions.getCollection?.() || [];
     const counts = getTargetCounts();
     const colorCount = Object.keys(counts).length;
-    if (els.patternMeta) els.patternMeta.textContent = `${boardCols()}x${boardRows()}`;
+    if (els.patternMeta && state.phase !== "choose") els.patternMeta.textContent = `${boardCols()}\xD7${boardRows()}`;
     if (els.targetCount) els.targetCount.textContent = `${getTargetTotal()} \u9897 / ${colorCount} \u8272`;
     if (els.collectionCount) els.collectionCount.textContent = String(collection2.length);
     if (els.settingsDot) els.settingsDot.hidden = collection2.length === 0;

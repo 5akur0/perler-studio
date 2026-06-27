@@ -226,6 +226,7 @@ export function renderPatterns() {
   els.patternList.innerHTML = "";
 
   const view = getLibraryView();
+  if (els.patternMeta) els.patternMeta.textContent = view.length ? `${view.length} 张图纸` : "";
 
   // ── scrollable middle: the card grid (or empty state) ──
   const scroll = document.createElement("div");
@@ -370,7 +371,7 @@ export function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
     table: theme.table,
     compact: true,
     shadow: false,
-    ...(subtleGrid ? { guides: false, cellGridAlpha: 0.07 } : {}),
+    ...(subtleGrid ? { flat: true } : {}),
   });
 }
 
@@ -1246,7 +1247,7 @@ export function renderUI() {
   const collection = uiActions.getCollection?.() || [];
   const counts = getTargetCounts();
   const colorCount = Object.keys(counts).length;
-  if (els.patternMeta) els.patternMeta.textContent = `${boardCols()}x${boardRows()}`;
+  if (els.patternMeta && state.phase !== "choose") els.patternMeta.textContent = `${boardCols()}×${boardRows()}`;
   if (els.targetCount) els.targetCount.textContent = `${getTargetTotal()} 颗 / ${colorCount} 色`;
   if (els.collectionCount) els.collectionCount.textContent = String(collection.length);
   if (els.settingsDot) els.settingsDot.hidden = collection.length === 0;
