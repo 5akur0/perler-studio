@@ -52,6 +52,16 @@ assert.match(
 );
 assert.doesNotMatch(gallery, /extractPatternCode/, "gallery import must not parse raw BEAM1 text codes");
 
+// 3b. extractCloudShortId must tolerate the 【title】 prefix: a Latin title of
+// base58-looking chars must not be mistaken for the short id. Guard the two
+// pieces of the fix — strip the prefix, then prefer the trailing run.
+assert.match(gallery, /replace\(\/\^【/, "extractCloudShortId must strip a leading 【title】 prefix");
+assert.match(
+  gallery,
+  /matches\[matches\.length - 1\]/,
+  "extractCloudShortId must prefer the trailing run, not the first",
+);
+
 // 4. Main-app cloud share carries the same 【title】 prefix.
 assert.match(
   gallery,

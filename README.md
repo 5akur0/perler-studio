@@ -44,7 +44,8 @@ node scripts/session-regression.mjs   # 单跑某一项（例：会话存档/恢
 |------|------|
 | `src/main.js` | 主控：应用模式切换、拼豆核心玩法（倒豆 / 豆针 / 镊子 / 熨烫 / 冷却 / 检查）、输入、主循环 |
 | `src/render.js` + `render-{export,tray,inspect,finish,fusion,stats,primitives}.js` | Canvas 绘制引擎，按场景拆分（工作台 / 看板 / 豆筛 / 工具 / 出片图 / 成品展示） |
-| `src/draw.js` | 绘图台（画笔 / 橡皮 / 填充 / 吸管 / 多级撤销 / 双指缩放） |
+| `src/draw.js` | 绘图台（画笔 / 橡皮 / 填充 / 吸管 / 多级撤销 / 双指缩放）；创作图纸并存入图纸库 |
+| `src/pattern-library.js` | 图纸库（拼豆台挑图屏）数据层：默认 + 导入图纸的本地持久化、星标置顶、删除 / 恢复默认、拼音排序；刻意 DOM-free 便于 Node 测试 |
 | `src/gallery.js` · `src/share-qr.js` | 网络层 + 图纸画廊 + 云端分享码（图纸名 + 短码）分享 / 导入；分享图与二维码生成 |
 | `src/session.js` | 在制作品自动存档 / 恢复（含恢复校验加固） |
 | `src/custom-pattern.js` · `src/image-convert.js` | 导入图片 → 像素图纸转换（独立实现的转换管线） |

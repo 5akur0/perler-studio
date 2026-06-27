@@ -64,6 +64,25 @@ async function drawingMobileMetrics(baseUrl, viewport) {
   }
 }
 
+async function drawingCanvasClickErrors(baseUrl) {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.click("#startDrawButton");
+    await page.waitForSelector("#drawCanvas", { state: "visible" });
+    const box = await page.locator("#drawCanvas").boundingBox();
+    assert.ok(box, "drawing canvas should be measurable before click");
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(60);
+    return errors;
+  } finally {
+    await browser.close();
+  }
+}
+
 const { server, url } = await startServer();
 try {
   assert.match(
@@ -96,6 +115,13 @@ try {
   assert.ok(
     tall.panel.height - short.panel.height >= 120,
     `canvas panel height should respond to taller phones: tall=${JSON.stringify(tall)} short=${JSON.stringify(short)}`,
+  );
+
+  const clickErrors = await drawingCanvasClickErrors(url);
+  assert.deepEqual(
+    clickErrors,
+    [],
+    `clicking the drawing canvas should not throw: ${clickErrors.join("; ")}`,
   );
 } finally {
   server.close();

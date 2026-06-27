@@ -53,7 +53,7 @@ function renderMessagesShell() {
   messagesEl.innerHTML = `
     <form class="community-compose" id="communityCompose" novalidate>
       <input class="community-nickname" id="communityNickname" type="text" maxlength="16"
-        placeholder="昵称（可不填，默认${ANON}）" aria-label="昵称，可不填" />
+        placeholder="昵称" aria-label="昵称" />
       <textarea class="community-textarea" id="communityContent" maxlength="200" rows="3"
         placeholder="留个言吧～想看什么图纸、哪里不好用都可以说" aria-label="留言内容"></textarea>
       <div class="community-compose-foot">

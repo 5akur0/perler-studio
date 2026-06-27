@@ -37,12 +37,9 @@ async function run(viewport, label) {
   try {
     await page.goto(url, { waitUntil: "networkidle" });
     await page.click("#startBeadButton");
-    await page.waitForSelector("#patternList .pattern-card", { timeout: 8000 });
-    await page.click("#patternList .pattern-card");
-    await page.evaluate(() => {
-      const b = [document.querySelector("#mobileSelectionStartButton"), document.querySelector("#chooseStartButton")].find((x) => x && x.offsetParent !== null);
-      if (b) b.click();
-    });
+    // 图纸库: tapping a library card loads it and starts beading directly.
+    await page.waitForSelector("#patternList .library-card-open", { timeout: 8000 });
+    await page.click("#patternList .library-card-open");
     await page.waitForFunction(() => document.querySelector(".bead-studio-grid")?.dataset.phase === "place", { timeout: 8000 });
     await page.waitForTimeout(250);
 

@@ -16,6 +16,7 @@ export function setModalActions(actions = {}) {
 export function getOpenModalEl() {
   // The confirm dialog is always on top and takes priority in the Tab focus trap.
   if (state.confirmModalOpen) return els.confirmModal;
+  if (state.textInputModalOpen) return els.textInputModal;
   if (state.remapModalOpen) return els.remapModal;
   if (state.settingsModalOpen) return els.settingsModal;
   if (state.onboardingModalOpen) return els.onboardingModal;
@@ -67,6 +68,7 @@ export function restoreModalFocus() {
 
 // —— In-page confirm dialog. Returns Promise<boolean>. ——
 let confirmResolve = null;
+let textInputResolve = null;
 
 export function confirmModal({ message, okText = "确定", cancelText = "取消", danger = false, title = "确认一下" } = {}) {
   return new Promise((resolve) => {
@@ -103,6 +105,58 @@ export function resolveConfirm(result) {
   confirmResolve = null;
   restoreModalFocus();
   if (resolve) resolve(Boolean(result));
+}
+
+// —— In-page text input dialog. Returns Promise<string|null>. ——
+export function textInputModal({
+  title = "改个名字",
+  label = "名称",
+  value = "",
+  hint = "",
+  okText = "保存",
+  cancelText = "取消",
+  maxLength = 20,
+} = {}) {
+  return new Promise((resolve) => {
+    const modal = els.textInputModal;
+    const input = els.textInputModalInput;
+    if (!modal || !input || !els.textInputModalOk) {
+      console.warn("Text input dialog is unavailable; cancelling input action.");
+      resolve(null);
+      return;
+    }
+    if (els.textInputModalTitle) els.textInputModalTitle.textContent = title;
+    if (els.textInputModalLabel) els.textInputModalLabel.textContent = label;
+    if (els.textInputModalHint) {
+      els.textInputModalHint.textContent = hint || "";
+      els.textInputModalHint.hidden = !hint;
+    }
+    input.value = String(value || "");
+    input.maxLength = Math.max(1, Number(maxLength) || 20);
+    els.textInputModalOk.textContent = okText;
+    if (els.textInputModalCancel) els.textInputModalCancel.textContent = cancelText;
+    textInputResolve = resolve;
+    state.textInputModalOpen = true;
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    onModalOpened(modal);
+    input.focus();
+    input.select();
+  });
+}
+
+export function resolveTextInput(result) {
+  if (!state.textInputModalOpen) return;
+  const value = result ? (els.textInputModalInput?.value ?? "") : null;
+  state.textInputModalOpen = false;
+  if (els.textInputModal) {
+    els.textInputModal.classList.remove("show");
+    els.textInputModal.setAttribute("aria-hidden", "true");
+  }
+  const resolve = textInputResolve;
+  textInputResolve = null;
+  restoreModalFocus();
+  if (resolve) resolve(value);
 }
 
 export function openShareModal() {

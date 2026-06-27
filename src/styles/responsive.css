@@ -1495,6 +1495,54 @@
     display: none;
   }
 
+  /* ── 图纸库 mobile choose (overrides the legacy preview + horizontal strip) ──
+     The choose screen is now the pattern library: the card grid scrolls in the
+     middle (.library-scroll) and the 导入分享码 button stays pinned in the footer.
+     Tap a card to start beading — no preview pane or 开始拼豆 button. These rules
+     come after the legacy choose rules in this media query, so they win on source
+     order without !important. */
+  .bead-studio-grid[data-phase="choose"] .workbench,
+  .bead-studio-grid[data-phase="choose"] .mobile-selection-summary {
+    display: none;
+  }
+
+  .bead-studio-grid[data-phase="choose"] .left-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    order: 0;
+    display: block;
+  }
+
+  /* Flex column: scroll area on top, pinned footer below (matches desktop). The
+     `.left-panel` qualifier matches the legacy rule's specificity so max-height
+     is actually cleared — otherwise the list caps at --list-cap (72vh) and leaves
+     dead space below the pinned footer. */
+  .bead-studio-grid[data-phase="choose"] .left-panel .pattern-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    overflow: hidden;
+    padding: 0;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  /* Phones: two cards per row (controls on top, square preview, name below). */
+  .library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-3);
+  }
+
+  /* Override the legacy choose .pattern-thumb rule (it caps width/aspect to the
+     old horizontal-strip tile). The library card preview fills the card width. */
+  .bead-studio-grid[data-phase="choose"] .library-card .pattern-thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+  }
+
   /* Mobile working fills the viewport as a flex column: the board area (workbench)
      takes the REMAINING height and renders the desk+floor scene (board resting on
      the desk, like desktop), while the actions and bean box sit naturally at the

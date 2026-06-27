@@ -82,7 +82,7 @@ import {
   openShareModal, closeShareModal, openSettingsModal, closeSettingsModal,
   openRemapModal, closeRemapModal,
   closeOnboardingModal, maybeShowOnboarding,
-  confirmModal, resolveConfirm,
+  confirmModal, resolveConfirm, resolveTextInput,
 } from './modal-controller.js';
 import { hydrateIcons } from './icons.js';
 import { hydrateLogo, loadLogoImage } from './logo.js';
@@ -94,9 +94,14 @@ import {
 import { SHARE_QR_DATA_URL } from './share-qr.js';
 import { buildShareText } from './share-copy.js';
 import { initCommunity, enterCommunity } from './community.js';
+import { loadLibrary } from './pattern-library.js';
 
   hydrateIcons(document);
   hydrateLogo(document);
+
+  // Hydrate the persisted 图纸库 into the in-memory pool before anything renders
+  // the pattern list or restores a session.
+  loadLibrary();
 
   let collection = readCollection();
   state.achievements = readAchievements();
@@ -1828,6 +1833,18 @@ import { initCommunity, enterCommunity } from './community.js';
   els.confirmModal?.addEventListener("click", (event) => {
     if (event.target === els.confirmModal) resolveConfirm(false);
   });
+  els.textInputModalOk?.addEventListener("click", () => resolveTextInput(true));
+  els.textInputModalCancel?.addEventListener("click", () => resolveTextInput(false));
+  els.textInputModalClose?.addEventListener("click", () => resolveTextInput(false));
+  els.textInputModalInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      resolveTextInput(true);
+    }
+  });
+  els.textInputModal?.addEventListener("click", (event) => {
+    if (event.target === els.textInputModal) resolveTextInput(false);
+  });
   els.remapModalClose?.addEventListener("click", () => closeRemapModal());
   els.remapDoneButton?.addEventListener("click", () => closeRemapModal());
   els.remapResetButton?.addEventListener("click", () => resetPatternColorMapping());
@@ -1924,6 +1941,7 @@ import { initCommunity, enterCommunity } from './community.js';
     if (event.key !== "Escape") return;
     // The confirm dialog sits on top; Esc cancels it first (same as clicking "Cancel").
     if (state.confirmModalOpen) { resolveConfirm(false); return; }
+    if (state.textInputModalOpen) { resolveTextInput(false); return; }
     // If the enlarge viewer is open within the collection modal, close it first.
     const enlarged = els.collectionScreen?.querySelector(".collection-enlarged.show");
     if (enlarged) { enlarged.classList.remove("show"); return; }

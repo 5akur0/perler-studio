@@ -3,8 +3,8 @@
 
 import { state } from './state.js';
 import { els } from './dom.js';
-import { patterns } from './patterns-data.js';
 import { decodePatternCode, encodePatternCode } from './pattern-code.js';
+import { addToLibrary, newLibraryId } from './pattern-library.js';
 import { showToast } from './notify.js';
 import { escapeHtml, stableHash, pickCustomPatternNote } from './utils.js';
 import { drawPatternThumb } from './ui.js';
@@ -48,10 +48,17 @@ function shareApiUrl(path) {
 }
 
 export function extractCloudShortId(text) {
-  const source = String(text || "").trim();
+  const raw = String(text || "").trim();
+  // A titled share code is 【标题】+短码. Strip a leading 【…】 title first, so a
+  // title made of base58-looking Latin characters (e.g. 【ABCDEFGH】) can't be
+  // mistaken for the code itself.
+  const source = raw.replace(/^【[^】]*】\s*/, "");
   if (cloudShortIdPattern.test(source)) return source;
-  const match = source.match(/[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}/);
-  return match && cloudShortIdPattern.test(match[0]) ? match[0] : "";
+  // The short id trails any descriptive text, so prefer the LAST 8-char run
+  // rather than the first.
+  const matches = source.match(/[23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{8}/g);
+  const candidate = matches ? matches[matches.length - 1] : "";
+  return cloudShortIdPattern.test(candidate) ? candidate : "";
 }
 
 export async function requestShareApi(path, payload, options = {}) {
@@ -306,13 +313,14 @@ export async function autoCopyText(text, successMessage, failureMessage) {
 
 // ─── Pattern import / share ───────────────────────────────────────────────────
 
-export function applyImportedPattern(decoded, name = "导入图纸") {
+export function applyImportedPattern(decoded, name = "") {
   const width = decoded.width || decoded.size;
   const height = decoded.height || decoded.size;
-  const seedText = `${name}|${width}x${height}|${(decoded.rows || []).join("")}`;
+  const finalName = String(name || "").trim() || "未命名";
+  const seedText = `${finalName}|${width}x${height}|${(decoded.rows || []).join("")}`;
   const imported = {
-    id: `custom-${Date.now()}`,
-    name,
+    id: newLibraryId("custom"),
+    name: finalName,
     size: decoded.size,
     width,
     height,
@@ -324,10 +332,8 @@ export function applyImportedPattern(decoded, name = "导入图纸") {
     craft: decoded.craft || state.craft,
     note: pickCustomPatternNote("imported", decoded.size, seedText),
   };
-  for (let i = patterns.length - 1; i >= 0; i -= 1) {
-    if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-  }
-  patterns.unshift(imported);
+  // Persist into the 图纸库 (many can coexist now) and open it for beading.
+  addToLibrary(imported);
   galleryActions.loadPattern(imported, false);
   state.patternsDirty = true;
   galleryActions.uiRenderUI();

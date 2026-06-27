@@ -14,6 +14,7 @@ import { icon } from './icons.js';
 import { BOARD_SIZE } from './constants.js';
 import { fitGridToBoardTiles, tileKey } from './board-layout.js';
 import { loadImageFromDataUrl, convertImageToRectRows } from './image-convert.js';
+import { addToLibrary, newLibraryId } from './pattern-library.js';
 import { currentBackgroundTheme } from './theme.js';
 import { drawBoardGuides, drawBoardSkin } from './board-skin.js';
 
@@ -220,7 +221,7 @@ function drawBoardTabAtPointer(event) {
   if (!rect.width || !rect.height || !geometry) return null;
   const rawX = event.clientX - rect.left;
   const rawY = event.clientY - rect.top;
-  const { cx, cy } = geometry;
+  const { cx, cy, cell } = geometry;
   const view = drawState.view;
   const x = (rawX - cx - view.panX) / view.scale + cx;
   const y = (rawY - cy - view.panY) / view.scale + cy;
@@ -359,8 +360,8 @@ export function openDrawCodeModal(mode, value = "") {
   if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "导出图纸" : "导入图纸";
   if (els.drawCodeHint) {
     els.drawCodeHint.textContent = isExport
-      ? "给图纸起个名字，生成分享码后复制给朋友。"
-      : (isBead ? "粘贴分享码，导入到拼豆台。" : "粘贴分享码，然后导入到绘图台。");
+      ? "生成分享码"
+      : (isBead ? "导入到拼豆台" : "导入到绘图台");
   }
   if (els.drawCodeTitleField) els.drawCodeTitleField.hidden = !isExport;
   if (isExport && els.drawCodeTitleInput) els.drawCodeTitleInput.value = "";
@@ -1073,7 +1074,7 @@ function useDrawPattern() {
   const sourceHeight = drawHeight();
   const size = Math.max(sourceWidth, sourceHeight);
   const pattern = {
-    id: "custom-draw",
+    id: newLibraryId("draw"),
     name: "绘制图纸",
     size,
     width: sourceWidth,
@@ -1089,13 +1090,11 @@ function useDrawPattern() {
     tileOriginX: drawState.tileOriginX,
     tileOriginY: drawState.tileOriginY,
   };
-  for (let i = patterns.length - 1; i >= 0; i -= 1) {
-    if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-  }
-  patterns.unshift(pattern);
+  // Save the drawing into the 图纸库 (so it persists) and open it for beading.
+  addToLibrary(pattern);
   drawActions.loadPattern(pattern, false);
   drawActions.setAppMode("bead");
-  showToast("绘图已生成图纸，开始拼豆。");
+  showToast("绘图已存入图纸库，开始拼豆。");
 }
 
 export function initDrawingStudioEvents() {
@@ -1176,7 +1175,6 @@ export function initDrawingStudioEvents() {
       drawState.shapeDrag = null;
       drawState.shapeDragEnd = null;
       renderDrawToolButtons();
-      showToast("在版面上拖一个框放图片（自动锁定原图比例）。");
     } catch {
       showToast("图片读取失败，换一张试试。");
     }

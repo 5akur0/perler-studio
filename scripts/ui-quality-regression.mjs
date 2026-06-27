@@ -20,11 +20,13 @@ const [
   baseCss,
   responsiveCss,
   screensCss,
+  indexHtml,
   modalController,
 ] = await Promise.all([
   read("src/styles/base.css"),
   read("src/styles/responsive.css"),
   read("src/styles/screens.css"),
+  read("index.html"),
   read("src/modal-controller.js"),
 ]);
 
@@ -157,5 +159,28 @@ assert.match(
   /background:/,
   "home bead entry should gain the bead-tinted fill on hover",
 );
+
+for (const text of [
+  "选择图纸，开始摆豆和熨烫。",
+  "绘制、导入和整理自己的图纸。",
+  "浏览已审核图纸，也可以投稿给我审核。",
+  "查看已经保存的完成品。",
+  "留言板和更新板，一起把工坊做得更好。",
+]) {
+  assert.equal(indexHtml.includes(text), false, `home page should not use explanatory copy: ${text}`);
+}
+
+for (const text of [
+  "今天想做什么？",
+  "从图纸开始拼豆。",
+  "创建和编辑图纸。",
+  "浏览公开图纸。",
+  "查看已保存作品。",
+  "查看留言与更新。",
+  "今日精选",
+  "摆这个",
+]) {
+  assert.ok(indexHtml.includes(text), `home page should include concise functional copy: ${text}`);
+}
 
 console.log("UI quality regression checks passed.");

@@ -436,8 +436,10 @@ async function assertMobileBoardEdgesAreReachable(baseUrl) {
   try {
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.click("#startBeadButton");
-    await page.click("#mobileSelectionStartButton");
-    await page.waitForTimeout(100);
+    // 图纸库: tapping a library card loads it and starts beading directly.
+    await page.waitForSelector("#patternList .library-card-open", { timeout: 8000 });
+    await page.click("#patternList .library-card-open");
+    await page.waitForFunction(() => document.querySelector(".bead-studio-grid")?.dataset.phase === "place", { timeout: 8000 });
     const result = await page.evaluate(async () => {
       const render = await import("/src/render.js");
       render.invalidateLayoutCache();

@@ -1,15 +1,19 @@
 import { state } from './state.js';
 import { palette, beadIds } from './palette.js';
-import { phases, toolStyles, craftOptions, backgroundThemes, placeCoachKey } from './constants.js';
+import { phases, toolStyles, craftOptions, backgroundThemes } from './constants.js';
 import { patterns } from './patterns-data.js';
 import {
   allColorCodes, beadLabel, getTargetCounts, getTargetTotal, getSourceCounts,
   getPatternColors, getPatternAnalysis, getPlacedCounts, getSourcePatternColors,
-  getEffectivePatternResult, normalizeCraft, findCustomPattern, resizePattern,
+  getEffectivePatternResult, normalizeCraft, resizePattern,
   baseIdFor, boardCols, boardRows,
 } from './pattern.js';
+import {
+  getLibraryView, isDefaultPatternId, toggleStar, removeFromLibrary,
+  renameInLibrary, restoreDefaults, hasHiddenDefaults,
+} from './pattern-library.js';
 import { showToast, hidePlaceHint, showPlaceHint } from './notify.js';
-import { confirmModal } from './modal-controller.js';
+import { confirmModal, textInputModal } from './modal-controller.js';
 import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
@@ -22,10 +26,6 @@ import { icon } from './icons.js';
 import { workflowSummary } from './workflow.js';
 import { currentBackgroundTheme } from './theme.js';
 import { drawPixelPatternPreview } from './board-skin.js';
-
-// WS4: whether the first-time mobile placement coachmark has been retired.
-let placeCoachSeen = false;
-try { placeCoachSeen = localStorage.getItem(placeCoachKey) === "seen"; } catch { placeCoachSeen = false; }
 
 let uiActions = {
   getCollection: () => [],
@@ -206,70 +206,162 @@ export function renderSidebarReference() {
   }
 }
 
+function makeLibraryToolbarButton(label, iconName, onClick, extraClass = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `library-tool-button${extraClass ? ` ${extraClass}` : ""}`;
+  button.innerHTML = `${icon(iconName, { size: 16 })}<span>${escapeHtml(label)}</span>`;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+// The 图纸库: the bead studio's choose screen, a gallery-style card grid of the
+// user's patterns (defaults + imported + drawn). The card grid scrolls in the
+// middle; a single 导入分享码 button stays pinned at the bottom. Tap a card to
+// start beading; star to pin to top; rename via the name; delete.
 export function renderPatterns() {
+  // Star / delete / rename all re-run this full rebuild; capture the card-grid
+  // scroll offset first and restore it below so the list doesn't jump to the top.
+  const prevScroll = els.patternList.querySelector(".library-scroll")?.scrollTop || 0;
   els.patternList.innerHTML = "";
-  const customPattern = findCustomPattern();
 
-  const importRow = document.createElement("div");
-  importRow.className = "pattern-import-row";
+  const view = getLibraryView();
 
-  const imageButton = document.createElement("button");
-  imageButton.className = `pattern-import-half${customPattern && state.selectedPattern.id.startsWith("custom-") ? " active" : ""}`;
-  imageButton.type = "button";
-  imageButton.textContent = "导入图片";
-  imageButton.addEventListener("click", () => els.customImageInput?.click());
+  // ── scrollable middle: the card grid (or empty state) ──
+  const scroll = document.createElement("div");
+  scroll.className = "library-scroll";
+  if (!view.length) {
+    const empty = document.createElement("div");
+    empty.className = "library-empty";
+    empty.innerHTML = `<strong>图纸库是空的</strong><span>用下方的分享码导入一张图纸吧。</span>`;
+    scroll.appendChild(empty);
+  } else {
+    scroll.appendChild(buildLibraryGrid(view));
+  }
+  els.patternList.appendChild(scroll);
+  scroll.scrollTop = prevScroll;
 
-  const codeButton = document.createElement("button");
-  codeButton.className = "pattern-import-half";
-  codeButton.type = "button";
-  codeButton.textContent = "导入分享码";
-  codeButton.addEventListener("click", () => {
-    uiActions.openImportCodeModal();
-  });
+  // ── pinned footer: 导入分享码 (+ 恢复默认 when defaults were deleted) ──
+  const footer = document.createElement("div");
+  footer.className = "library-footer";
+  footer.append(makeLibraryToolbarButton("导入分享码", "upload",
+    () => uiActions.openImportCodeModal(), "library-add-code"));
+  if (hasHiddenDefaults()) {
+    footer.append(makeLibraryToolbarButton("恢复默认", "refresh-cw", () => {
+      restoreDefaults();
+      renderPatterns();
+      showToast("已恢复默认图纸。");
+    }, "library-tool-button-restore"));
+  }
+  els.patternList.appendChild(footer);
+}
 
-  importRow.appendChild(imageButton);
-  importRow.appendChild(codeButton);
-  els.patternList.appendChild(importRow);
+function buildLibraryGrid(view) {
+  const grid = document.createElement("div");
+  grid.className = "library-grid";
+  const activeId = baseIdFor(state.selectedPattern);
 
-  patterns.forEach((pattern) => {
-    const isCustom = pattern.id.startsWith("custom-");
+  view.forEach((pattern) => {
+    const isCustom = !isDefaultPatternId(pattern.id);
     const displayPattern = isCustom ? pattern : resizePattern(pattern, state.patternSize);
-    const safePatternName = escapeHtml(pattern.name);
-    const safePatternMeta = escapeHtml(displayPattern.note || `${displayPattern.size}x${displayPattern.size}`);
-    const button = document.createElement("button");
-    button.className = `pattern-card${baseIdFor(state.selectedPattern) === pattern.id ? " active" : ""}`;
-    button.type = "button";
-    button.innerHTML = `
-        <canvas class="pattern-thumb" width="58" height="58" aria-hidden="true"></canvas>
-        <span><strong>${safePatternName}</strong><span>${safePatternMeta}</span></span>
-      `;
-    button.addEventListener("click", () => {
-      uiActions.loadPattern(displayPattern, state.phase !== "choose");
-      if (state.phase !== "choose") uiActions.setPhase("place");
-      showToast(`已换成 ${pattern.name}`);
+
+    const card = document.createElement("div");
+    card.className = `library-card${activeId === pattern.id ? " active" : ""}`;
+
+    // Tap the thumb to load + start beading immediately.
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "library-card-open";
+    open.setAttribute("aria-label", `开始拼 ${pattern.displayName}`);
+    open.innerHTML = `<canvas class="pattern-thumb" width="120" height="120" aria-hidden="true"></canvas>`;
+    open.addEventListener("click", () => {
+      uiActions.loadPattern(displayPattern, true);
+      uiActions.setPhase("place");
+      showToast(`开始拼 ${pattern.displayName}`);
     });
-    els.patternList.appendChild(button);
-    drawPatternThumb(button.querySelector("canvas"), displayPattern);
+
+    // Controls bar pinned over the top of the preview: star (收藏) + delete (删除).
+    const controls = document.createElement("div");
+    controls.className = "library-card-controls";
+
+    const star = document.createElement("button");
+    star.type = "button";
+    star.className = `library-card-star${pattern.starred ? " is-on" : ""}`;
+    star.setAttribute("aria-label", pattern.starred ? "取消置顶" : "星标置顶");
+    star.setAttribute("aria-pressed", String(pattern.starred));
+    star.innerHTML = icon("star", { size: 16 });
+    star.addEventListener("click", () => {
+      toggleStar(pattern.id);
+      renderPatterns();
+    });
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "library-card-del";
+    del.setAttribute("aria-label", `删除 ${pattern.displayName}`);
+    del.innerHTML = icon("trash-2", { size: 15 });
+    del.addEventListener("click", async () => {
+      const ok = await confirmModal({
+        message: `从图纸库删除「${pattern.displayName}」？`,
+        okText: "删除",
+        danger: true,
+      });
+      if (!ok) return;
+      removeFromLibrary(pattern.id);
+      renderPatterns();
+      showToast("已从图纸库删除。");
+    });
+    controls.append(star, del);
+
+    // Name sits at the bottom; tap it to rename in the same in-app modal vocabulary
+    // as other library actions (not a native browser prompt).
+    const name = document.createElement("button");
+    name.type = "button";
+    name.className = "library-card-name";
+    name.setAttribute("aria-label", `重命名 ${pattern.displayName}`);
+    name.innerHTML = `<strong>${escapeHtml(pattern.displayName)}</strong>`;
+    name.addEventListener("click", async () => {
+      const next = await textInputModal({
+        title: "重命名图纸",
+        label: "图纸名",
+        value: pattern.displayName,
+        okText: "保存",
+        maxLength: 20,
+      });
+      if (next == null) return;
+      if (renameInLibrary(pattern.id, next)) renderPatterns();
+    });
+
+    card.append(open, controls, name);
+    grid.appendChild(card);
+    drawPatternThumb(card.querySelector("canvas"), displayPattern);
   });
+
+  return grid;
 }
 
 export function drawPatternThumb(canvas, pattern) {
   const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
-  const cssSize = canvas.clientWidth || Number(canvas.getAttribute("width")) || 58;
-  const dim = Math.round(cssSize * dpr);
-  if (canvas.width !== dim || canvas.height !== dim) {
-    canvas.width = dim;
-    canvas.height = dim;
-  }
+  // Respect the element's actual rendered box so each preview gets a matching
+  // bitmap (the library card thumb is a 1:1 square; the pattern is centered and
+  // letterboxed inside it by pixelPatternPreviewLayout). Square thumbs (current /
+  // mobile selection) are unaffected since their box is square.
+  const fallback = Number(canvas.getAttribute("width")) || 58;
+  const cssW = canvas.clientWidth || fallback;
+  const cssH = canvas.clientHeight || cssW;
+  const w = Math.round(cssW * dpr);
+  const h = Math.round(cssH * dpr);
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== h) canvas.height = h;
   const ctx = canvas.getContext("2d");
   const cols = boardCols(pattern);
   const rowCount = boardRows(pattern);
   const rows = pattern.rows || [];
-  ctx.clearRect(0, 0, dim, dim);
+  ctx.clearRect(0, 0, w, h);
   const theme = currentBackgroundTheme();
   drawPixelPatternPreview(ctx, {
-    width: dim,
-    height: dim,
+    width: w,
+    height: h,
     cols,
     rows: rowCount,
     pixels: rows,
@@ -438,29 +530,11 @@ export function renderControls() {
   }
 
   if (state.phase === "place") {
-    const placeHintText = state.spill
-      ? "有一颗豆子倒下来卡住了。你可以先继续摆放，熨烫前记得处理。"
-      : (useMobileDirectPlacement()
-        ? "从豆盒选颜色，点格子放置或替换；同色再点一次会取下。"
-        : (state.tool === "needle"
-        ? `点击豆盒倒豆进筛；点豆筛某条槽给豆针上豆（最多 ${needleCapacity()} 颗）。`
-        : (state.tweezerBead ? `镊子正夹着 ${beadLabel(state.tweezerBead)}，点击空格放下。` : "镊子可从豆筛点取一颗，或从板面夹起一颗再放下。")));
-    const placeHintKey = state.spill
-      ? `spill:${state.spill.index}:${state.spill.code}`
-      : (useMobileDirectPlacement()
-        ? `mobile:${state.selectedColor}`
-        : `${state.tool}:${state.trayColor || "-"}:${state.trayBeans}:${state.needleLoaded}:${state.tweezerBead || "-"}`);
-    if (!useMobileDirectPlacement() || state.spill) {
-      showPlaceHint(placeHintText, placeHintKey);
-    } else if (!placeCoachSeen) {
-      // WS4: first-time mobile players get the placement teach hint (it's hidden
-      // for returning users to keep the workbench clean). Retire it for good once
-      // they've placed their first bead — by then they've got it.
-      showPlaceHint(placeHintText, placeHintKey);
-      if (placedCount() > 0) {
-        placeCoachSeen = true;
-        try { localStorage.setItem(placeCoachKey, "seen"); } catch { /* storage blocked */ }
-      }
+    if (state.spill) {
+      showPlaceHint(
+        "有一颗豆子倒下来卡住了。你可以先继续摆放，熨烫前记得处理。",
+        `spill:${state.spill.index}:${state.spill.code}`,
+      );
     } else {
       hidePlaceHint();
     }
@@ -473,9 +547,7 @@ export function renderControls() {
 
   if (state.phase === "inspect") {
     const summary = inspectionSummary();
-    if (state.sandboxMode) {
-      addHint("沙盒模式不做漏放/错色校验，可直接进入熨烫。");
-    } else {
+    if (!state.sandboxMode) {
       addInspectStats(summary);
     }
     if (state.spill) {
@@ -505,14 +577,10 @@ export function renderControls() {
     } else {
       addButton("盖纸熨烫", "primary-button", () => uiActions.startIroning(false), !state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72);
     }
-    if (!state.sandboxMode && state.errors.length > 0 && placementAccuracy() < 0.72) {
-      addHint("误差较多，建议先修正再熨烫。");
-    }
     return;
   }
 
   if (state.phase === "iron") {
-    addHint("按住并移动熨斗，慢一点、稳一点，让豆子刚好粘连。");
     addControlRow([
       ["查看检查", "", () => uiActions.setPhase("inspect")],
       ["进入冷却", "primary-button", () => uiActions.setPhase("cool")],
@@ -521,13 +589,11 @@ export function renderControls() {
   }
 
   if (state.phase === "cool") {
-    addHint("冷却过程中压平可以减少翘曲。等它慢慢稳下来再取下作品。");
     addControlRow([
       ["压平", "", () => uiActions.pressFlat()],
       ["翻面再熨", "", () => uiActions.flipAndIron(), state.flipCount >= 1],
     ]);
     addButton("完成收藏", "primary-button", () => uiActions.completeWork());
-    if (state.cooling < 78) addHint("提前取下也能完成，但冷却不足会影响最终评级。");
     return;
   }
 
@@ -547,7 +613,6 @@ export function renderControls() {
       return;
     }
     addCraftToggle();
-    addHint(`评级 ${finalGrade()}。可以换一种成品形式后再次保存。`);
     addControlRow([
       ["保存作品", "primary-button", () => uiActions.saveCurrentWork()],
       ["再做一张", "", () => {

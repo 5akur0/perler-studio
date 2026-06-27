@@ -20,6 +20,7 @@ export const state = {
   shareModalOpen: false,
   gallerySubmitModalOpen: false,
   confirmModalOpen: false,
+  textInputModalOpen: false,
   modalReturnFocus: null,
   sandboxMode: false,
   bgTheme: "mist",

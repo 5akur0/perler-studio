@@ -147,6 +147,7 @@ export const APP_VERSION = "1.0.0";
 // any account system. Generated lazily on first community interaction.
 export const clientIdKey = "beadWorkshopClientId.v1";
 export const collectionKey = "beadWorkshopCollection.v1";
+export const patternLibraryKey = "beadWorkshopPatternLibrary.v1";
 export const sessionKey = "beadWorkshopSession.v1";
 export const collectionLimit = 24;
 export const achievementKey = "beadWorkshopAchievements.v1";

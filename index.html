@@ -84,7 +84,7 @@
               </span>
               <span class="start-row-body">
                 <strong>拼豆台</strong>
-                <small>选择图纸，开始摆豆和熨烫。</small>
+                <small>从图纸开始拼豆。</small>
               </span>
             </button>
             <button class="start-row start-row-draw" id="startDrawButton" type="button">
@@ -93,7 +93,7 @@
               </span>
               <span class="start-row-body">
                 <strong>绘图台</strong>
-                <small>绘制、导入和整理自己的图纸。</small>
+                <small>创建和编辑图纸。</small>
               </span>
             </button>
             <button class="start-row start-row-gallery" id="startGalleryButton" type="button">
@@ -102,7 +102,7 @@
               </span>
               <span class="start-row-body">
                 <strong>图纸画廊</strong>
-                <small>浏览已审核图纸，也可以投稿给我审核。</small>
+                <small>浏览公开图纸。</small>
               </span>
             </button>
             <button class="start-row start-row-collection" id="collectionButton" type="button">
@@ -111,7 +111,7 @@
               </span>
               <span class="start-row-body">
                 <strong>作品集</strong>
-                <small>查看已经保存的完成品。</small>
+                <small>查看已保存作品。</small>
               </span>
               <strong class="start-row-count" id="collectionCount">0</strong>
             </button>
@@ -121,7 +121,7 @@
               </span>
               <span class="start-row-body">
                 <strong>社区</strong>
-                <small>留言板和更新板，一起把工坊做得更好。</small>
+                <small>查看留言与更新。</small>
               </span>
             </button>
           </div>
@@ -348,7 +348,7 @@
                 </div>
                 <div class="palette-search">
                   <span class="palette-search-icon" aria-hidden="true" data-lucide-icon="search" data-icon-size="15"></span>
-                  <input type="text" id="drawPaletteSearch" class="palette-search-input" placeholder="搜色号 例 A14 / H2" aria-label="搜索色号" autocomplete="off" />
+                  <input type="text" id="drawPaletteSearch" class="palette-search-input" placeholder="搜色号" aria-label="搜索色号" autocomplete="off" />
                 </div>
                 <div id="drawRecentColors" class="draw-recent-colors" aria-label="最近用色"></div>
                 <div id="drawPalette" class="color-palette"></div>
@@ -408,7 +408,7 @@
         <aside class="side-panel left-panel">
           <section data-stage="choose">
             <div class="section-title">
-              <span>像素图纸</span>
+              <span>图纸库</span>
               <small id="patternMeta"></small>
             </div>
             <div class="pattern-list" id="patternList"></div>
@@ -576,6 +576,26 @@
       </div>
     </div>
 
+    <div id="textInputModal" class="remap-modal" aria-hidden="true">
+      <div class="remap-modal-card text-input-modal-card" role="dialog" aria-modal="true" aria-labelledby="textInputModalTitle" aria-describedby="textInputModalHint">
+        <div class="remap-modal-head">
+          <strong id="textInputModalTitle">改个名字</strong>
+          <button id="textInputModalClose" type="button" aria-label="关闭输入窗口"><span data-lucide-icon="x" data-icon-size="18"></span></button>
+        </div>
+        <div class="remap-modal-body text-input-modal-body">
+          <label class="text-input-field" for="textInputModalInput">
+            <span id="textInputModalLabel">图纸名</span>
+            <input id="textInputModalInput" type="text" maxlength="20" autocomplete="off" spellcheck="false" />
+          </label>
+          <p id="textInputModalHint" class="text-input-hint" hidden></p>
+        </div>
+        <div class="remap-modal-foot">
+          <button id="textInputModalCancel" type="button" class="ghost-button">取消</button>
+          <button id="textInputModalOk" type="button" class="primary-button">保存</button>
+        </div>
+      </div>
+    </div>
+
     <div id="onboardingModal" class="remap-modal" aria-hidden="true">
       <div class="remap-modal-card onboarding-modal-card" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
         <div class="remap-modal-head">
@@ -614,13 +634,13 @@
           </label>
           <label class="gallery-submit-field">
             <span>作者昵称</span>
-            <input id="gallerySubmitAuthor" type="text" maxlength="24" autocomplete="nickname" placeholder="可留空" />
+            <input id="gallerySubmitAuthor" type="text" maxlength="24" autocomplete="nickname" />
           </label>
           <label class="gallery-submit-field">
             <span>分享码</span>
             <textarea id="gallerySubmitCode" class="drawing-code-input" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="粘贴 8 位分享码"></textarea>
           </label>
-          <p class="gallery-submit-note">投稿会先进入待审核队列，通过后才会出现在公开画廊。</p>
+          <p class="gallery-submit-note">审核后公开。</p>
         </div>
         <div class="remap-modal-foot">
           <button id="gallerySubmitCancelBtn" type="button">取消</button>
@@ -638,9 +658,9 @@
         <div class="remap-modal-body draw-code-modal-body">
           <div id="drawCodeTitleField" class="draw-code-title-field" hidden>
             <label for="drawCodeTitleInput">图纸名（最多 10 字）</label>
-            <input id="drawCodeTitleInput" class="draw-code-title-input" type="text" maxlength="10" autocomplete="off" spellcheck="false" placeholder="给图纸起个名字" />
+            <input id="drawCodeTitleInput" class="draw-code-title-input" type="text" maxlength="10" autocomplete="off" spellcheck="false" placeholder="图纸名" />
           </div>
-          <p id="drawCodeHint" class="draw-code-hint">粘贴分享码，然后导入到绘图台。</p>
+          <p id="drawCodeHint" class="draw-code-hint">导入到绘图台</p>
           <textarea id="drawCodeInput" class="drawing-code-input" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="粘贴分享码"></textarea>
         </div>
         <div class="remap-modal-foot">

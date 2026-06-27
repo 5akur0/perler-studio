@@ -1,4 +1,5 @@
 import { patterns } from './patterns-data.js';
+import { upsertPoolPattern } from './pattern-library.js';
 import { state } from './state.js';
 import { sessionKey, BOARD_SIZE } from './constants.js';
 import { palette } from './palette.js';
@@ -236,10 +237,9 @@ function restoreCustomPattern(snapshot) {
       sourceWidth: savedWidth,
       sourceHeight: savedHeight,
     };
-    for (let i = patterns.length - 1; i >= 0; i -= 1) {
-      if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-    }
-    patterns.unshift(pattern);
+    // The restored work-in-progress pattern only needs to be findable in the
+    // pool; it must NOT wipe or get persisted into the 图纸库.
+    upsertPoolPattern(pattern);
     state.patternsDirty = true;
     return pattern;
   }
@@ -270,10 +270,7 @@ function restoreCustomPattern(snapshot) {
     sourceRows,
     sourceSize: size,
   };
-  for (let i = patterns.length - 1; i >= 0; i -= 1) {
-    if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-  }
-  patterns.unshift(pattern);
+  upsertPoolPattern(pattern);
   state.patternsDirty = true;
   return pattern;
 }

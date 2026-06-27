@@ -108,28 +108,28 @@ export function statusText() {
   const phase = state.phase;
   if (state.sandboxMode && phase === "place") {
     return useMobileDirectPlacement()
-      ? "沙盒模式：自由拼摆中。从豆盒选色，直接点格子摆放。"
-      : "沙盒模式：自由拼摆中。点豆筛取豆、任意排布，不受图纸限制。";
+      ? "沙盒模式：自由拼摆中。"
+      : "沙盒模式：自由拼摆中。";
   }
   if (phase === "choose") return "选择一张图纸，开始今天的手作。";
   if (phase === "place") {
     if (state.spill) return "有豆子倒下来卡住了。可先继续摆放，熨烫前再处理。";
     if (useMobileDirectPlacement()) {
-      return `已选 ${beadLabel(state.selectedColor)} · 点格子放置或替换。${state.lampOn ? " 投影开" : ""}`;
+      return `已选 ${beadLabel(state.selectedColor)}${state.lampOn ? " · 投影开" : ""}`;
     }
     if (state.tool === "needle") {
-      if (!state.trayColor) return `针工具需要先把某个色号倒入豆筛。${state.lampOn ? " 投影色稿已开启。" : " 可打开工作灯查看投影色稿。"} `;
+      if (!state.trayColor) return `豆针 · 未倒豆${state.lampOn ? " · 投影开" : ""}`;
       return `豆筛 ${state.trayBeans} 颗 ${beadIds[state.trayColor]} · ${state.lampOn ? "投影开" : "投影关"}`;
     }
     return state.tweezerBead
       ? `镊子夹着 ${beadLabel(state.tweezerBead)} · ${state.lampOn ? "投影开" : "投影关"}`
-      : `点豆筛夹一颗，或从板面取一颗，再放到板上。${state.lampOn ? " 投影色稿已开启。" : ""}`;
+      : `镊子 · 空夹${state.lampOn ? " · 投影开" : ""}`;
   }
   if (phase === "inspect") {
     if (state.spill) return "还有倒下的豆子未处理。继续熨烫会糊坏该位置。";
     return state.errors.length ? "检查到需要修正的位置。" : "板面检查通过，可以盖纸熨烫。";
   }
-  if (phase === "iron") return "慢慢移动熨斗，让豆子刚好粘连。";
-  if (phase === "cool") return "等待冷却，压平边缘，再准备取下作品。";
+  if (phase === "iron") return "熨烫中。";
+  if (phase === "cool") return "冷却中。";
   return `${state.selectedPattern.name}完成，已进入收藏阶段。`;
 }

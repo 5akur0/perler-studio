@@ -21,6 +21,7 @@
     "test:mobile-ui": "node scripts/mobile-ui-regression.mjs",
     "test:drawing-mobile": "node scripts/drawing-mobile-regression.mjs",
     "test:pattern-code-bounds": "node scripts/pattern-code-bounds-regression.mjs",
+    "test:pattern-library": "node scripts/pattern-library-regression.mjs",
     "test:projection": "node scripts/projection-regression.mjs",
     "test:release": "node scripts/release-regression.mjs",
     "test:session": "node scripts/session-regression.mjs",

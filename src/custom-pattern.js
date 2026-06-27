@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { els } from './dom.js';
 import { clamp } from './color-utils.js';
 import { loadImageFromDataUrl, convertImageToPattern } from './image-convert.js';
+import { addToLibrary, newLibraryId } from './pattern-library.js';
 import {
   baseIdFor, findBasePattern, invalidatePatternDataCaches,
   isCustomFromImagePattern, normalizePatternSize,
@@ -118,8 +119,8 @@ function handleCustomImage(event) {
         return;
       }
       const pattern = {
-        id: "custom-user",
-        name: "自定义图纸",
+        id: newLibraryId("img"),
+        name: "未命名",
         size,
         craft: "原版",
         rows,
@@ -132,10 +133,8 @@ function handleCustomImage(event) {
         note: pickCustomPatternNote("image", size, sourceImageDataUrl),
       };
       state.lastConversionStats = result.stats;
-      for (let i = patterns.length - 1; i >= 0; i -= 1) {
-        if (patterns[i].id.startsWith("custom-")) patterns.splice(i, 1);
-      }
-      patterns.unshift(pattern);
+      // Persist into the 图纸库 (source image is stripped on save; resize needs 绘图台).
+      addToLibrary(pattern);
       customPatternActions.loadPattern(pattern);
       showToast(`自定义图纸已生成：${result.stats.total}颗 / ${result.stats.colors.length}色。`);
     } catch (error) {
