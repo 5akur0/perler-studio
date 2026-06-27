@@ -1436,7 +1436,7 @@ body[data-app-mode=community] .collection-screen {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 4px 8px 8px;
+  padding: 2px 8px 5px;
   background: transparent;
 }
 .library-card-star,
@@ -1478,7 +1478,7 @@ body[data-app-mode=community] .collection-screen {
   flex: 1 1 auto;
   min-width: 0;
   display: block;
-  padding: 6px 2px;
+  padding: 3px 2px;
   border: 0;
   background: transparent;
   text-align: left;
