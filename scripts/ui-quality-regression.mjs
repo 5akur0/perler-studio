@@ -183,4 +183,26 @@ for (const text of [
   assert.ok(indexHtml.includes(text), `home page should include concise functional copy: ${text}`);
 }
 
+// ── 图纸库 reshape (2026-06-27): tray cards, footer action row, primary CTA ──
+const componentsCss = cssFiles["components.css"];
+
+assert.ok(
+  /\.library-card-actions\s*\{[^}]*border-top/.test(componentsCss),
+  "library card must have a footer action row (.library-card-actions)",
+);
+assert.equal(
+  /\.library-card-controls\b/.test(componentsCss),
+  false,
+  "library card must not keep the over-art controls overlay (.library-card-controls)",
+);
+assert.ok(
+  /\.library-add-code\s*\{[^}]*linear-gradient/.test(componentsCss),
+  "导入分享码 must be a gradient primary CTA (.library-add-code)",
+);
+assert.equal(
+  componentsCss.includes("#cbd1dc"),
+  false,
+  "workflow step dot must use a theme token, not hardcoded #cbd1dc",
+);
+
 console.log("UI quality regression checks passed.");
