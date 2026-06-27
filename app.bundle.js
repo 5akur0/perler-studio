@@ -2850,16 +2850,41 @@
         boardW: layout.boardW + inset * 2,
         boardH: layout.boardH + inset * 2
       };
-      traceBoardPath(ctx2, plate, Math.max(6, inset * 1.4));
+      const radius = Math.max(6, inset * 1.4);
+      traceBoardPath(ctx2, plate, radius);
       ctx2.save();
-      ctx2.shadowColor = "rgba(38, 36, 43, 0.10)";
+      ctx2.shadowColor = "rgba(38, 36, 43, 0.12)";
       ctx2.shadowBlur = 12;
       ctx2.shadowOffsetY = 4;
-      ctx2.fillStyle = "#ffffff";
+      ctx2.fillStyle = DESK_WOOD.mid;
       ctx2.fill();
       ctx2.restore();
-      ctx2.strokeStyle = "rgba(70, 84, 96, 0.10)";
+      ctx2.save();
+      traceBoardPath(ctx2, plate, radius);
+      ctx2.clip();
+      const wood = ctx2.createLinearGradient(0, plate.boardY, 0, plate.boardY + plate.boardH);
+      wood.addColorStop(0, DESK_WOOD.light);
+      wood.addColorStop(0.55, DESK_WOOD.mid);
+      wood.addColorStop(1, DESK_WOOD.deep);
+      ctx2.fillStyle = wood;
+      ctx2.fillRect(plate.boardX, plate.boardY, plate.boardW, plate.boardH);
       ctx2.lineWidth = 1;
+      for (let gi = 0, y = plate.boardY + 6; y < plate.boardY + plate.boardH; y += 9, gi += 1) {
+        const hashed = Math.sin(gi * 12.9898) * 43758.5453;
+        const frac = hashed - Math.floor(hashed);
+        ctx2.strokeStyle = `rgba(${DESK_WOOD.grain}, ${(0.03 + frac * 0.05).toFixed(3)})`;
+        ctx2.beginPath();
+        for (let x = plate.boardX; x <= plate.boardX + plate.boardW; x += 12) {
+          const yy = y + Math.sin(x * 0.05 + gi * 1.7) * (0.8 + frac * 1.6);
+          if (x === plate.boardX) ctx2.moveTo(x, yy);
+          else ctx2.lineTo(x, yy);
+        }
+        ctx2.stroke();
+      }
+      ctx2.restore();
+      ctx2.strokeStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
+      ctx2.lineWidth = 1;
+      traceBoardPath(ctx2, plate, radius);
       ctx2.stroke();
       for (let y = 0; y < rows; y += 1) {
         const row = pixels[y] || "";

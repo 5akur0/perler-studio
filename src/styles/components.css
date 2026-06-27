@@ -992,17 +992,9 @@
   flex-direction: column;
   border: 1px solid color-mix(in srgb, var(--line) 80%, white);
   border-radius: var(--r-md);
-  /* The card is the craft desk: artwork rests on a white pegboard plate (drawn on
-     the canvas) sitting on the same warm wood as the studio table (DESK_WOOD),
-     with faint plank seams. */
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 128px,
-      rgba(var(--desk-wood-seam), 0.10) 128px 129px,
-      rgba(255, 246, 230, 0.12) 129px 130px
-    ),
-    linear-gradient(180deg, var(--desk-wood-light) 0%, var(--desk-wood-mid) 54%, var(--desk-wood-deep) 100%);
+  /* Card is a soft theme-tinted tray (re-tints with the active theme). The
+     artwork rests on a wood desk plate drawn on the canvas (see drawPixelPatternPreview). */
+  background: color-mix(in srgb, var(--brand-tint) 70%, #fff);
   box-shadow: var(--sh-1);
   overflow: hidden;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;

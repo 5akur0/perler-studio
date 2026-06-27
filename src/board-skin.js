@@ -1,4 +1,5 @@
 import { mixColor } from './color-utils.js';
+import { DESK_WOOD } from './constants.js';
 
 export function traceBoardPath(ctx, layout, radius = 6) {
   const boardW = layout.boardW || layout.boardSize;
@@ -157,9 +158,9 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     flat ? { ...options, frameInset: 0, padding: Math.max(6, Math.min(width, height) * 0.06) } : options,
   );
   if (flat) {
-    // Library thumbnails: one soft white plate (no frame stack, no checker, no
-    // grid) holding the artwork on the card's tinted tray. Keeps light-colored
-    // beads readable while staying clean — the artwork is the sole subject.
+    // Library thumbnails: the artwork rests on one wood desk plate (the same warm
+    // wood as the studio table, DESK_WOOD) sitting on the card's tinted tray — no
+    // frame stack, no checker, no grid. Reads as the piece on the craft desk.
     ctx.clearRect(0, 0, width, height);
     const inset = Math.max(4, Math.min(width, height) * 0.045);
     const plate = {
@@ -168,16 +169,43 @@ export function drawPixelPatternPreview(ctx, options = {}) {
       boardW: layout.boardW + inset * 2,
       boardH: layout.boardH + inset * 2,
     };
-    traceBoardPath(ctx, plate, Math.max(6, inset * 1.4));
+    const radius = Math.max(6, inset * 1.4);
+    // Soft contact shadow under the plate (cast on the tinted tray).
+    traceBoardPath(ctx, plate, radius);
     ctx.save();
-    ctx.shadowColor = "rgba(38, 36, 43, 0.10)";
+    ctx.shadowColor = "rgba(38, 36, 43, 0.12)";
     ctx.shadowBlur = 12;
     ctx.shadowOffsetY = 4;
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = DESK_WOOD.mid;
     ctx.fill();
     ctx.restore();
-    ctx.strokeStyle = "rgba(70, 84, 96, 0.10)";
+    // Warm wood surface: light sheen at the back, deeper toward the front edge.
+    ctx.save();
+    traceBoardPath(ctx, plate, radius);
+    ctx.clip();
+    const wood = ctx.createLinearGradient(0, plate.boardY, 0, plate.boardY + plate.boardH);
+    wood.addColorStop(0, DESK_WOOD.light);
+    wood.addColorStop(0.55, DESK_WOOD.mid);
+    wood.addColorStop(1, DESK_WOOD.deep);
+    ctx.fillStyle = wood;
+    ctx.fillRect(plate.boardX, plate.boardY, plate.boardW, plate.boardH);
+    // A couple of faint grain streaks so the wood reads as a real surface.
     ctx.lineWidth = 1;
+    for (let gi = 0, y = plate.boardY + 6; y < plate.boardY + plate.boardH; y += 9, gi += 1) {
+      const hashed = Math.sin(gi * 12.9898) * 43758.5453;
+      const frac = hashed - Math.floor(hashed);
+      ctx.strokeStyle = `rgba(${DESK_WOOD.grain}, ${(0.03 + frac * 0.05).toFixed(3)})`;
+      ctx.beginPath();
+      for (let x = plate.boardX; x <= plate.boardX + plate.boardW; x += 12) {
+        const yy = y + Math.sin(x * 0.05 + gi * 1.7) * (0.8 + frac * 1.6);
+        if (x === plate.boardX) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
+    ctx.lineWidth = 1;
+    traceBoardPath(ctx, plate, radius);
     ctx.stroke();
     for (let y = 0; y < rows; y += 1) {
       const row = pixels[y] || "";
