@@ -310,8 +310,8 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #cbd1dc;
-  color: #fff;
+  background: var(--brand-tint-strong);
+  color: var(--brand-ink);
   font-size: var(--fs-2xs);
   font-weight: 800;
 }
@@ -913,16 +913,23 @@
   border-color: var(--brand-edge);
 }
 
-/* 导入分享码 is the primary add action — it fills the footer width. */
+/* 导入分享码 is the screen's single primary CTA — brand gradient pill. */
 .library-add-code {
   flex: 1 1 auto;
-  border-color: var(--brand-edge);
-  color: var(--brand-ink);
-  background: var(--brand-tint);
+  border: 0;
+  color: #fff;
+  background: linear-gradient(180deg, var(--brand-cta), var(--brand-cta-strong));
+  box-shadow: var(--sh-inset), 0 6px 16px color-mix(in srgb, var(--brand) 30%, transparent);
 }
 
 .library-add-code:hover {
-  background: color-mix(in srgb, var(--brand) 16%, white);
+  border: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-cta) 94%, black),
+    color-mix(in srgb, var(--brand-cta-strong) 94%, black)
+  );
+  box-shadow: var(--sh-inset), 0 8px 20px color-mix(in srgb, var(--brand) 36%, transparent);
 }
 
 .library-tool-button-restore {
@@ -989,7 +996,7 @@
   width: 100%;
   padding: 0;
   border: 0;
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--brand-tint) 55%, var(--surface-2));
   cursor: pointer;
 }
 
@@ -998,41 +1005,34 @@
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
-  background: var(--surface-2);
+  background: transparent;
 }
 
-/* Controls bar pinned over the top of the preview. The bar itself is
-   click-through so taps between the chips still start beading; only the chips
-   capture clicks. */
-.library-card-controls {
-  position: absolute;
-  inset: 0 0 auto 0;
+/* Footer action row: star · name · delete. Artwork above stays clean. */
+.library-card-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--sp-2);
-  pointer-events: none;
+  gap: var(--sp-1);
+  padding: 5px 6px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, white);
+  background: var(--surface);
 }
 
-.library-card-controls > button {
-  pointer-events: auto;
-}
-
+/* Quiet row chips in the footer action row (no longer over the artwork). */
 .library-card-star,
 .library-card-del {
   position: relative;
-  width: 32px;
-  height: 32px;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--line) 80%, white);
+  border: 0;
   border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 /* Expand the tap target to ≥44px (PRODUCT.md touch-target floor) without
@@ -1041,33 +1041,35 @@
 .library-card-del::before {
   content: "";
   position: absolute;
-  inset: -6px;
+  inset: -8px;
   border-radius: inherit;
 }
 
 .library-card-star:hover,
+.library-card-star:focus-visible,
 .library-card-star.is-on {
   color: var(--amber);
-  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
 }
 
 .library-card-star.is-on svg {
   fill: var(--amber);
 }
 
-.library-card-del:hover {
+.library-card-del:hover,
+.library-card-del:focus-visible {
   color: var(--coral);
-  border-color: var(--coral);
+  background: color-mix(in srgb, var(--coral) 14%, transparent);
 }
 
-/* Name at the bottom of the card. Tap to rename. */
+/* Name is the flexible center of the footer row. Tap to rename. */
 .library-card-name {
+  flex: 1 1 auto;
+  min-width: 0;
   display: block;
-  width: 100%;
-  padding: var(--sp-2) var(--sp-3);
+  padding: 6px 4px;
   border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--line) 80%, white);
-  background: var(--surface);
+  background: transparent;
   text-align: center;
   cursor: pointer;
 }

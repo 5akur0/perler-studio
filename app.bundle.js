@@ -2830,7 +2830,8 @@
       pixels = [],
       colors = {},
       brand = "#57b8a7",
-      table = ["#eef2f4", "#e4eceb", "#d7e2e0"]
+      table = ["#eef2f4", "#e4eceb", "#d7e2e0"],
+      cellGridAlpha = 0.13
     } = options;
     const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
     const showGuides = options.guides ?? layout.cell >= 4;
@@ -2868,7 +2869,7 @@
       }
     }
     if (showCellGrid) {
-      ctx2.strokeStyle = "rgba(70, 84, 96, 0.13)";
+      ctx2.strokeStyle = `rgba(70, 84, 96, ${cellGridAlpha})`;
       ctx2.lineWidth = Math.min(1, Math.max(0.5, layout.cell * 0.06));
       for (let x = 1; x < cols; x += 1) {
         const px = layout.boardX + x * layout.cell;
@@ -7303,8 +7304,8 @@
         uiActions.setPhase("place");
         showToast(`\u5F00\u59CB\u62FC ${pattern.displayName}`);
       });
-      const controls = document.createElement("div");
-      controls.className = "library-card-controls";
+      const actions = document.createElement("div");
+      actions.className = "library-card-actions";
       const star = document.createElement("button");
       star.type = "button";
       star.className = `library-card-star${pattern.starred ? " is-on" : ""}`;
@@ -7314,6 +7315,22 @@
       star.addEventListener("click", () => {
         toggleStar(pattern.id);
         renderPatterns();
+      });
+      const name = document.createElement("button");
+      name.type = "button";
+      name.className = "library-card-name";
+      name.setAttribute("aria-label", `\u91CD\u547D\u540D ${pattern.displayName}`);
+      name.innerHTML = `<strong>${escapeHtml(pattern.displayName)}</strong>`;
+      name.addEventListener("click", async () => {
+        const next = await textInputModal({
+          title: "\u91CD\u547D\u540D\u56FE\u7EB8",
+          label: "\u56FE\u7EB8\u540D",
+          value: pattern.displayName,
+          okText: "\u4FDD\u5B58",
+          maxLength: 20
+        });
+        if (next == null) return;
+        if (renameInLibrary(pattern.id, next)) renderPatterns();
       });
       const del = document.createElement("button");
       del.type = "button";
@@ -7331,30 +7348,14 @@
         renderPatterns();
         showToast("\u5DF2\u4ECE\u56FE\u7EB8\u5E93\u5220\u9664\u3002");
       });
-      controls.append(star, del);
-      const name = document.createElement("button");
-      name.type = "button";
-      name.className = "library-card-name";
-      name.setAttribute("aria-label", `\u91CD\u547D\u540D ${pattern.displayName}`);
-      name.innerHTML = `<strong>${escapeHtml(pattern.displayName)}</strong>`;
-      name.addEventListener("click", async () => {
-        const next = await textInputModal({
-          title: "\u91CD\u547D\u540D\u56FE\u7EB8",
-          label: "\u56FE\u7EB8\u540D",
-          value: pattern.displayName,
-          okText: "\u4FDD\u5B58",
-          maxLength: 20
-        });
-        if (next == null) return;
-        if (renameInLibrary(pattern.id, next)) renderPatterns();
-      });
-      card.append(open, controls, name);
+      actions.append(star, name, del);
+      card.append(open, actions);
       grid.appendChild(card);
-      drawPatternThumb(card.querySelector("canvas"), displayPattern);
+      drawPatternThumb(card.querySelector("canvas"), displayPattern, { subtleGrid: true });
     });
     return grid;
   }
-  function drawPatternThumb(canvas, pattern) {
+  function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
     const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
     const fallback = Number(canvas.getAttribute("width")) || 58;
     const cssW = canvas.clientWidth || fallback;
@@ -7379,7 +7380,8 @@
       brand: theme.brand,
       table: theme.table,
       compact: true,
-      shadow: false
+      shadow: false,
+      ...subtleGrid ? { guides: false, cellGridAlpha: 0.07 } : {}
     });
   }
   function resetPhaseViewport() {
