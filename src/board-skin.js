@@ -149,6 +149,7 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     colors = {},
     brand = "#57b8a7",
     table = ["#eef2f4", "#e4eceb", "#d7e2e0"],
+    cellGridAlpha = 0.13,
   } = options;
   const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
   const showGuides = options.guides ?? layout.cell >= 4;
@@ -189,7 +190,7 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     }
   }
   if (showCellGrid) {
-    ctx.strokeStyle = "rgba(70, 84, 96, 0.13)";
+    ctx.strokeStyle = `rgba(70, 84, 96, ${cellGridAlpha})`;
     ctx.lineWidth = Math.min(1, Math.max(0.5, layout.cell * 0.06));
     for (let x = 1; x < cols; x += 1) {
       const px = layout.boardX + x * layout.cell;

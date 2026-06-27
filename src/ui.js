@@ -268,7 +268,8 @@ function buildLibraryGrid(view) {
     const card = document.createElement("div");
     card.className = `library-card${activeId === pattern.id ? " active" : ""}`;
 
-    // Tap the thumb to load + start beading immediately.
+    // Tap the preview to load + start beading. Artwork stays clean — management
+    // lives in the footer row below, never over the art.
     const open = document.createElement("button");
     open.type = "button";
     open.className = "library-card-open";
@@ -280,9 +281,10 @@ function buildLibraryGrid(view) {
       showToast(`开始拼 ${pattern.displayName}`);
     });
 
-    // Controls bar pinned over the top of the preview: star (收藏) + delete (删除).
-    const controls = document.createElement("div");
-    controls.className = "library-card-controls";
+    // Footer action row: star (pin) · name (rename) · delete. Quiet by default;
+    // star/delete light up on hover/active. Touch targets expanded via ::before.
+    const actions = document.createElement("div");
+    actions.className = "library-card-actions";
 
     const star = document.createElement("button");
     star.type = "button";
@@ -293,6 +295,23 @@ function buildLibraryGrid(view) {
     star.addEventListener("click", () => {
       toggleStar(pattern.id);
       renderPatterns();
+    });
+
+    const name = document.createElement("button");
+    name.type = "button";
+    name.className = "library-card-name";
+    name.setAttribute("aria-label", `重命名 ${pattern.displayName}`);
+    name.innerHTML = `<strong>${escapeHtml(pattern.displayName)}</strong>`;
+    name.addEventListener("click", async () => {
+      const next = await textInputModal({
+        title: "重命名图纸",
+        label: "图纸名",
+        value: pattern.displayName,
+        okText: "保存",
+        maxLength: 20,
+      });
+      if (next == null) return;
+      if (renameInLibrary(pattern.id, next)) renderPatterns();
     });
 
     const del = document.createElement("button");
@@ -311,36 +330,17 @@ function buildLibraryGrid(view) {
       renderPatterns();
       showToast("已从图纸库删除。");
     });
-    controls.append(star, del);
 
-    // Name sits at the bottom; tap it to rename in the same in-app modal vocabulary
-    // as other library actions (not a native browser prompt).
-    const name = document.createElement("button");
-    name.type = "button";
-    name.className = "library-card-name";
-    name.setAttribute("aria-label", `重命名 ${pattern.displayName}`);
-    name.innerHTML = `<strong>${escapeHtml(pattern.displayName)}</strong>`;
-    name.addEventListener("click", async () => {
-      const next = await textInputModal({
-        title: "重命名图纸",
-        label: "图纸名",
-        value: pattern.displayName,
-        okText: "保存",
-        maxLength: 20,
-      });
-      if (next == null) return;
-      if (renameInLibrary(pattern.id, next)) renderPatterns();
-    });
-
-    card.append(open, controls, name);
+    actions.append(star, name, del);
+    card.append(open, actions);
     grid.appendChild(card);
-    drawPatternThumb(card.querySelector("canvas"), displayPattern);
+    drawPatternThumb(card.querySelector("canvas"), displayPattern, { subtleGrid: true });
   });
 
   return grid;
 }
 
-export function drawPatternThumb(canvas, pattern) {
+export function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
   const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
   // Respect the element's actual rendered box so each preview gets a matching
   // bitmap (the library card thumb is a 1:1 square; the pattern is centered and
@@ -370,6 +370,7 @@ export function drawPatternThumb(canvas, pattern) {
     table: theme.table,
     compact: true,
     shadow: false,
+    ...(subtleGrid ? { guides: false, cellGridAlpha: 0.07 } : {}),
   });
 }
 
