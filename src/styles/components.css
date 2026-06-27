@@ -1046,6 +1046,7 @@
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
+  min-height: 0; /* opt out of the global 44px tap floor; touch area is the ::before */
   display: grid;
   place-items: center;
   border: 0;
@@ -1087,6 +1088,7 @@
 .library-card-name {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0; /* opt out of the global 44px tap floor so the row hugs the name */
   display: block;
   padding: 3px 2px;
   border: 0;
