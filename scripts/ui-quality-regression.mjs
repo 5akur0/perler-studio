@@ -187,7 +187,7 @@ for (const text of [
 const componentsCss = cssFiles["components.css"];
 
 assert.ok(
-  /\.library-card-actions\s*\{[^}]*border-top/.test(componentsCss),
+  /\.library-card-actions\s*\{[^}]*display:\s*flex/.test(componentsCss),
   "library card must have a footer action row (.library-card-actions)",
 );
 assert.equal(
