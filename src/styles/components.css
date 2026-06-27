@@ -1070,7 +1070,6 @@
 .library-card-star:focus-visible,
 .library-card-star.is-on {
   color: var(--amber);
-  background: color-mix(in srgb, var(--amber) 14%, transparent);
 }
 
 .library-card-star.is-on svg {
