@@ -66,6 +66,13 @@
   --lh-body: 1.55;
   --brand-tint: rgba(87, 184, 167, 0.16);
   --brand-tint-strong: rgba(87, 184, 167, 0.25);
+  --desk-wood-light: #e8cda6;
+  --desk-wood-mid: #d9b88a;
+  --desk-wood-deep: #c6a06f;
+  --desk-wood-seam:
+    96,
+    64,
+    40;
   --content-max: 1640px;
   --list-cap: min(72vh, 720px);
   --scroll-pad: 4px 6px 6px 4px;
@@ -1400,7 +1407,17 @@ body[data-app-mode=community] .collection-screen {
   flex-direction: column;
   border: 1px solid color-mix(in srgb, var(--line) 80%, white);
   border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--brand-tint) 70%, #fff);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 128px,
+      rgba(var(--desk-wood-seam), 0.10) 128px 129px,
+      rgba(255, 246, 230, 0.12) 129px 130px),
+    linear-gradient(
+      180deg,
+      var(--desk-wood-light) 0%,
+      var(--desk-wood-mid) 54%,
+      var(--desk-wood-deep) 100%);
   box-shadow: var(--sh-1);
   overflow: hidden;
   transition:

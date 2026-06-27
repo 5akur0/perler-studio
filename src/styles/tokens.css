@@ -98,6 +98,13 @@
   --brand-tint: rgba(87, 184, 167, 0.16);
   --brand-tint-strong: rgba(87, 184, 167, 0.25);
 
+  /* —— Desk wood (mirrors DESK_WOOD in constants.js — keep in sync; the studio
+     canvas paints the same tones so the library cards read as the same table) —— */
+  --desk-wood-light: #e8cda6;
+  --desk-wood-mid: #d9b88a;
+  --desk-wood-deep: #c6a06f;
+  --desk-wood-seam: 96, 64, 40;
+
   /* —— Box / layout primitives (shared scales for the box primitives; used with the
      .surface-glass / .scroll-area / .studio-shell / .card rules at the top of components.css
      to eliminate scattered magic numbers) —— */
