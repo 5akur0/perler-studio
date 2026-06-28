@@ -1047,12 +1047,6 @@
     font-size: clamp(18px, 2vw, 22px);
   }
 
-  .work-mode-chip {
-    margin-top: 3px;
-    padding: 1px 7px;
-    font-size: var(--fs-2xs);
-  }
-
   .workflow-progress {
     grid-column: auto;
     grid-row: auto;
@@ -1133,14 +1127,7 @@
     font-size: 24px;
   }
 
-  /* On phones the screen already shows which workbench you're in (the layout and
-     topbar actions differ per mode), so the small mode tag under 拼豆工坊 is
-     redundant chrome — hide it. With it gone the lead is a single centered line,
-     so .brand-text needs no inter-row spacing. */
-  .work-mode-chip {
-    display: none;
-  }
-
+  /* The lead is a single centered line (brand mark + title). */
   .brand-text {
     display: flex;
     align-items: center;

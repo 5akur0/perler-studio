@@ -114,21 +114,6 @@
   white-space: nowrap;
 }
 
-.work-mode-chip {
-  display: inline-flex;
-  align-items: center;
-  margin-top: var(--sp-2);
-  padding: 2px 9px;
-  border: 1px solid rgba(139, 148, 166, 0.42);
-  border-radius: var(--r-pill);
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.86);
-  font-family: var(--font-cute);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  line-height: 1.2;
-}
-
 .danger-text-button {
   background: none;
   border: none;

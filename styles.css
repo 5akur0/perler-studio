@@ -662,20 +662,6 @@ body[data-app-mode=community] .collection-screen {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.work-mode-chip {
-  display: inline-flex;
-  align-items: center;
-  margin-top: var(--sp-2);
-  padding: 2px 9px;
-  border: 1px solid rgba(139, 148, 166, 0.42);
-  border-radius: var(--r-pill);
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.86);
-  font-family: var(--font-cute);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  line-height: 1.2;
-}
 .danger-text-button {
   background: none;
   border: none;
@@ -5310,11 +5296,6 @@ body.admin-page {
   .brand h1 {
     font-size: clamp(18px, 2vw, 22px);
   }
-  .work-mode-chip {
-    margin-top: 3px;
-    padding: 1px 7px;
-    font-size: var(--fs-2xs);
-  }
   .workflow-progress {
     grid-column: auto;
     grid-row: auto;
@@ -5378,9 +5359,6 @@ body.admin-page {
   }
   .brand h1 {
     font-size: 24px;
-  }
-  .work-mode-chip {
-    display: none;
   }
   .brand-text {
     display: flex;
