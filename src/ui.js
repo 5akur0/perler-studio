@@ -335,13 +335,13 @@ function buildLibraryGrid(view) {
     actions.append(star, name, del);
     card.append(open, actions);
     grid.appendChild(card);
-    drawPatternThumb(card.querySelector("canvas"), displayPattern, { subtleGrid: true });
+    drawPatternThumb(card.querySelector("canvas"), displayPattern, { referenceBoard: true });
   });
 
   return grid;
 }
 
-export function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
+export function drawPatternThumb(canvas, pattern, { referenceBoard = false } = {}) {
   const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
   // Respect the element's actual rendered box so each preview gets a matching
   // bitmap (the library card thumb is a 1:1 square; the pattern is centered and
@@ -360,6 +360,21 @@ export function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
   const rows = pattern.rows || [];
   ctx.clearRect(0, 0, w, h);
   const theme = currentBackgroundTheme();
+  if (referenceBoard) {
+    // Library cards reuse the studio "参考背景" rendering: the full pegboard board
+    // skin (frame + section tint + guides + shadow), exactly like renderSidebarReference.
+    drawPixelPatternPreview(ctx, {
+      width: w,
+      height: h,
+      cols,
+      rows: rowCount,
+      pixels: rows,
+      colors: palette,
+      brand: theme.brand,
+      table: theme.table,
+    });
+    return;
+  }
   drawPixelPatternPreview(ctx, {
     width: w,
     height: h,
@@ -371,7 +386,6 @@ export function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
     table: theme.table,
     compact: true,
     shadow: false,
-    ...(subtleGrid ? { flat: true } : {}),
   });
 }
 

@@ -1,5 +1,4 @@
 import { mixColor } from './color-utils.js';
-import { DESK_WOOD } from './constants.js';
 
 export function traceBoardPath(ctx, layout, radius = 6) {
   const boardW = layout.boardW || layout.boardSize;
@@ -150,74 +149,8 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     colors = {},
     brand = "#57b8a7",
     table = ["#eef2f4", "#e4eceb", "#d7e2e0"],
-    cellGridAlpha = 0.13,
   } = options;
-  const flat = options.flat ?? false;
-  const layout = pixelPatternPreviewLayout(
-    width, height, cols, rows,
-    flat ? { ...options, frameInset: 0, padding: Math.max(6, Math.min(width, height) * 0.06) } : options,
-  );
-  if (flat) {
-    // Library thumbnails: the artwork rests on one wood desk plate (the same warm
-    // wood as the studio table, DESK_WOOD) sitting on the card's tinted tray — no
-    // frame stack, no checker, no grid. Reads as the piece on the craft desk.
-    ctx.clearRect(0, 0, width, height);
-    const inset = Math.max(4, Math.min(width, height) * 0.045);
-    const plate = {
-      boardX: layout.boardX - inset,
-      boardY: layout.boardY - inset,
-      boardW: layout.boardW + inset * 2,
-      boardH: layout.boardH + inset * 2,
-    };
-    const radius = Math.max(6, inset * 1.4);
-    // Soft contact shadow under the plate (cast on the tinted tray).
-    traceBoardPath(ctx, plate, radius);
-    ctx.save();
-    ctx.shadowColor = "rgba(38, 36, 43, 0.12)";
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 4;
-    ctx.fillStyle = DESK_WOOD.mid;
-    ctx.fill();
-    ctx.restore();
-    // Warm wood surface: light sheen at the back, deeper toward the front edge.
-    ctx.save();
-    traceBoardPath(ctx, plate, radius);
-    ctx.clip();
-    const wood = ctx.createLinearGradient(0, plate.boardY, 0, plate.boardY + plate.boardH);
-    wood.addColorStop(0, DESK_WOOD.light);
-    wood.addColorStop(0.55, DESK_WOOD.mid);
-    wood.addColorStop(1, DESK_WOOD.deep);
-    ctx.fillStyle = wood;
-    ctx.fillRect(plate.boardX, plate.boardY, plate.boardW, plate.boardH);
-    // A couple of faint grain streaks so the wood reads as a real surface.
-    ctx.lineWidth = 1;
-    for (let gi = 0, y = plate.boardY + 6; y < plate.boardY + plate.boardH; y += 9, gi += 1) {
-      const hashed = Math.sin(gi * 12.9898) * 43758.5453;
-      const frac = hashed - Math.floor(hashed);
-      ctx.strokeStyle = `rgba(${DESK_WOOD.grain}, ${(0.03 + frac * 0.05).toFixed(3)})`;
-      ctx.beginPath();
-      for (let x = plate.boardX; x <= plate.boardX + plate.boardW; x += 12) {
-        const yy = y + Math.sin(x * 0.05 + gi * 1.7) * (0.8 + frac * 1.6);
-        if (x === plate.boardX) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
-      }
-      ctx.stroke();
-    }
-    ctx.restore();
-    ctx.strokeStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
-    ctx.lineWidth = 1;
-    traceBoardPath(ctx, plate, radius);
-    ctx.stroke();
-    for (let y = 0; y < rows; y += 1) {
-      const row = pixels[y] || "";
-      for (let x = 0; x < cols; x += 1) {
-        const code = row[x] || ".";
-        if (code === ".") continue;
-        ctx.fillStyle = colors[code] || "#9aa4b3";
-        ctx.fillRect(layout.boardX + x * layout.cell, layout.boardY + y * layout.cell, layout.cell, layout.cell);
-      }
-    }
-    return;
-  }
+  const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
   const showGuides = options.guides ?? layout.cell >= 4;
   const showCellGrid = options.cellGrid ?? layout.cell >= 2.5;
   const shadow = options.shadow ?? !layout.compact;
@@ -256,7 +189,7 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     }
   }
   if (showCellGrid) {
-    ctx.strokeStyle = `rgba(70, 84, 96, ${cellGridAlpha})`;
+    ctx.strokeStyle = "rgba(70, 84, 96, 0.13)";
     ctx.lineWidth = Math.min(1, Math.max(0.5, layout.cell * 0.06));
     for (let x = 1; x < cols; x += 1) {
       const px = layout.boardX + x * layout.cell;

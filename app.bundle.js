@@ -2830,73 +2830,9 @@
       pixels = [],
       colors = {},
       brand = "#57b8a7",
-      table = ["#eef2f4", "#e4eceb", "#d7e2e0"],
-      cellGridAlpha = 0.13
+      table = ["#eef2f4", "#e4eceb", "#d7e2e0"]
     } = options;
-    const flat = options.flat ?? false;
-    const layout = pixelPatternPreviewLayout(
-      width,
-      height,
-      cols,
-      rows,
-      flat ? { ...options, frameInset: 0, padding: Math.max(6, Math.min(width, height) * 0.06) } : options
-    );
-    if (flat) {
-      ctx2.clearRect(0, 0, width, height);
-      const inset = Math.max(4, Math.min(width, height) * 0.045);
-      const plate = {
-        boardX: layout.boardX - inset,
-        boardY: layout.boardY - inset,
-        boardW: layout.boardW + inset * 2,
-        boardH: layout.boardH + inset * 2
-      };
-      const radius = Math.max(6, inset * 1.4);
-      traceBoardPath(ctx2, plate, radius);
-      ctx2.save();
-      ctx2.shadowColor = "rgba(38, 36, 43, 0.12)";
-      ctx2.shadowBlur = 12;
-      ctx2.shadowOffsetY = 4;
-      ctx2.fillStyle = DESK_WOOD.mid;
-      ctx2.fill();
-      ctx2.restore();
-      ctx2.save();
-      traceBoardPath(ctx2, plate, radius);
-      ctx2.clip();
-      const wood = ctx2.createLinearGradient(0, plate.boardY, 0, plate.boardY + plate.boardH);
-      wood.addColorStop(0, DESK_WOOD.light);
-      wood.addColorStop(0.55, DESK_WOOD.mid);
-      wood.addColorStop(1, DESK_WOOD.deep);
-      ctx2.fillStyle = wood;
-      ctx2.fillRect(plate.boardX, plate.boardY, plate.boardW, plate.boardH);
-      ctx2.lineWidth = 1;
-      for (let gi = 0, y = plate.boardY + 6; y < plate.boardY + plate.boardH; y += 9, gi += 1) {
-        const hashed = Math.sin(gi * 12.9898) * 43758.5453;
-        const frac = hashed - Math.floor(hashed);
-        ctx2.strokeStyle = `rgba(${DESK_WOOD.grain}, ${(0.03 + frac * 0.05).toFixed(3)})`;
-        ctx2.beginPath();
-        for (let x = plate.boardX; x <= plate.boardX + plate.boardW; x += 12) {
-          const yy = y + Math.sin(x * 0.05 + gi * 1.7) * (0.8 + frac * 1.6);
-          if (x === plate.boardX) ctx2.moveTo(x, yy);
-          else ctx2.lineTo(x, yy);
-        }
-        ctx2.stroke();
-      }
-      ctx2.restore();
-      ctx2.strokeStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
-      ctx2.lineWidth = 1;
-      traceBoardPath(ctx2, plate, radius);
-      ctx2.stroke();
-      for (let y = 0; y < rows; y += 1) {
-        const row = pixels[y] || "";
-        for (let x = 0; x < cols; x += 1) {
-          const code = row[x] || ".";
-          if (code === ".") continue;
-          ctx2.fillStyle = colors[code] || "#9aa4b3";
-          ctx2.fillRect(layout.boardX + x * layout.cell, layout.boardY + y * layout.cell, layout.cell, layout.cell);
-        }
-      }
-      return;
-    }
+    const layout = pixelPatternPreviewLayout(width, height, cols, rows, options);
     const showGuides = options.guides ?? layout.cell >= 4;
     const showCellGrid = options.cellGrid ?? layout.cell >= 2.5;
     const shadow = options.shadow ?? !layout.compact;
@@ -2932,7 +2868,7 @@
       }
     }
     if (showCellGrid) {
-      ctx2.strokeStyle = `rgba(70, 84, 96, ${cellGridAlpha})`;
+      ctx2.strokeStyle = "rgba(70, 84, 96, 0.13)";
       ctx2.lineWidth = Math.min(1, Math.max(0.5, layout.cell * 0.06));
       for (let x = 1; x < cols; x += 1) {
         const px = layout.boardX + x * layout.cell;
@@ -7415,11 +7351,11 @@
       actions.append(star, name, del);
       card.append(open, actions);
       grid.appendChild(card);
-      drawPatternThumb(card.querySelector("canvas"), displayPattern, { subtleGrid: true });
+      drawPatternThumb(card.querySelector("canvas"), displayPattern, { referenceBoard: true });
     });
     return grid;
   }
-  function drawPatternThumb(canvas, pattern, { subtleGrid = false } = {}) {
+  function drawPatternThumb(canvas, pattern, { referenceBoard = false } = {}) {
     const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
     const fallback = Number(canvas.getAttribute("width")) || 58;
     const cssW = canvas.clientWidth || fallback;
@@ -7434,6 +7370,19 @@
     const rows = pattern.rows || [];
     ctx2.clearRect(0, 0, w, h);
     const theme = currentBackgroundTheme();
+    if (referenceBoard) {
+      drawPixelPatternPreview(ctx2, {
+        width: w,
+        height: h,
+        cols,
+        rows: rowCount,
+        pixels: rows,
+        colors: palette,
+        brand: theme.brand,
+        table: theme.table
+      });
+      return;
+    }
     drawPixelPatternPreview(ctx2, {
       width: w,
       height: h,
@@ -7444,8 +7393,7 @@
       brand: theme.brand,
       table: theme.table,
       compact: true,
-      shadow: false,
-      ...subtleGrid ? { flat: true } : {}
+      shadow: false
     });
   }
   function resetPhaseViewport() {
