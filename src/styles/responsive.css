@@ -1106,7 +1106,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     gap: var(--sp-2) var(--sp-2);
-    padding: var(--sp-2) var(--sp-3);
+    padding: var(--sp-1) var(--sp-3);
     min-height: 0;
     border-radius: var(--r-sm);
   }
@@ -1121,10 +1121,12 @@
     display: none;
   }
 
-  /* The wordmark now stands alone in the lead (mark hidden, mode tag removed
-     below), so it can read a touch larger and balance the 44px action buttons. */
+  /* The wordmark stands alone in the lead (mark hidden, mode tag removed), so it
+     scales fluidly with the viewport — large enough to balance the action buttons
+     on roomy phones, small enough never to slide under them on a 320px screen. */
   .brand h1 {
-    font-size: 24px;
+    font-size: clamp(17px, 5.2vw, 24px);
+    white-space: nowrap;
   }
 
   /* The lead is a single centered line (brand mark + title). */
@@ -1203,9 +1205,10 @@
   .top-stats {
     grid-column: 2;
     grid-row: 1;
+    align-self: center;
     justify-content: flex-end;
     width: auto;
-    margin-top: var(--sp-2);
+    gap: var(--sp-1);
   }
 
   .top-stats .icon-button-label {

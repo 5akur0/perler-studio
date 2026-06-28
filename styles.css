@@ -5345,7 +5345,7 @@ body.admin-page {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     gap: var(--sp-2) var(--sp-2);
-    padding: var(--sp-2) var(--sp-3);
+    padding: var(--sp-1) var(--sp-3);
     min-height: 0;
     border-radius: var(--r-sm);
   }
@@ -5358,7 +5358,8 @@ body.admin-page {
     display: none;
   }
   .brand h1 {
-    font-size: 24px;
+    font-size: clamp(17px, 5.2vw, 24px);
+    white-space: nowrap;
   }
   .brand-text {
     display: flex;
@@ -5423,9 +5424,10 @@ body.admin-page {
   .top-stats {
     grid-column: 2;
     grid-row: 1;
+    align-self: center;
     justify-content: flex-end;
     width: auto;
-    margin-top: var(--sp-2);
+    gap: var(--sp-1);
   }
   .top-stats .icon-button-label {
     display: none;
