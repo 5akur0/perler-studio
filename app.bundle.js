@@ -2524,6 +2524,14 @@
   function isStarred(id) {
     return Boolean(store.stars[id]);
   }
+  var starSeq = 0;
+  function nextStarOrder() {
+    starSeq = Math.max(Date.now(), starSeq + 1);
+    return starSeq;
+  }
+  function starOrder(id) {
+    return Number(store.stars[id]) || 0;
+  }
   function getLibraryView() {
     const defaults = patterns.filter((p) => defaultIds.has(p.id) && !store.hidden[p.id]);
     const items = [...defaults, ...store.imported].map((p) => ({
@@ -2533,6 +2541,10 @@
     }));
     items.sort((a, b) => {
       if (a.starred !== b.starred) return a.starred ? -1 : 1;
+      if (a.starred && b.starred) {
+        const byRecency = starOrder(b.id) - starOrder(a.id);
+        if (byRecency) return byRecency;
+      }
       return a.displayName.localeCompare(b.displayName, "zh-CN");
     });
     return items;
@@ -2560,7 +2572,7 @@
   }
   function toggleStar(id) {
     if (store.stars[id]) delete store.stars[id];
-    else store.stars[id] = true;
+    else store.stars[id] = nextStarOrder();
     persist2();
     return Boolean(store.stars[id]);
   }

@@ -267,7 +267,7 @@ components:
 - **卡片** `.library-card`：纵向三段——顶部悬浮控件条 `.library-card-controls`（收藏 ⭐ 左 / 删除 🗑 右，半透明白底药丸，`pointer-events:none` 让条本身点穿、只有按钮捕获点击）→ 满宽方形预览 `.library-card-open`（`aspect-ratio:1/1`，点击=载入并直接开摆）→ 底部名字 `.library-card-name`（点击=轻量 `prompt` 改名）。**不放 note 小字**（默认图纸的可爱注释已去掉）。
 - **缩略图**：`drawPatternThumb` 按元素**实际 client 宽高**建位图（非写死方形），`pixelPatternPreviewLayout` 居中 letterbox，长方板也不变形。
 - **布局**：`.pattern-list` 在 choose 下是 flex 纵列——`.library-scroll`（`flex:1` 滚动区，吃满高度）+ `.library-footer`（`flex:0` 贴底，固定**导入分享码**主按钮；删过默认时多一个「恢复默认」）。手机覆盖规则需用 `.left-panel .pattern-thumb`/`.left-panel .pattern-list` 同级特异性盖过遗留的横向条样式，否则会被 `--list-cap`/旧 tile 宽度限制（出现底部空白或预览过小）。
-- **排序**：星标置顶组在前，组内按 `localeCompare(b,'zh-CN')` 拼音首字母（不维护拼音表）。
+- **排序**：星标置顶组在前（组内**最近收藏的在最前**，star 存单调递增的 order 值），未收藏组按 `localeCompare(b,'zh-CN')` 拼音首字母（不维护拼音表）。
 - 数据层 `pattern-library.js` 刻意 **DOM-free**（自带 localStorage 读写，不经 `storage.js→notify.js→dom.js`），可在 Node 直接测试。
 
 ### Inputs / Fields

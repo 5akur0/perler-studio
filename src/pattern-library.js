@@ -130,9 +130,22 @@ export function isStarred(id) {
   return Boolean(store.stars[id]);
 }
 
-// The sorted list for rendering: starred first, then by name in pinyin order
-// (localeCompare zh-CN handles Chinese first-letter ordering with no lookup
-// table). Returns shallow clones tagged with { starred, displayName }.
+// Stars persist as a monotonically increasing order value (most recent = highest)
+// so the starred group can be shown newest-first. Legacy stars stored as `true`
+// coerce to 1, so they sort below any freshly (re)starred item.
+let starSeq = 0;
+function nextStarOrder() {
+  starSeq = Math.max(Date.now(), starSeq + 1);
+  return starSeq;
+}
+function starOrder(id) {
+  return Number(store.stars[id]) || 0;
+}
+
+// The sorted list for rendering: starred first (most recently starred at the very
+// top), then unstarred by name in pinyin order (localeCompare zh-CN handles
+// Chinese first-letter ordering with no lookup table). Returns shallow clones
+// tagged with { starred, displayName }.
 export function getLibraryView() {
   const defaults = patterns.filter((p) => defaultIds.has(p.id) && !store.hidden[p.id]);
   const items = [...defaults, ...store.imported].map((p) => ({
@@ -142,6 +155,10 @@ export function getLibraryView() {
   }));
   items.sort((a, b) => {
     if (a.starred !== b.starred) return a.starred ? -1 : 1;
+    if (a.starred && b.starred) {
+      const byRecency = starOrder(b.id) - starOrder(a.id); // newest star first
+      if (byRecency) return byRecency;
+    }
     return a.displayName.localeCompare(b.displayName, "zh-CN");
   });
   return items;
@@ -179,7 +196,7 @@ export function removeFromLibrary(id) {
 
 export function toggleStar(id) {
   if (store.stars[id]) delete store.stars[id];
-  else store.stars[id] = true;
+  else store.stars[id] = nextStarOrder();
   persist();
   return Boolean(store.stars[id]);
 }

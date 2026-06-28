@@ -43,6 +43,26 @@ assert.equal(lib.getLibraryView()[0].id, target.id, "still pinned after reload")
 lib.toggleStar(target.id);
 assert.ok(!lib.isStarred(target.id), "unstar clears it");
 
+// ── recency: the most recently starred item sits at the very top ──
+const first = lib.getLibraryView()[0].id;
+const second = lib.getLibraryView()[1].id;
+lib.toggleStar(first);
+lib.toggleStar(second); // starred later → should outrank `first`
+let starredView = lib.getLibraryView();
+assert.equal(starredView[0].id, second, "most recently starred is first");
+assert.equal(starredView[1].id, first, "earlier star comes next");
+// re-starring `first` floats it back to the top
+lib.toggleStar(first);   // unstar
+lib.toggleStar(first);   // re-star (newest)
+assert.equal(lib.getLibraryView()[0].id, first, "re-starring floats it to the top");
+// recency order survives a reload
+lib.loadLibrary();
+assert.equal(lib.getLibraryView()[0].id, first, "recency order persists across reload");
+// clean up so later assertions see an unstarred library
+lib.toggleStar(first);
+lib.toggleStar(second);
+assert.ok(!lib.isStarred(first) && !lib.isStarred(second), "cleanup unstars both");
+
 // ── add an imported pattern (persists, unnamed → 未命名) ──
 const imported = {
   id: lib.newLibraryId("custom"),
