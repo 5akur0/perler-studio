@@ -5343,9 +5343,9 @@ body.admin-page {
   .topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto;
     gap: var(--sp-2) var(--sp-2);
-    padding: var(--sp-1) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
     min-height: 0;
     border-radius: var(--r-sm);
   }

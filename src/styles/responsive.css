@@ -1104,9 +1104,13 @@
   .topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
+    /* Only ONE explicit row. The mobile-workflow-summary (grid-row: 2) creates an
+       implicit second row only when it is visible (working phases). Declaring
+       `auto auto` instead would reserve a 0px row whose row-gap sits below row 1,
+       pushing the title up so it reads off-centre in the choose phase. */
+    grid-template-rows: auto;
     gap: var(--sp-2) var(--sp-2);
-    padding: var(--sp-1) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
     min-height: 0;
     border-radius: var(--r-sm);
   }
