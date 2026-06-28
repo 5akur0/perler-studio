@@ -5358,7 +5358,7 @@ body.admin-page {
     display: none;
   }
   .brand h1 {
-    font-size: clamp(17px, 5.2vw, 24px);
+    font-size: clamp(20px, 6.4vw, 28px);
     white-space: nowrap;
   }
   .brand-text {

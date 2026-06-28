@@ -1129,7 +1129,7 @@
      scales fluidly with the viewport — large enough to balance the action buttons
      on roomy phones, small enough never to slide under them on a 320px screen. */
   .brand h1 {
-    font-size: clamp(17px, 5.2vw, 24px);
+    font-size: clamp(20px, 6.4vw, 28px);
     white-space: nowrap;
   }
 
