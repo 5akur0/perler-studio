@@ -1121,13 +1121,18 @@
     justify-content: flex-start;
   }
 
+  /* Show the logo medallion next to the wordmark on standard phones; it is hidden
+     only on the narrowest screens (≤375px) where there is no room beside the
+     enlarged title + 4 action buttons (see the ≤375 query below). */
   .brand-mark {
-    display: none;
+    display: block;
+    width: 32px;
+    height: 32px;
   }
 
-  /* The wordmark stands alone in the lead (mark hidden, mode tag removed), so it
-     scales fluidly with the viewport — large enough to balance the action buttons
-     on roomy phones, small enough never to slide under them on a 320px screen. */
+  /* The wordmark scales fluidly with the viewport — large enough to balance the
+     action buttons on roomy phones, small enough (with the logo) never to slide
+     under them. */
   .brand h1 {
     font-size: clamp(20px, 6.4vw, 28px);
     white-space: nowrap;
@@ -1837,6 +1842,14 @@
   /* The mobile board is sized purely by container width (100cqi square, see the
      ≤860 #sceneCanvas rule); small phones need no special board override — a wider
      viewport simply yields a wider square, and extra height is handled by scroll. */
+}
+
+/* Narrowest phones: drop the topbar logo medallion — there isn't room beside the
+   enlarged wordmark and the 4 action buttons without the title clipping. */
+@media (max-width: 375px) {
+  .brand-mark {
+    display: none;
+  }
 }
 
 @media (max-width: 420px) {

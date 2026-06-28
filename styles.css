@@ -5355,7 +5355,9 @@ body.admin-page {
     justify-content: flex-start;
   }
   .brand-mark {
-    display: none;
+    display: block;
+    width: 32px;
+    height: 32px;
   }
   .brand h1 {
     font-size: clamp(20px, 6.4vw, 28px);
@@ -5913,6 +5915,11 @@ body.admin-page {
   .color-palette {
     grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
     max-height: 240px;
+  }
+}
+@media (max-width: 375px) {
+  .brand-mark {
+    display: none;
   }
 }
 @media (max-width: 420px) {
