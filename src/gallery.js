@@ -121,11 +121,13 @@ export function renderGallery() {
   if (!els.galleryGrid || !els.galleryEmpty) return;
   els.galleryGrid.innerHTML = "";
   const items = Array.isArray(galleryItems) ? galleryItems : [];
-  // The empty-state CTA carries its own "投稿图纸" button, so hide the toolbar's
-  // duplicate while that CTA is on screen; keep it for the populated and error
-  // states where it's the only submit entry point.
+  // The toolbar submit button shows only where it's the sole submit entry point:
+  // the populated grid and the error state. Hidden while LOADING (a lone button
+  // floating over skeleton tiles reads as a glitch, and it may vanish a moment
+  // later if the result is empty) and in the loaded-empty state (the empty-state
+  // CTA carries its own 投稿图纸 button).
   if (els.gallerySubmitButton) {
-    els.gallerySubmitButton.hidden = items.length === 0 && galleryLoaded && !galleryError;
+    els.gallerySubmitButton.hidden = !galleryLoaded || (items.length === 0 && !galleryError);
   }
   // While loading, fill the grid with glass skeleton tiles so the wait reads as
   // "content arriving" rather than a bare status line (product register: skeletons,

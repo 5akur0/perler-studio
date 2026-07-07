@@ -35,8 +35,10 @@
    gradient fades the bottom edge of the scroll viewport (independent of scroll
    position), so a partially-visible last row reads as "more below" instead of a
    blunt cut. padding-bottom only shows at scroll-end, so it can't do this.
-   Excludes .drawing-canvas-panel (holds a canvas, not a card list). */
-.pattern-list,
+   Must sit on the element that actually scrolls: on a parent that also holds
+   pinned children the fade bleeds onto them (it used to sit on .pattern-list,
+   dissolving the bottom edge of the pinned 导入分享码 footer button). */
+.library-scroll,
 .color-palette {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
@@ -2972,11 +2974,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  /* Community is a single reading column (tabs + compose + messages). The shared
-     studio-shell width (up to 1640px) stretched the form and message rows to an
-     unreadable measure on desktop; cap to a comfortable column and center it.
-     On phones min() collapses to 100%, so the full-bleed mobile card is
-     unchanged. */
+}
+
+/* Community reads as a single column (tabs + compose + messages). Cap the
+   CONTENT to a comfortable measure, not the card: capping the card also shrank
+   the topbar to 760px, breaking width consistency with every other screen's
+   brand bar. On phones min() collapses to 100%. */
+.community-tabs,
+.community-layout {
   width: min(760px, 100%);
   margin-inline: auto;
 }

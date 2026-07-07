@@ -357,11 +357,17 @@ export function openDrawCodeModal(mode, value = "") {
   drawCodeMode = mode;
   const isExport = mode === "export";
   const isBead = mode === "import-bead";
-  if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "导出图纸" : "导入图纸";
-  if (els.drawCodeHint) {
-    els.drawCodeHint.textContent = isExport
-      ? "生成分享码"
+  // The same modal serves three entries with different destinations, so the
+  // TITLE carries the destination — a small hint line was too easy to miss and
+  // both imports read as an identical "导入图纸".
+  if (els.drawCodeModalTitle) {
+    els.drawCodeModalTitle.textContent = isExport
+      ? "导出图纸"
       : (isBead ? "导入到拼豆台" : "导入到绘图台");
+  }
+  if (els.drawCodeHint) {
+    els.drawCodeHint.textContent = isExport ? "生成分享码" : "";
+    els.drawCodeHint.hidden = !isExport;
   }
   if (els.drawCodeTitleField) els.drawCodeTitleField.hidden = !isExport;
   if (isExport && els.drawCodeTitleInput) els.drawCodeTitleInput.value = "";

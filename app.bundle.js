@@ -8585,7 +8585,7 @@
     els.galleryGrid.innerHTML = "";
     const items = Array.isArray(galleryItems) ? galleryItems : [];
     if (els.gallerySubmitButton) {
-      els.gallerySubmitButton.hidden = items.length === 0 && galleryLoaded && !galleryError;
+      els.gallerySubmitButton.hidden = !galleryLoaded || items.length === 0 && !galleryError;
     }
     if (items.length === 0 && !galleryLoaded) {
       els.galleryEmpty.hidden = true;
@@ -9970,9 +9970,12 @@
     drawCodeMode = mode;
     const isExport = mode === "export";
     const isBead = mode === "import-bead";
-    if (els.drawCodeModalTitle) els.drawCodeModalTitle.textContent = isExport ? "\u5BFC\u51FA\u56FE\u7EB8" : "\u5BFC\u5165\u56FE\u7EB8";
+    if (els.drawCodeModalTitle) {
+      els.drawCodeModalTitle.textContent = isExport ? "\u5BFC\u51FA\u56FE\u7EB8" : isBead ? "\u5BFC\u5165\u5230\u62FC\u8C46\u53F0" : "\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0";
+    }
     if (els.drawCodeHint) {
-      els.drawCodeHint.textContent = isExport ? "\u751F\u6210\u5206\u4EAB\u7801" : isBead ? "\u5BFC\u5165\u5230\u62FC\u8C46\u53F0" : "\u5BFC\u5165\u5230\u7ED8\u56FE\u53F0";
+      els.drawCodeHint.textContent = isExport ? "\u751F\u6210\u5206\u4EAB\u7801" : "";
+      els.drawCodeHint.hidden = !isExport;
     }
     if (els.drawCodeTitleField) els.drawCodeTitleField.hidden = !isExport;
     if (isExport && els.drawCodeTitleInput) els.drawCodeTitleInput.value = "";

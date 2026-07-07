@@ -46,6 +46,11 @@ try {
   const drawCodeSize = await page.$eval('#drawCodeInput', (el) => parseFloat(getComputedStyle(el).fontSize));
 
   await page.goto(`http://127.0.0.1:${port}/`);
+  // The toolbar submit button is hidden while the gallery list is loading (it
+  // only shows for the populated and error states). Abort the API request so
+  // the gallery lands deterministically in the error state, where the toolbar
+  // button is the submit entry point.
+  await page.route('**/api/gallery/**', (route) => route.abort());
   await page.click('#startGalleryButton');
   await page.click('#gallerySubmitButton');
   const galleryCodeSize = await page.$eval('#gallerySubmitCode', (el) => parseFloat(getComputedStyle(el).fontSize));

@@ -1542,8 +1542,9 @@
     gap: var(--sp-2);
     overflow: hidden;
     padding: 0;
-    -webkit-mask-image: none;
-    mask-image: none;
+    /* The scroll fade now lives on .library-scroll (the element that actually
+       scrolls), so the old mask-none patch that kept the fade off this pinned
+       footer's parent is no longer needed. */
   }
 
   /* Phones: two cards per row (controls on top, square preview, name below). */
