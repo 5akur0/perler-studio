@@ -108,7 +108,9 @@ function buildCard(item) {
   const isPending = item.state === "pending";
   const chipLabel = isPending ? "待审核" : "已发布";
   const date = formatDate(item.publishedAt || item.createdAt);
-  const sizeText = item.size ? `${escapeHtml(item.size)}×${escapeHtml(item.size)}` : "";
+  const cardWidth = item.width ?? item.size;
+  const cardHeight = item.height ?? item.size;
+  const sizeText = cardWidth && cardHeight ? `${escapeHtml(cardWidth)}×${escapeHtml(cardHeight)}` : "";
   const promoteBtn = isPending
     ? `<button class="admin-act admin-act-add" type="button" data-action="approve" title="加入画廊" aria-label="加入画廊">
          ${icon("plus", { size: 18 })}<span>加入画廊</span>
@@ -216,6 +218,8 @@ async function loadAll() {
       name: it.name,
       author: it.author || "",
       size: it.size,
+      width: it.width ?? it.size,
+      height: it.height ?? it.size,
       patternCode: it.patternCode,
       createdAt: it.createdAt,
     }));
@@ -225,6 +229,8 @@ async function loadAll() {
       name: it.name,
       author: it.author || "",
       size: it.size,
+      width: it.width ?? it.size,
+      height: it.height ?? it.size,
       patternCode: it.patternCode,
       publishedAt: it.publishedAt,
     }));

@@ -732,6 +732,8 @@ async function unpublishGallery(payload, event, context) {
       author: item.author || "",
       patternCode: item.patternCode,
       size: item.size,
+      width: item.width ?? item.size,
+      height: item.height ?? item.size,
       status: "pending",
       createdAt: item.createdAt || now,
       updatedAt: now,
