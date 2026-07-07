@@ -7883,7 +7883,7 @@
     `;
     els.sharePanel.appendChild(card);
     const row = document.createElement("div");
-    row.className = "control-row";
+    row.className = "control-row three";
     [
       ["\u5BFC\u51FA\u7AD6\u56FE", () => uiActions.exportShareImage("portrait")],
       ["\u5BFC\u51FA\u65B9\u56FE", () => uiActions.exportShareImage("square")],
@@ -7963,7 +7963,10 @@
     toolbar.className = "collection-toolbar";
     toolbar.innerHTML = `
       <span class="collection-toolbar-count">\u5171 ${collection2.length} \u4EF6</span>
-      <button type="button" class="danger-button collection-clear-all">\u6E05\u7A7A\u4F5C\u54C1\u96C6</button>
+      <button type="button" class="danger-text-button icon-text-button collection-clear-all">
+        <span class="btn-glyph" aria-hidden="true">${icon("trash-2", { size: 16 })}</span>
+        <span class="btn-label">\u6E05\u7A7A\u4F5C\u54C1\u96C6</span>
+      </button>
     `;
     toolbar.querySelector(".collection-clear-all").addEventListener("click", async () => {
       if (!collection2.length) return;

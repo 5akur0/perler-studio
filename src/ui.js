@@ -976,7 +976,9 @@ export function renderSharePanel() {
   els.sharePanel.appendChild(card);
 
   const row = document.createElement("div");
-  row.className = "control-row";
+  // Three equal export options — use the 3-column row so 纯作品图 doesn't sit
+  // alone beside an empty cell in the default 2-column grid.
+  row.className = "control-row three";
   [
     ["导出竖图", () => uiActions.exportShareImage("portrait")],
     ["导出方图", () => uiActions.exportShareImage("square")],
@@ -1057,9 +1059,15 @@ export function renderCollection() {
   }
   const toolbar = document.createElement("div");
   toolbar.className = "collection-toolbar";
+  // Quiet coral text treatment (not a filled danger button): clearing the whole
+  // collection is destructive and rare, so it shouldn't be the loudest element
+  // on the screen. Mirrors the bead studio's 清空板面 danger-text-button.
   toolbar.innerHTML = `
       <span class="collection-toolbar-count">共 ${collection.length} 件</span>
-      <button type="button" class="danger-button collection-clear-all">清空作品集</button>
+      <button type="button" class="danger-text-button icon-text-button collection-clear-all">
+        <span class="btn-glyph" aria-hidden="true">${icon("trash-2", { size: 16 })}</span>
+        <span class="btn-label">清空作品集</span>
+      </button>
     `;
   toolbar.querySelector(".collection-clear-all").addEventListener("click", async () => {
     if (!collection.length) return;

@@ -321,9 +321,14 @@
   cursor: default;
 }
 
+/* The active step is "you are here" — it must read as the strongest chip in the
+   bar. Done steps carry only a solid dot + brand-ink label (no fill), so the
+   active step takes a stronger tint fill plus a brand-edge outline to sit
+   clearly above them in the hierarchy. */
 .workflow-step.active {
-  color: var(--ink);
-  background: var(--brand-tint);
+  color: var(--brand-ink);
+  background: var(--brand-tint-strong);
+  box-shadow: inset 0 0 0 1.5px var(--brand-edge);
 }
 
 .workflow-step.active .step-dot {
@@ -1073,8 +1078,12 @@
 .library-card-name {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 0; /* opt out of the global 44px tap floor so the row hugs the name */
-  display: block;
+  /* Meet the 44px tap floor: the name is a flex item in the footer row, so this
+     grows the row downward (never up into the tap-to-start artwork). The star
+     and delete siblings already reach 44px via their ::before inset overlay. */
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
   padding: 3px 2px;
   border: 0;
   background: transparent;
@@ -2722,7 +2731,7 @@
 }
 .palette-search-input {
   width: 100%;
-  min-height: 36px;
+  min-height: var(--tap-min);
   padding: 0 10px 0 32px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -2963,6 +2972,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+  /* Community is a single reading column (tabs + compose + messages). The shared
+     studio-shell width (up to 1640px) stretched the form and message rows to an
+     unreadable measure on desktop; cap to a comfortable column and center it.
+     On phones min() collapses to 100%, so the full-bleed mobile card is
+     unchanged. */
+  width: min(760px, 100%);
+  margin-inline: auto;
 }
 
 .community-tabs {
@@ -3018,7 +3034,9 @@
   background: var(--surface);
   color: var(--ink);
   font-family: var(--font-clear);
-  font-size: var(--fs-md);
+  /* 16px (--fs-title) not 15px (--fs-md): keeps iOS Safari from zooming the page
+     on focus — the same 16px-Input Rule the palette/code inputs already follow. */
+  font-size: var(--fs-title);
   padding: var(--sp-2) var(--sp-3);
 }
 

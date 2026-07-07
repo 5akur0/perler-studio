@@ -336,29 +336,34 @@
     white-space: nowrap;
   }
 
+  /* Strip order: primary CTA first, then 图片转图纸 (the headline feature) so it
+     is always fully visible — at the narrowest 320px phone 开始拼豆 + 图片转图纸
+     fit with the next button peeking past the fade, instead of 图片转图纸 sitting
+     entirely off-screen. 图片转图纸 is also first in DOM, so keyboard Tab now
+     enters the strip on a visible button rather than an off-screen one. */
   #drawUsePatternButton {
     order: -1;
     min-width: 112px;
   }
 
-  #drawShortCodeButton {
-    order: 1;
-  }
-
-  #drawSubmitGalleryButton {
-    order: 2;
-  }
-
   #drawImageStampButton {
-    order: 3;
+    order: 0;
   }
 
   #drawImportButton {
-    order: 4;
+    order: 1;
+  }
+
+  #drawShortCodeButton {
+    order: 2;
+  }
+
+  #drawSubmitGalleryButton {
+    order: 3;
   }
 
   #drawClearButton {
-    order: 5;
+    order: 4;
   }
 
   .drawing-footer-row {
@@ -853,6 +858,16 @@
   transform: translate(-50%, 0);
 }
 
+@media (max-width: 860px) {
+  /* In the bead studio the bottom of the screen is always the action stack +
+     bean box (the --mobile-dock-h reserve). Lift the toast above it so feedback
+     like "开始拼 …" or "作品已收入作品集" doesn't cover the bean chips / save
+     button. Other app modes keep the default bottom-anchored toast. */
+  body[data-app-mode="bead"] .toast {
+    bottom: calc(var(--mobile-dock-h) + max(12px, env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 .place-hint {
   position: fixed;
   left: 50%;
@@ -1057,7 +1072,9 @@
   }
 
   .workflow-step {
-    min-height: 34px;
+    /* Meet the --tap-min floor for touch tablets in this band (matches the
+       desktop step height); the topbar's min-height absorbs the taller pill. */
+    min-height: var(--tap-min);
     gap: var(--sp-1);
     padding: 2px 6px;
     font-size: var(--fs-xs);
@@ -1566,6 +1583,17 @@
     overflow: hidden;
   }
 
+  /* Finish is a terminal step: its action stack (craft toggle + save/redo +
+     share) is taller than the dock reserve sized for place, so the locked
+     workbench above pushed the last button ~6px below the fold behind an
+     unsignaled inner scroll. Finish never toggles back to another step, so the
+     "constant module height" reason for the lock doesn't apply here — let the
+     finished-piece scene shrink to whatever height the stack leaves. */
+  .bead-studio-grid[data-phase="finish"] .workbench {
+    flex: 1 1 auto;
+    min-height: 172px;
+  }
+
   /* Bottom zone keeps its natural height (buttons are button-sized; the bean box
      is as tall as its colors need). The middle module above absorbs the rest. */
   .bead-studio-grid:not([data-phase="choose"]) #stageControls,
@@ -1780,8 +1808,14 @@
   60%       { transform: rotate(-18deg); }
 }
 
-/* Phone in landscape → ask to go portrait */
-@media (hover: none) and (pointer: coarse) and (max-width: 860px) and (orientation: landscape) {
+/* Phone in landscape → ask to go portrait.
+   Two cases, OR'd: the ≤860px phones, plus any short landscape viewport
+   (≤500px tall) regardless of width. The second branch catches large phones
+   (e.g. 932×430 Pro-Max class) whose landscape width crosses 861px — without it
+   they fell through to the ≥861 tablet layout. Real tablets in landscape are
+   ≥768px tall, so they never match the short-height branch. */
+@media (hover: none) and (pointer: coarse) and (max-width: 860px) and (orientation: landscape),
+       (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   .orientation-overlay {
     display: flex;
   }

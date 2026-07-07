@@ -50,9 +50,19 @@ try {
   await page.click('#gallerySubmitButton');
   const galleryCodeSize = await page.$eval('#gallerySubmitCode', (el) => parseFloat(getComputedStyle(el).fontSize));
 
+  // Community compose fields render synchronously on entry (no network needed),
+  // so they can zoom on iOS just like any other input if under 16px.
+  await page.goto(`http://127.0.0.1:${port}/`);
+  await page.click('#startCommunityButton');
+  await page.waitForSelector('#communityNickname');
+  const communityNicknameSize = await page.$eval('#communityNickname', (el) => parseFloat(getComputedStyle(el).fontSize));
+  const communityContentSize = await page.$eval('#communityContent', (el) => parseFloat(getComputedStyle(el).fontSize));
+
   assert.ok(paletteSearchSize >= 16, `draw palette search must be at least 16px; got ${paletteSearchSize}px`);
   assert.ok(drawCodeSize >= 16, `draw code input must be at least 16px; got ${drawCodeSize}px`);
   assert.ok(galleryCodeSize >= 16, `gallery code input must be at least 16px; got ${galleryCodeSize}px`);
+  assert.ok(communityNicknameSize >= 16, `community nickname must be at least 16px; got ${communityNicknameSize}px`);
+  assert.ok(communityContentSize >= 16, `community textarea must be at least 16px; got ${communityContentSize}px`);
 
   await context.close();
   console.log('Input font regression checks passed.');
