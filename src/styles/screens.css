@@ -372,16 +372,18 @@
   display: block;
 }
 
-.gallery-screen {
+.gallery-screen,
+.community-screen {
   min-height: calc(100dvh - 2 * var(--shell-pad));
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* The gallery and collection shells share the same flex behavior; fixed width is provided uniformly by the .studio-shell primitive. */
+/* The gallery / collection / community shells share the same flex behavior; fixed width is provided uniformly by the .studio-shell primitive. */
 .gallery-studio-card,
-.collection-studio-card {
+.collection-studio-card,
+.community-studio-card {
   min-height: 0;
   display: flex;
   flex: 1 1 auto;

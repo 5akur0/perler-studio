@@ -3017,7 +3017,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  max-height: var(--list-cap);
+  /* Fill the screen like the gallery/collection panes (the screen shell in
+     screens.css stretches to the viewport); the old max-height: var(--list-cap)
+     left the pane hugging its content with dead background below it. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 

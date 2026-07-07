@@ -38,6 +38,7 @@
 
   .gallery-screen,
   .collection-screen,
+  .community-screen,
   .drawing-studio {
     flex: 1 1 auto;
     min-height: 0;
@@ -51,6 +52,7 @@
 
   .gallery-studio-card,
   .collection-studio-card,
+  .community-studio-card,
   .drawing-studio-card {
     flex: 1 1 auto;
     min-height: 0;
@@ -60,6 +62,7 @@
 
   .gallery-layout,
   .collection-layout,
+  .community-layout,
   .drawing-studio-grid,
   .bead-studio-grid {
     flex: 1 1 auto;
