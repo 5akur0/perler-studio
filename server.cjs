@@ -48,7 +48,7 @@ const server = http.createServer((req, res) => {
     send(res, 400, "Bad Request");
     return;
   }
-  if (!filePath.startsWith(ROOT)) {
+  if (!filePath.startsWith(ROOT + path.sep)) {
     send(res, 403, "Forbidden");
     return;
   }

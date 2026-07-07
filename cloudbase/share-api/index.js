@@ -346,7 +346,7 @@ function normalizeShortId(value) {
 function randomShortId() {
   let out = "";
   for (let i = 0; i < SHORT_ID_LENGTH; i += 1) {
-    out += SHORT_ID_ALPHABET[Math.floor(Math.random() * SHORT_ID_ALPHABET.length)];
+    out += SHORT_ID_ALPHABET[crypto.randomInt(SHORT_ID_ALPHABET.length)];
   }
   return out;
 }

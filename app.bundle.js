@@ -7182,10 +7182,10 @@
     if (key === patternColorStatsRenderKey) return;
     patternColorStatsRenderKey = key;
     els.patternColorStats.innerHTML = items.map((item) => `
-      <button type="button" class="pattern-color-chip" data-source-code="${item.sourceCode}" title="\u70B9\u51FB\u6362\u8272\uFF1A${beadIds[item.targetCode] || item.targetCode}" aria-label="\u6362\u8272 ${beadIds[item.targetCode] || item.targetCode}">
-        <span class="dot" style="background:${palette[item.targetCode]}"></span>
-        <span class="code">${beadIds[item.targetCode] || item.targetCode}</span>
-        <span class="count">${item.count}</span>
+      <button type="button" class="pattern-color-chip" data-source-code="${escapeHtml(item.sourceCode)}" title="\u70B9\u51FB\u6362\u8272\uFF1A${escapeHtml(beadIds[item.targetCode] || item.targetCode)}" aria-label="\u6362\u8272 ${escapeHtml(beadIds[item.targetCode] || item.targetCode)}">
+        <span class="dot" style="background:${escapeHtml(palette[item.targetCode])}"></span>
+        <span class="code">${escapeHtml(beadIds[item.targetCode] || item.targetCode)}</span>
+        <span class="count">${Number(item.count) || 0}</span>
       </button>
     `).join("");
     els.patternColorStats.querySelectorAll(".pattern-color-chip[data-source-code]").forEach((button) => {
@@ -7248,9 +7248,9 @@
       const list = Object.entries(counts).sort((a, b) => b[1] - a[1] || (beadIds[a[0]] || a[0]).localeCompare(beadIds[b[0]] || b[0], "zh-Hans-CN", { numeric: true })).slice(0, 8);
       els.sideReferenceLegend.innerHTML = list.map(([code, count]) => `
         <span class="side-reference-chip">
-          <i style="background:${palette[code]}"></i>
-          <b>${beadIds[code] || code}</b>
-          <em>${count}</em>
+          <i style="background:${escapeHtml(palette[code])}"></i>
+          <b>${escapeHtml(beadIds[code] || code)}</b>
+          <em>${Number(count) || 0}</em>
         </span>
       `).join("");
     }
