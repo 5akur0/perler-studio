@@ -71,10 +71,10 @@
     overscroll-behavior: contain;
   }
 
-  /* Full-bleed mobile surfaces fill the viewport flush inside overflow:hidden
-     containers, so a drop shadow would be hard-clipped into a square edge along
-     the flush sides. These are full-bleed surfaces, not floating cards — drop the
-     shadow (the glass border still defines them). */
+  /* Near-full-bleed mobile surfaces sit inside overflow:hidden containers, so a
+     drop shadow would be hard-clipped along the edges. These read as full-bleed
+     pages, not floating stickers — drop the hard sticker shadow here (the ink
+     outline still defines them). */
   .gallery-layout,
   .collection-layout,
   .community-layout {

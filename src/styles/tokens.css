@@ -33,10 +33,31 @@
   /* Stage background scrim (tints + lightens over the background image to keep text readable). Overridden at runtime by JS per theme (applyBackgroundTheme). */
   --bg-scrim: rgba(215, 226, 224, 0.52);
 
-  /* Glass panel (option C: semi-transparent + slight brand tint, with backdrop-filter blur). color-mix from --brand at runtime per theme. */
-  --glass-bg: color-mix(in srgb, var(--brand) 10%, rgba(255, 255, 255, 0.0));
-  --glass-border: color-mix(in srgb, var(--brand) 40%, rgba(255, 255, 255, 0.5));
-  --glass-blur: 3px;
+  /* Glass panel — DEPRECATED (2026-07 sketch redesign). The three-layer glass
+     language was retired: big containers now use a hand-drawn ink outline + solid
+     paper fill + hard sticker shadow (see the sketch tokens below). These are kept
+     defined only so nothing references an undefined var during migration. */
+  --glass-bg: var(--surface);
+  --glass-border: var(--ink-line);
+  --glass-blur: 0px;
+
+  /* —— Sketch / hand-drawn treatment (2026-07 redesign) ——
+     Big containers (topbar / panels / studio-card / modals) get a 2px neutral-ink
+     outline with a wobbly asymmetric radius and a hard offset "sticker" shadow (no
+     blur). Small controls keep a clean 1.5px ink outline. Chips stay on the thin
+     light --line (density exception — an ink grid of 221 color chips reads noisy). */
+  --ink-line: var(--ink);              /* container & control outlines — drawn in ink (#26242b) */
+  --ink-line-soft: color-mix(in srgb, var(--ink) 55%, transparent); /* hard-shadow ink */
+  --sketch-bw: 2px;                    /* big-container border weight */
+  --sketch-bw-ctl: 1.5px;              /* control / input border weight */
+  --sketch-shadow: 3px 3px 0 var(--ink-line-soft);      /* panels, CTAs */
+  --sketch-shadow-sm: 2px 2px 0 var(--ink-line-soft);   /* buttons, small cards */
+  --sketch-shadow-lg: 5px 5px 0 var(--ink-line-soft);   /* modals, floating */
+  /* Hand-drawn corners: asymmetric border-radius, three variants cycled across
+     big containers so no two neighbours wobble identically. */
+  --wobble-1: 14px 20px 16px 22px / 20px 15px 22px 16px;
+  --wobble-2: 20px 14px 22px 16px / 15px 20px 16px 22px;
+  --wobble-3: 16px 22px 14px 20px / 22px 16px 20px 14px;
 
   /* —— Surfaces (converged neutrals) —— */
   --surface: #ffffff;
@@ -197,10 +218,5 @@
   }
 }
 
-/* Browsers without backdrop-filter support: glass panels fall back to more opaque to keep text readable. */
-@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  :root {
-    --glass-bg: color-mix(in srgb, var(--brand) 12%, rgba(255, 255, 255, 0.92));
-    --glass-border: color-mix(in srgb, var(--brand) 26%, rgba(255, 255, 255, 0.8));
-  }
-}
+/* (Removed 2026-07: the glass-panel backdrop-filter fallback is obsolete — panels
+   are now solid paper with an ink outline, readable without blur on every browser.) */

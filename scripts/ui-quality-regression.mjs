@@ -196,8 +196,9 @@ assert.equal(
   "library card must not keep the over-art controls overlay (.library-card-controls)",
 );
 assert.ok(
-  /\.library-add-code\s*\{[^}]*linear-gradient/.test(componentsCss),
-  "导入分享码 must be a gradient primary CTA (.library-add-code)",
+  /\.library-add-code\s*\{[^}]*var\(--brand-cta\)[^}]*\}/.test(componentsCss) &&
+    /\.library-add-code\s*\{[^}]*var\(--sketch-shadow\)/.test(componentsCss),
+  "导入分享码 must be a promoted primary CTA — flat brand fill + sketch sticker shadow (.library-add-code)",
 );
 assert.equal(
   componentsCss.includes("#cbd1dc"),

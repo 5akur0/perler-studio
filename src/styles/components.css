@@ -9,19 +9,23 @@
    component itself rather than the primitive.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Glass surface: semi-transparent + slight brand tint + soft shadow + background blur. Covers topbar / side panels / gallery & collection content surfaces. */
+/* Paper surface (2026-07 sketch redesign): solid paper fill + hand-drawn ink
+   outline + hard "sticker" offset shadow (no blur). Covers topbar / side panels /
+   gallery & collection & community content surfaces. Per-container wobble radius is
+   assigned just below so neighbours don't wobble identically. */
 .surface-glass,
 .topbar,
 .side-panel section,
 .gallery-layout,
 .collection-layout,
 .community-layout {
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  box-shadow: var(--sh-2);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
+  border: var(--sketch-bw) solid var(--ink-line);
+  background: var(--surface);
+  box-shadow: var(--sketch-shadow);
 }
+/* Hand-drawn corners are assigned at each container's authoritative radius
+   declaration (topbar/side-panel section here, the layout panes in screens.css),
+   cycling --wobble-1/2/3 so neighbours don't wobble identically. */
 
 /* Scroll area: uniform inner breathing room so rounded cards / selection rings aren't hard-clipped at the scroll edge (overflow is declared per breakpoint by the container model). */
 .scroll-area,
@@ -53,13 +57,15 @@
   width: min(var(--content-max), 100%);
 }
 
-/* Card surface: white background + thin border (radius/padding differ per component and stay in the component; hover lift uses --sh-card-hover). */
+/* Card surface (sketch): flat paper + a clean ink outline (grid cards stay
+   straight-edged, not wobbly — a grid of wobbly tiles reads noisy; wobble is for
+   the big framing containers). Hover lift uses the hard sticker shadow. */
 .card,
 .pattern-card,
 .gallery-card,
 .collection-tile {
-  border: 1px solid var(--line);
-  background: #fff;
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
+  background: var(--surface);
 }
 
 .topbar {
@@ -69,7 +75,7 @@
   gap: var(--sp-4);
   min-height: var(--topbar-h);
   padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-lg);
+  border-radius: var(--wobble-1);
 }
 
 .gallery-topbar,
@@ -175,9 +181,9 @@
   gap: var(--sp-3);
   min-height: 56px;
   padding: 6px 10px 6px 6px;
-  border: 1px solid var(--brand-tint-strong);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 251, 249, 0.92));
+  background: var(--surface);
   text-align: left;
   cursor: default;
   transition: border-color 0.16s ease;
@@ -615,7 +621,7 @@
 
 .side-panel section {
   padding: var(--panel-pad-tight);
-  border-radius: var(--r-md);
+  border-radius: var(--wobble-3);
 }
 
 .right-panel section {
@@ -924,24 +930,20 @@
   border-color: var(--brand-edge);
 }
 
-/* 导入分享码 is the screen's single primary CTA — a centered brand gradient pill,
+/* 导入分享码 is the screen's single primary CTA — a centered flat brand pill with
+   the same sketch treatment as .primary-button (ink outline + hard sticker shadow),
    not a full-bleed banner stripe. */
 .library-add-code {
   flex: 0 1 360px;
-  border: 0;
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   color: #fff;
-  background: linear-gradient(180deg, var(--brand-cta), var(--brand-cta-strong));
-  box-shadow: var(--sh-inset), 0 6px 16px color-mix(in srgb, var(--brand) 30%, transparent);
+  background: var(--brand-cta);
+  box-shadow: var(--sketch-shadow);
 }
 
 .library-add-code:hover {
-  border: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brand-cta) 94%, black),
-    color-mix(in srgb, var(--brand-cta-strong) 94%, black)
-  );
-  box-shadow: var(--sh-inset), 0 8px 20px color-mix(in srgb, var(--brand) 36%, transparent);
+  background: color-mix(in srgb, var(--brand-cta), #000 7%);
+  box-shadow: var(--sketch-shadow);
 }
 
 .library-tool-button-restore {
@@ -1356,11 +1358,11 @@
   display: grid;
   gap: var(--sp-2);
   padding: var(--sp-2);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-xs);
-  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,249,251,0.92));
+  background: var(--surface);
   text-align: left;
-  box-shadow: var(--sh-1);
+  box-shadow: var(--sketch-shadow-sm);
 }
 
 .tool-card.active {
@@ -1455,32 +1457,31 @@
   font-family: var(--font-clear);
 }
 
+/* Primary / danger CTAs (sketch): flat brand/danger fill + ink outline + hard
+   sticker shadow (no gradient). The bright-CTA white-on-fill exception still holds
+   for large button text (≥3:1). Hover darkens the fill; the shadow stays put. */
 .primary-button {
   color: #fff;
-  border-color: color-mix(in srgb, var(--brand-cta-strong), #000 14%);
-  background: linear-gradient(180deg, var(--brand-cta), var(--brand-cta-strong));
-  box-shadow: var(--sh-inset), 0 6px 16px color-mix(in srgb, var(--brand-cta-strong) 28%, transparent);
+  border-color: var(--ink-line);
+  background: var(--brand-cta);
+  box-shadow: var(--sketch-shadow);
 }
 
 .primary-button:hover {
-  border-color: color-mix(in srgb, var(--brand-cta-strong), #000 22%);
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--brand-cta), #000 5%),
-    color-mix(in srgb, var(--brand-cta-strong), #000 5%));
-  box-shadow: var(--sh-inset), 0 10px 22px color-mix(in srgb, var(--brand-cta-strong) 32%, transparent);
+  background: color-mix(in srgb, var(--brand-cta), #000 7%);
+  box-shadow: var(--sketch-shadow);
 }
 
 .danger-button {
   color: #fff;
-  border-color: var(--danger-edge);
-  background: linear-gradient(180deg, var(--danger-top), var(--danger));
-  box-shadow: var(--sh-inset), 0 6px 16px rgba(231, 100, 95, 0.26);
+  border-color: var(--ink-line);
+  background: var(--danger);
+  box-shadow: var(--sketch-shadow);
 }
 
 .danger-button:hover {
-  border-color: var(--danger-edge);
-  background: linear-gradient(180deg, var(--danger-top-hover), var(--danger-bottom-hover));
-  box-shadow: var(--sh-inset), 0 10px 22px rgba(231, 100, 95, 0.3);
+  background: color-mix(in srgb, var(--danger), #000 7%);
+  box-shadow: var(--sketch-shadow);
 }
 
 .tool-toggle {
@@ -1743,7 +1744,7 @@
 #remapModal .remap-modal-card {
   width: min(var(--modal-w-lg), calc(100vw - var(--modal-gutter)));
   max-height: var(--modal-max-h);
-  box-shadow: var(--sh-pop);
+  box-shadow: var(--sketch-shadow-lg);
 }
 
 .remap-modal.show {
@@ -1752,10 +1753,10 @@
 
 .modal-card,
 :where(.remap-modal-card, .collection-modal-card, .share-modal-card, .settings-modal-card, .draw-resize-modal-card, .draw-code-modal-card, .gallery-submit-modal-card, .text-input-modal-card) {
-  border: 1px solid rgba(139, 148, 166, 0.5);
-  border-radius: var(--r-lg);
+  border: var(--sketch-bw) solid var(--ink-line);
+  border-radius: var(--wobble-2);
   background: #fff;
-  box-shadow: var(--sh-pop);
+  box-shadow: var(--sketch-shadow-lg);
   overflow: hidden;
 }
 
@@ -1765,10 +1766,10 @@
   max-height: var(--modal-max-h);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border: 1px solid rgba(139, 148, 166, 0.5);
-  border-radius: var(--r-lg);
+  border: var(--sketch-bw) solid var(--ink-line);
+  border-radius: var(--wobble-2);
   background: #fff;
-  box-shadow: var(--sh-pop);
+  box-shadow: var(--sketch-shadow-lg);
   overflow: hidden;
 }
 
@@ -2033,14 +2034,14 @@
 .collection-tile {
   position: relative;
   padding: 0;
-  border-radius: var(--r-lg);
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  border-radius: var(--r-md);
+  box-shadow: var(--sketch-shadow-sm);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
+/* Sticker lift: deepen the hard offset shadow on hover instead of a translate. */
 .collection-tile:hover {
-  border-color: var(--brand);
-  transform: translateY(-2px);
-  box-shadow: var(--sh-card-hover);
+  box-shadow: var(--sketch-shadow);
 }
 
 .collection-tile-body {
@@ -2736,7 +2737,7 @@
   width: 100%;
   min-height: var(--tap-min);
   padding: 0 10px 0 32px;
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);
@@ -3005,7 +3006,7 @@
 }
 
 .community-layout {
-  border-radius: var(--r-md);
+  border-radius: var(--wobble-2);
   padding: var(--panel-pad);
   display: flex;
   flex-direction: column;
@@ -3031,7 +3032,7 @@
 .community-nickname,
 .community-textarea {
   width: 100%;
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);

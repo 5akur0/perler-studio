@@ -25,9 +25,19 @@
   --danger-top-hover: #f17f7a;
   --danger-bottom-hover: #e1554f;
   --bg-scrim: rgba(215, 226, 224, 0.52);
-  --glass-bg: color-mix(in srgb, var(--brand) 10%, rgba(255, 255, 255, 0.0));
-  --glass-border: color-mix(in srgb, var(--brand) 40%, rgba(255, 255, 255, 0.5));
-  --glass-blur: 3px;
+  --glass-bg: var(--surface);
+  --glass-border: var(--ink-line);
+  --glass-blur: 0px;
+  --ink-line: var(--ink);
+  --ink-line-soft: color-mix(in srgb, var(--ink) 55%, transparent);
+  --sketch-bw: 2px;
+  --sketch-bw-ctl: 1.5px;
+  --sketch-shadow: 3px 3px 0 var(--ink-line-soft);
+  --sketch-shadow-sm: 2px 2px 0 var(--ink-line-soft);
+  --sketch-shadow-lg: 5px 5px 0 var(--ink-line-soft);
+  --wobble-1: 14px 20px 16px 22px / 20px 15px 22px 16px;
+  --wobble-2: 20px 14px 22px 16px / 15px 20px 16px 22px;
+  --wobble-3: 16px 22px 14px 20px / 22px 16px 20px 14px;
   --surface: #ffffff;
   --surface-2: #f6f8fc;
   --surface-3: #edf2f5;
@@ -129,12 +139,6 @@
     --mobile-dock-h: 190px;
   }
 }
-@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  :root {
-    --glass-bg: color-mix(in srgb, var(--brand) 12%, rgba(255, 255, 255, 0.92));
-    --glass-border: color-mix(in srgb, var(--brand) 26%, rgba(255, 255, 255, 0.8));
-  }
-}
 
 /* src/styles/base.css */
 html,
@@ -204,10 +208,10 @@ select {
 }
 button {
   min-height: var(--tap-min);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
@@ -220,8 +224,7 @@ button {
     filter 0.12s ease;
 }
 button:hover {
-  border-color: #aeb6c4;
-  box-shadow: var(--sh-1);
+  box-shadow: var(--sketch-shadow-sm);
 }
 button:active {
   box-shadow: none;
@@ -369,7 +372,7 @@ body[data-app-mode=community] .collection-screen {
   width: 100%;
   min-height: var(--field-h);
   padding: 0 var(--sp-3);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-xs);
   background: var(--surface);
   color: var(--ink);
@@ -385,7 +388,7 @@ body[data-app-mode=community] .collection-screen {
 .drawing-group select,
 .draw-size-button {
   min-height: var(--field-h);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   padding: 0 var(--sp-3);
   background: #fff;
@@ -415,7 +418,7 @@ body[data-app-mode=community] .collection-screen {
 }
 .draw-size-slider-wrap {
   padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   background: #fff;
   position: relative;
@@ -454,7 +457,7 @@ body[data-app-mode=community] .collection-screen {
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
-  border: 1px solid var(--line);
+  border: var(--sketch-bw) solid var(--ink-line);
   border-radius: var(--r-sm);
   background: var(--surface);
   overflow: hidden;
@@ -469,7 +472,7 @@ body[data-app-mode=community] .collection-screen {
   width: 100%;
   min-height: 180px;
   resize: vertical;
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   padding: var(--sp-3);
   font-family:
@@ -480,7 +483,7 @@ body[data-app-mode=community] .collection-screen {
   font-size: var(--fs-title);
   line-height: var(--lh-body);
   color: #2f3645;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--surface);
 }
 .draw-code-modal-card {
   width: min(var(--modal-w-lg), calc(100vw - var(--modal-gutter)));
@@ -516,7 +519,7 @@ body[data-app-mode=community] .collection-screen {
   width: 100%;
   min-height: var(--field-h);
   padding: 0 var(--sp-3);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-xs);
   background: #fff;
   color: var(--ink);
@@ -539,7 +542,7 @@ body[data-app-mode=community] .collection-screen {
   width: 100%;
   min-height: var(--field-h);
   padding: 0 var(--sp-3);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-xs);
   background: var(--surface);
   color: var(--ink);
@@ -576,11 +579,9 @@ body[data-app-mode=community] .collection-screen {
 .gallery-layout,
 .collection-layout,
 .community-layout {
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  box-shadow: var(--sh-2);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
+  border: var(--sketch-bw) solid var(--ink-line);
+  background: var(--surface);
+  box-shadow: var(--sketch-shadow);
 }
 .scroll-area,
 .pattern-list,
@@ -612,8 +613,8 @@ body[data-app-mode=community] .collection-screen {
 .pattern-card,
 .gallery-card,
 .collection-tile {
-  border: 1px solid var(--line);
-  background: #fff;
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
+  background: var(--surface);
 }
 .topbar {
   display: grid;
@@ -622,7 +623,7 @@ body[data-app-mode=community] .collection-screen {
   gap: var(--sp-4);
   min-height: var(--topbar-h);
   padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--r-lg);
+  border-radius: var(--wobble-1);
 }
 .gallery-topbar,
 .collection-topbar,
@@ -718,13 +719,9 @@ body[data-app-mode=community] .collection-screen {
   gap: var(--sp-3);
   min-height: 56px;
   padding: 6px 10px 6px 6px;
-  border: 1px solid var(--brand-tint-strong);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.95),
-      rgba(245, 251, 249, 0.92));
+  background: var(--surface);
   text-align: left;
   cursor: default;
   transition: border-color 0.16s ease;
@@ -1084,7 +1081,7 @@ body[data-app-mode=community] .collection-screen {
 }
 .side-panel section {
   padding: var(--panel-pad-tight);
-  border-radius: var(--r-md);
+  border-radius: var(--wobble-3);
 }
 .right-panel section {
   flex: 1 1 auto;
@@ -1337,23 +1334,14 @@ body[data-app-mode=community] .collection-screen {
 }
 .library-add-code {
   flex: 0 1 360px;
-  border: 0;
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   color: #fff;
-  background:
-    linear-gradient(
-      180deg,
-      var(--brand-cta),
-      var(--brand-cta-strong));
-  box-shadow: var(--sh-inset), 0 6px 16px color-mix(in srgb, var(--brand) 30%, transparent);
+  background: var(--brand-cta);
+  box-shadow: var(--sketch-shadow);
 }
 .library-add-code:hover {
-  border: 0;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--brand-cta) 94%, black),
-      color-mix(in srgb, var(--brand-cta-strong) 94%, black));
-  box-shadow: var(--sh-inset), 0 8px 20px color-mix(in srgb, var(--brand) 36%, transparent);
+  background: color-mix(in srgb, var(--brand-cta), #000 7%);
+  box-shadow: var(--sketch-shadow);
 }
 .library-tool-button-restore {
   flex: 0 0 auto;
@@ -1715,15 +1703,11 @@ body[data-app-mode=community] .collection-screen {
   display: grid;
   gap: var(--sp-2);
   padding: var(--sp-2);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-xs);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.96),
-      rgba(247, 249, 251, 0.92));
+  background: var(--surface);
   text-align: left;
-  box-shadow: var(--sh-1);
+  box-shadow: var(--sketch-shadow-sm);
 }
 .tool-card.active {
   border-color: var(--blue);
@@ -1811,41 +1795,23 @@ body[data-app-mode=community] .collection-screen {
 }
 .primary-button {
   color: #fff;
-  border-color: color-mix(in srgb, var(--brand-cta-strong), #000 14%);
-  background:
-    linear-gradient(
-      180deg,
-      var(--brand-cta),
-      var(--brand-cta-strong));
-  box-shadow: var(--sh-inset), 0 6px 16px color-mix(in srgb, var(--brand-cta-strong) 28%, transparent);
+  border-color: var(--ink-line);
+  background: var(--brand-cta);
+  box-shadow: var(--sketch-shadow);
 }
 .primary-button:hover {
-  border-color: color-mix(in srgb, var(--brand-cta-strong), #000 22%);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--brand-cta), #000 5%),
-      color-mix(in srgb, var(--brand-cta-strong), #000 5%));
-  box-shadow: var(--sh-inset), 0 10px 22px color-mix(in srgb, var(--brand-cta-strong) 32%, transparent);
+  background: color-mix(in srgb, var(--brand-cta), #000 7%);
+  box-shadow: var(--sketch-shadow);
 }
 .danger-button {
   color: #fff;
-  border-color: var(--danger-edge);
-  background:
-    linear-gradient(
-      180deg,
-      var(--danger-top),
-      var(--danger));
-  box-shadow: var(--sh-inset), 0 6px 16px rgba(231, 100, 95, 0.26);
+  border-color: var(--ink-line);
+  background: var(--danger);
+  box-shadow: var(--sketch-shadow);
 }
 .danger-button:hover {
-  border-color: var(--danger-edge);
-  background:
-    linear-gradient(
-      180deg,
-      var(--danger-top-hover),
-      var(--danger-bottom-hover));
-  box-shadow: var(--sh-inset), 0 10px 22px rgba(231, 100, 95, 0.3);
+  background: color-mix(in srgb, var(--danger), #000 7%);
+  box-shadow: var(--sketch-shadow);
 }
 .tool-toggle {
   display: grid;
@@ -2077,17 +2043,17 @@ body[data-app-mode=community] .collection-screen {
 #remapModal .remap-modal-card {
   width: min(var(--modal-w-lg), calc(100vw - var(--modal-gutter)));
   max-height: var(--modal-max-h);
-  box-shadow: var(--sh-pop);
+  box-shadow: var(--sketch-shadow-lg);
 }
 .remap-modal.show {
   display: flex;
 }
 .modal-card,
 :where(.remap-modal-card, .collection-modal-card, .share-modal-card, .settings-modal-card, .draw-resize-modal-card, .draw-code-modal-card, .gallery-submit-modal-card, .text-input-modal-card) {
-  border: 1px solid rgba(139, 148, 166, 0.5);
-  border-radius: var(--r-lg);
+  border: var(--sketch-bw) solid var(--ink-line);
+  border-radius: var(--wobble-2);
   background: #fff;
-  box-shadow: var(--sh-pop);
+  box-shadow: var(--sketch-shadow-lg);
   overflow: hidden;
 }
 .remap-modal-card {
@@ -2096,10 +2062,10 @@ body[data-app-mode=community] .collection-screen {
   max-height: var(--modal-max-h);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border: 1px solid rgba(139, 148, 166, 0.5);
-  border-radius: var(--r-lg);
+  border: var(--sketch-bw) solid var(--ink-line);
+  border-radius: var(--wobble-2);
   background: #fff;
-  box-shadow: var(--sh-pop);
+  box-shadow: var(--sketch-shadow-lg);
   overflow: hidden;
 }
 .collection-modal-card {
@@ -2342,16 +2308,12 @@ body[data-app-mode=community] .collection-screen {
 .collection-tile {
   position: relative;
   padding: 0;
-  border-radius: var(--r-lg);
-  transition:
-    transform 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease;
+  border-radius: var(--r-md);
+  box-shadow: var(--sketch-shadow-sm);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .collection-tile:hover {
-  border-color: var(--brand);
-  transform: translateY(-2px);
-  box-shadow: var(--sh-card-hover);
+  box-shadow: var(--sketch-shadow);
 }
 .collection-tile-body {
   display: flex;
@@ -2977,7 +2939,7 @@ body[data-app-mode=community] .collection-screen {
   width: 100%;
   min-height: var(--tap-min);
   padding: 0 10px 0 32px;
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);
@@ -3248,7 +3210,7 @@ body[data-app-mode=community] .collection-screen {
   background: var(--brand-tint);
 }
 .community-layout {
-  border-radius: var(--r-md);
+  border-radius: var(--wobble-2);
   padding: var(--panel-pad);
   display: flex;
   flex-direction: column;
@@ -3269,7 +3231,7 @@ body[data-app-mode=community] .collection-screen {
 .community-nickname,
 .community-textarea {
   width: 100%;
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);
@@ -3903,7 +3865,7 @@ body[data-app-mode=community] .collection-screen {
   flex: 1 1 auto;
   min-height: 0;
   padding: var(--panel-pad);
-  border-radius: var(--r-lg);
+  border-radius: var(--wobble-2);
   box-sizing: border-box;
 }
 .gallery-toolbar {
@@ -3933,7 +3895,7 @@ body[data-app-mode=community] .collection-screen {
   flex: 1 1 auto;
   min-height: 0;
   padding: var(--panel-pad);
-  border-radius: var(--r-lg);
+  border-radius: var(--wobble-2);
   box-sizing: border-box;
 }
 .collection-panel {
@@ -3948,24 +3910,15 @@ body[data-app-mode=community] .collection-screen {
   gap: var(--sp-4);
 }
 .gallery-card {
-  border: 1px solid color-mix(in srgb, var(--line) 80%, white);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-md);
-  background:
-    linear-gradient(
-      180deg,
-      #fff,
-      var(--surface-2));
-  box-shadow: var(--sh-1);
+  background: var(--surface);
+  box-shadow: var(--sketch-shadow-sm);
   overflow: hidden;
-  transition:
-    border-color 0.16s ease,
-    box-shadow 0.16s ease,
-    transform 0.16s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .gallery-card:hover {
-  border-color: color-mix(in srgb, var(--brand) 55%, var(--line));
-  box-shadow: var(--sh-card-hover);
-  transform: translateY(-1px);
+  box-shadow: var(--sketch-shadow);
 }
 .gallery-card-body {
   display: grid;

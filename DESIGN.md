@@ -1,6 +1,6 @@
 ---
 name: 拼豆工坊 · Perler Studio
-description: 治愈系拼豆手作模拟小游戏的视觉系统——粉彩 · 拟物温度 · 主题玻璃 · 移动优先 · 每屏可截图
+description: 治愈系拼豆手作模拟小游戏的视觉系统——粉彩 · 手绘墨线简笔 · 主题背景桌 · 移动优先 · 每屏可截图
 colors:
   ink: "#26242b"
   muted: "#5a5763"
@@ -112,13 +112,14 @@ components:
 
 一盘像糖果一样的彩豆，摆在暖意的手作桌上——可爱、轻盈、想拍下来分享，但桌面始终干净，让作品和那张截图当主角。桌面端承载完整的取豆、豆筛、豆针 / 镊子摆放流程；手机端以本图用色直接摆豆，保留检查、熨烫、冷却和收藏，不把桌面工具压缩塞入窄屏。两端共同追求「桌前慢慢做手工」的安心与专注，而不是形式上的控件一致。
 
-视觉密度刻意压低：靠**柔和粉彩**、**圆润形状**、**拟物质感**传达可爱，而不是靠堆元素。三层结构是整套语言的骨架——阶段背景图（L0）打底并随主题染色，高透磨砂玻璃面板（L1）浮在其上，纯白实心卡片/弹窗（L2）承载需要绝对可读的内容。品牌色不是写死的薄荷绿，而是运行时按 5 套主题（雾青/奶杏/浅樱/晴蓝/草木）整体替换的一组 token，所以同一套界面能换出五种氛围而保持同一性格。
+视觉密度刻意压低：靠**柔和粉彩**、**圆润形状**、**手绘墨线简笔**传达可爱，而不是靠堆元素。两层结构是整套语言的骨架——阶段背景图（L0）打底并随主题染色，像一张暖意的手作桌；纸白实心面板/卡片/弹窗（L1）浮在其上，每一个都描一圈**手绘墨线**（大容器用歪歪的不对称圆角 + 2px 墨边），配一枚**硬贴纸投影**（`3px 3px 0`，不模糊），像剪好的纸片摆在桌上。品牌色不是写死的薄荷绿，而是运行时按 5 套主题（雾青/奶杏/浅樱/晴蓝/草木）整体替换的一组 token，所以同一套界面能换出五种氛围而保持同一性格。
 
-本系统明确**拒绝**：商业 SaaS 的冷淡硬朗与仪表盘感、一眼 AI 的「生成感」同质卡片网格、emoji 当 UI 图标、以及任何为了「更高级」而堆上去的装饰性玻璃/渐变。可爱来自克制，不来自繁复。
+本系统明确**拒绝**：商业 SaaS 的冷淡硬朗与仪表盘感、一眼 AI 的「生成感」同质卡片网格与磨砂玻璃/柔渐变、emoji 当 UI 图标、以及任何为了「更高级」而堆上去的装饰性效果。可爱来自克制的手绘线条，不来自繁复。
 
 **Key Characteristics:**
-- 粉彩 + 拟物温度，圆润轻盈，黏土般柔和的投影（非硬黑）。
-- 三层玻璃骨架：背景图 → 高透玻璃面板 → 实心卡片/弹窗。
+- 粉彩 + 手绘墨线简笔，圆润轻盈；大容器歪角墨边、硬贴纸投影（剪纸感，非柔黏土、非磨砂玻璃）。
+- 两层骨架：主题背景桌（L0）→ 纸白墨线面板/卡片/弹窗（L1）。
+- 层级即线宽：大容器 2px 歪角墨边、控件 1.5px 直线墨边、色号 chip 保留 1px 浅描边（密集豁免）。
 - 主题即一组可运行时替换的 token：一套语言，五种氛围。
 - 平台分工明确：手机直接摆豆且只显示本图用色；桌面拼豆与绘图台保留完整 MARD 221 色，桌面拼豆保留豆筛与工具。
 - 移动优先、强制朝向、每一屏都能单独截图发小红书。
@@ -185,42 +186,44 @@ components:
 
 ## 4. Elevation
 
-本系统用**柔和黏土感的扩散投影**营造层次（不是硬黑投影，也不是纯扁平），并叠加一套**三层玻璃**的透明度层次。「黏土感」指投影柔软、扩散、贴合圆角的质感——是描述投影风格的比喻，与材质无关。
+本系统用**手绘墨线 + 硬贴纸投影**营造层次（不是柔和扩散投影，也不是磨砂玻璃）：面板是纸白实心，描一圈墨线，配一枚 `3px 3px 0` 的硬偏移投影（无模糊），像剪好的纸片摆在主题背景桌上。深度来自「墨边 + 偏移影」的剪纸感，不来自透明度堆叠。
 
 ### Shadow Vocabulary
-- **贴地 / Grounded** (`--sh-1` = `0 2px 8px rgba(49,54,68,0.06)`)：贴地小元素。
-- **面板 / Panel** (`--sh-2` = `0 10px 24px rgba(49,54,68,0.09)`)：L1 玻璃面板。
-- **浮卡 / Floating** (`--sh-3` = `0 18px 46px rgba(49,54,68,0.14)`)：浮起卡片。
-- **弹窗 / Popover** (`--sh-pop` = `0 22px 56px rgba(38,36,43,0.22)`)：L2 弹窗。
-- **高光内阴影 / Inset Highlight** (`--sh-inset` = `inset 0 1px 0 rgba(255,255,255,0.7)`)：按钮顶部高光，黏土立体感来源。
+- **硬贴纸 · 大 / Sticker-lg** (`--sketch-shadow-lg` = `5px 5px 0 --ink-line-soft`)：弹窗、悬浮件。
+- **硬贴纸 · 中 / Sticker** (`--sketch-shadow` = `3px 3px 0 --ink-line-soft`)：面板、主 CTA。
+- **硬贴纸 · 小 / Sticker-sm** (`--sketch-shadow-sm` = `2px 2px 0 --ink-line-soft`)：按钮、小卡；按钮 hover 时出现、`:active` 收起。
+- `--ink-line-soft` = `color-mix(--ink 55%, transparent)`：投影墨色，半透以免过重。
+- 旧的柔性投影 token（`--sh-1/2/3/pop`）与 `--sh-inset` 高光已退役出主界面容器；仅极少数非容器场景可能残留，逐步清理。
 
 ### Named Rules
-**The Three-Layer Glass Rule（三层玻璃）.** 永远按三层组织深度：**L0** 阶段背景图（叠 `--bg-scrim` 蒙版，随主题染色）→ **L1** 高透磨砂玻璃面板（`--glass-bg` 实际不透明度仅 ~10% + `blur(3px)` + 主题染边框）→ **L2** 纯白实心卡片/弹窗（绝对可读内容）。
+**The Paper-on-Desk Rule（纸片摆在桌上）.** 按两层组织深度：**L0** 阶段背景图（叠 `--bg-scrim` 蒙版，随主题染色，像一张手作桌）→ **L1** 纸白实心面板/卡片/弹窗（`--surface` 不透明 + `--sketch-bw` 墨边 + 硬贴纸投影，承载绝对可读内容）。面板之间与屏幕四周留出 `--shell-pad` 的背景桌呼吸缝，让纸片「摆」在桌上。
 
-**The Scrim-Carries-Readability Rule（可读性靠蒙版）.** L1 玻璃面板**刻意高透**，几乎只靠 blur + 边框成形；文字可读性**不靠面板本身，而靠 L0 的 `--bg-scrim` 把背景压淡**。背景图越忙/越深，越要提高该主题的 scrim alpha（`.6+`）来保 `--ink`/`--muted` 对比度。换背景图后必须按 §2 对比度规则实测 5 主题。
-> ✅ **2026-06-13 实测**（当前 7 张 WebP 背景 × 5 主题，逐像素合成 `(photo·0.48+scrim·0.52)·0.9+brand·0.1`）：`ink` 最低 **9.47:1**、0% 失败；`muted` 最低 **4.36:1**（place×草木/浅樱），仅 **0.1%** 像素 <4.5、**0%** <3.0。保守模型（未计 blur、含无文字中心区）下已达 AA 实用线。**换背景图后需重测。**
+**The Ink-Outline Rule（墨线描边）.** 线宽即层级：大容器（顶栏 / 面板 / studio-card / 弹窗）= `--sketch-bw`(2px) 墨边 + 歪角（`--wobble-1/2/3` 不对称圆角，邻居不重样）；控件（按钮 / 输入 / select / 小卡）= `--sketch-bw-ctl`(1.5px) 墨边 + 干净圆角（网格里一片歪角会显乱，歪角只给大框）；色号 chip 保留 1px 浅 `--line` 描边（221 色密集网格的密度豁免，全墨边会太吵）。墨色一律走 `--ink-line`（= `--ink`），**不写死**。
 
-**The Soft-Clay Shadow Rule（柔和黏土投影）.** 投影一律柔和扩散、低不透明度，**禁止硬黑投影**。`@supports not (backdrop-filter)` 时玻璃面板退回更不透明（white 0.92），保证无 blur 也能读。
+**The Solid-Paper-Readability Rule（可读性靠纸面）.** L1 面板是**不透明纸白**，文字可读性靠面板自身，不再依赖 blur 或 `--bg-scrim`（对比只升不降）。`--bg-scrim` 现在只服务 L0 背景桌的整体氛围与四周呼吸缝的观感，不再承载面板内文字对比。换背景图后仍建议按 §2 抽查四周露出的背景区域观感。
+
+**The Hard-Sticker-Shadow Rule（硬贴纸投影）.** 投影一律 `Npx Npx 0`（零模糊）的墨色偏移，**禁止柔和扩散投影、禁止磨砂玻璃 backdrop-filter 出现在 L1 容器上**。移动端近满幅面板（画廊/收藏/社区）因外层 `overflow:hidden` 会硬切偏移影，故在 ≤860 去掉贴纸投影、仅留墨边定义。`:active` 时投影收起（纸片被按平），配合轻微 `brightness(0.96)`，**不用位移**。
 
 ## 5. Components
 
 **The Quiet Tray Rule（克制留白）.** 全局总纲：可爱来自颜色与圆角，不来自堆元素。任何一屏都先保证作品和「可截图」当主角，干扰元素能省则省。
 
 ### Buttons
-- **Shape:** 圆角 `--r-sm`(12px)，`min-height: 44px`，字重 750，过渡 `0.16s`。
-- **Primary** (`.primary-button`)：白字 + `linear-gradient(180deg, --brand-cta, --brand-cta-strong)` 渐变 + `--sh-inset` 高光 + 柔和品牌色投影。**每屏 ≤ 1 个主 CTA。**
-- **Ghost** (`.ghost-button`)：白底墨字，`padding: 0 14px`，次操作。`.active` 给 `--brand-edge` 边框 + `--brand-tint` 底 + 内描边。
-- **Danger** (`.danger-button`)：白字 + 珊瑚红渐变，破坏性操作。
-- **Hover / Focus:** hover 仅改 color/shadow（渐变压深 5%、投影加深），**禁止 scale 位移**。`:focus-visible` 统一 `outline: 2px solid color-mix(--brand 72%, transparent)` + `offset 2px`。disabled 降到 `opacity 0.48`。
+- **Shape:** 干净圆角 `--r-sm`(12px)，`--sketch-bw-ctl`(1.5px) `--ink-line` 墨边，`min-height: 44px`，字重 750，过渡 `0.16s`。
+- **Primary** (`.primary-button`)：白字 + **平涂** `--brand-cta`（无渐变）+ 墨边 + `--sketch-shadow` 硬贴纸投影。**每屏 ≤ 1 个主 CTA。**
+- **Ghost / 默认** (`.ghost-button` 及一般 `button`)：`--surface` 底墨字 + 墨边，次操作。`.active` 给 `--brand-edge` 边框 + `--brand-tint` 底 + 内描边。
+- **Danger** (`.danger-button`)：白字 + 平涂 `--danger`（无渐变）+ 墨边 + 硬贴纸投影，破坏性操作。
+- **Hover / Focus:** hover 仅改 color/shadow——普通按钮浮现 `--sketch-shadow-sm` 硬投影，CTA 加深填充；**禁止 scale/translate 位移**。`:active` 投影收起 + `brightness(0.96)`（纸片被按平）。`:focus-visible` 统一 `outline: 2px solid color-mix(--brand 72%, transparent)` + `offset 2px`。disabled 降到 `opacity 0.48`。
 
 ### Chips（色号 chip）
 - **Style:** `.color-chip` 白底、`--r-xs`(8px)、1px `--line` 描边、`min-height 48px`、无投影。
 - **State:** `.active` 用 `2px --ink` 外描边并向外偏移 `2px`，保留低透明度外晕圈；选中态不得侵占色样面积。`.color-palette` 必须保留至少 `4px` 内边距，避免边缘 chip 被 `overflow:auto` 裁切。`.needed`（当前图纸所需色号）保留品牌色辉光 + `needed-chip-glow/-aura` 呼吸动画（环境型循环，受 reduced-motion 覆盖）。
 
 ### Cards / Containers
-- **Corner Style:** `--r-md`(16px)（大容器 `--r-lg` 20px）。同心圆角：内 = 外 − 间隙。
-- **L1 玻璃面板**（侧栏/顶栏/studio-card/画廊卡）：统一走 `--glass-*`——`background: --glass-bg` + `backdrop-filter: blur(--glass-blur)` + `1px --glass-border` + `--sh-2`。**全部面板共用这一组 token**，不要各写各的。
-- **L2 实心卡片/弹窗**：纯 `--surface` 白底，内边距 `--sp-4`(16px)。
+- **Corner Style:** 大容器（顶栏 / 面板 / 弹窗）用**歪角** `--wobble-1/2/3`（不对称圆角，邻居轮换不重样）；控件与网格卡用**干净圆角** `--r-md`(16) / `--r-sm`(12) / `--r-xs`(8)。歪角只给「框」，不给密集网格。
+- **L1 纸白面板**（顶栏 / 侧栏 section / studio-card / 画廊·收藏·社区内容面）：统一走 paper 原语——`background: --surface`（不透明）+ `--sketch-bw`(2px) `--ink-line` 墨边 + `--sketch-shadow` 硬贴纸投影，**无 backdrop-filter**。歪角在各容器自己的 radius 声明处赋值（topbar/side-panel section 在 components.css，画廊/收藏/社区面在各自处），循环 `--wobble-1/2/3`。**全部面板共用这套配方**，不要各写各的。
+- **网格卡**（`.gallery-card` / `.collection-tile` / `.pattern-card`）：`--surface` 平底 + `--sketch-bw-ctl`(1.5px) 墨边 + `--sketch-shadow-sm`；hover 时把硬投影加深到 `--sketch-shadow`（**不位移、不缩放**）。
+- **L2 弹窗**：`--surface` 白底 + `--sketch-bw` 墨边 + 歪角 + `--sketch-shadow-lg`，内边距 `--sp-4`(16px)。
 
 #### 盒子原语（Layout primitives，`components.css` 顶部）
 每种「盒子」只定义一次，组件去**组合**原语而非各写各的——这是防止「每个 box 各写宽高/间距/溢出导致漏改」的单一真源。新盒子直接挂原语类；存量用「别名法」(把现有类名并进原语选择器列表，保持原特异性、渲染零变化)。
@@ -271,7 +274,7 @@ components:
 - 数据层 `pattern-library.js` 刻意 **DOM-free**（自带 localStorage 读写，不经 `storage.js→notify.js→dom.js`），可在 Node 直接测试。
 
 ### Inputs / Fields
-- **Style:** 白底、`--r-sm`、`min-height: var(--field-h)`（行）/ `var(--tap-min)`（按钮触控）、1px `--line` 描边、字号 ≥16px。
+- **Style:** `--surface` 底、`--r-sm`/`--r-xs`、`min-height: var(--field-h)`（行）/ `var(--tap-min)`（按钮触控）、`--sketch-bw-ctl`(1.5px) `--ink-line` 墨边（与同栏按钮同一线宽，避免输入框比按钮细一圈）、字号 ≥16px。
 - **Focus:** 同全局 `:focus-visible` 品牌色焦点环。
 
 ### Modals（签名组件）
@@ -289,7 +292,7 @@ components:
 
 ### Do:
 - **Do** 组件颜色一律用 `var(--brand…)` 等 token，让 5 套主题运行时整体替换（薄荷绿是默认，不是写死值）。
-- **Do** 把深度组织成三层玻璃（L0 背景图+scrim / L1 高透玻璃面板 / L2 实心卡片弹窗），可读性靠 L0 scrim 撑。
+- **Do** 把深度组织成两层（L0 主题背景桌+scrim / L1 纸白墨线面板+硬贴纸投影），可读性靠不透明纸面自撑；面板四周留 `--shell-pad` 背景桌呼吸缝。
 - **Do** 文字二选一：读信息用 `--font-clear`（Noto Sans SC），标题/品牌/主动作/反馈用 `--font-cute`（LXGW 霞鹜记号体）；中层标题用 `--fs-title 16` 与正文拉开一档。
 - **Do** 图标全用 SVG（`viewBox="0 0 24 24"`，`stroke="currentColor"`）；图标按钮必须有 `aria-label`。
 - **Do** 守住对比度：正文/小字 ≥4.5:1，大字 ≥3:1；触控目标 ≥44×44px；输入框 ≥16px。
@@ -298,10 +301,11 @@ components:
 
 ### Don't:
 - **Don't** 做成商业 SaaS 冷淡风：高对比硬朗、冷灰蓝、仪表盘式信息密度堆叠。
-- **Don't** 落入「生成感」：一眼 AI 的同质化等大卡片网格、缺氛围、薄荷绿写死不随主题。
+- **Don't** 落入「生成感」：一眼 AI 的同质化等大卡片网格、磨砂玻璃、柔渐变卡面、薄荷绿写死不随主题。
 - **Don't** 用 emoji 当 UI 图标——一律 SVG。
 - **Don't** 用渐变文字（`background-clip: text` + 渐变）、彩色侧边竖条（>1px 的 `border-left/right` 当强调）。
-- **Don't** 把玻璃当装饰随手糊在卡片上——这里的玻璃是**有意为之的三层系统**，不是随机的磨砂特效。
-- **Don't** 把 cta 渐变色（≈3.3:1）用在小字文本上；它只够大字。
+- **Don't** 在 L1 容器上用 `backdrop-filter` 磨砂或柔性扩散投影；面板一律纸白墨边 + 硬贴纸投影。
+- **Don't** 把歪角 `--wobble-*` 用在密集网格卡/控件上——歪角只给「大框」，一片歪角会显乱。
+- **Don't** 把 cta 平涂色（≈3.3:1）用在小字文本上；它只够大字。
 - **Don't** 用裸 z-index 数字或 hover scale 位移；用语义 z 阶梯、只动 color/shadow。
 - **Don't** 为了「更高级/更可爱」往画面里堆干扰元素——克制留白，让作品和截图当主角。

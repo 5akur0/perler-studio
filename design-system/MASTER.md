@@ -50,32 +50,30 @@
 
 ---
 
-## 2. 表面与层次（★ 玻璃化规范 — 当前重点）
+## 2. 表面与层次（★ 手绘墨线简笔规范 — 2026-07 改版，DESIGN.md §4 为准）
 
-三层结构，**背景图换实景/插画后尤其要守住**：
+> 2026-07 语言切换：**退役三层玻璃**，改为**两层「纸片摆在主题背景桌上」**。面板不再高透磨砂，而是纸白实心 + 手绘墨线描边 + 硬贴纸投影。DESIGN.md §4「Paper-on-Desk / Ink-Outline / Hard-Sticker-Shadow」为权威，本节与其一致。
 
-**L0 · 阶段背景图**（`.bead-studio-grid[data-phase=…]`，变量 `--bg-*-image`）
-- 每张背景图上叠一层蒙版 `var(--bg-scrim)`（压杂色 + 保证前景可读）。
-- **`--bg-scrim` 随主题切换**：每套主题在 `constants.js` 有自己的 `scrim`（当前 = 该主题 `table[1]` 浅色 @ 0.52），由 `applyBackgroundTheme` 写入——**切主题时同一套背景图染上对应色调**（青/奶/粉/蓝/绿），这就是「背景随主题色切换」的实现。
-- 目标：任意背景图上 L1 面板与 `--ink` 文字仍清晰。深色/高频图把 scrim alpha 提到 `.6+`。**强度待新背景图到位后校准**。
-- 背景图务必压到 **< 200KB/张（WebP）**（见 backlog NEW-1）。
+**L0 · 阶段背景桌**（`.bead-studio-grid[data-phase=…]`，变量 `--bg-*-image`）
+- 每张背景图上叠一层蒙版 `var(--bg-scrim)`（压杂色 + 统一色调）。
+- **`--bg-scrim` 随主题切换**：每套主题在 `constants.js` 有自己的 `scrim`，由 `applyBackgroundTheme` 写入——**切主题时同一套背景图染上对应色调**（青/奶/粉/蓝/绿）。
+- 面板现在不透明，可读性不再依赖 scrim；scrim 只管 L0 背景桌本身与四周 `--shell-pad` 呼吸缝的观感。
+- 背景图务必压到 **< 200KB/张（WebP）**。
 
-**L1 · 玻璃面板**（侧栏 / 顶栏 / studio-card 等浮在背景图上的容器）
-统一配方走 `tokens.css` 的 `--glass-*`，全部面板（`.topbar`、`.side-panel section`、各 studio-card、画廊/收藏卡）共用同一组 token：
+**L1 · 纸白墨线面板**（顶栏 / 侧栏 section / studio-card / 画廊·收藏·社区面 / 弹窗）
+统一配方（DESIGN.md §4/§5 为准），全部面板共用：
 ```
-background: var(--glass-bg);                 /* = color-mix(brand 10%, transparent) —— 高透，让背景图透出 */
-backdrop-filter: blur(var(--glass-blur));    /* = 3px —— 轻磨砂，不糊背景简笔 */
-border: 1px solid var(--glass-border);       /* = color-mix(brand 40%, white 0.5) */
-border-radius: var(--r-lg)/(--r-md);
-box-shadow: var(--sh-2);
+background: var(--surface);              /* 不透明纸白，文字自撑对比 */
+border: var(--sketch-bw) solid var(--ink-line);   /* 大容器 2px 墨边（控件 --sketch-bw-ctl 1.5px）*/
+border-radius: var(--wobble-1/2/3);      /* 大容器歪角，邻居轮换；控件/网格卡用干净 --r-* */
+box-shadow: var(--sketch-shadow);        /* 3px 3px 0 硬贴纸投影，无模糊；弹窗用 --sketch-shadow-lg */
+/* 禁止 backdrop-filter 磨砂 */
 ```
-> ⚠️ **刻意高透**：`--glass-bg` 实际不透明度仅 ~10%，是有意的「氛围感」取舍——面板几乎只靠 blur + 边框成形，背景图大面积透出。**可读性不靠面板本身，而靠 L0 的 `--bg-scrim` 把背景压淡**。所以背景图越忙/越深，越要靠提高该主题的 `scrim` alpha 来保 `--ink`/`--muted` 文字对比度（见 L0）。换背景图后必须按 §1 对比度规则实测 5 主题。
-> **降级**：`@supports not (backdrop-filter)` 时 `--glass-bg` 提到 `white 0.92`、`--glass-border` 提到 `white 0.8`（见 tokens.css 末），无 blur 也能读。
+> 色号 chip 是密度豁免：保留 1px 浅 `--line` 描边（221 色网格全墨边会太吵）。移动端近满幅面板去掉硬投影（外层 `overflow:hidden` 会切影），仅留墨边。
 
-**L2 · 实心卡片 / 弹窗**（不透背景）
-纯 `--surface` 白底，`.remap-modal` 弹窗骨架已统一（含焦点陷阱 + Esc）。新弹窗一律复用 `.remap-modal` + `modal-controller.js`。
+**L2 · 弹窗**：`--surface` 白底 + 墨边 + 歪角 + `--sketch-shadow-lg`。`.remap-modal` 骨架已统一（焦点陷阱 + Esc）；新弹窗一律复用 `.remap-modal` + `modal-controller.js`。
 
-**阴影阶梯**：`--sh-1`(贴地) → `--sh-2`(面板) → `--sh-3`(浮卡) → `--sh-pop`(弹窗) → `--sh-inset`(按钮高光)。柔和黏土感，不要硬黑投影。
+**阴影阶梯**：`--sketch-shadow-sm`(按钮/小卡) → `--sketch-shadow`(面板/CTA) → `--sketch-shadow-lg`(弹窗)。一律 `Npx Npx 0` 硬偏移墨影，**不要柔性扩散、不要磨砂玻璃**。旧 `--sh-*` / `--glass-*` token 已退役。
 
 ---
 
@@ -98,7 +96,7 @@ box-shadow: var(--sh-2);
 
 ## 5. 组件约定
 
-- **按钮**：`.primary-button`（品牌 cta 渐变 + 白字，主操作，每屏≤1 个主 CTA）/ `.ghost-button`（白底墨字，次操作）/ `.danger-*`（破坏性）。`:hover` 用 color/shadow，**禁止 scale 位移**。
+- **按钮**：`.primary-button`（品牌 cta 平涂 + 白字 + 墨边 + 硬贴纸投影，主操作，每屏≤1 个主 CTA）/ `.ghost-button`（纸白墨字 + 墨边，次操作）/ `.danger-*`（珊瑚红平涂 + 墨边，破坏性）。`:hover` 用 color/shadow（普通按钮浮现硬投影、CTA 加深填充），`:active` 收影 + `brightness(0.96)`，**禁止 scale/translate 位移**。
 - **图标**：全 SVG，`viewBox="0 0 24 24"`，`stroke="currentColor"`，**禁止 emoji**。图标按钮必须有 `aria-label`。
 - **卡片/入口**：圆角 `--r-md`，hover 给边框色/阴影反馈 + `cursor:pointer`。
 - **弹窗**：复用 `.remap-modal` + `modal-controller`（自动获得焦点陷阱 / Esc / 焦点恢复 / `getOpenModalEl` 登记）。新弹窗照此接线。
@@ -144,7 +142,7 @@ box-shadow: var(--sh-2);
 ## 9. 演进路线（关联 backlog）
 
 0. ✅ 主按钮随主题（每主题 cta 压深到 ~3.3:1）+ 背景图随主题色蒙版染色（`--bg-scrim`）—— 已完成。
-1. ✅ **玻璃面板统一（B）**：全部面板已收敛到 `--glass-*` token（高透 + blur3 + 主题染 + `@supports` 降级）。背景图依赖 `--bg-scrim` 保可读——换图后按 §1 实测。
+1. ✅ **面板语言切换（2026-07）**：三层玻璃退役，改为纸白墨线面板 + 硬贴纸投影（`--ink-line` / `--sketch-*` / `--wobble-*`）；面板不透明、可读性自撑，`--bg-scrim` 仅服务 L0 背景桌。见 DESIGN.md §4。
 2. 字号阶梯上调（§4）。
 3. 微交互 / 完成庆祝（§6）。
 4. 反馈系统统一（§5 提示）。

@@ -75,10 +75,10 @@ select {
 
 button {
   min-height: var(--tap-min);
-  border: 1px solid var(--line);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
@@ -86,13 +86,13 @@ button {
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, color 0.16s ease, filter 0.12s ease;
 }
 
+/* Sketch hover: a small hard "sticker" offset shadow appears (no move/scale). */
 button:hover {
-  border-color: #aeb6c4;
-  box-shadow: var(--sh-1);
+  box-shadow: var(--sketch-shadow-sm);
 }
 
-/* Tactile press: a soft darken instead of a transform, so the cozy "pressed a
-   candy bead" feel survives the viewport-locked mobile shell (no layout shift). */
+/* Tactile press: shadow collapses + a soft darken (no transform), so the "pressed
+   a paper sticker flat" feel survives the viewport-locked mobile shell. */
 button:active {
   box-shadow: none;
   filter: brightness(0.96);
