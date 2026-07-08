@@ -625,7 +625,8 @@ body[data-app-mode=community] .collection-screen {
   border-radius: var(--r-lg);
 }
 .gallery-topbar,
-.collection-topbar {
+.collection-topbar,
+.community-topbar {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 .topbar-lead {
@@ -3219,12 +3220,12 @@ body[data-app-mode=community] .collection-screen {
 .community-studio-card {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
 }
 .community-tabs {
   display: flex;
   gap: var(--sp-2);
   padding: var(--sp-1);
+  margin-bottom: var(--sp-3);
 }
 .community-tab {
   flex: 1 1 0;
@@ -3893,7 +3894,8 @@ body[data-app-mode=community] .collection-screen {
   flex: 1 1 auto;
   flex-direction: column;
 }
-.gallery-topbar {
+.gallery-topbar,
+.community-topbar {
   margin-bottom: var(--sp-4);
   align-items: center;
 }

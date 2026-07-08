@@ -109,6 +109,7 @@ export const els = {
   startCommunityButton: $("#startCommunityButton"),
   communityScreen: $("#communityScreen"),
   communityBackButton: $("#communityBackButton"),
+  communitySettingsButton: $("#communitySettingsButton"),
   communityRefreshButton: $("#communityRefreshButton"),
   communityTabMessages: $("#communityTabMessages"),
   communityTabRoadmap: $("#communityTabRoadmap"),

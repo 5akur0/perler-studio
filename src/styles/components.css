@@ -73,7 +73,8 @@
 }
 
 .gallery-topbar,
-.collection-topbar {
+.collection-topbar,
+.community-topbar {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
@@ -2973,13 +2974,15 @@
 .community-studio-card {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
 }
 
 .community-tabs {
   display: flex;
   gap: var(--sp-2);
   padding: var(--sp-1);
+  /* Topbar spacing comes from .community-topbar's margin (same as siblings);
+     this margin only separates the tabs row from the pane below. */
+  margin-bottom: var(--sp-3);
 }
 
 .community-tab {

@@ -1650,6 +1650,7 @@
     startCommunityButton: $("#startCommunityButton"),
     communityScreen: $("#communityScreen"),
     communityBackButton: $("#communityBackButton"),
+    communitySettingsButton: $("#communitySettingsButton"),
     communityRefreshButton: $("#communityRefreshButton"),
     communityTabMessages: $("#communityTabMessages"),
     communityTabRoadmap: $("#communityTabRoadmap"),
@@ -13370,6 +13371,7 @@
   initCommunity(els);
   els.startCommunityButton?.addEventListener("click", () => setAppMode("community"));
   els.communityBackButton?.addEventListener("click", () => setAppMode("home"));
+  els.communitySettingsButton?.addEventListener("click", () => openSettingsModal());
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();

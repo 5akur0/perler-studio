@@ -1857,6 +1857,7 @@ import { loadLibrary } from './pattern-library.js';
   initCommunity(els);
   els.startCommunityButton?.addEventListener("click", () => setAppMode("community"));
   els.communityBackButton?.addEventListener("click", () => setAppMode("home"));
+  els.communitySettingsButton?.addEventListener("click", () => openSettingsModal());
   els.settingsModalClose?.addEventListener("click", () => closeSettingsModal());
   els.settingsModal?.addEventListener("click", (event) => {
     if (event.target === els.settingsModal) closeSettingsModal();

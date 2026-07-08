@@ -390,7 +390,8 @@
   flex-direction: column;
 }
 
-.gallery-topbar {
+.gallery-topbar,
+.community-topbar {
   margin-bottom: var(--sp-4);
   align-items: center;
 }
