@@ -2976,16 +2976,6 @@
   gap: var(--sp-3);
 }
 
-/* Community reads as a single column (tabs + compose + messages). Cap the
-   CONTENT to a comfortable measure, not the card: capping the card also shrank
-   the topbar to 760px, breaking width consistency with every other screen's
-   brand bar. On phones min() collapses to 100%. */
-.community-tabs,
-.community-layout {
-  width: min(760px, 100%);
-  margin-inline: auto;
-}
-
 .community-tabs {
   display: flex;
   gap: var(--sp-2);

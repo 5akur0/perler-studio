@@ -3221,11 +3221,6 @@ body[data-app-mode=community] .collection-screen {
   flex-direction: column;
   gap: var(--sp-3);
 }
-.community-tabs,
-.community-layout {
-  width: min(760px, 100%);
-  margin-inline: auto;
-}
 .community-tabs {
   display: flex;
   gap: var(--sp-2);
