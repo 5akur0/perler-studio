@@ -10,6 +10,7 @@
     "build": "npm run build:js && npm run build:css",
     "test:bgm": "node scripts/bgm-regression.mjs",
     "test:build-timer": "node scripts/build-timer-regression.mjs",
+    "test:canvas-sketch": "node scripts/canvas-sketch-regression.mjs",
     "test:board-layout": "node scripts/board-layout-regression.mjs",
     "test:color-chip-selection": "node scripts/color-chip-selection-regression.mjs",
     "test:csp-sync": "node scripts/csp-sync-regression.mjs",
