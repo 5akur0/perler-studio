@@ -1280,13 +1280,6 @@
     { id: "cool", name: "\u51B7\u5374" },
     { id: "finish", name: "\u6536\u85CF" }
   ];
-  var DESK_WOOD = {
-    light: "#e8cda6",
-    mid: "#d9b88a",
-    deep: "#c6a06f",
-    grain: "122, 84, 52",
-    seam: "96, 64, 40"
-  };
   var backgroundThemes = {
     mist: {
       name: "\u96FE\u9752",
@@ -5029,69 +5022,39 @@
       paintWorkbench(scene, w, h, floorTop, flat);
     }
   }
+  var SCENE_DESK = "#ffffff";
+  var SCENE_FLOOR = "#eef1f5";
+  var SCENE_LINE = "#d6dae2";
+  var SCENE_EDGE = "#b9bfca";
   function paintWorkbench(ctx2, w, h, floorTop, flat) {
     ctx2.save();
     const OVER = 8;
     const fw = w + OVER;
     if (flat) {
-      ctx2.fillStyle = DESK_WOOD.mid;
+      ctx2.fillStyle = SCENE_DESK;
       ctx2.fillRect(0, 0, fw, h + OVER);
       ctx2.restore();
       return;
     }
-    const floorGradient = ctx2.createLinearGradient(0, floorTop, 0, h);
-    floorGradient.addColorStop(0, "#9c7a52");
-    floorGradient.addColorStop(1, "#79593a");
-    ctx2.fillStyle = floorGradient;
+    ctx2.fillStyle = SCENE_FLOOR;
     ctx2.fillRect(0, floorTop, fw, h - floorTop + OVER);
-    ctx2.strokeStyle = "rgba(30, 20, 12, 0.18)";
-    ctx2.lineWidth = 1;
-    for (let x = 0; x < fw; x += 78) {
+    ctx2.strokeStyle = SCENE_LINE;
+    ctx2.lineWidth = 1.4;
+    for (let x = 96; x < fw; x += 96) {
       ctx2.beginPath();
       ctx2.moveTo(x, floorTop);
       ctx2.lineTo(x, h + OVER);
       ctx2.stroke();
     }
-    drawWoodDesk(ctx2, fw, floorTop);
-    ctx2.fillStyle = "rgba(34, 22, 12, 0.22)";
-    ctx2.fillRect(0, floorTop - 4, fw, 4);
-    ctx2.fillStyle = "rgba(34, 22, 12, 0.12)";
-    ctx2.fillRect(0, floorTop, fw, 6);
+    ctx2.fillStyle = SCENE_DESK;
+    ctx2.fillRect(0, 0, fw, floorTop);
+    ctx2.strokeStyle = SCENE_EDGE;
+    ctx2.lineWidth = 2;
+    ctx2.beginPath();
+    ctx2.moveTo(0, floorTop + 1);
+    ctx2.lineTo(fw, floorTop + 1);
+    ctx2.stroke();
     ctx2.restore();
-  }
-  function drawWoodDesk(ctx2, w, top) {
-    if (top <= 0) return;
-    const base = ctx2.createLinearGradient(0, 0, 0, top);
-    base.addColorStop(0, DESK_WOOD.light);
-    base.addColorStop(0.5, DESK_WOOD.mid);
-    base.addColorStop(1, DESK_WOOD.deep);
-    ctx2.fillStyle = base;
-    ctx2.fillRect(0, 0, w, top);
-    const plankH = 132;
-    for (let py = plankH; py < top; py += plankH) {
-      ctx2.fillStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
-      ctx2.fillRect(0, py, w, 1.4);
-      ctx2.fillStyle = "rgba(255, 246, 230, 0.18)";
-      ctx2.fillRect(0, py + 1.4, w, 1);
-    }
-    ctx2.lineWidth = 1;
-    let gi = 0;
-    for (let y = 6; y < top; y += 11, gi += 1) {
-      const hashed = Math.sin(gi * 12.9898) * 43758.5453;
-      const frac = hashed - Math.floor(hashed);
-      const alpha = 0.025 + frac * 0.06;
-      const amp = 1.1 + frac * 2.6;
-      ctx2.strokeStyle = `rgba(${DESK_WOOD.grain}, ${alpha.toFixed(3)})`;
-      ctx2.beginPath();
-      for (let x = 0; x <= w; x += 18) {
-        const yy = y + Math.sin(x * 0.014 + gi * 1.7) * amp + Math.sin(x * 0.06 + gi) * 0.5;
-        if (x === 0) ctx2.moveTo(x, yy);
-        else ctx2.lineTo(x, yy);
-      }
-      ctx2.stroke();
-    }
-    ctx2.fillStyle = "rgba(255, 248, 234, 0.12)";
-    ctx2.fillRect(0, 0, w, Math.min(40, top));
   }
   function drawFloorDrops(layout) {
     if (!state.floorDrops.length) return;

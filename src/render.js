@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { sceneCanvas, scene, previewCanvas, preview, sideReferenceCtx, els } from './dom.js';
 import { palette, beadIds } from './palette.js';
 import {
-  phases, BOARD_SIZE, HEAT_LEVELS, DESK_WOOD,
+  phases, BOARD_SIZE, HEAT_LEVELS,
 } from './constants.js';
 import { clamp, lerp, easeOut, mixColor, fadedPrintColor, hexToRgb } from './color-utils.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
@@ -614,6 +614,14 @@ export function drawWorkbench(layout) {
   }
 }
 
+// Hand-drawn line-art scene palette (2026-07): flat paper desk + flat floor, clean
+// ink lines — no wood grain / gradients / soft shadows, to match the doodle-wallpaper
+// backgrounds and the flat ink UI. Neutral (theme-independent); beads carry the colour.
+const SCENE_DESK = "#ffffff";   // desk = paper white
+const SCENE_FLOOR = "#eef1f5";  // floor = a slightly cooler paper shade
+const SCENE_LINE = "#d6dae2";   // light floorboard seams (= --line)
+const SCENE_EDGE = "#b9bfca";   // desk front edge horizon line
+
 function paintWorkbench(ctx, w, h, floorTop, flat) {
   ctx.save();
 
@@ -625,87 +633,42 @@ function paintWorkbench(ctx, w, h, floorTop, flat) {
   const fw = w + OVER;
 
   // Tablet (touch, ≥861): the board hugs its square canvas, so the desk only shows
-  // as a thin warm border — keep it a flat solid wood fill (no floor, no grain).
-  // Phone (stacked) and desktop fall through to the full desk + floor scene below.
+  // as a thin paper border — keep it a flat solid paper fill (no floor).
   if (flat) {
-    ctx.fillStyle = DESK_WOOD.mid;
+    ctx.fillStyle = SCENE_DESK;
     ctx.fillRect(0, 0, fw, h + OVER);
     ctx.restore();
     return;
   }
 
-  // Floor — an opaque, darker wood shade under the desk (opaque so it never lets
-  // the theme-tinted canvas background bleed through like a color filter).
-  const floorGradient = ctx.createLinearGradient(0, floorTop, 0, h);
-  floorGradient.addColorStop(0, "#9c7a52");
-  floorGradient.addColorStop(1, "#79593a");
-  ctx.fillStyle = floorGradient;
+  // Floor — a flat, slightly cooler paper shade under the desk (opaque so the
+  // theme-tinted canvas background can't bleed through).
+  ctx.fillStyle = SCENE_FLOOR;
   ctx.fillRect(0, floorTop, fw, h - floorTop + OVER);
 
-  // Floor planks (subtle vertical seams)
-  ctx.strokeStyle = "rgba(30, 20, 12, 0.18)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x < fw; x += 78) {
+  // Floorboards — a few sparse light ink seams (line-art, not a texture).
+  ctx.strokeStyle = SCENE_LINE;
+  ctx.lineWidth = 1.4;
+  for (let x = 96; x < fw; x += 96) {
     ctx.beginPath();
     ctx.moveTo(x, floorTop);
     ctx.lineTo(x, h + OVER);
     ctx.stroke();
   }
 
-  // Desk — a warm wood surface with deterministic grain (index-seeded, so it
-  // stays stable across redraws instead of shimmering frame to frame).
-  drawWoodDesk(ctx, fw, floorTop);
+  // Desk — flat paper surface.
+  ctx.fillStyle = SCENE_DESK;
+  ctx.fillRect(0, 0, fw, floorTop);
 
-  // Table front edge shadow
-  ctx.fillStyle = "rgba(34, 22, 12, 0.22)";
-  ctx.fillRect(0, floorTop - 4, fw, 4);
-  ctx.fillStyle = "rgba(34, 22, 12, 0.12)";
-  ctx.fillRect(0, floorTop, fw, 6);
+  // Desk front edge — a single clean ink horizon where desk meets floor.
+  ctx.strokeStyle = SCENE_EDGE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, floorTop + 1);
+  ctx.lineTo(fw, floorTop + 1);
+  ctx.stroke();
 
   ctx.restore();
-}
-
-// Paint a warm wooden desktop into [0,0]..[w,top]. Grain is seeded by row index
-// (a stable hash), never Math.random, so the texture doesn't flicker on redraw.
-function drawWoodDesk(ctx, w, top) {
-  if (top <= 0) return;
-  // Base wood gradient (lighter sheen near the back, deeper toward the front edge)
-  const base = ctx.createLinearGradient(0, 0, 0, top);
-  base.addColorStop(0, DESK_WOOD.light);
-  base.addColorStop(0.5, DESK_WOOD.mid);
-  base.addColorStop(1, DESK_WOOD.deep);
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, w, top);
-
-  // Plank seams: a few long boards running the width of the desk.
-  const plankH = 132;
-  for (let py = plankH; py < top; py += plankH) {
-    ctx.fillStyle = `rgba(${DESK_WOOD.seam}, 0.30)`;
-    ctx.fillRect(0, py, w, 1.4);
-    ctx.fillStyle = "rgba(255, 246, 230, 0.18)";
-    ctx.fillRect(0, py + 1.4, w, 1);
-  }
-
-  // Flowing grain streaks along the boards.
-  ctx.lineWidth = 1;
-  let gi = 0;
-  for (let y = 6; y < top; y += 11, gi += 1) {
-    const hashed = Math.sin(gi * 12.9898) * 43758.5453;
-    const frac = hashed - Math.floor(hashed);           // stable 0..1 per row
-    const alpha = 0.025 + frac * 0.06;
-    const amp = 1.1 + frac * 2.6;
-    ctx.strokeStyle = `rgba(${DESK_WOOD.grain}, ${alpha.toFixed(3)})`;
-    ctx.beginPath();
-    for (let x = 0; x <= w; x += 18) {
-      const yy = y + Math.sin(x * 0.014 + gi * 1.7) * amp + Math.sin(x * 0.06 + gi) * 0.5;
-      if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
-    }
-    ctx.stroke();
-  }
-
-  // Soft top sheen so the back of the desk catches a little light.
-  ctx.fillStyle = "rgba(255, 248, 234, 0.12)";
-  ctx.fillRect(0, 0, w, Math.min(40, top));
 }
 
 export function pointInReferenceSheet(x, y) {

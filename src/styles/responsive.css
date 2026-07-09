@@ -223,18 +223,18 @@
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: var(--sp-1);
     padding: var(--sp-2);
-    border: 1px solid rgba(139, 148, 166, 0.42);
+    border: var(--sketch-bw-ctl) solid var(--ink-line);
     border-radius: var(--r-md);
-    background: rgba(255, 255, 255, 0.87);
-    box-shadow: var(--sh-2);
+    background: var(--surface);
+    box-shadow: var(--sketch-shadow);
   }
 
   .drawing-tools-panel .drawing-group:not(.drawing-tool-group) {
     padding: var(--sp-2);
-    border: 1px solid rgba(139, 148, 166, 0.42);
+    border: var(--sketch-bw-ctl) solid var(--ink-line);
     border-radius: var(--r-md);
-    background: rgba(255, 255, 255, 0.87);
-    box-shadow: var(--sh-2);
+    background: var(--surface);
+    box-shadow: var(--sketch-shadow);
   }
 
   .drawing-tools-panel .drawing-group {
@@ -392,8 +392,6 @@
     inset: 0;
     z-index: var(--z-modal);
     background: rgba(38, 36, 43, 0.32);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
   }
 
   .drawing-palette-panel {
@@ -407,7 +405,7 @@
     background: var(--surface);
     border-top-left-radius: var(--r-lg);
     border-top-right-radius: var(--r-lg);
-    box-shadow: var(--sh-pop);
+    box-shadow: var(--sketch-shadow-lg);
     overflow-y: auto;
     overscroll-behavior: contain;
     transform: translateY(101%);

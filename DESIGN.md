@@ -1,6 +1,6 @@
 ---
 name: 拼豆工坊 · Perler Studio
-description: 治愈系拼豆手作模拟小游戏的视觉系统——粉彩 · 手绘墨线简笔 · 主题背景桌 · 移动优先 · 每屏可截图
+description: 治愈系拼豆手作模拟小游戏的视觉系统——粉彩 · 直角墨线框 · 主题背景桌 · 移动优先 · 每屏可截图
 colors:
   ink: "#26242b"
   muted: "#5a5763"
@@ -48,12 +48,15 @@ typography:
     fontWeight: 700
     lineHeight: 1.2
 rounded:
-  "2xs": "4px"
-  xs: "8px"
-  sm: "12px"
-  md: "16px"
-  lg: "20px"
-  pill: "999px"
+  # 2026-07: corners are straight. The scale is retained (call sites reference these
+  # tokens) but flattened to 0 — no rounded corners anywhere. Genuine circles
+  # (round beads, colour dots, slider/toggle thumbs) use border-radius:50% directly.
+  "2xs": "0"
+  xs: "0"
+  sm: "0"
+  md: "0"
+  lg: "0"
+  pill: "0"
 spacing:
   "1": "4px"
   "2": "8px"
@@ -112,14 +115,14 @@ components:
 
 一盘像糖果一样的彩豆，摆在暖意的手作桌上——可爱、轻盈、想拍下来分享，但桌面始终干净，让作品和那张截图当主角。桌面端承载完整的取豆、豆筛、豆针 / 镊子摆放流程；手机端以本图用色直接摆豆，保留检查、熨烫、冷却和收藏，不把桌面工具压缩塞入窄屏。两端共同追求「桌前慢慢做手工」的安心与专注，而不是形式上的控件一致。
 
-视觉密度刻意压低：靠**柔和粉彩**、**圆润形状**、**手绘墨线简笔**传达可爱，而不是靠堆元素。两层结构是整套语言的骨架——阶段背景图（L0）打底并随主题染色，像一张暖意的手作桌；纸白实心面板/卡片/弹窗（L1）浮在其上，每一个都描一圈**手绘墨线**（大容器用歪歪的不对称圆角 + 2px 墨边），配一枚**硬贴纸投影**（`3px 3px 0`，不模糊），像剪好的纸片摆在桌上。品牌色不是写死的薄荷绿，而是运行时按 5 套主题（雾青/奶杏/浅樱/晴蓝/草木）整体替换的一组 token，所以同一套界面能换出五种氛围而保持同一性格。
+视觉密度刻意压低：靠**柔和粉彩**、**干净直角**、**墨线描边**传达可爱，而不是靠堆元素。两层结构是整套语言的骨架——阶段背景图（L0）打底并随主题染色，像一张暖意的手作桌；纸白实心面板/卡片/弹窗（L1）浮在其上，每一个都描一圈**墨线直角边**（大容器 2px 墨边、控件/卡片 1.5px 墨边，**一律直角**），配一枚**硬贴纸投影**（`3px 3px 0`，不模糊），像剪好的纸片摆在桌上。品牌色不是写死的薄荷绿，而是运行时按 5 套主题（雾青/奶杏/浅樱/晴蓝/草木）整体替换的一组 token，所以同一套界面能换出五种氛围而保持同一性格。
 
 本系统明确**拒绝**：商业 SaaS 的冷淡硬朗与仪表盘感、一眼 AI 的「生成感」同质卡片网格与磨砂玻璃/柔渐变、emoji 当 UI 图标、以及任何为了「更高级」而堆上去的装饰性效果。可爱来自克制的手绘线条，不来自繁复。
 
 **Key Characteristics:**
-- 粉彩 + 手绘墨线简笔，圆润轻盈；大容器歪角墨边、硬贴纸投影（剪纸感，非柔黏土、非磨砂玻璃）。
+- 粉彩 + 墨线描边，**一律直角**；容器/卡片/控件平涂纸白 + 墨边 + 硬贴纸投影（剪纸感，非柔黏土、非磨砂玻璃、非圆角）。
 - 两层骨架：主题背景桌（L0）→ 纸白墨线面板/卡片/弹窗（L1）。
-- 层级即线宽：大容器 2px 歪角墨边、控件 1.5px 直线墨边、色号 chip 保留 1px 浅描边（密集豁免）。
+- 层级即线宽：大容器 2px 墨边、控件/卡片 1.5px 墨边，一律直角；只有色号 chip / 密集格保留 1px 浅描边（密度豁免），圆珠色点·滑块钮等**真圆形**用 `border-radius:50%`（是形状，不是圆角）。
 - 主题即一组可运行时替换的 token：一套语言，五种氛围。
 - 平台分工明确：手机直接摆豆且只显示本图用色；桌面拼豆与绘图台保留完整 MARD 221 色，桌面拼豆保留豆筛与工具。
 - 移动优先、强制朝向、每一屏都能单独截图发小红书。
@@ -198,7 +201,7 @@ components:
 ### Named Rules
 **The Paper-on-Desk Rule（纸片摆在桌上）.** 按两层组织深度：**L0** 阶段背景图（叠 `--bg-scrim` 蒙版，随主题染色，像一张手作桌）→ **L1** 纸白实心面板/卡片/弹窗（`--surface` 不透明 + `--sketch-bw` 墨边 + 硬贴纸投影，承载绝对可读内容）。面板之间与屏幕四周留出 `--shell-pad` 的背景桌呼吸缝，让纸片「摆」在桌上。
 
-**The Ink-Outline Rule（墨线描边）.** 线宽即层级：大容器（顶栏 / 面板 / studio-card / 弹窗）= `--sketch-bw`(2px) 墨边 + 歪角（`--wobble-1/2/3` 不对称圆角，邻居不重样）；控件（按钮 / 输入 / select / 小卡）= `--sketch-bw-ctl`(1.5px) 墨边 + 干净圆角（网格里一片歪角会显乱，歪角只给大框）；色号 chip 保留 1px 浅 `--line` 描边（221 色密集网格的密度豁免，全墨边会太吵）。墨色一律走 `--ink-line`（= `--ink`），**不写死**。
+**The Ink-Outline Rule（墨线描边）.** 线宽即层级：大容器（顶栏 / 面板 / studio-card / 弹窗）= `--sketch-bw`(2px) 墨边；控件 / 卡片（按钮 / 输入 / select / 网格卡）= `--sketch-bw-ctl`(1.5px) 墨边。**全部直角**——圆角刻度 `--r-*` 与旧的 `--wobble-*`（已退役）一律为 `0`，不再有歪角/圆角。**边框覆盖要铺满**：任何模块 / 按钮 / 输入 / 卡片都描墨边，不能用几乎看不见的浅 `--line`/`rgba` 淡边冒充「无边」。豁免只有两类：① 色号 chip / 密集格保留 1px 浅 `--line` 描边（221 色密集网格全墨边会太吵）；② 圆珠色点、滑块 / 开关钮等**真圆形**用 `border-radius:50%`（是形状，不是圆角）。墨色一律走 `--ink-line`（= `--ink`），**不写死**。
 
 **The Solid-Paper-Readability Rule（可读性靠纸面）.** L1 面板是**不透明纸白**，文字可读性靠面板自身，不再依赖 blur 或 `--bg-scrim`（对比只升不降）。`--bg-scrim` 现在只服务 L0 背景桌的整体氛围与四周呼吸缝的观感，不再承载面板内文字对比。换背景图后仍建议按 §2 抽查四周露出的背景区域观感。
 
@@ -206,10 +209,10 @@ components:
 
 ## 5. Components
 
-**The Quiet Tray Rule（克制留白）.** 全局总纲：可爱来自颜色与圆角，不来自堆元素。任何一屏都先保证作品和「可截图」当主角，干扰元素能省则省。
+**The Quiet Tray Rule（克制留白）.** 全局总纲：可爱来自颜色与克制留白，不来自堆元素或装饰。任何一屏都先保证作品和「可截图」当主角，干扰元素能省则省。
 
 ### Buttons
-- **Shape:** 干净圆角 `--r-sm`(12px)，`--sketch-bw-ctl`(1.5px) `--ink-line` 墨边，`min-height: 44px`，字重 750，过渡 `0.16s`。
+- **Shape:** **直角**（圆角刻度归零），`--sketch-bw-ctl`(1.5px) `--ink-line` 墨边，`min-height: 44px`，字重 750，过渡 `0.16s`。药丸 / tab / 计数徽标同样直角（`--r-pill` 已为 0）。
 - **Primary** (`.primary-button`)：白字 + **平涂** `--brand-cta`（无渐变）+ 墨边 + `--sketch-shadow` 硬贴纸投影。**每屏 ≤ 1 个主 CTA。**
 - **Ghost / 默认** (`.ghost-button` 及一般 `button`)：`--surface` 底墨字 + 墨边，次操作。`.active` 给 `--brand-edge` 边框 + `--brand-tint` 底 + 内描边。
 - **Danger** (`.danger-button`)：白字 + 平涂 `--danger`（无渐变）+ 墨边 + 硬贴纸投影，破坏性操作。
@@ -220,16 +223,16 @@ components:
 - **State:** `.active` 用 `2px --ink` 外描边并向外偏移 `2px`，保留低透明度外晕圈；选中态不得侵占色样面积。`.color-palette` 必须保留至少 `4px` 内边距，避免边缘 chip 被 `overflow:auto` 裁切。`.needed`（当前图纸所需色号）保留品牌色辉光 + `needed-chip-glow/-aura` 呼吸动画（环境型循环，受 reduced-motion 覆盖）。
 
 ### Cards / Containers
-- **Corner Style:** 大容器（顶栏 / 面板 / 弹窗）用**歪角** `--wobble-1/2/3`（不对称圆角，邻居轮换不重样）；控件与网格卡用**干净圆角** `--r-md`(16) / `--r-sm`(12) / `--r-xs`(8)。歪角只给「框」，不给密集网格。
-- **L1 纸白面板**（顶栏 / 侧栏 section / studio-card / 画廊·收藏·社区内容面）：统一走 paper 原语——`background: --surface`（不透明）+ `--sketch-bw`(2px) `--ink-line` 墨边 + `--sketch-shadow` 硬贴纸投影，**无 backdrop-filter**。歪角在各容器自己的 radius 声明处赋值（topbar/side-panel section 在 components.css，画廊/收藏/社区面在各自处），循环 `--wobble-1/2/3`。**全部面板共用这套配方**，不要各写各的。
+- **Corner Style:** **一律直角**——容器 / 卡片 / 控件 / 药丸 / chip 的圆角刻度（`--r-*`、`--r-pill`）与旧 `--wobble-*` 全部为 `0`，没有圆角也没有歪角。唯一的「圆」是**真圆形**（圆珠色点、滑块 / 开关钮）走 `border-radius:50%`，那是形状不是圆角。
+- **L1 纸白面板**（顶栏 / 侧栏 section / studio-card / 画廊·收藏·社区内容面）：统一走 paper 原语——`background: --surface`（不透明）+ `--sketch-bw`(2px) `--ink-line` 墨边 + `--sketch-shadow` 硬贴纸投影，**无 backdrop-filter、直角**（无歪角 / 圆角）。**全部面板共用这套配方**，不要各写各的；渐变面 / 柔影 / 磨砂玻璃一律不用（已全站清除）。
 - **网格卡**（`.gallery-card` / `.collection-tile` / `.pattern-card`）：`--surface` 平底 + `--sketch-bw-ctl`(1.5px) 墨边 + `--sketch-shadow-sm`；hover 时把硬投影加深到 `--sketch-shadow`（**不位移、不缩放**）。
-- **L2 弹窗**：`--surface` 白底 + `--sketch-bw` 墨边 + 歪角 + `--sketch-shadow-lg`，内边距 `--sp-4`(16px)。
+- **L2 弹窗**：`--surface` 白底 + `--sketch-bw` 墨边 + 直角 + `--sketch-shadow-lg`，内边距 `--sp-4`(16px)。
 
 #### 盒子原语（Layout primitives，`components.css` 顶部）
 每种「盒子」只定义一次，组件去**组合**原语而非各写各的——这是防止「每个 box 各写宽高/间距/溢出导致漏改」的单一真源。新盒子直接挂原语类；存量用「别名法」(把现有类名并进原语选择器列表，保持原特异性、渲染零变化)。
 - `.surface-glass` — L1 玻璃面配方（收编 topbar / 侧栏面 / 画廊·作品集内容面）。
 - `.studio-shell` — 居中定宽列，宽度 `min(var(--content-max), 100%)`（画廊/作品集/绘图台外壳 + `.app-shell` 共用）。
-- `.scroll-area` — **每个 `overflow:auto` 容器都属于它**，统一内呼吸边距 `var(--scroll-pad)`，防圆角卡片/选中环/焦点环被滚动边缘硬切（`overflow` 本身由 ≥861 容器模型按断点声明）。
+- `.scroll-area` — **每个 `overflow:auto` 容器都属于它**，统一内呼吸边距 `var(--scroll-pad)`，防卡片/选中环/焦点环被滚动边缘硬切（`overflow` 本身由 ≥861 容器模型按断点声明）。
 - `.card` — 卡片表面（白底 + `1px --line` 描边）；悬停抬升统一用 `--sh-card-hover`。
 - 尺度 token（`tokens.css`）：`--content-max 1640` / `--list-cap min(72vh,720px)` / `--scroll-pad`。**禁止再裸写这些魔法数。**
 - 自检：改动滚动/容器后跑 `grep -rn "overflow: *auto" src/styles/` 确认每个都进了 `.scroll-area`。
@@ -305,7 +308,7 @@ components:
 - **Don't** 用 emoji 当 UI 图标——一律 SVG。
 - **Don't** 用渐变文字（`background-clip: text` + 渐变）、彩色侧边竖条（>1px 的 `border-left/right` 当强调）。
 - **Don't** 在 L1 容器上用 `backdrop-filter` 磨砂或柔性扩散投影；面板一律纸白墨边 + 硬贴纸投影。
-- **Don't** 把歪角 `--wobble-*` 用在密集网格卡/控件上——歪角只给「大框」，一片歪角会显乱。
+- **Don't** 再引入歪角或圆角（`--wobble-*` 已退役、圆角刻度 `--r-*` / `--r-pill` 全为 `0`）——除色号 chip 密度豁免与真圆形（圆珠点 / 滑块钮，用 `50%`）外一律直角墨边；也别用浅 `--line` / `rgba` 淡边冒充「无边」。
 - **Don't** 把 cta 平涂色（≈3.3:1）用在小字文本上；它只够大字。
 - **Don't** 用裸 z-index 数字或 hover scale 位移；用语义 z 阶梯、只动 color/shadow。
 - **Don't** 为了「更高级/更可爱」往画面里堆干扰元素——克制留白，让作品和截图当主角。

@@ -96,10 +96,10 @@ body[data-app-mode="community"] .collection-screen {
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-3);
-  border: 1px solid rgba(139, 148, 166, 0.42);
+  border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--sh-1);
+  background: var(--surface);
+  box-shadow: var(--sketch-shadow-sm);
 }
 
 .drawing-size-card-head {
