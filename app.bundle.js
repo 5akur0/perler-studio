@@ -2959,16 +2959,6 @@
   }
 
   // src/render-primitives.js
-  function softShadow(ctx2, {
-    blur = 20,
-    dy = 10,
-    color = "rgba(38,36,43,0.14)"
-  } = {}) {
-    ctx2.shadowColor = color;
-    ctx2.shadowBlur = blur;
-    ctx2.shadowOffsetX = 0;
-    ctx2.shadowOffsetY = dy;
-  }
   function fusedColor(code, heat) {
     const base = palette[code] || "#999";
     const hotAmount = clamp((heat - 105) / 60, 0, 0.34);
@@ -3881,11 +3871,16 @@
   }
   function drawAcrylicPlate(ctx2, { x, y, w, h, r = 14, shadow = true }) {
     ctx2.save();
-    if (shadow) softShadow(ctx2, { blur: 18, dy: 9, color: "rgba(38,36,43,0.13)" });
+    if (shadow) {
+      ctx2.save();
+      ctx2.fillStyle = SKETCH_INK_SOFT;
+      roundedPath(ctx2, x + SKETCH_SHADOW_SM, y + SKETCH_SHADOW_SM, w, h, r);
+      ctx2.fill();
+      ctx2.restore();
+    }
     ctx2.fillStyle = "rgba(255,255,255,0.82)";
     roundedPath(ctx2, x, y, w, h, r);
     ctx2.fill();
-    ctx2.shadowColor = "transparent";
     ctx2.strokeStyle = "rgba(255,255,255,0.92)";
     ctx2.lineWidth = 2;
     roundedPath(ctx2, x + 1, y + 1, w - 2, h - 2, Math.max(2, r - 1));
@@ -3915,11 +3910,7 @@
     ctx2.translate(centerX, centerY);
     ctx2.scale(0.96 + intro * 0.04, 0.96 + intro * 0.04);
     ctx2.translate(-centerX, -centerY);
-    softShadow(ctx2, { blur: 26, dy: 14, color: "rgba(38,36,43,0.14)" });
-    ctx2.fillStyle = "rgba(255,255,255,0.42)";
-    roundedRect(card.x, card.y, card.w, card.h, 14);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
+    sketchRect(ctx2, card.x, card.y, card.w, card.h, { fill: SKETCH_PAPER });
     if (state.craft === "\u539F\u7248") {
       drawFinishOriginal(layout, pieces);
     } else if (state.craft === "\u94A5\u5319\u6263") {
@@ -4122,26 +4113,17 @@
     const ringY = boardY + boardH * 0.1;
     const ringR = Math.max(18, boardW * 0.055);
     ctx2.save();
-    const metal = ctx2.createLinearGradient(centerX - ringR, ringY - ringR, centerX + ringR, ringY + ringR);
-    metal.addColorStop(0, "#f0f3f6");
-    metal.addColorStop(0.46, "#aab4c0");
-    metal.addColorStop(1, "#7c8893");
-    ctx2.strokeStyle = metal;
+    ctx2.strokeStyle = "#9aa5b1";
     ctx2.lineWidth = Math.max(5, cell * 0.28);
     ctx2.beginPath();
     ctx2.arc(centerX, ringY, ringR, 0, Math.PI * 2);
-    ctx2.stroke();
-    ctx2.strokeStyle = "rgba(255,255,255,0.82)";
-    ctx2.lineWidth = Math.max(1.4, cell * 0.075);
-    ctx2.beginPath();
-    ctx2.arc(centerX, ringY, ringR, Math.PI * 1.08, Math.PI * 1.76);
     ctx2.stroke();
     if (placed.length) {
       const first = placed[0];
       const holeY = first.plate.y + first.pad * 0.52;
       const connectorTop = ringY + ringR * 0.76;
       const connectorH = Math.max(8, holeY - connectorTop + cell * 0.1);
-      ctx2.fillStyle = metal;
+      ctx2.fillStyle = "#9aa5b1";
       roundedPath(ctx2, centerX - Math.max(3, cell * 0.14), connectorTop, Math.max(6, cell * 0.28), connectorH, Math.max(3, cell * 0.14));
       ctx2.fill();
     }
@@ -4150,7 +4132,7 @@
       const bottom = placed[1];
       const topBottomY = top.plate.y + top.plate.h;
       const bottomTopY = bottom.plate.y;
-      ctx2.strokeStyle = metal;
+      ctx2.strokeStyle = "#9aa5b1";
       ctx2.lineCap = "round";
       ctx2.lineWidth = Math.max(2.8, cell * 0.16);
       ctx2.beginPath();
@@ -4167,21 +4149,11 @@
     const boardH = layout.boardH || layout.boardSize;
     const frame = 14;
     ctx2.save();
-    softShadow(ctx2, { blur: 24, dy: 14, color: "rgba(38,36,43,0.16)" });
-    const woodFrame = ctx2.createLinearGradient(boardX - frame, boardY - frame, boardX + boardW + frame, boardY + boardH + frame);
-    woodFrame.addColorStop(0, "#e7dccb");
-    woodFrame.addColorStop(0.55, "#d8c8ad");
-    woodFrame.addColorStop(1, "#cdbb9f");
-    ctx2.fillStyle = woodFrame;
-    roundedRect(boardX - frame, boardY - frame, boardW + frame * 2, boardH + frame * 2, 12);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
+    sketchRect(ctx2, boardX - frame, boardY - frame, boardW + frame * 2, boardH + frame * 2, { fill: "#d8c8ad" });
     ctx2.fillStyle = "#fffdf8";
-    roundedRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 8);
-    ctx2.fill();
+    ctx2.fillRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12);
     ctx2.fillStyle = "#fbfcfd";
-    roundedRect(boardX, boardY, boardW, boardH, 6);
-    ctx2.fill();
+    ctx2.fillRect(boardX, boardY, boardW, boardH);
     const cols = boardCols();
     const rows = boardRows();
     const spillIndex = state.spill ? state.spill.index : -1;
@@ -4232,24 +4204,13 @@
     const left = boardX + (boardW - side) / 2;
     const top = boardY + (boardH - side) / 2;
     const thickness = Math.max(7, cell * 0.35);
-    const radius = Math.max(18, cell * 0.9);
     ctx2.save();
-    softShadow(ctx2, { blur: 24, dy: 13, color: "rgba(38,36,43,0.18)" });
-    const edge = ctx2.createLinearGradient(left, top + thickness, left, top + side + thickness);
-    edge.addColorStop(0, "#c8a877");
-    edge.addColorStop(1, "#b08f5e");
-    ctx2.fillStyle = edge;
-    roundedPath(ctx2, left, top + thickness, side, side, radius);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    const cork = ctx2.createLinearGradient(left, top, left + side, top + side);
-    cork.addColorStop(0, "#e2c493");
-    cork.addColorStop(0.52, "#d8b783");
-    cork.addColorStop(1, "#cda66d");
-    ctx2.fillStyle = cork;
-    roundedPath(ctx2, left, top, side, side, radius);
-    ctx2.fill();
-    roundedPath(ctx2, left, top, side, side, radius);
+    ctx2.fillStyle = "#b08f5e";
+    ctx2.fillRect(left, top + thickness, side, side);
+    ctx2.fillStyle = "#d8b783";
+    ctx2.fillRect(left, top, side, side);
+    ctx2.beginPath();
+    ctx2.rect(left, top, side, side);
     ctx2.clip();
     for (let i = 0; i < 150; i += 1) {
       const px = left + pseudoRandom(`coaster-x-${i}`) * side;
@@ -4273,7 +4234,7 @@
         })
       });
     });
-    drawMaterialHighlight(ctx2, { x: left, y: top, w: side, h: side, r: radius, alpha: 0.14 });
+    drawMaterialHighlight(ctx2, { x: left, y: top, w: side, h: side, r: 0, alpha: 0.14 });
   }
   function drawFinishFigurine(layout, pieces) {
     const selected = pieceSortByArea(pieces).slice(0, Math.min(4, pieces.length));
@@ -4309,8 +4270,6 @@
       const baseY = baseline + cell * 0.12;
       ctx2.save();
       ctx2.fillStyle = "rgba(38,36,43,0.16)";
-      ctx2.shadowColor = "rgba(38,36,43,0.16)";
-      ctx2.shadowBlur = 13;
       ctx2.beginPath();
       ctx2.ellipse(targetX, baseY + baseH * 1.05, baseW * 0.48, Math.max(4, baseH * 0.38), 0, 0, Math.PI * 2);
       ctx2.fill();
@@ -4326,17 +4285,9 @@
       });
       drawMaterialHighlight(ctx2, { ...plate, alpha: 0.13 });
       ctx2.save();
-      const front = ctx2.createLinearGradient(targetX, baseY, targetX, baseY + baseH);
-      front.addColorStop(0, "#805538");
-      front.addColorStop(1, "#71462f");
-      ctx2.fillStyle = front;
-      roundedPath(ctx2, targetX - baseW / 2, baseY, baseW, baseH, Math.min(8, baseH / 2));
-      ctx2.fill();
-      const topFace = ctx2.createLinearGradient(targetX - baseW / 2, baseY - baseH * 0.18, targetX + baseW / 2, baseY + baseH * 0.18);
-      topFace.addColorStop(0, "#b88a67");
-      topFace.addColorStop(0.5, "#9b6d4c");
-      topFace.addColorStop(1, "#805538");
-      ctx2.fillStyle = topFace;
+      ctx2.fillStyle = "#78502f";
+      ctx2.fillRect(targetX - baseW / 2, baseY, baseW, baseH);
+      ctx2.fillStyle = "#9b6d4c";
       ctx2.beginPath();
       ctx2.ellipse(targetX, baseY, baseW / 2, Math.max(4, baseH * 0.34), 0, 0, Math.PI * 2);
       ctx2.fill();
@@ -4346,9 +4297,6 @@
       ctx2.moveTo(targetX - Math.min(plateW * 0.38, baseW * 0.34), baseY - 0.5);
       ctx2.lineTo(targetX + Math.min(plateW * 0.38, baseW * 0.34), baseY - 0.5);
       ctx2.stroke();
-      ctx2.fillStyle = "rgba(255,255,255,0.18)";
-      roundedPath(ctx2, targetX - baseW * 0.4, baseY + baseH * 0.25, baseW * 0.8, Math.max(1.5, baseH * 0.14), Math.max(1, baseH * 0.08));
-      ctx2.fill();
       ctx2.restore();
     });
   }

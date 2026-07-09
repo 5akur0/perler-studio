@@ -37,12 +37,12 @@ assert.match(finishSource, /function drawMaterialHighlight\(/);
 assert.match(renderSource, /function finishMaterialColor\(color, material\)/);
 assert.match(renderSource, /material === "wax"[\s\S]*#8f877c/);
 
-assert.match(finishSource, /drawFinishOriginal[\s\S]*#e7dccb[\s\S]*#d8c8ad/);
-assert.match(finishSource, /drawFinishKeychain[\s\S]*#f0f3f6[\s\S]*#7c8893/);
+assert.match(finishSource, /drawFinishOriginal[\s\S]*#d8c8ad/);
+assert.match(finishSource, /drawFinishKeychain[\s\S]*#9aa5b1/);
 assert.match(finishSource, /drawFinishCoaster[\s\S]*#d8b783/);
 assert.match(finishSource, /drawFinishCoaster[\s\S]*#b08f5e/);
 assert.match(finishSource, /drawFinishFigurine[\s\S]*#9b6d4c/);
-assert.match(finishSource, /drawFinishFigurine[\s\S]*#71462f/);
+assert.match(finishSource, /drawFinishFigurine[\s\S]*#78502f/);
 
 const keychainSource = finishFunctionSource("drawFinishKeychain");
 const originalSource = finishFunctionSource("drawFinishOriginal");
