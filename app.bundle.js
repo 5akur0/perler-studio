@@ -4355,6 +4355,36 @@
     });
   }
 
+  // src/sketch-style.js
+  var SKETCH_INK = "#26242b";
+  var SKETCH_INK_SOFT = "rgba(38, 36, 43, 0.55)";
+  var SKETCH_PAPER = "#ffffff";
+  var SKETCH_BW = 2;
+  var SKETCH_BW_CTL = 1.5;
+  var SKETCH_SHADOW = 3;
+  var SKETCH_SHADOW_SM = 2;
+  function sketchRect(ctx2, x, y, w, h, {
+    fill = SKETCH_PAPER,
+    bw = SKETCH_BW,
+    shadow = SKETCH_SHADOW,
+    ink = SKETCH_INK,
+    shadowColor = SKETCH_INK_SOFT
+  } = {}) {
+    if (shadow > 0) {
+      ctx2.fillStyle = shadowColor;
+      ctx2.fillRect(x + shadow, y + shadow, w, h);
+    }
+    if (fill) {
+      ctx2.fillStyle = fill;
+      ctx2.fillRect(x, y, w, h);
+    }
+    if (bw > 0) {
+      ctx2.strokeStyle = ink;
+      ctx2.lineWidth = bw;
+      ctx2.strokeRect(x + bw / 2, y + bw / 2, w - bw, h - bw);
+    }
+  }
+
   // src/render-tray.js
   function useMobileTrayGrid() {
     return window.matchMedia("(max-width: 860px)").matches;
@@ -4491,39 +4521,16 @@
     const g = trayGeometry(layout, compact);
     const beadR = g.beadR;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.13)";
-    ctx2.shadowBlur = 20;
-    ctx2.shadowOffsetY = 10;
-    const trayGradient = ctx2.createLinearGradient(trayX, trayY, trayX, trayY + trayH);
-    trayGradient.addColorStop(0, compact ? "rgba(255,255,255,0.72)" : "#fbfdff");
-    trayGradient.addColorStop(1, compact ? "rgba(227,235,239,0.72)" : "#e7eff3");
-    ctx2.fillStyle = trayGradient;
-    roundedRect(trayX, trayY, trayW, trayH, 8);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(87, 104, 116, 0.24)";
-    ctx2.stroke();
-    ctx2.fillStyle = "rgba(63, 81, 91, 0.08)";
-    roundedRect(trayX + trayW - 44, trayY + 16, 24, trayH - 32, 8);
-    ctx2.fill();
-    ctx2.fillStyle = "rgba(87, 184, 167, 0.08)";
-    roundedRect(trayX + 10, trayY + 10, trayW - 20, trayH - 20, 6);
-    ctx2.fill();
+    sketchRect(ctx2, trayX, trayY, trayW, trayH);
     for (let i = 0; i < g.rows; i += 1) {
       const y = g.startY + g.stepY * i;
       const grooveWidth = Math.max(7.6, beadR * 2.25, g.slotGap * 0.44);
-      ctx2.strokeStyle = "rgba(75, 90, 98, 0.22)";
+      ctx2.strokeStyle = "rgba(38, 36, 43, 0.12)";
       ctx2.lineWidth = grooveWidth;
       ctx2.lineCap = "round";
       ctx2.beginPath();
       ctx2.moveTo(g.lineStartX, y);
       ctx2.lineTo(g.lineEndX, y);
-      ctx2.stroke();
-      ctx2.strokeStyle = "rgba(255,255,255,0.58)";
-      ctx2.lineWidth = Math.max(1, grooveWidth * 0.18);
-      ctx2.beginPath();
-      ctx2.moveTo(g.lineStartX + 2, y - 1);
-      ctx2.lineTo(g.lineEndX - 2, y - 1);
       ctx2.stroke();
     }
     if (!color) {
@@ -4574,21 +4581,18 @@
     }
     if (color) {
       ctx2.fillStyle = "rgba(38, 36, 43, 0.11)";
-      roundedRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7, 4);
-      ctx2.fill();
+      ctx2.fillRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7);
       ctx2.fillStyle = progress >= 70 ? "#57b8a7" : progress >= 35 ? "#d99b3d" : "#e7645f";
-      roundedRect(trayX + 18, trayY + trayH - 30, (trayW - 36) * (progress / 100), 7, 4);
-      ctx2.fill();
+      ctx2.fillRect(trayX + 18, trayY + trayH - 30, (trayW - 36) * (progress / 100), 7);
     }
     const dump = trayDumpButtonRect(layout);
     const hoverDump = state.phase === "place" && pointInTrayDumpButton(state.pointer.x, state.pointer.y);
-    ctx2.fillStyle = hoverDump ? "rgba(231, 100, 95, 0.22)" : "rgba(255,255,255,0.85)";
-    roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
-    ctx2.fill();
-    ctx2.strokeStyle = color ? "rgba(189, 72, 67, 0.62)" : "rgba(122, 130, 140, 0.42)";
-    ctx2.lineWidth = 1.3;
-    roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
-    ctx2.stroke();
+    sketchRect(ctx2, dump.x, dump.y, dump.w, dump.h, {
+      fill: hoverDump ? "rgba(231, 100, 95, 0.22)" : SKETCH_PAPER,
+      bw: SKETCH_BW_CTL,
+      shadow: SKETCH_SHADOW_SM,
+      ink: color ? "rgba(189, 72, 67, 0.88)" : SKETCH_INK
+    });
     ctx2.strokeStyle = color ? "rgba(189, 72, 67, 0.88)" : "rgba(122, 130, 140, 0.65)";
     ctx2.fillStyle = "transparent";
     ctx2.lineWidth = 1.9;

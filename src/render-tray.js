@@ -15,7 +15,8 @@ import {
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
 } from './constants.js';
 import { getTargetCounts } from './pattern.js';
-import { roundedPath, roundedRect } from './render-primitives.js';
+import { roundedPath } from './render-primitives.js';
+import { sketchRect, SKETCH_PAPER, SKETCH_BW_CTL, SKETCH_SHADOW_SM, SKETCH_INK } from './sketch-style.js';
 import {
   currentLayout, useMobileDirectPlacement, pseudoRandom,
   pointInTray, pointInTrayDumpButton, trayDumpButtonRect, CANVAS_CLEAR_FONT,
@@ -178,41 +179,19 @@ export function drawTray(layout, compact = false) {
   const beadR = g.beadR;
 
   ctx.save();
-  ctx.shadowColor = "rgba(38, 36, 43, 0.13)";
-  ctx.shadowBlur = 20;
-  ctx.shadowOffsetY = 10;
-  const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayH);
-  trayGradient.addColorStop(0, compact ? "rgba(255,255,255,0.72)" : "#fbfdff");
-  trayGradient.addColorStop(1, compact ? "rgba(227,235,239,0.72)" : "#e7eff3");
-  ctx.fillStyle = trayGradient;
-  roundedRect(trayX, trayY, trayW, trayH, 8);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(87, 104, 116, 0.24)";
-  ctx.stroke();
-
-  ctx.fillStyle = "rgba(63, 81, 91, 0.08)";
-  roundedRect(trayX + trayW - 44, trayY + 16, 24, trayH - 32, 8);
-  ctx.fill();
-  ctx.fillStyle = "rgba(87, 184, 167, 0.08)";
-  roundedRect(trayX + 10, trayY + 10, trayW - 20, trayH - 20, 6);
-  ctx.fill();
+  // Sketch shell: flat paper + ink outline + hard sticker shadow (no gradient,
+  // no soft blur, square corners). Grooves below carry the slot affordance.
+  sketchRect(ctx, trayX, trayY, trayW, trayH);
 
   for (let i = 0; i < g.rows; i += 1) {
     const y = g.startY + g.stepY * i;
     const grooveWidth = Math.max(7.6, beadR * 2.25, g.slotGap * 0.44);
-    ctx.strokeStyle = "rgba(75, 90, 98, 0.22)";
+    ctx.strokeStyle = "rgba(38, 36, 43, 0.12)";
     ctx.lineWidth = grooveWidth;
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(g.lineStartX, y);
     ctx.lineTo(g.lineEndX, y);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255,255,255,0.58)";
-    ctx.lineWidth = Math.max(1, grooveWidth * 0.18);
-    ctx.beginPath();
-    ctx.moveTo(g.lineStartX + 2, y - 1);
-    ctx.lineTo(g.lineEndX - 2, y - 1);
     ctx.stroke();
   }
 
@@ -269,22 +248,19 @@ export function drawTray(layout, compact = false) {
 
   if (color) {
     ctx.fillStyle = "rgba(38, 36, 43, 0.11)";
-    roundedRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7, 4);
-    ctx.fill();
+    ctx.fillRect(trayX + 18, trayY + trayH - 30, trayW - 36, 7);
     ctx.fillStyle = progress >= 70 ? "#57b8a7" : progress >= 35 ? "#d99b3d" : "#e7645f";
-    roundedRect(trayX + 18, trayY + trayH - 30, (trayW - 36) * (progress / 100), 7, 4);
-    ctx.fill();
+    ctx.fillRect(trayX + 18, trayY + trayH - 30, (trayW - 36) * (progress / 100), 7);
   }
 
   const dump = trayDumpButtonRect(layout);
   const hoverDump = state.phase === "place" && pointInTrayDumpButton(state.pointer.x, state.pointer.y);
-  ctx.fillStyle = hoverDump ? "rgba(231, 100, 95, 0.22)" : "rgba(255,255,255,0.85)";
-  roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
-  ctx.fill();
-  ctx.strokeStyle = color ? "rgba(189, 72, 67, 0.62)" : "rgba(122, 130, 140, 0.42)";
-  ctx.lineWidth = 1.3;
-  roundedRect(dump.x, dump.y, dump.w, dump.h, 7);
-  ctx.stroke();
+  sketchRect(ctx, dump.x, dump.y, dump.w, dump.h, {
+    fill: hoverDump ? "rgba(231, 100, 95, 0.22)" : SKETCH_PAPER,
+    bw: SKETCH_BW_CTL,
+    shadow: SKETCH_SHADOW_SM,
+    ink: color ? "rgba(189, 72, 67, 0.88)" : SKETCH_INK,
+  });
   ctx.strokeStyle = color ? "rgba(189, 72, 67, 0.88)" : "rgba(122, 130, 140, 0.65)";
   ctx.fillStyle = "transparent";
   ctx.lineWidth = 1.9;
