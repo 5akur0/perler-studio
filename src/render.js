@@ -17,15 +17,15 @@ import {
   drawBoardGuides, drawBoardSkin, drawPixelPatternPreview, pixelPatternPreviewLayout,
 } from './board-skin.js';
 import { shouldUseBoardPegCache, visibleBoardCellRange } from './board-layout.js';
-import { sketchRect, SKETCH_INK_SOFT, SKETCH_SHADOW } from './sketch-style.js';
+import { sketchRect, SKETCH_INK_SOFT, SKETCH_SHADOW, SKETCH_BW_CTL, SKETCH_SHADOW_SM, SKETCH_INK } from './sketch-style.js';
 // Pure ctx/text primitives live in their own leaf module. Import them back for
 // this file's many internal call-sites and re-export so existing consumers
 // (main.js, ui.js, …) keep importing them from './render.js'.
 import {
-  softShadow, fusedColor, roundedRect, roundedPath, wrapText, fitText,
+  fusedColor, roundedRect, roundedPath, wrapText, fitText,
 } from './render-primitives.js';
 export {
-  softShadow, fusedColor, roundedRect, roundedPath, wrapText, fitText,
+  fusedColor, roundedRect, roundedPath, wrapText, fitText,
 };
 // Canvas-free scoring/status derivations. render-stats.js imports
 // useMobileDirectPlacement back from this file (a call-time cycle, safe in the
@@ -781,20 +781,6 @@ export function drawLampSwitch(layout) {
       cordEndX, cordEndY
     );
     ctx.stroke();
-    const cordHighlight = ctx.createLinearGradient(cordStartX, cordStartY, cordEndX, cordEndY);
-    cordHighlight.addColorStop(0, "rgba(255, 255, 255, 0.22)");
-    cordHighlight.addColorStop(0.7, "rgba(255, 255, 255, 0.08)");
-    cordHighlight.addColorStop(1, "rgba(255, 255, 255, 0)");
-    ctx.strokeStyle = cordHighlight;
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(cordStartX, cordStartY);
-    ctx.bezierCurveTo(
-      cordStartX + 22, cordStartY - 50,
-      cordEndX - 24, cordEndY + 80,
-      cordEndX, cordEndY
-    );
-    ctx.stroke();
   }
   if (state.lampOn) {
     const glow = ctx.createRadialGradient(cx, cy, bodyR * 0.5, cx, cy, rect.w * 1.45);
@@ -807,32 +793,18 @@ export function drawLampSwitch(layout) {
     ctx.fill();
   }
 
-  ctx.shadowColor = "rgba(30, 36, 44, 0.2)";
-  ctx.shadowBlur = hover ? 16 : 11;
-  ctx.shadowOffsetY = hover ? 5 : 4;
-  const plate = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
-  plate.addColorStop(0, "rgba(255,255,255,0.95)");
-  plate.addColorStop(1, "rgba(228, 235, 240, 0.95)");
-  ctx.fillStyle = plate;
-  roundedPath(ctx, rect.x, rect.y, rect.w, rect.h, rect.w * 0.29);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = hover ? "rgba(87, 184, 167, 0.58)" : "rgba(96, 110, 122, 0.36)";
-  ctx.lineWidth = 1.2;
-  roundedPath(ctx, rect.x, rect.y, rect.w, rect.h, rect.w * 0.29);
-  ctx.stroke();
+  sketchRect(ctx, rect.x, rect.y, rect.w, rect.h, {
+    bw: SKETCH_BW_CTL,
+    shadow: SKETCH_SHADOW_SM,
+    ink: hover ? "rgba(87, 184, 167, 0.9)" : SKETCH_INK,
+  });
 
   const baseW = rect.w * 0.28;
   const baseH = rect.h * 0.16 * lift;
   ctx.fillStyle = "rgba(112, 121, 132, 0.85)";
-  roundedPath(ctx, cx - baseW / 2, cy + rect.h * 0.09, baseW, baseH, baseH * 0.45);
-  ctx.fill();
+  ctx.fillRect(cx - baseW / 2, cy + rect.h * 0.09, baseW, baseH);
 
-  const bulb = ctx.createRadialGradient(cx - bodyR * 0.2, cy - bodyR * 0.28, bodyR * 0.2, cx, cy, bodyR);
-  bulb.addColorStop(0, state.lampOn ? "#fffdf3" : "#f8fbff");
-  bulb.addColorStop(0.58, state.lampOn ? "#ffe9a8" : "#dfe7ef");
-  bulb.addColorStop(1, state.lampOn ? "#efbe65" : "#bcc8d4");
-  ctx.fillStyle = bulb;
+  ctx.fillStyle = state.lampOn ? "#ffe9a8" : "#e7edf3";
   ctx.beginPath();
   ctx.arc(cx, cy - rect.h * 0.02, bodyR, 0, Math.PI * 2);
   ctx.fill();
@@ -883,8 +855,6 @@ export function drawNeedleEntity(x, y) {
   const inUse = state.phase === "place" && state.tool === "needle";
   ctx.save();
   ctx.globalAlpha = inUse ? 0.46 : 0.76;
-  ctx.shadowColor = "rgba(38, 36, 43, 0.1)";
-  ctx.shadowBlur = inUse ? 4 : 10;
   ctx.strokeStyle = style.primary;
   ctx.lineWidth = 5;
   ctx.lineCap = "round";
@@ -892,7 +862,6 @@ export function drawNeedleEntity(x, y) {
   ctx.moveTo(x, y + 146);
   ctx.lineTo(x, y + 8);
   ctx.stroke();
-  ctx.shadowColor = "transparent";
   ctx.strokeStyle = style.secondary;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -943,8 +912,6 @@ export function drawTweezersEntity(x, y) {
   ctx.scale(tweezerScale, tweezerScale);
   ctx.translate(-(x + 46), -(y + 66));
   ctx.globalAlpha = inUse ? 0.46 : 0.76;
-  ctx.shadowColor = "rgba(38, 36, 43, 0.1)";
-  ctx.shadowBlur = inUse ? 4 : 10;
   ctx.strokeStyle = style.primary;
   ctx.lineWidth = 5;
   ctx.lineCap = "round";
@@ -954,7 +921,6 @@ export function drawTweezersEntity(x, y) {
   ctx.moveTo(x + 30, y + 8);
   ctx.lineTo(x + 52, y + 76);
   ctx.stroke();
-  ctx.shadowColor = "transparent";
   ctx.strokeStyle = style.secondary;
   ctx.lineWidth = 1.4;
   ctx.beginPath();
@@ -2083,8 +2049,7 @@ export function drawIronLayer(layout) {
   const { boardX, boardY, boardSize, cell } = layout;
   ctx.save();
   ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
-  roundedRect(boardX - 2, boardY - 2, boardSize + 4, boardSize + 4, 7);
-  ctx.fill();
+  ctx.fillRect(boardX - 2, boardY - 2, boardSize + 4, boardSize + 4);
   ctx.strokeStyle = "rgba(150, 132, 98, 0.18)";
   ctx.lineWidth = 1.2;
   for (let i = 0; i < 7; i += 1) {
@@ -2138,23 +2103,12 @@ export function drawIron(x, y, color) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-0.14);
-  ctx.shadowColor = "rgba(38, 36, 43, 0.22)";
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 9;
-  ctx.fillStyle = "#f4f7fa";
-  roundedRect(-42, -25, 84, 50, 8);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
+  sketchRect(ctx, -42, -25, 84, 50, { fill: "#f4f7fa", bw: SKETCH_BW_CTL, shadow: SKETCH_SHADOW_SM });
   ctx.fillStyle = "#d7e0e5";
-  roundedRect(-40, 11, 80, 15, 7);
-  ctx.fill();
+  ctx.fillRect(-40, 11, 80, 15);
   ctx.fillStyle = color;
-  roundedRect(-30, -15, 60, 30, 6);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.34)";
-  roundedRect(-24, -10, 28, 6, 3);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(38, 36, 43, 0.2)";
+  ctx.fillRect(-30, -15, 60, 30);
+  ctx.strokeStyle = "rgba(38, 36, 43, 0.75)";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(-22, -22);
@@ -2180,13 +2134,8 @@ export function drawCoolingLayer(layout) {
     ctx.stroke();
   }
   if (state.flattening > 5) {
-    ctx.shadowColor = "rgba(38, 36, 43, 0.18)";
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetY = 10;
     ctx.fillStyle = "rgba(50, 58, 68, 0.16)";
-    roundedRect(boardX + 20, boardY + boardSize * 0.32, boardSize - 40, boardSize * 0.26, 6);
-    ctx.fill();
-    ctx.shadowColor = "transparent";
+    ctx.fillRect(boardX + 20, boardY + boardSize * 0.32, boardSize - 40, boardSize * 0.26);
     ctx.fillStyle = "rgba(255,255,255,0.28)";
     ctx.fillRect(boardX + 32, boardY + boardSize * 0.35, boardSize - 64, 4);
     ctx.fillStyle = "rgba(38,36,43,0.16)";
@@ -2220,23 +2169,10 @@ export function drawCoolingLayer(layout) {
         ctx.fillRect(bladeX, cy, blade, trailH);
       }
       // Scraper body
-      ctx.shadowColor = "rgba(0,0,0,0.32)";
-      ctx.shadowBlur = 14;
-      ctx.shadowOffsetY = 4;
-      const bodyGrad = ctx.createLinearGradient(0, cy, 0, cy + bladeH);
-      bodyGrad.addColorStop(0, "#dfe6ec");
-      bodyGrad.addColorStop(0.5, "#aeb8c6");
-      bodyGrad.addColorStop(1, "#828c9b");
-      ctx.fillStyle = bodyGrad;
-      roundedRect(bladeX, cy, blade, bladeH, 4);
-      ctx.fill();
+      sketchRect(ctx, bladeX, cy, blade, bladeH, { fill: "#aeb8c6", bw: SKETCH_BW_CTL, shadow: 0 });
       // Blade edge (the pressing line)
-      ctx.shadowColor = "transparent";
       ctx.fillStyle = "rgba(40, 46, 56, 0.8)";
       ctx.fillRect(bladeX + 2, cy - 1, blade - 4, 2);
-      // Highlight
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
-      ctx.fillRect(bladeX + 6, cy + 4, blade - 12, 2);
       // Handle grip dots
       ctx.fillStyle = "rgba(60, 68, 80, 0.55)";
       const dotY = cy + bladeH * 0.55;
@@ -2260,15 +2196,7 @@ export function drawFinishLayer(layout) {
   const bx = card.x + card.w - badgeW - 8;
   const by = card.y + card.h - badgeH - 8;
   ctx.save();
-  softShadow(ctx, { blur: 14, dy: 7, color: "rgba(38,36,43,0.15)" });
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  roundedRect(bx, by, badgeW, badgeH, 8);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(38,36,43,0.1)";
-  ctx.lineWidth = 1;
-  roundedRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1, 7.5);
-  ctx.stroke();
+  sketchRect(ctx, bx, by, badgeW, badgeH, { bw: SKETCH_BW_CTL, shadow: SKETCH_SHADOW_SM });
   ctx.fillStyle = "#26242b";
   ctx.font = "800 14px " + CANVAS_CLEAR_FONT;
   ctx.textAlign = "center";

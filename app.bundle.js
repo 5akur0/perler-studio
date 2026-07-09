@@ -3513,15 +3513,11 @@
     const w = Math.max(1, rect.width);
     const h = Math.max(1, rect.height);
     ctx2.clearRect(0, 0, w, h);
-    const bg = ctx2.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, "#fbfcfe");
-    bg.addColorStop(1, "#edf2f7");
-    ctx2.fillStyle = bg;
-    roundedPath(ctx2, 0.5, 0.5, w - 1, h - 1, 10);
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(101, 115, 130, 0.28)";
-    ctx2.lineWidth = 1;
-    ctx2.stroke();
+    ctx2.fillStyle = "#f5f8fb";
+    ctx2.fillRect(0, 0, w, h);
+    ctx2.strokeStyle = "rgba(38, 36, 43, 0.75)";
+    ctx2.lineWidth = 1.5;
+    ctx2.strokeRect(0.75, 0.75, w - 1.5, h - 1.5);
     const cols = boardCols();
     const rows = boardRows();
     const cells = [];
@@ -3958,16 +3954,9 @@
     ctx2.fillRect(0, 0, w, h);
     ctx2.restore();
     ctx2.save();
-    ctx2.shadowColor = "rgba(30, 33, 40, 0.13)";
-    ctx2.shadowBlur = 28;
-    ctx2.shadowOffsetY = 13;
-    ctx2.fillStyle = "rgba(255,255,255,0.95)";
-    roundedRect(bx - 18, by - 18, displaySize + 36, displaySize + 36, 14);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
+    sketchRect(ctx2, bx - 18, by - 18, displaySize + 36, displaySize + 36);
     ctx2.fillStyle = "#fcfcfd";
-    roundedRect(bx, by, displaySize, displaySize, 6);
-    ctx2.fill();
+    ctx2.fillRect(bx, by, displaySize, displaySize);
     ctx2.restore();
     const displayCell = displaySize / Math.max(cols, rows);
     const fullMode = type === "full";
@@ -5137,23 +5126,6 @@
         cordEndY
       );
       ctx2.stroke();
-      const cordHighlight = ctx2.createLinearGradient(cordStartX, cordStartY, cordEndX, cordEndY);
-      cordHighlight.addColorStop(0, "rgba(255, 255, 255, 0.22)");
-      cordHighlight.addColorStop(0.7, "rgba(255, 255, 255, 0.08)");
-      cordHighlight.addColorStop(1, "rgba(255, 255, 255, 0)");
-      ctx2.strokeStyle = cordHighlight;
-      ctx2.lineWidth = 0.9;
-      ctx2.beginPath();
-      ctx2.moveTo(cordStartX, cordStartY);
-      ctx2.bezierCurveTo(
-        cordStartX + 22,
-        cordStartY - 50,
-        cordEndX - 24,
-        cordEndY + 80,
-        cordEndX,
-        cordEndY
-      );
-      ctx2.stroke();
     }
     if (state.lampOn) {
       const glow = ctx2.createRadialGradient(cx, cy, bodyR * 0.5, cx, cy, rect.w * 1.45);
@@ -5165,30 +5137,16 @@
       ctx2.arc(cx, cy, rect.w * 1.45, 0, Math.PI * 2);
       ctx2.fill();
     }
-    ctx2.shadowColor = "rgba(30, 36, 44, 0.2)";
-    ctx2.shadowBlur = hover ? 16 : 11;
-    ctx2.shadowOffsetY = hover ? 5 : 4;
-    const plate = ctx2.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
-    plate.addColorStop(0, "rgba(255,255,255,0.95)");
-    plate.addColorStop(1, "rgba(228, 235, 240, 0.95)");
-    ctx2.fillStyle = plate;
-    roundedPath(ctx2, rect.x, rect.y, rect.w, rect.h, rect.w * 0.29);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = hover ? "rgba(87, 184, 167, 0.58)" : "rgba(96, 110, 122, 0.36)";
-    ctx2.lineWidth = 1.2;
-    roundedPath(ctx2, rect.x, rect.y, rect.w, rect.h, rect.w * 0.29);
-    ctx2.stroke();
+    sketchRect(ctx2, rect.x, rect.y, rect.w, rect.h, {
+      bw: SKETCH_BW_CTL,
+      shadow: SKETCH_SHADOW_SM,
+      ink: hover ? "rgba(87, 184, 167, 0.9)" : SKETCH_INK
+    });
     const baseW = rect.w * 0.28;
     const baseH = rect.h * 0.16 * lift;
     ctx2.fillStyle = "rgba(112, 121, 132, 0.85)";
-    roundedPath(ctx2, cx - baseW / 2, cy + rect.h * 0.09, baseW, baseH, baseH * 0.45);
-    ctx2.fill();
-    const bulb = ctx2.createRadialGradient(cx - bodyR * 0.2, cy - bodyR * 0.28, bodyR * 0.2, cx, cy, bodyR);
-    bulb.addColorStop(0, state.lampOn ? "#fffdf3" : "#f8fbff");
-    bulb.addColorStop(0.58, state.lampOn ? "#ffe9a8" : "#dfe7ef");
-    bulb.addColorStop(1, state.lampOn ? "#efbe65" : "#bcc8d4");
-    ctx2.fillStyle = bulb;
+    ctx2.fillRect(cx - baseW / 2, cy + rect.h * 0.09, baseW, baseH);
+    ctx2.fillStyle = state.lampOn ? "#ffe9a8" : "#e7edf3";
     ctx2.beginPath();
     ctx2.arc(cx, cy - rect.h * 0.02, bodyR, 0, Math.PI * 2);
     ctx2.fill();
@@ -5232,8 +5190,6 @@
     const inUse = state.phase === "place" && state.tool === "needle";
     ctx2.save();
     ctx2.globalAlpha = inUse ? 0.46 : 0.76;
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.1)";
-    ctx2.shadowBlur = inUse ? 4 : 10;
     ctx2.strokeStyle = style.primary;
     ctx2.lineWidth = 5;
     ctx2.lineCap = "round";
@@ -5241,7 +5197,6 @@
     ctx2.moveTo(x, y + 146);
     ctx2.lineTo(x, y + 8);
     ctx2.stroke();
-    ctx2.shadowColor = "transparent";
     ctx2.strokeStyle = style.secondary;
     ctx2.lineWidth = 2;
     ctx2.beginPath();
@@ -5289,8 +5244,6 @@
     ctx2.scale(tweezerScale, tweezerScale);
     ctx2.translate(-(x + 46), -(y + 66));
     ctx2.globalAlpha = inUse ? 0.46 : 0.76;
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.1)";
-    ctx2.shadowBlur = inUse ? 4 : 10;
     ctx2.strokeStyle = style.primary;
     ctx2.lineWidth = 5;
     ctx2.lineCap = "round";
@@ -5300,7 +5253,6 @@
     ctx2.moveTo(x + 30, y + 8);
     ctx2.lineTo(x + 52, y + 76);
     ctx2.stroke();
-    ctx2.shadowColor = "transparent";
     ctx2.strokeStyle = style.secondary;
     ctx2.lineWidth = 1.4;
     ctx2.beginPath();
@@ -6248,8 +6200,7 @@
     const { boardX, boardY, boardSize, cell } = layout;
     ctx2.save();
     ctx2.fillStyle = "rgba(255, 255, 255, 0.42)";
-    roundedRect(boardX - 2, boardY - 2, boardSize + 4, boardSize + 4, 7);
-    ctx2.fill();
+    ctx2.fillRect(boardX - 2, boardY - 2, boardSize + 4, boardSize + 4);
     ctx2.strokeStyle = "rgba(150, 132, 98, 0.18)";
     ctx2.lineWidth = 1.2;
     for (let i = 0; i < 7; i += 1) {
@@ -6299,23 +6250,12 @@
     ctx2.save();
     ctx2.translate(x, y);
     ctx2.rotate(-0.14);
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.22)";
-    ctx2.shadowBlur = 16;
-    ctx2.shadowOffsetY = 9;
-    ctx2.fillStyle = "#f4f7fa";
-    roundedRect(-42, -25, 84, 50, 8);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
+    sketchRect(ctx2, -42, -25, 84, 50, { fill: "#f4f7fa", bw: SKETCH_BW_CTL, shadow: SKETCH_SHADOW_SM });
     ctx2.fillStyle = "#d7e0e5";
-    roundedRect(-40, 11, 80, 15, 7);
-    ctx2.fill();
+    ctx2.fillRect(-40, 11, 80, 15);
     ctx2.fillStyle = color;
-    roundedRect(-30, -15, 60, 30, 6);
-    ctx2.fill();
-    ctx2.fillStyle = "rgba(255,255,255,0.34)";
-    roundedRect(-24, -10, 28, 6, 3);
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(38, 36, 43, 0.2)";
+    ctx2.fillRect(-30, -15, 60, 30);
+    ctx2.strokeStyle = "rgba(38, 36, 43, 0.75)";
     ctx2.lineWidth = 3;
     ctx2.beginPath();
     ctx2.moveTo(-22, -22);
@@ -6340,13 +6280,8 @@
       ctx2.stroke();
     }
     if (state.flattening > 5) {
-      ctx2.shadowColor = "rgba(38, 36, 43, 0.18)";
-      ctx2.shadowBlur = 18;
-      ctx2.shadowOffsetY = 10;
       ctx2.fillStyle = "rgba(50, 58, 68, 0.16)";
-      roundedRect(boardX + 20, boardY + boardSize * 0.32, boardSize - 40, boardSize * 0.26, 6);
-      ctx2.fill();
-      ctx2.shadowColor = "transparent";
+      ctx2.fillRect(boardX + 20, boardY + boardSize * 0.32, boardSize - 40, boardSize * 0.26);
       ctx2.fillStyle = "rgba(255,255,255,0.28)";
       ctx2.fillRect(boardX + 32, boardY + boardSize * 0.35, boardSize - 64, 4);
       ctx2.fillStyle = "rgba(38,36,43,0.16)";
@@ -6375,21 +6310,9 @@
           ctx2.fillStyle = trailGrad;
           ctx2.fillRect(bladeX, cy, blade, trailH);
         }
-        ctx2.shadowColor = "rgba(0,0,0,0.32)";
-        ctx2.shadowBlur = 14;
-        ctx2.shadowOffsetY = 4;
-        const bodyGrad = ctx2.createLinearGradient(0, cy, 0, cy + bladeH);
-        bodyGrad.addColorStop(0, "#dfe6ec");
-        bodyGrad.addColorStop(0.5, "#aeb8c6");
-        bodyGrad.addColorStop(1, "#828c9b");
-        ctx2.fillStyle = bodyGrad;
-        roundedRect(bladeX, cy, blade, bladeH, 4);
-        ctx2.fill();
-        ctx2.shadowColor = "transparent";
+        sketchRect(ctx2, bladeX, cy, blade, bladeH, { fill: "#aeb8c6", bw: SKETCH_BW_CTL, shadow: 0 });
         ctx2.fillStyle = "rgba(40, 46, 56, 0.8)";
         ctx2.fillRect(bladeX + 2, cy - 1, blade - 4, 2);
-        ctx2.fillStyle = "rgba(255,255,255,0.6)";
-        ctx2.fillRect(bladeX + 6, cy + 4, blade - 12, 2);
         ctx2.fillStyle = "rgba(60, 68, 80, 0.55)";
         const dotY = cy + bladeH * 0.55;
         for (let i = 0; i < 5; i += 1) {
@@ -6411,15 +6334,7 @@
     const bx = card.x + card.w - badgeW - 8;
     const by = card.y + card.h - badgeH - 8;
     ctx2.save();
-    softShadow(ctx2, { blur: 14, dy: 7, color: "rgba(38,36,43,0.15)" });
-    ctx2.fillStyle = "rgba(255,255,255,0.9)";
-    roundedRect(bx, by, badgeW, badgeH, 8);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(38,36,43,0.1)";
-    ctx2.lineWidth = 1;
-    roundedRect(bx + 0.5, by + 0.5, badgeW - 1, badgeH - 1, 7.5);
-    ctx2.stroke();
+    sketchRect(ctx2, bx, by, badgeW, badgeH, { bw: SKETCH_BW_CTL, shadow: SKETCH_SHADOW_SM });
     ctx2.fillStyle = "#26242b";
     ctx2.font = "800 14px " + CANVAS_CLEAR_FONT;
     ctx2.textAlign = "center";
@@ -10200,11 +10115,7 @@
     ctx2.clearRect(0, 0, pxW, pxH);
     ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
     const theme = currentBackgroundTheme();
-    const workbenchGradient = ctx2.createLinearGradient(0, 0, cssW, cssH);
-    workbenchGradient.addColorStop(0, theme.table[0]);
-    workbenchGradient.addColorStop(0.48, theme.table[1]);
-    workbenchGradient.addColorStop(1, theme.table[2]);
-    ctx2.fillStyle = workbenchGradient;
+    ctx2.fillStyle = theme.table[1];
     ctx2.fillRect(0, 0, cssW, cssH);
     const v = drawState.view;
     ctx2.save();

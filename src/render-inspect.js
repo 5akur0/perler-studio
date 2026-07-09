@@ -172,15 +172,11 @@ export function drawInspectFusePreviewCanvas(canvas) {
   const w = Math.max(1, rect.width);
   const h = Math.max(1, rect.height);
   ctx.clearRect(0, 0, w, h);
-  const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, "#fbfcfe");
-  bg.addColorStop(1, "#edf2f7");
-  ctx.fillStyle = bg;
-  roundedPath(ctx, 0.5, 0.5, w - 1, h - 1, 10);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(101, 115, 130, 0.28)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  ctx.fillStyle = "#f5f8fb";
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "rgba(38, 36, 43, 0.75)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(0.75, 0.75, w - 1.5, h - 1.5);
 
   const cols = boardCols();
   const rows = boardRows();

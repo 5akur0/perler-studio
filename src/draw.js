@@ -722,11 +722,7 @@ export function paintDrawCanvas() {
   ctx.clearRect(0, 0, pxW, pxH);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const theme = currentBackgroundTheme();
-  const workbenchGradient = ctx.createLinearGradient(0, 0, cssW, cssH);
-  workbenchGradient.addColorStop(0, theme.table[0]);
-  workbenchGradient.addColorStop(0.48, theme.table[1]);
-  workbenchGradient.addColorStop(1, theme.table[2]);
-  ctx.fillStyle = workbenchGradient;
+  ctx.fillStyle = theme.table[1];
   ctx.fillRect(0, 0, cssW, cssH);
 
   // Apply zoom/pan transform anchored to grid center

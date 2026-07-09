@@ -13,6 +13,7 @@ import { clamp } from './color-utils.js';
 import { prefersReducedMotion } from './utils.js';
 import { boardCols, boardRows, indexFor } from './pattern.js';
 import { softShadow, roundedPath, roundedRect } from './render-primitives.js';
+import { sketchRect } from './sketch-style.js';
 import {
   getFusedPieces, pieceSortByArea, getShowcaseBounds, drawFusedPieceTransformed,
 } from './render-fusion.js';
@@ -113,16 +114,9 @@ export function drawConceptEasterScene(layout) {
   ctx.restore();
 
   ctx.save();
-  ctx.shadowColor = "rgba(30, 33, 40, 0.13)";
-  ctx.shadowBlur = 28;
-  ctx.shadowOffsetY = 13;
-  ctx.fillStyle = "rgba(255,255,255,0.95)";
-  roundedRect(bx - 18, by - 18, displaySize + 36, displaySize + 36, 14);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
+  sketchRect(ctx, bx - 18, by - 18, displaySize + 36, displaySize + 36);
   ctx.fillStyle = "#fcfcfd";
-  roundedRect(bx, by, displaySize, displaySize, 6);
-  ctx.fill();
+  ctx.fillRect(bx, by, displaySize, displaySize);
   ctx.restore();
 
   const displayCell = displaySize / Math.max(cols, rows);
