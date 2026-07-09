@@ -3101,6 +3101,8 @@
   }
 
   // src/render-export.js
+  var POSTER_BW = 4;
+  var POSTER_SHADOW = 10;
   var SHARE_SLOGANS = [
     "\u60F3\u62FC\u5C31\u62FC\uFF0C\u8D70\u5230\u54EA\u62FC\u5230\u54EA",
     "\u788E\u7247\u65F6\u95F4\uFF0C\u73A9\u4F1A\u8D5B\u535A\u62FC\u8C46",
@@ -3153,20 +3155,7 @@
     const p = sharePalette();
     const PAD = 80;
     const innerW = w - PAD * 2;
-    const bg = ctx2.createLinearGradient(0, 0, w * 0.4, h);
-    bg.addColorStop(0, p.pageA);
-    bg.addColorStop(1, p.pageB);
-    ctx2.fillStyle = bg;
-    ctx2.fillRect(0, 0, w, h);
-    const glowA = ctx2.createRadialGradient(w * 0.84, h * 0.06, 0, w * 0.84, h * 0.06, 560);
-    glowA.addColorStop(0, p.glow);
-    glowA.addColorStop(1, "rgba(0,0,0,0)");
-    ctx2.fillStyle = glowA;
-    ctx2.fillRect(0, 0, w, h);
-    const glowB = ctx2.createRadialGradient(w * 0.06, h * 0.96, 0, w * 0.06, h * 0.96, 540);
-    glowB.addColorStop(0, p.glow);
-    glowB.addColorStop(1, "rgba(0,0,0,0)");
-    ctx2.fillStyle = glowB;
+    ctx2.fillStyle = "#ffffff";
     ctx2.fillRect(0, 0, w, h);
     if (variant === "clean") {
       drawCleanVariant(ctx2, w, h, PAD, innerW, p, qrImg, logoImg);
@@ -3178,12 +3167,13 @@
     const badgeSize = 148;
     const badgeX = w - PAD - badgeSize;
     ctx2.textBaseline = "alphabetic";
-    const badgeGrad = ctx2.createLinearGradient(badgeX, top, badgeX, top + badgeSize);
-    badgeGrad.addColorStop(0, p.accent);
-    badgeGrad.addColorStop(1, p.accentDeep);
-    ctx2.fillStyle = badgeGrad;
-    roundedPath(ctx2, badgeX, top, badgeSize, badgeSize, 34);
-    ctx2.fill();
+    ctx2.fillStyle = SKETCH_INK_SOFT;
+    ctx2.fillRect(badgeX + POSTER_SHADOW, top + POSTER_SHADOW, badgeSize, badgeSize);
+    ctx2.fillStyle = p.accent;
+    ctx2.fillRect(badgeX, top, badgeSize, badgeSize);
+    ctx2.strokeStyle = SKETCH_INK;
+    ctx2.lineWidth = POSTER_BW;
+    ctx2.strokeRect(badgeX + POSTER_BW / 2, top + POSTER_BW / 2, badgeSize - POSTER_BW, badgeSize - POSTER_BW);
     ctx2.fillStyle = "#ffffff";
     ctx2.textAlign = "center";
     ctx2.font = `84px ${CANVAS_CUTE_FONT}`;
@@ -3208,18 +3198,13 @@
     const wellTop = top + badgeSize + 40;
     const wellBottom = h - 64 - footerH - gap - kpiH - gap;
     const wellH = wellBottom - wellTop;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(49, 54, 68, 0.13)";
-    ctx2.shadowBlur = 48;
-    ctx2.shadowOffsetY = 24;
+    ctx2.fillStyle = SKETCH_INK_SOFT;
+    ctx2.fillRect(PAD + POSTER_SHADOW, wellTop + POSTER_SHADOW, innerW, wellH);
     ctx2.fillStyle = p.well;
-    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 40);
-    ctx2.fill();
-    ctx2.restore();
-    ctx2.strokeStyle = p.wellEdge;
-    ctx2.lineWidth = 2;
-    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 40);
-    ctx2.stroke();
+    ctx2.fillRect(PAD, wellTop, innerW, wellH);
+    ctx2.strokeStyle = SKETCH_INK;
+    ctx2.lineWidth = POSTER_BW;
+    ctx2.strokeRect(PAD + POSTER_BW / 2, wellTop + POSTER_BW / 2, innerW - POSTER_BW, wellH - POSTER_BW);
     const wellPad = 40;
     const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
     const artX = PAD + (innerW - gridSize) / 2;
@@ -3278,18 +3263,13 @@
     });
     const footTop = kpiY + kpiH + gap;
     const qrBox = footerH;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(49, 54, 68, 0.10)";
-    ctx2.shadowBlur = 24;
-    ctx2.shadowOffsetY = 10;
+    ctx2.fillStyle = SKETCH_INK_SOFT;
+    ctx2.fillRect(PAD + POSTER_SHADOW / 2, footTop + POSTER_SHADOW / 2, qrBox, qrBox);
     ctx2.fillStyle = "#ffffff";
-    roundedPath(ctx2, PAD, footTop, qrBox, qrBox, 24);
-    ctx2.fill();
-    ctx2.restore();
-    ctx2.strokeStyle = p.chipEdge;
-    ctx2.lineWidth = 1.5;
-    roundedPath(ctx2, PAD, footTop, qrBox, qrBox, 24);
-    ctx2.stroke();
+    ctx2.fillRect(PAD, footTop, qrBox, qrBox);
+    ctx2.strokeStyle = SKETCH_INK;
+    ctx2.lineWidth = POSTER_BW / 2;
+    ctx2.strokeRect(PAD + POSTER_BW / 4, footTop + POSTER_BW / 4, qrBox - POSTER_BW / 2, qrBox - POSTER_BW / 2);
     const qrImgSize = 150;
     if (qrImg) {
       ctx2.drawImage(qrImg, PAD + (qrBox - qrImgSize) / 2, footTop + 18, qrImgSize, qrImgSize);
@@ -3327,18 +3307,13 @@
     const wellTop = PAD;
     const wellBottom = h - PAD;
     const wellH = wellBottom - wellTop;
-    ctx2.save();
-    ctx2.shadowColor = "rgba(49, 54, 68, 0.13)";
-    ctx2.shadowBlur = 48;
-    ctx2.shadowOffsetY = 24;
+    ctx2.fillStyle = SKETCH_INK_SOFT;
+    ctx2.fillRect(PAD + POSTER_SHADOW, wellTop + POSTER_SHADOW, innerW, wellH);
     ctx2.fillStyle = p.well;
-    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 44);
-    ctx2.fill();
-    ctx2.restore();
-    ctx2.strokeStyle = p.wellEdge;
-    ctx2.lineWidth = 2;
-    roundedPath(ctx2, PAD, wellTop, innerW, wellH, 44);
-    ctx2.stroke();
+    ctx2.fillRect(PAD, wellTop, innerW, wellH);
+    ctx2.strokeStyle = SKETCH_INK;
+    ctx2.lineWidth = POSTER_BW;
+    ctx2.strokeRect(PAD + POSTER_BW / 2, wellTop + POSTER_BW / 2, innerW - POSTER_BW, wellH - POSTER_BW);
     const wellPad = 56;
     const bottomBand = 64;
     const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2 - bottomBand);

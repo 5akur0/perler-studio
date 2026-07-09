@@ -19,6 +19,11 @@ import { formatBuildTime } from './build-timer.js';
 import { roundedPath, fitText, fusedColor } from './render-primitives.js';
 import { finalGrade, placedCount } from './render-stats.js';
 import { drawBead, CANVAS_CUTE_FONT, CANVAS_CLEAR_FONT } from './render.js';
+import { SKETCH_INK, SKETCH_INK_SOFT } from './sketch-style.js';
+
+// Poster-scale sketch constants: ≈2px border / 5px --sketch-shadow-lg at ~2× poster resolution.
+const POSTER_BW = 4;
+const POSTER_SHADOW = 10;
 
 // Footer slogans — one picked at random per export (cyber-perler casual voice).
 const SHARE_SLOGANS = [
@@ -84,21 +89,9 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   const PAD = 80;
   const innerW = w - PAD * 2;
 
-  // ── page wash ──────────────────────────────────────────────────────────────
-  const bg = ctx.createLinearGradient(0, 0, w * 0.4, h);
-  bg.addColorStop(0, p.pageA);
-  bg.addColorStop(1, p.pageB);
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-  const glowA = ctx.createRadialGradient(w * 0.84, h * 0.06, 0, w * 0.84, h * 0.06, 560);
-  glowA.addColorStop(0, p.glow);
-  glowA.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glowA;
-  ctx.fillRect(0, 0, w, h);
-  const glowB = ctx.createRadialGradient(w * 0.06, h * 0.96, 0, w * 0.06, h * 0.96, 540);
-  glowB.addColorStop(0, p.glow);
-  glowB.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glowB;
+  // Sketch card: plain paper ground — the artwork and flat brand shapes carry
+  // the color (no page wash, no corner glows).
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, w, h);
 
   // ── clean variant: artwork-as-object, no stats chrome ────────────────────────
@@ -117,12 +110,13 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   const badgeX = w - PAD - badgeSize;
   ctx.textBaseline = "alphabetic";
   // grade badge
-  const badgeGrad = ctx.createLinearGradient(badgeX, top, badgeX, top + badgeSize);
-  badgeGrad.addColorStop(0, p.accent);
-  badgeGrad.addColorStop(1, p.accentDeep);
-  ctx.fillStyle = badgeGrad;
-  roundedPath(ctx, badgeX, top, badgeSize, badgeSize, 34);
-  ctx.fill();
+  ctx.fillStyle = SKETCH_INK_SOFT;
+  ctx.fillRect(badgeX + POSTER_SHADOW, top + POSTER_SHADOW, badgeSize, badgeSize);
+  ctx.fillStyle = p.accent;
+  ctx.fillRect(badgeX, top, badgeSize, badgeSize);
+  ctx.strokeStyle = SKETCH_INK;
+  ctx.lineWidth = POSTER_BW;
+  ctx.strokeRect(badgeX + POSTER_BW / 2, top + POSTER_BW / 2, badgeSize - POSTER_BW, badgeSize - POSTER_BW);
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
   ctx.font = `84px ${CANVAS_CUTE_FONT}`;
@@ -152,18 +146,13 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   const wellH = wellBottom - wellTop;
 
   // ── well: white card holding the artwork + craft capsule ─────────────────────
-  ctx.save();
-  ctx.shadowColor = "rgba(49, 54, 68, 0.13)";
-  ctx.shadowBlur = 48;
-  ctx.shadowOffsetY = 24;
+  ctx.fillStyle = SKETCH_INK_SOFT;
+  ctx.fillRect(PAD + POSTER_SHADOW, wellTop + POSTER_SHADOW, innerW, wellH);
   ctx.fillStyle = p.well;
-  roundedPath(ctx, PAD, wellTop, innerW, wellH, 40);
-  ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = p.wellEdge;
-  ctx.lineWidth = 2;
-  roundedPath(ctx, PAD, wellTop, innerW, wellH, 40);
-  ctx.stroke();
+  ctx.fillRect(PAD, wellTop, innerW, wellH);
+  ctx.strokeStyle = SKETCH_INK;
+  ctx.lineWidth = POSTER_BW;
+  ctx.strokeRect(PAD + POSTER_BW / 2, wellTop + POSTER_BW / 2, innerW - POSTER_BW, wellH - POSTER_BW);
   // artwork centered in the well, inset by 40
   const wellPad = 40;
   const gridSize = Math.min(innerW - wellPad * 2, wellH - wellPad * 2, 600);
@@ -233,18 +222,13 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
   const footTop = kpiY + kpiH + gap;
   const qrBox = footerH;
   // QR card
-  ctx.save();
-  ctx.shadowColor = "rgba(49, 54, 68, 0.10)";
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 10;
+  ctx.fillStyle = SKETCH_INK_SOFT;
+  ctx.fillRect(PAD + POSTER_SHADOW / 2, footTop + POSTER_SHADOW / 2, qrBox, qrBox);
   ctx.fillStyle = "#ffffff";
-  roundedPath(ctx, PAD, footTop, qrBox, qrBox, 24);
-  ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = p.chipEdge;
-  ctx.lineWidth = 1.5;
-  roundedPath(ctx, PAD, footTop, qrBox, qrBox, 24);
-  ctx.stroke();
+  ctx.fillRect(PAD, footTop, qrBox, qrBox);
+  ctx.strokeStyle = SKETCH_INK;
+  ctx.lineWidth = POSTER_BW / 2;
+  ctx.strokeRect(PAD + POSTER_BW / 4, footTop + POSTER_BW / 4, qrBox - POSTER_BW / 2, qrBox - POSTER_BW / 2);
   const qrImgSize = 150;
   if (qrImg) {
     ctx.drawImage(qrImg, PAD + (qrBox - qrImgSize) / 2, footTop + 18, qrImgSize, qrImgSize);
@@ -290,18 +274,13 @@ function drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg, logoImg = null) {
   const wellBottom = h - PAD;
   const wellH = wellBottom - wellTop;
 
-  ctx.save();
-  ctx.shadowColor = "rgba(49, 54, 68, 0.13)";
-  ctx.shadowBlur = 48;
-  ctx.shadowOffsetY = 24;
+  ctx.fillStyle = SKETCH_INK_SOFT;
+  ctx.fillRect(PAD + POSTER_SHADOW, wellTop + POSTER_SHADOW, innerW, wellH);
   ctx.fillStyle = p.well;
-  roundedPath(ctx, PAD, wellTop, innerW, wellH, 44);
-  ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = p.wellEdge;
-  ctx.lineWidth = 2;
-  roundedPath(ctx, PAD, wellTop, innerW, wellH, 44);
-  ctx.stroke();
+  ctx.fillRect(PAD, wellTop, innerW, wellH);
+  ctx.strokeStyle = SKETCH_INK;
+  ctx.lineWidth = POSTER_BW;
+  ctx.strokeRect(PAD + POSTER_BW / 2, wellTop + POSTER_BW / 2, innerW - POSTER_BW, wellH - POSTER_BW);
 
   // artwork centered, leaving a bottom band for the watermark
   const wellPad = 56;
