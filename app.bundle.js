@@ -2697,6 +2697,36 @@
     return m ? `${h}\u65F6${m}\u5206` : `${h}\u65F6`;
   }
 
+  // src/sketch-style.js
+  var SKETCH_INK = "#26242b";
+  var SKETCH_INK_SOFT = "rgba(38, 36, 43, 0.55)";
+  var SKETCH_PAPER = "#ffffff";
+  var SKETCH_BW = 2;
+  var SKETCH_BW_CTL = 1.5;
+  var SKETCH_SHADOW = 3;
+  var SKETCH_SHADOW_SM = 2;
+  function sketchRect(ctx2, x, y, w, h, {
+    fill = SKETCH_PAPER,
+    bw = SKETCH_BW,
+    shadow = SKETCH_SHADOW,
+    ink = SKETCH_INK,
+    shadowColor = SKETCH_INK_SOFT
+  } = {}) {
+    if (shadow > 0) {
+      ctx2.fillStyle = shadowColor;
+      ctx2.fillRect(x + shadow, y + shadow, w, h);
+    }
+    if (fill) {
+      ctx2.fillStyle = fill;
+      ctx2.fillRect(x, y, w, h);
+    }
+    if (bw > 0) {
+      ctx2.strokeStyle = ink;
+      ctx2.lineWidth = bw;
+      ctx2.strokeRect(x + bw / 2, y + bw / 2, w - bw, h - bw);
+    }
+  }
+
   // src/board-skin.js
   function traceBoardPath(ctx2, layout, radius = 6) {
     const boardW = layout.boardW || layout.boardSize;
@@ -2749,8 +2779,6 @@
       shadow = true,
       guides = true,
       frameInset = 14,
-      outerRadius = 8,
-      innerRadius = 6,
       blockOffsetX = 0,
       blockOffsetY = 0
     } = options;
@@ -2758,37 +2786,24 @@
     const boardW = layout.boardW || layout.boardSize;
     const boardH = layout.boardH || layout.boardSize;
     ctx2.save();
-    if (shadow) {
-      ctx2.shadowColor = "rgba(38, 36, 43, 0.15)";
-      ctx2.shadowBlur = 26;
-      ctx2.shadowOffsetY = 14;
-    }
-    const baseGradient = ctx2.createLinearGradient(
-      boardX,
+    const compactSkin = frameInset < 10;
+    const bw = compactSkin ? 1 : SKETCH_BW;
+    const shadowOff = shadow ? compactSkin ? SKETCH_SHADOW_SM : SKETCH_SHADOW : 0;
+    sketchRect(
+      ctx2,
+      boardX - frameInset,
       boardY - frameInset,
-      boardX,
-      boardY + boardH + frameInset
+      boardW + frameInset * 2,
+      boardH + frameInset * 2,
+      { fill: "#f2f5f7", bw, shadow: shadowOff }
     );
-    baseGradient.addColorStop(0, "#f6f8fa");
-    baseGradient.addColorStop(1, "#d9e0e4");
-    ctx2.fillStyle = baseGradient;
-    traceBoardPath(ctx2, {
-      boardX: boardX - frameInset,
-      boardY: boardY - frameInset,
-      boardW: boardW + frameInset * 2,
-      boardH: boardH + frameInset * 2
-    }, outerRadius);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(108, 118, 130, 0.34)";
-    ctx2.stroke();
     ctx2.fillStyle = "#fbfcfd";
-    traceBoardPath(ctx2, layout, innerRadius);
-    ctx2.fill();
-    ctx2.strokeStyle = "rgba(70, 84, 96, 0.18)";
-    ctx2.stroke();
+    ctx2.fillRect(boardX, boardY, boardW, boardH);
+    ctx2.strokeStyle = "rgba(38, 36, 43, 0.22)";
+    ctx2.lineWidth = 1;
+    ctx2.strokeRect(boardX + 0.5, boardY + 0.5, boardW - 1, boardH - 1);
     ctx2.save();
-    traceBoardPath(ctx2, layout, innerRadius);
+    traceBoardPath(ctx2, layout, 0);
     ctx2.clip();
     const tintLight = mixColor("#ffffff", brand, 0.06);
     const tintDark = mixColor("#ffffff", brand, 0.15);
@@ -2843,11 +2858,7 @@
     const showCellGrid = options.cellGrid ?? layout.cell >= 2.5;
     const shadow = options.shadow ?? !layout.compact;
     ctx2.save();
-    const background = ctx2.createLinearGradient(0, 0, width, height);
-    background.addColorStop(0, table[0]);
-    background.addColorStop(0.55, table[1] || table[0]);
-    background.addColorStop(1, table[2] || table[1] || table[0]);
-    ctx2.fillStyle = background;
+    ctx2.fillStyle = table[1] || table[0];
     ctx2.fillRect(0, 0, width, height);
     drawBoardSkin(ctx2, layout, {
       cols,
@@ -2855,12 +2866,10 @@
       brand,
       shadow,
       guides: false,
-      frameInset: layout.frameInset,
-      outerRadius: layout.compact ? Math.max(2, layout.frameInset * 0.8) : 8,
-      innerRadius: layout.compact ? Math.max(1, layout.frameInset * 0.5) : 6
+      frameInset: layout.frameInset
     });
     ctx2.save();
-    traceBoardPath(ctx2, layout, layout.compact ? Math.max(1, layout.frameInset * 0.5) : 6);
+    traceBoardPath(ctx2, layout, 0);
     ctx2.clip();
     for (let y = 0; y < rows; y += 1) {
       const row = pixels[y] || "";
@@ -4353,36 +4362,6 @@
       ctx2.fill();
       ctx2.restore();
     });
-  }
-
-  // src/sketch-style.js
-  var SKETCH_INK = "#26242b";
-  var SKETCH_INK_SOFT = "rgba(38, 36, 43, 0.55)";
-  var SKETCH_PAPER = "#ffffff";
-  var SKETCH_BW = 2;
-  var SKETCH_BW_CTL = 1.5;
-  var SKETCH_SHADOW = 3;
-  var SKETCH_SHADOW_SM = 2;
-  function sketchRect(ctx2, x, y, w, h, {
-    fill = SKETCH_PAPER,
-    bw = SKETCH_BW,
-    shadow = SKETCH_SHADOW,
-    ink = SKETCH_INK,
-    shadowColor = SKETCH_INK_SOFT
-  } = {}) {
-    if (shadow > 0) {
-      ctx2.fillStyle = shadowColor;
-      ctx2.fillRect(x + shadow, y + shadow, w, h);
-    }
-    if (fill) {
-      ctx2.fillStyle = fill;
-      ctx2.fillRect(x, y, w, h);
-    }
-    if (bw > 0) {
-      ctx2.strokeStyle = ink;
-      ctx2.lineWidth = bw;
-      ctx2.strokeRect(x + bw / 2, y + bw / 2, w - bw, h - bw);
-    }
   }
 
   // src/render-tray.js

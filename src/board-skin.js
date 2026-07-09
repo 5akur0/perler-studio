@@ -1,4 +1,5 @@
 import { mixColor } from './color-utils.js';
+import { sketchRect, SKETCH_BW, SKETCH_SHADOW, SKETCH_SHADOW_SM } from './sketch-style.js';
 
 export function traceBoardPath(ctx, layout, radius = 6) {
   const boardW = layout.boardW || layout.boardSize;
@@ -53,8 +54,6 @@ export function drawBoardSkin(ctx, layout, options = {}) {
     shadow = true,
     guides = true,
     frameInset = 14,
-    outerRadius = 8,
-    innerRadius = 6,
     blockOffsetX = 0,
     blockOffsetY = 0,
   } = options;
@@ -63,39 +62,28 @@ export function drawBoardSkin(ctx, layout, options = {}) {
   const boardH = layout.boardH || layout.boardSize;
 
   ctx.save();
-  if (shadow) {
-    ctx.shadowColor = "rgba(38, 36, 43, 0.15)";
-    ctx.shadowBlur = 26;
-    ctx.shadowOffsetY = 14;
-  }
-  const baseGradient = ctx.createLinearGradient(
-    boardX,
+  // Sketch shell: flat frame + ink outline + hard sticker shadow. Thumbnails
+  // (frameInset < 10) get a thinner line and smaller offset so tiny previews
+  // don't drown in ink.
+  const compactSkin = frameInset < 10;
+  const bw = compactSkin ? 1 : SKETCH_BW;
+  const shadowOff = shadow ? (compactSkin ? SKETCH_SHADOW_SM : SKETCH_SHADOW) : 0;
+  sketchRect(
+    ctx,
+    boardX - frameInset,
     boardY - frameInset,
-    boardX,
-    boardY + boardH + frameInset,
+    boardW + frameInset * 2,
+    boardH + frameInset * 2,
+    { fill: "#f2f5f7", bw, shadow: shadowOff },
   );
-  baseGradient.addColorStop(0, "#f6f8fa");
-  baseGradient.addColorStop(1, "#d9e0e4");
-  ctx.fillStyle = baseGradient;
-  traceBoardPath(ctx, {
-    boardX: boardX - frameInset,
-    boardY: boardY - frameInset,
-    boardW: boardW + frameInset * 2,
-    boardH: boardH + frameInset * 2,
-  }, outerRadius);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(108, 118, 130, 0.34)";
-  ctx.stroke();
-
   ctx.fillStyle = "#fbfcfd";
-  traceBoardPath(ctx, layout, innerRadius);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(70, 84, 96, 0.18)";
-  ctx.stroke();
+  ctx.fillRect(boardX, boardY, boardW, boardH);
+  ctx.strokeStyle = "rgba(38, 36, 43, 0.22)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(boardX + 0.5, boardY + 0.5, boardW - 1, boardH - 1);
 
   ctx.save();
-  traceBoardPath(ctx, layout, innerRadius);
+  traceBoardPath(ctx, layout, 0);
   ctx.clip();
   const tintLight = mixColor("#ffffff", brand, 0.06);
   const tintDark = mixColor("#ffffff", brand, 0.15);
@@ -156,11 +144,7 @@ export function drawPixelPatternPreview(ctx, options = {}) {
   const shadow = options.shadow ?? !layout.compact;
 
   ctx.save();
-  const background = ctx.createLinearGradient(0, 0, width, height);
-  background.addColorStop(0, table[0]);
-  background.addColorStop(0.55, table[1] || table[0]);
-  background.addColorStop(1, table[2] || table[1] || table[0]);
-  ctx.fillStyle = background;
+  ctx.fillStyle = table[1] || table[0];
   ctx.fillRect(0, 0, width, height);
 
   drawBoardSkin(ctx, layout, {
@@ -170,12 +154,10 @@ export function drawPixelPatternPreview(ctx, options = {}) {
     shadow,
     guides: false,
     frameInset: layout.frameInset,
-    outerRadius: layout.compact ? Math.max(2, layout.frameInset * 0.8) : 8,
-    innerRadius: layout.compact ? Math.max(1, layout.frameInset * 0.5) : 6,
   });
 
   ctx.save();
-  traceBoardPath(ctx, layout, layout.compact ? Math.max(1, layout.frameInset * 0.5) : 6);
+  traceBoardPath(ctx, layout, 0);
   ctx.clip();
   for (let y = 0; y < rows; y += 1) {
     const row = pixels[y] || "";
