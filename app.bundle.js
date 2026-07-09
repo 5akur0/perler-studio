@@ -5417,15 +5417,7 @@
   function drawPaper(x, y, w, h) {
     const ctx2 = scene;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.16)";
-    ctx2.shadowBlur = 26;
-    ctx2.shadowOffsetY = 15;
-    ctx2.fillStyle = "#fffdf8";
-    roundedRect(x, y, w, h, 8);
-    ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(99, 91, 79, 0.18)";
-    ctx2.stroke();
+    sketchRect(ctx2, x, y, w, h, { fill: "#fffdf8" });
     ctx2.restore();
   }
   function drawMiniSupplies(x, y, w, h) {
@@ -5955,10 +5947,7 @@
     canvas.height = Math.max(1, Math.round(h * dpr));
     const p = canvas.getContext("2d");
     p.scale(dpr, dpr);
-    const base = p.createLinearGradient(0, 0, 0, h);
-    base.addColorStop(0, "#fffefb");
-    base.addColorStop(1, "#f3ecdd");
-    p.fillStyle = base;
+    p.fillStyle = "#faf5e9";
     p.fillRect(0, 0, w, h);
     let seed = 0;
     const rnd = () => {
@@ -5966,18 +5955,6 @@
       const r = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
       return r - Math.floor(r);
     };
-    for (let i = 0; i < 9; i += 1) {
-      const cx = rnd() * w;
-      const cy = rnd() * h;
-      const rad = 50 + rnd() * 110;
-      const light = rnd() > 0.5;
-      const a = 0.05 + rnd() * 0.045;
-      const blob = p.createRadialGradient(cx, cy, 0, cx, cy, rad);
-      blob.addColorStop(0, light ? `rgba(255,255,250,${a.toFixed(3)})` : `rgba(112,96,68,${a.toFixed(3)})`);
-      blob.addColorStop(1, "rgba(255,255,255,0)");
-      p.fillStyle = blob;
-      p.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
-    }
     p.lineCap = "round";
     const softStroke = (x1, y1, cx, cy, x2, y2, rgb, peak) => {
       const passes = [[5.5, peak * 0.4], [3, peak * 0.65], [1.5, peak]];
@@ -6030,11 +6007,6 @@
     p.strokeStyle = "rgba(120, 100, 70, 0.10)";
     p.lineWidth = 2;
     p.strokeRect(1, 1, w - 2, h - 2);
-    const sheen = p.createLinearGradient(0, 0, 0, Math.min(26, h));
-    sheen.addColorStop(0, "rgba(255, 255, 255, 0.4)");
-    sheen.addColorStop(1, "rgba(255, 255, 255, 0)");
-    p.fillStyle = sheen;
-    p.fillRect(0, 0, w, Math.min(26, h));
     _paperTextureCache = { key, canvas };
     return canvas;
   }
@@ -6091,25 +6063,13 @@
     ctx2.save();
     ctx2.translate(cx, cy);
     ctx2.rotate(angle);
-    ctx2.save();
-    ctx2.shadowColor = "rgba(46, 38, 26, 0.22)";
-    ctx2.shadowBlur = 5;
-    ctx2.shadowOffsetY = 2;
-    ctx2.fillStyle = "rgba(150, 130, 90, 0.01)";
+    ctx2.fillStyle = "rgba(216, 190, 124, 0.34)";
     tapeTornPath(ctx2, halfW, halfH);
     ctx2.fill();
-    ctx2.restore();
-    const body = ctx2.createLinearGradient(0, -halfH, 0, halfH);
-    body.addColorStop(0, "rgba(232, 212, 154, 0.40)");
-    body.addColorStop(0.5, "rgba(216, 190, 124, 0.30)");
-    body.addColorStop(1, "rgba(200, 172, 108, 0.40)");
-    ctx2.fillStyle = body;
+    ctx2.strokeStyle = "rgba(38, 36, 43, 0.35)";
+    ctx2.lineWidth = 1;
     tapeTornPath(ctx2, halfW, halfH);
-    ctx2.fill();
-    ctx2.fillStyle = "rgba(255, 255, 255, 0.22)";
-    ctx2.fillRect(-halfW + 2, -halfH + 1.5, halfW * 2 - 4, 2.4);
-    ctx2.fillStyle = "rgba(150, 120, 70, 0.12)";
-    ctx2.fillRect(-halfW + 2, halfH - 2, halfW * 2 - 4, 1);
+    ctx2.stroke();
     ctx2.restore();
   }
   function drawReferenceSheet(layout) {
@@ -6138,15 +6098,17 @@
     const pw = refW - 10;
     const ph = refH - 10;
     ctx2.save();
-    ctx2.shadowColor = "rgba(38, 36, 43, 0.18)";
-    ctx2.shadowBlur = 16;
-    ctx2.shadowOffsetY = 8;
+    ctx2.save();
+    ctx2.translate(SKETCH_SHADOW, SKETCH_SHADOW);
+    ctx2.fillStyle = SKETCH_INK_SOFT;
+    tornPaperPath(ctx2, px, py, pw, ph, tearSeed);
+    ctx2.fill();
+    ctx2.restore();
     ctx2.fillStyle = "#fbf6ea";
     tornPaperPath(ctx2, px, py, pw, ph, tearSeed);
     ctx2.fill();
-    ctx2.shadowColor = "transparent";
-    ctx2.strokeStyle = "rgba(150, 134, 100, 0.30)";
-    ctx2.lineWidth = 1;
+    ctx2.strokeStyle = "rgba(38, 36, 43, 0.75)";
+    ctx2.lineWidth = 1.5;
     tornPaperPath(ctx2, px, py, pw, ph, tearSeed);
     ctx2.stroke();
     drawReferenceTape(px + 38, py - 3, -0.12);
@@ -6178,19 +6140,6 @@
     ctx2.beginPath();
     ctx2.rect(gridX, gridY, gridW, gridH);
     ctx2.clip();
-    for (let i = 0; i < 6; i += 1) {
-      const cx = gridX + inkRnd() * gridW;
-      const cy = gridY + inkRnd() * gridH;
-      const rad = gridW * (0.4 + inkRnd() * 0.48);
-      const light = i < 4;
-      const a = light ? 0.16 + inkRnd() * 0.08 : 0.08 + inkRnd() * 0.05;
-      const patch = ctx2.createRadialGradient(cx, cy, 0, cx, cy, rad);
-      patch.addColorStop(0, light ? `rgba(250,244,230,${a.toFixed(3)})` : `rgba(86,70,46,${a.toFixed(3)})`);
-      patch.addColorStop(0.42, light ? `rgba(250,244,230,${(a * 0.56).toFixed(3)})` : `rgba(86,70,46,${(a * 0.48).toFixed(3)})`);
-      patch.addColorStop(1, "rgba(255,255,255,0)");
-      ctx2.fillStyle = patch;
-      ctx2.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
-    }
     const dotSize = Math.max(1.1, Math.min(1.7, cell * 0.25));
     ctx2.fillStyle = "rgba(62, 50, 34, 0.12)";
     for (let yy = gridY + 1; yy < gridY + gridH; yy += 3) {

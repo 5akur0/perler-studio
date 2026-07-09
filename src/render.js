@@ -17,6 +17,7 @@ import {
   drawBoardGuides, drawBoardSkin, drawPixelPatternPreview, pixelPatternPreviewLayout,
 } from './board-skin.js';
 import { shouldUseBoardPegCache, visibleBoardCellRange } from './board-layout.js';
+import { sketchRect, SKETCH_INK_SOFT, SKETCH_SHADOW } from './sketch-style.js';
 // Pure ctx/text primitives live in their own leaf module. Import them back for
 // this file's many internal call-sites and re-export so existing consumers
 // (main.js, ui.js, …) keep importing them from './render.js'.
@@ -1074,15 +1075,7 @@ export function drawChooseScene(layout) {
 export function drawPaper(x, y, w, h) {
   const ctx = scene;
   ctx.save();
-  ctx.shadowColor = "rgba(38, 36, 43, 0.16)";
-  ctx.shadowBlur = 26;
-  ctx.shadowOffsetY = 15;
-  ctx.fillStyle = "#fffdf8";
-  roundedRect(x, y, w, h, 8);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(99, 91, 79, 0.18)";
-  ctx.stroke();
+  sketchRect(ctx, x, y, w, h, { fill: "#fffdf8" });
   ctx.restore();
 }
 
@@ -1766,31 +1759,13 @@ function getPaperTexture(w, h) {
   const p = canvas.getContext("2d");
   p.scale(dpr, dpr);
 
-  // Warm cream base.
-  const base = p.createLinearGradient(0, 0, 0, h);
-  base.addColorStop(0, "#fffefb");
-  base.addColorStop(1, "#f3ecdd");
-  p.fillStyle = base;
+  // Flat cream base.
+  p.fillStyle = "#faf5e9";
   p.fillRect(0, 0, w, h);
 
   // Seeded PRNG → deterministic texture (never shimmers between redraws).
   let seed = 0;
   const rnd = () => { seed += 1; const r = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return r - Math.floor(r); };
-
-  // Broad crumple shading: large soft light/dark blotches — this carries most of
-  // the "handled paper" feel (low contrast, very diffuse).
-  for (let i = 0; i < 9; i += 1) {
-    const cx = rnd() * w;
-    const cy = rnd() * h;
-    const rad = 50 + rnd() * 110;
-    const light = rnd() > 0.5;
-    const a = 0.05 + rnd() * 0.045;
-    const blob = p.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    blob.addColorStop(0, light ? `rgba(255,255,250,${a.toFixed(3)})` : `rgba(112,96,68,${a.toFixed(3)})`);
-    blob.addColorStop(1, "rgba(255,255,255,0)");
-    p.fillStyle = blob;
-    p.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
-  }
 
   // Soft folds: each crease is a gentle valley + ridge, but drawn as several
   // stacked low-alpha passes (wide→narrow) so the edge feathers out instead of
@@ -1838,13 +1813,6 @@ function getPaperTexture(w, h) {
   p.strokeStyle = "rgba(120, 100, 70, 0.10)";
   p.lineWidth = 2;
   p.strokeRect(1, 1, w - 2, h - 2);
-
-  // Top sheen.
-  const sheen = p.createLinearGradient(0, 0, 0, Math.min(26, h));
-  sheen.addColorStop(0, "rgba(255, 255, 255, 0.4)");
-  sheen.addColorStop(1, "rgba(255, 255, 255, 0)");
-  p.fillStyle = sheen;
-  p.fillRect(0, 0, w, Math.min(26, h));
 
   _paperTextureCache = { key, canvas };
   return canvas;
@@ -1911,31 +1879,14 @@ function drawReferenceTape(cx, cy, angle) {
   ctx.translate(cx, cy);
   ctx.rotate(angle);
 
-  // Cast shadow under the tape.
-  ctx.save();
-  ctx.shadowColor = "rgba(46, 38, 26, 0.22)";
-  ctx.shadowBlur = 5;
-  ctx.shadowOffsetY = 2;
-  ctx.fillStyle = "rgba(150, 130, 90, 0.01)";
+  // Flat translucent tape + thin ink edge (paper still shows through).
+  ctx.fillStyle = "rgba(216, 190, 124, 0.34)";
   tapeTornPath(ctx, halfW, halfH);
   ctx.fill();
-  ctx.restore();
-
-  // Translucent tape body (lets the paper tone show through).
-  const body = ctx.createLinearGradient(0, -halfH, 0, halfH);
-  body.addColorStop(0, "rgba(232, 212, 154, 0.40)");
-  body.addColorStop(0.5, "rgba(216, 190, 124, 0.30)");
-  body.addColorStop(1, "rgba(200, 172, 108, 0.40)");
-  ctx.fillStyle = body;
+  ctx.strokeStyle = "rgba(38, 36, 43, 0.35)";
+  ctx.lineWidth = 1;
   tapeTornPath(ctx, halfW, halfH);
-  ctx.fill();
-
-  // Gloss highlight band across the top third.
-  ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-  ctx.fillRect(-halfW + 2, -halfH + 1.5, halfW * 2 - 4, 2.4);
-  // Faint lower edge line for thickness.
-  ctx.fillStyle = "rgba(150, 120, 70, 0.12)";
-  ctx.fillRect(-halfW + 2, halfH - 2, halfW * 2 - 4, 1);
+  ctx.stroke();
 
   ctx.restore();
 }
@@ -1974,15 +1925,18 @@ export function drawReferenceSheet(layout) {
   const pw = refW - 10;
   const ph = refH - 10;
   ctx.save();
-  ctx.shadowColor = "rgba(38, 36, 43, 0.18)";
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 8;
+  // Hard sticker shadow under the torn card (same seed → same silhouette).
+  ctx.save();
+  ctx.translate(SKETCH_SHADOW, SKETCH_SHADOW);
+  ctx.fillStyle = SKETCH_INK_SOFT;
+  tornPaperPath(ctx, px, py, pw, ph, tearSeed);
+  ctx.fill();
+  ctx.restore();
   ctx.fillStyle = "#fbf6ea";
   tornPaperPath(ctx, px, py, pw, ph, tearSeed);
   ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(150, 134, 100, 0.30)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(38, 36, 43, 0.75)";
+  ctx.lineWidth = 1.5;
   tornPaperPath(ctx, px, py, pw, ph, tearSeed);
   ctx.stroke();
   drawReferenceTape(px + 38, py - 3, -0.12);
@@ -2022,24 +1976,7 @@ export function drawReferenceSheet(layout) {
   ctx.rect(gridX, gridY, gridW, gridH);
   ctx.clip();
 
-  // 2) Uneven / worn ink: broad roller patches, mostly bleached where the ink
-  //    ran thin, with a couple of heavier areas so the coverage visibly varies
-  //    without covering the pattern itself.
-  for (let i = 0; i < 6; i += 1) {
-    const cx = gridX + inkRnd() * gridW;
-    const cy = gridY + inkRnd() * gridH;
-    const rad = gridW * (0.40 + inkRnd() * 0.48);
-    const light = i < 4;
-    const a = light ? 0.16 + inkRnd() * 0.08 : 0.08 + inkRnd() * 0.05;
-    const patch = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-    patch.addColorStop(0, light ? `rgba(250,244,230,${a.toFixed(3)})` : `rgba(86,70,46,${a.toFixed(3)})`);
-    patch.addColorStop(0.42, light ? `rgba(250,244,230,${(a * 0.56).toFixed(3)})` : `rgba(86,70,46,${(a * 0.48).toFixed(3)})`);
-    patch.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = patch;
-    ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
-  }
-
-  // 3) Print screen: a visible halftone dot grid.
+  // 2) Print screen: a visible halftone dot grid.
   const dotSize = Math.max(1.1, Math.min(1.7, cell * 0.25));
   ctx.fillStyle = "rgba(62, 50, 34, 0.12)";
   for (let yy = gridY + 1; yy < gridY + gridH; yy += 3) {
@@ -2049,7 +1986,7 @@ export function drawReferenceSheet(layout) {
   }
   ctx.restore();
 
-  // 4) Printed chart grid: fine warm rules plus bold every-10 divisions. These
+  // 3) Printed chart grid: fine warm rules plus bold every-10 divisions. These
   //    stay visible without turning faded dark cells back into solid black.
   ctx.strokeStyle = "rgba(92, 76, 50, 0.26)";
   ctx.lineWidth = 0.7;
