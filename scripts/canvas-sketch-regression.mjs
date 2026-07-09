@@ -50,4 +50,38 @@ assert.equal(SKETCH_SHADOW, 3);
   assert.equal(ctx.ops.filter(([op]) => op === "strokeRect").length, 1);
 }
 
+console.log("canvas-sketch Part 1 (sketchRect unit): OK");
+
+// Part 2: pin the allowed gradient/shadowBlur call sites. Props must stay
+// flat; only gameplay-feedback and content-sheen effects may keep gradients.
+// If you add a legitimate functional gradient, update EXPECTED with a comment.
+import { readFileSync } from "node:fs";
+const EXPECTED = {
+  // file: [gradients, shadowBlurs]
+  // render.js: lamp cord fade (linear) + lamp glow (radial) + fusion bridge (linear) + scraper trail (linear) = 4; shadowBlur = 1 (drawSpillMarker fallen bead)
+  "src/render.js": [4, 1],
+  // render-fusion.js: sheen (linear) + bridge (linear) = 2; no shadowBlur
+  "src/render-fusion.js": [2, 0],
+  // render-inspect.js: bridge (linear) = 1; no shadowBlur
+  "src/render-inspect.js": [1, 0],
+  // render-finish.js: drawMaterialHighlight (linear) = 1; no shadowBlur
+  "src/render-finish.js": [1, 0],
+  // render-export.js: artwork sheen (linear) = 1; no shadowBlur
+  "src/render-export.js": [1, 0],
+  // render-tray.js: fully flat — 0 gradients, 0 shadowBlur
+  "src/render-tray.js": [0, 0],
+  // board-skin.js: fully flat — 0 gradients, 0 shadowBlur
+  "src/board-skin.js": [0, 0],
+  // draw.js: fully flat — 0 gradients, 0 shadowBlur
+  "src/draw.js": [0, 0],
+};
+for (const [file, [grads, blurs]] of Object.entries(EXPECTED)) {
+  const src = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+  const g = (src.match(/create(?:Linear|Radial)Gradient/g) || []).length;
+  const b = (src.match(/shadowBlur/g) || []).length;
+  assert.equal(g, grads, `${file}: gradient count drifted (${g} vs ${grads})`);
+  assert.equal(b, blurs, `${file}: shadowBlur count drifted (${b} vs ${blurs})`);
+}
+
+console.log("canvas-sketch Part 2 (gradient/shadowBlur allowlist): OK");
 console.log("canvas-sketch regression: OK");

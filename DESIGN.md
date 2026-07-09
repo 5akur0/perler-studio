@@ -207,6 +207,18 @@ components:
 
 **The Hard-Sticker-Shadow Rule（硬贴纸投影）.** 投影一律 `Npx Npx 0`（零模糊）的墨色偏移，**禁止柔和扩散投影、禁止磨砂玻璃 backdrop-filter 出现在 L1 容器上**。移动端近满幅面板（画廊/收藏/社区）因外层 `overflow:hidden` 会硬切偏移影，故在 ≤860 去掉贴纸投影、仅留墨边定义。`:active` 时投影收起（纸片被按平），配合轻微 `brightness(0.96)`，**不用位移**。
 
+### canvas 道具素描语言
+
+canvas 绘制的道具（豆筛 / 拼豆板 / 图纸 / 台灯 / 豆针与镊子 / 熨斗 / 展示台 / 分享海报）与 CSS 面板遵循**同一套素描语言**：平涂填色、直角形状、墨线描边、硬贴纸投影（偏移无模糊）。实现入口是 `src/sketch-style.js`，它镜像 `src/styles/tokens.css` 中的 sketch token——`SKETCH_INK`、`SKETCH_INK_SOFT`、`SKETCH_PAPER`、`SKETCH_BW`、`SKETCH_SHADOW` 等常量与 CSS 变量一一对应。**修改 token 时须同步两处**：`tokens.css` 和 `sketch-style.js`。
+
+**豁免清单**（以下效果不受平涂约束，保留渐变 / 模糊）：
+- **豆子本体及其接触影**：圆形色块与软性接触投影是拼豆的核心视觉，属内容渲染范畴。
+- **玩法反馈光效**：台灯辉光（`createRadialGradient`）、热度染色与冷却闪光（动画态）、熔接桥高光（`createLinearGradient`）——这些是即时状态反馈，需要光感渐变才能被玩家识别。
+- **作品光泽 sheen**：完成品与分享海报上的画面整体 sheen（`render-fusion.js`、`render-export.js`），以及刮痕擦除的动态轨迹，是作品表现力的一部分，不属于「道具 UI」。
+- **真圆 / 真药丸形状**：豆子（圆）和部分统计徽标（药丸），`arc()` 是形状而非圆角，不受直角规则约束。
+
+> 自检：改动 canvas 道具绘制后跑 `npm run test:canvas-sketch`，它会在 Part 2 扫描 `src/render*.js` / `src/board-skin.js` / `src/draw.js`，若渐变或 shadowBlur 数量超出豁免清单，测试立即报红。新增合法渐变须同步更新脚本的 `EXPECTED` 并附注原因。
+
 ## 5. Components
 
 **The Quiet Tray Rule（克制留白）.** 全局总纲：可爱来自颜色与克制留白，不来自堆元素或装饰。任何一屏都先保证作品和「可截图」当主角，干扰元素能省则省。
