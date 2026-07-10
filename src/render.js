@@ -2197,7 +2197,7 @@ export function drawFinishLayer(layout) {
   const by = card.y + card.h - badgeH - 8;
   ctx.save();
   sketchRect(ctx, bx, by, badgeW, badgeH, { bw: SKETCH_BW_CTL, shadow: SKETCH_SHADOW_SM });
-  ctx.fillStyle = "#26242b";
+  ctx.fillStyle = SKETCH_INK;
   ctx.font = "800 14px " + CANVAS_CLEAR_FONT;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

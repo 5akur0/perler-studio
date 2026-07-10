@@ -268,7 +268,7 @@ export function drawShareImage(ctx, w, h, portrait, qrImg = null, variant = "car
 
 // Minimal "纯作品图" layout: a single centered white well holding the artwork,
 // with a quiet brand watermark and (if available) a small corner QR. Shares the
-// page wash painted by the caller. Square canvases look best here (1080×1080).
+// flat paper ground painted by the caller. Square canvases look best here (1080×1080).
 function drawCleanVariant(ctx, w, h, PAD, innerW, p, qrImg, logoImg = null) {
   const wellTop = PAD;
   const wellBottom = h - PAD;

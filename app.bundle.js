@@ -6258,7 +6258,7 @@
     const by = card.y + card.h - badgeH - 8;
     ctx2.save();
     sketchRect(ctx2, bx, by, badgeW, badgeH, { bw: SKETCH_BW_CTL, shadow: SKETCH_SHADOW_SM });
-    ctx2.fillStyle = "#26242b";
+    ctx2.fillStyle = SKETCH_INK;
     ctx2.font = "800 14px " + CANVAS_CLEAR_FONT;
     ctx2.textAlign = "center";
     ctx2.textBaseline = "middle";
