@@ -1,6 +1,6 @@
 # UI Audit: full product UI review
 
-Status: Gate A in progress
+Status: Gate B passed; implementation frozen into batches
 
 ## Charter
 
@@ -36,15 +36,53 @@ Status: Gate A in progress
 
 ## Inventory and scenarios
 
-Pending Gate B discovery.
+Legend: `pass`, `fail(ISSUE)`, `source-pass`, `tool-invalid`.
+
+| Surface/state | Phone 390x844 | Tablet 1024x768 | Desktop 1280x720 | Input/state notes |
+|---|---|---|---|---|
+| Home | `fail(UI-001,UI-002)` | `fail(UI-001)` | `fail(UI-001,UI-002)` | Mouse hover source-backed; 200% reflow is a recorded failure |
+| Bead choose | `pass` | `pass` | `pass` | Live DOM plus screenshots |
+| Bead place | `pass` | `pass` | `pass` | Live DOM, screenshots, keyboard/mobile regressions |
+| Bead inspect/iron/cool/finish | `pass` | `pass` | `pass` | Each phase traversed live in sandbox mode and captured |
+| Drawing idle/palette | `source-pass` | `source-pass` | `pass` | Mobile palette captured; `test:drawing-mobile`, keyboard and tab-order pass |
+| Gallery loading/empty | `pass` | `source-pass` | `pass` | Loading and empty captured; error/retry/content branches source-reviewed |
+| Collection empty/populated/viewer | `fail(UI-003,UI-010)` | `fail(UI-003,UI-010)` | `fail(UI-003,UI-010)` | Empty captured; populated viewer audited from source |
+| Community compose/tabs/states | `pass` | `source-pass` | `pass` | Loading/empty captured; failure/rollback and keyboard tabs source/test pass |
+| Settings and five themes | `source-pass` | `source-pass` | `pass` | Mobile and two theme-modal screenshots are compositor-invalid; DOM bounds and token source are valid |
+| Modals/import/export | `fail(UI-005)` | `fail(UI-005)` | `fail(UI-005)` | Shared modal behavior passes except the unnamed share-code textarea |
+| Touch/keyboard/focus | `fail(UI-003,UI-004,UI-006)` | same | same | Core canvas and tab-order tests pass; listed exceptions remain |
+| Reduced motion | `pass` | `pass` | `pass` | CSS global reduction and carousel JS guard verified |
+| Breakpoint seams/orientation | `source-pass` | `source-pass` | `source-pass` | Responsive source plus mobile regressions; 200% is separately failed as UI-002 |
+
+Reviewer A could not obtain an isolated browser binding and its initial screenshots were invalidated by stale browser zoom. Its source-backed home finding was retained; all visual cells were reassigned to the primary evidence capture and reviewer C. Reviewer B completed the detector/technical pass. Reviewer C completed the responsive/spacing pass.
 
 ## Findings and issues
 
-Pending independent reviewer handoffs.
+Raw findings remain represented by their reviewer IDs in the mapping below.
+
+| Canonical ID | Raw IDs | Severity | Issue and acceptance criteria | Status |
+|---|---|---:|---|---|
+| UI-001 | user, VA-004 | P2 | Home siblings use unequal hover treatments and 拼豆台 alone has decorative bead scatter. Remove `.start-row-bead::after`; give all five rows one structural hover/focus vocabulary with aligned border, fill and shadow. | open |
+| UI-002 | RC-001 | P1 | Viewport locking can hide home content at 200% zoom. At 1280x720 and 1440x1000 at 200%, all destinations and featured work remain vertically reachable with no horizontal overflow. | open |
+| UI-003 | TB-001, TB-006 | P1 | Enlarged collection viewer lacks dialog/focus lifecycle and uses stale soft-shadow material. Move it into shared modal semantics and square ink-paper tokens; trap/restore focus and make the background inert. | open |
+| UI-004 | TB-002 | P1 | Showcase pagination dots are nested mouse-only 7px controls. Make them non-interactive indicators or independent labeled 44px controls; no nested interaction. | open |
+| UI-005 | TB-003 | P1 | Share-code textarea is unnamed. Provide a persistent, mode-appropriate programmatic label. | open |
+| UI-006 | TB-004 | P2 | Mobile drawing color chips override the 44px target with 34px. Computed hit boxes must be at least 44x44 without clipped focus/selection rings. | open |
+| UI-007 | TB-005 | P2 | `test:ui-quality` pins stale CSS `order:-1` despite corrected DOM order. Replace with DOM/live tab-order coverage and keep both UI-quality and mobile-tab-order green. | open |
+| UI-008 | TB-007 | P2 | Choose/remap status components contain undocumented fixed neutral colors. Replace with semantic/existing theme tokens and verify five-theme contrast/coherence. | open |
+| UI-009 | RC-002 | P2 | Primary drawing and bead work squares use mismatched line/shadow hierarchy. Define and apply a shared primary-work-frame tier while keeping dense thumbnail frames quieter. | open |
+| UI-010 | RC-003 | P2 | Collection empty state uses a one-off dashed/light square frame. Remove it or map it to a documented frame tier. | open |
+| UI-011 | D-003 | P2 | `PRODUCT.md` still describes the retired rounded/glass language. Update it to the straight ink-paper contract so future UI work does not regress. | open |
+
+No P0 was found. Detector false positives for the two-font system, `new Image()` usage, and deliberate canvas/logo colors were dismissed. Existing strong passes include core mobile structure, phase semantics, keyboard canvas operation, reduced motion, error/loading branches, theme token architecture, and event-driven canvas rendering.
 
 ## Batches
 
-No UI implementation before Gate B passes.
+1. Preserve and verify the pre-existing accessibility/performance candidate; fix stale regression UI-007.
+2. Home interaction and reflow: UI-001, UI-002, UI-004.
+3. Shared square-frame/tokens and spacing: UI-006, UI-008, UI-009, UI-010, UI-011.
+4. Modal accessibility/material: UI-003, UI-005.
+5. Build, full regression, three-viewport/five-theme evidence, then independent closeout.
 
 ## Sign-off
 
@@ -53,3 +91,4 @@ Pending Gate D.
 Commands run / coverage / P3 items / waivers / risks:
 
 - `npm test` (outside sandbox): 24/25 suites pass; one stale UI-quality contract failure recorded.
+- Corrected screenshots use 100% browser zoom. The in-app browser intermittently corrupts modal screenshots; affected captures are marked tool-invalid and are never treated as product defects.
