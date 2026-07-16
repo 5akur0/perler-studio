@@ -2537,7 +2537,7 @@
   display: none;
   gap: 3px;
   padding: var(--sp-2);
-  border: 1px dashed #bdc5d0;
+  border: 1px dashed color-mix(in srgb, var(--muted) 45%, var(--line));
   border-radius: var(--r-sm);
   color: var(--muted);
   background: var(--surface-2);
@@ -2560,10 +2560,10 @@
   display: flex;
   align-items: center;
   padding: 0 var(--sp-2);
-  border: 1px solid rgba(105, 126, 156, 0.28);
+  border: 1px solid color-mix(in srgb, var(--brand) 32%, var(--line));
   border-radius: var(--r-xs);
-  background: rgba(242, 246, 252, 0.95);
-  color: #5d708f;
+  background: color-mix(in srgb, var(--brand-tint) 68%, var(--surface));
+  color: var(--brand-ink);
   font-size: var(--fs-xs);
   font-weight: 760;
 }
@@ -2571,10 +2571,10 @@
 .pattern-color-reset {
   min-height: var(--tap-min);
   padding: 0 var(--sp-2);
-  border: 1px dashed #c4ccda;
+  border: 1px dashed color-mix(in srgb, var(--muted) 45%, var(--line));
   border-radius: var(--r-xs);
-  background: rgba(248, 250, 253, 0.96);
-  color: #5f6880;
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: var(--fs-xs);
   font-weight: 760;
 }
@@ -2587,7 +2587,7 @@
 }
 
 .pattern-color-reset:hover {
-  border-color: #aeb9cb;
+  border-color: var(--muted);
   background: var(--surface-2);
 }
 
@@ -2623,17 +2623,17 @@
 .pattern-color-chip.is-hidden {
   opacity: 0.84;
   border-style: dashed;
-  border-color: #aeb9ca;
+  border-color: color-mix(in srgb, var(--muted) 60%, var(--line));
 }
 
 .pattern-color-chip .map {
-  color: #7b8597;
+  color: var(--muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
 }
 
 .pattern-color-chip .map-arrow {
-  color: #7b8597;
+  color: var(--muted);
   font-size: var(--fs-2xs);
   font-weight: 800;
 }

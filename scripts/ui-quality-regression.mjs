@@ -148,6 +148,19 @@ assert.equal(
   false,
   "mobile drawing action order should follow the DOM instead of CSS order overrides",
 );
+assert.equal(
+  cssBlocks(responsiveCss, "#drawCanvas").some((block) => (
+    /border:\s*var\(--sketch-bw-ctl\)/.test(block)
+    && /box-shadow:\s*var\(--sketch-shadow-sm\)/.test(block)
+  )),
+  true,
+  "desktop drawing canvas should use the primary square work-frame tier",
+);
+assert.equal(
+  /border:[^;]*dashed/.test(cssBlock(responsiveCss, ".empty-state")),
+  false,
+  "collection empty state should not introduce a one-off dashed frame",
+);
 
 assert.match(
   screensCss,

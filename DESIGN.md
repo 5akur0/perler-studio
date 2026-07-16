@@ -238,6 +238,7 @@ canvas 绘制的道具（豆筛 / 拼豆板 / 图纸 / 台灯 / 豆针与镊子 
 - **Corner Style:** **一律直角**——容器 / 卡片 / 控件 / 药丸 / chip 的圆角刻度（`--r-*`、`--r-pill`）与旧 `--wobble-*` 全部为 `0`，没有圆角也没有歪角。唯一的「圆」是**真圆形**（圆珠色点、滑块 / 开关钮）走 `border-radius:50%`，那是形状不是圆角。
 - **L1 纸白面板**（顶栏 / 侧栏 section / studio-card / 画廊·收藏·社区内容面）：统一走 paper 原语——`background: --surface`（不透明）+ `--sketch-bw`(2px) `--ink-line` 墨边 + `--sketch-shadow` 硬贴纸投影，**无 backdrop-filter、直角**（无歪角 / 圆角）。**全部面板共用这套配方**，不要各写各的；渐变面 / 柔影 / 磨砂玻璃一律不用（已全站清除）。
 - **网格卡**（`.gallery-card` / `.collection-tile` / `.pattern-card`）：`--surface` 平底 + `--sketch-bw-ctl`(1.5px) 墨边 + `--sketch-shadow-sm`；hover 时把硬投影加深到 `--sketch-shadow`（**不位移、不缩放**）。
+- **主工作方框**（拼豆板 / 绘图画布）：统一使用 `--sketch-bw-ctl`(1.5px) 墨边与 `--sketch-shadow-sm` 的右下硬投影；Canvas 内绘制的板框须镜像同一线宽层级和投影方向。密集缩略图内部只用 1px `--line`，外层卡片负责墨边与投影，禁止内外重复加重。相邻方框的内边距、栏间距与标题基线统一走 `--sp-*`，不使用一次性裸值补齐。
 - **L2 弹窗**：`--surface` 白底 + `--sketch-bw` 墨边 + 直角 + `--sketch-shadow-lg`，内边距 `--sp-4`(16px)。
 
 #### 盒子原语（Layout primitives，`components.css` 顶部）

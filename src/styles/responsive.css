@@ -437,13 +437,6 @@
     max-height: 320px;
   }
 
-  .drawing-color-chip {
-    min-height: 34px;
-  }
-
-  .drawing-color-chip em {
-    font-size: var(--fs-2xs);
-  }
 }
 
 @media (min-width: 861px) {
@@ -485,9 +478,10 @@
   #drawCanvas {
     width: min(100cqw, 100cqh);
     height: min(100cqw, 100cqh);
-    border: 1px solid var(--line);
+    border: var(--sketch-bw-ctl) solid var(--ink-line);
     border-radius: var(--r-sm);
     background: var(--surface);
+    box-shadow: var(--sketch-shadow-sm);
   }
 
   .drawing-footer-actions {
@@ -779,8 +773,9 @@
   justify-items: center;
   gap: var(--sp-3);
   padding: var(--sp-6) var(--sp-4);
-  border: 1px dashed color-mix(in srgb, var(--brand) 30%, var(--line));
+  border: 0;
   border-radius: var(--r-md);
+  background: transparent;
   color: var(--muted);
   text-align: center;
 }
