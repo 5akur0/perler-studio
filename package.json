@@ -15,6 +15,7 @@
     "test:color-chip-selection": "node scripts/color-chip-selection-regression.mjs",
     "test:csp-sync": "node scripts/csp-sync-regression.mjs",
     "test:finish-showcase": "node scripts/finish-showcase-regression.mjs",
+    "test:home-reflow": "node scripts/home-reflow-regression.mjs",
     "test:icons": "node scripts/icons-regression.mjs",
     "test:input-font": "node scripts/input-font-regression.mjs",
     "test:keyboard": "node scripts/keyboard-regression.mjs",

@@ -41,6 +41,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: var(--sp-4);
   padding: var(--sp-4);
   border-radius: var(--r-md);
@@ -181,7 +182,7 @@
   height: 7px;
   border-radius: var(--r-pill);
   background: var(--line);
-  cursor: pointer;
+  pointer-events: none;
   transition: width 0.18s ease, background 0.18s ease;
 }
 
@@ -230,6 +231,7 @@
 }
 
 .start-row {
+  --start-row-accent: var(--brand);
   position: relative;
   display: flex;
   align-items: center;
@@ -243,46 +245,29 @@
   border: var(--sketch-bw-ctl) solid var(--ink-line);
   box-shadow: var(--sketch-shadow-sm);
   overflow: hidden;
-  transition: box-shadow 0.16s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .start-row:hover {
+  background: color-mix(in srgb, var(--start-row-accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--start-row-accent) 58%, var(--ink-line));
   box-shadow: var(--sketch-shadow);
 }
 
-/* 拼豆台 keeps the same quiet surface as the other entries until hover, so it
-   does not read as a pre-selected/active tab on first paint. */
-/* A quiet scatter of candy beads anchored to the empty right edge of the hero. */
-.start-row-bead::after {
-  content: "";
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: 150px;
-  pointer-events: none;
-  opacity: 0.85;
-  background-image:
-    radial-gradient(7px 7px at 78% 30%, color-mix(in srgb, var(--coral) 78%, white), transparent 72%),
-    radial-gradient(6px 6px at 90% 58%, color-mix(in srgb, var(--amber) 80%, white), transparent 72%),
-    radial-gradient(6px 6px at 70% 70%, color-mix(in srgb, var(--blue) 72%, white), transparent 72%),
-    radial-gradient(5px 5px at 86% 82%, color-mix(in srgb, var(--violet) 72%, white), transparent 72%),
-    radial-gradient(7px 7px at 64% 46%, color-mix(in srgb, var(--brand) 70%, white), transparent 72%);
+.start-row-draw {
+  --start-row-accent: var(--coral);
 }
 
-.start-row-bead:hover {
-  background: color-mix(in srgb, var(--brand) 12%, white);
-  border-color: color-mix(in srgb, var(--brand) 60%, var(--line));
+.start-row-gallery {
+  --start-row-accent: var(--blue);
 }
 
-.start-row-draw:hover {
-  border-color: color-mix(in srgb, var(--coral) 55%, var(--line));
+.start-row-collection {
+  --start-row-accent: var(--violet);
 }
 
-.start-row-gallery:hover {
-  border-color: color-mix(in srgb, var(--blue) 58%, var(--line));
-}
-
-.start-row-collection:hover {
-  border-color: color-mix(in srgb, var(--violet) 56%, var(--line));
+.start-row-community {
+  --start-row-accent: var(--amber);
 }
 
 .start-row-icon {

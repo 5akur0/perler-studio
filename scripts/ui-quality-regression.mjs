@@ -22,12 +22,14 @@ const [
   screensCss,
   indexHtml,
   modalController,
+  startShowcaseSource,
 ] = await Promise.all([
   read("src/styles/base.css"),
   read("src/styles/responsive.css"),
   read("src/styles/screens.css"),
   read("index.html"),
   read("src/modal-controller.js"),
+  read("src/start-showcase.js"),
 ]);
 
 function declarations(css) {
@@ -153,15 +155,20 @@ assert.match(
   "gallery empty state should be a deliberate screenshot-ready surface",
 );
 
-assert.equal(
-  cssBlocks(screensCss, ".start-row-bead").some((block) => /background:/.test(block)),
-  false,
-  "home bead entry should not look pre-selected; its fill should only appear on hover",
-);
 assert.match(
-  cssBlock(screensCss, ".start-row-bead:hover"),
-  /background:/,
-  "home bead entry should gain the bead-tinted fill on hover",
+  cssBlock(screensCss, ".start-row:hover"),
+  /background:[\s\S]*border-color:[\s\S]*box-shadow:/,
+  "all home entries should share one structural hover vocabulary",
+);
+assert.equal(
+  screensCss.includes(".start-row-bead::after"),
+  false,
+  "home bead entry should not carry decorative status-like dots",
+);
+assert.equal(
+  /startShowcaseDots\?\.addEventListener\(['"]click/.test(startShowcaseSource),
+  false,
+  "showcase pagination marks should not be nested mouse-only controls",
 );
 
 for (const text of [

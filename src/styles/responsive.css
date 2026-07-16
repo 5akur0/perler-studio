@@ -1985,6 +1985,31 @@
   }
 }
 
+/* Browser zoom can turn a desktop window into a short CSS viewport. Keep the
+   portrait home composition, but let its own surface scroll instead of shrinking
+   five destinations below their target size or clipping them with no escape. */
+@media (max-width: 860px) and (max-height: 520px) {
+  .start-screen {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .start-screen-inner {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .start-aside,
+  .start-rows {
+    flex: 0 0 auto;
+  }
+
+  .start-row {
+    flex: 0 0 auto;
+    min-height: 64px;
+  }
+}
+
 @media (max-width: 860px) and (max-height: 700px) {
   .bead-studio-grid[data-phase="choose"] .choose-preview-panel > .section-title {
     margin-bottom: var(--sp-2);

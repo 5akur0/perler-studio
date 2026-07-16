@@ -103,18 +103,6 @@ export function initStartShowcase(options = {}) {
   if (!featured.length) return;
   buildDots();
 
-  els.startShowcaseDots?.addEventListener('click', (e) => {
-    const dots = Array.from(els.startShowcaseDots.children);
-    const i = dots.indexOf(e.target.closest('.start-showcase-dot'));
-    if (i >= 0) {
-      // Dots live inside the showcase button — don't let the click bubble up
-      // and trigger the "摆这个" deep-link.
-      e.stopPropagation();
-      show(i);
-      startTimer();
-    }
-  });
-
   els.startShowcaseButton?.addEventListener('click', () => {
     const pattern = featured[index];
     if (pattern && onPick) onPick(pattern);
