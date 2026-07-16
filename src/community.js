@@ -184,6 +184,8 @@ export function initCommunity(els) {
     const isMsg = which === "messages";
     tabMsg.setAttribute("aria-selected", String(isMsg));
     tabRoad.setAttribute("aria-selected", String(!isMsg));
+    tabMsg.tabIndex = isMsg ? 0 : -1;
+    tabRoad.tabIndex = isMsg ? -1 : 0;
     messagesEl.hidden = !isMsg;
     roadmapEl.hidden = isMsg;
     if (!isMsg && !loadedRoadmap) { loadedRoadmap = true; loadRoadmap(); }
@@ -191,6 +193,21 @@ export function initCommunity(els) {
   };
   tabMsg?.addEventListener("click", () => select("messages"));
   tabRoad?.addEventListener("click", () => select("roadmap"));
+  const tabs = [tabMsg, tabRoad].filter(Boolean);
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("keydown", (event) => {
+      let nextIndex = null;
+      if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+      if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      const next = tabs[nextIndex];
+      select(next === tabMsg ? "messages" : "roadmap");
+      next.focus();
+    });
+  });
 
   els.communityRefreshButton?.addEventListener("click", () => {
     if (roadmapEl.hidden) loadMessages(); else loadRoadmap();

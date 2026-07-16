@@ -19,6 +19,7 @@ export const state = {
   onboardingModalOpen: false,
   shareModalOpen: false,
   gallerySubmitModalOpen: false,
+  drawCodeModalOpen: false,
   confirmModalOpen: false,
   textInputModalOpen: false,
   modalReturnFocus: null,

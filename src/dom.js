@@ -40,6 +40,7 @@ export const els = {
   drawSettingsButton: $("#drawSettingsButton"),
   drawResetButton: $("#drawResetButton"),
   drawCanvas: $("#drawCanvas"),
+  drawKeyboardStatus: $("#drawKeyboardStatus"),
   drawCodeModal: $("#drawCodeModal"),
   drawCodeModalTitle: $("#drawCodeModalTitle"),
   drawCodeHint: $("#drawCodeHint"),

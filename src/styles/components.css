@@ -200,7 +200,7 @@
 .current-pattern-thumb {
   width: var(--tap-min);
   height: var(--tap-min);
-  border: 1px solid #dce1e9;
+  border: 1px solid var(--line);
   border-radius: var(--r-xs);
   background: var(--surface-2);
   flex: 0 0 auto;
@@ -278,7 +278,7 @@
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--line));
   border-radius: var(--r-pill);
-  background: color-mix(in srgb, #fff 88%, var(--brand-tint));
+  background: color-mix(in srgb, var(--surface) 88%, var(--brand-tint));
   box-shadow: var(--sketch-shadow-sm);
   scroll-padding-inline: 12px;
 }
@@ -2318,7 +2318,7 @@
   align-items: center;
   gap: var(--sp-1);
   padding: var(--sp-1) var(--sp-2);
-  min-height: 32px;
+  min-height: var(--tap-min);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--surface-2);
@@ -2370,7 +2370,7 @@
 }
 
 .remap-open-picker {
-  min-height: 34px;
+  min-height: var(--tap-min);
   padding: 0 var(--sp-3);
   border-radius: var(--r-xs);
   font-size: 12px;
@@ -2383,7 +2383,7 @@
   padding: var(--sp-2);
   border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
-  background: #fff;
+  background: var(--surface);
 }
 
 .remap-card + .remap-card {
@@ -2569,7 +2569,7 @@
 }
 
 .pattern-color-reset {
-  min-height: 24px;
+  min-height: var(--tap-min);
   padding: 0 var(--sp-2);
   border: 1px dashed #c4ccda;
   border-radius: var(--r-xs);
@@ -2596,7 +2596,7 @@
   align-items: center;
   gap: var(--sp-2);
   width: 100%;
-  min-height: 38px;
+  min-height: var(--tap-min);
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid color-mix(in srgb, var(--line) 80%, white);
   border-radius: var(--r-sm);
@@ -2610,14 +2610,14 @@
 .pattern-color-chip,
 .pattern-color-chip:hover,
 .pattern-color-chip:active {
-  min-height: 38px;
+  min-height: var(--tap-min);
   transform: none;
   box-shadow: none;
 }
 
 .pattern-color-chip:hover {
   border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
-  background: #fff;
+  background: var(--surface);
 }
 
 .pattern-color-chip.is-hidden {

@@ -339,34 +339,11 @@
     white-space: nowrap;
   }
 
-  /* Strip order: primary CTA first, then 图片转图纸 (the headline feature) so it
-     is always fully visible — at the narrowest 320px phone 开始拼豆 + 图片转图纸
-     fit with the next button peeking past the fade, instead of 图片转图纸 sitting
-     entirely off-screen. 图片转图纸 is also first in DOM, so keyboard Tab now
-     enters the strip on a visible button rather than an off-screen one. */
+  /* DOM order matches the visible strip order so keyboard focus moves in the
+     same left-to-right sequence. The primary action and image conversion stay
+     fully visible at the leading edge; the fade announces the remaining items. */
   #drawUsePatternButton {
-    order: -1;
     min-width: 112px;
-  }
-
-  #drawImageStampButton {
-    order: 0;
-  }
-
-  #drawImportButton {
-    order: 1;
-  }
-
-  #drawShortCodeButton {
-    order: 2;
-  }
-
-  #drawSubmitGalleryButton {
-    order: 3;
-  }
-
-  #drawClearButton {
-    order: 4;
   }
 
   .drawing-footer-row {

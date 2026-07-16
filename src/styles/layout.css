@@ -110,7 +110,7 @@ body[data-app-mode="community"] .collection-screen {
 }
 
 .drawing-size-card-head span {
-  color: #535a67;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 800;
 }
@@ -149,7 +149,7 @@ body[data-app-mode="community"] .collection-screen {
 
 .drawing-group > label,
 .drawing-group > span {
-  color: #535a67;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 700;
 }
@@ -160,7 +160,7 @@ body[data-app-mode="community"] .collection-screen {
   border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
   padding: 0 var(--sp-3);
-  background: #fff;
+  background: var(--surface);
 }
 
 .draw-size-button {
@@ -185,7 +185,7 @@ body[data-app-mode="community"] .collection-screen {
 }
 
 .draw-size-button strong {
-  color: #2f3645;
+  color: var(--ink);
   font-size: 16px;
   font-weight: 800;
 }
@@ -194,7 +194,7 @@ body[data-app-mode="community"] .collection-screen {
   padding: var(--sp-2) var(--sp-3);
   border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-sm);
-  background: #fff;
+  background: var(--surface);
   position: relative;
 }
 
@@ -264,7 +264,7 @@ body[data-app-mode="community"] .collection-screen {
   font-family: "SFMono-Regular", "Consolas", "Menlo", monospace;
   font-size: var(--fs-title);
   line-height: var(--lh-body);
-  color: #2f3645;
+  color: var(--ink);
   background: var(--surface);
 }
 
@@ -311,7 +311,7 @@ body[data-app-mode="community"] .collection-screen {
   padding: 0 var(--sp-3);
   border: var(--sketch-bw-ctl) solid var(--ink-line);
   border-radius: var(--r-xs);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-size: var(--fs-title);
 }

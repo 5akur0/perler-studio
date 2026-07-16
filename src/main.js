@@ -51,7 +51,7 @@ import {
   scoreLabel, finalGrade, statusText,
   boardCellFromPoint, pointInTray, trayDumpButtonRect, pointInTrayDumpButton,
   isSpillDamagedIndex, drawSpillDamages, drawInspectionHints, pointerToCanvas, pointInLampSwitch,
-  drawShareImage, markDirty,
+  drawShareImage, markDirty, setRenderWakeHandler,
 } from './render.js';
 import { placedCount } from './pattern.js';
 import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast, celebrate } from './notify.js';
@@ -69,7 +69,7 @@ import {
 import {
   setDrawActions, initDrawingStudioEvents, enterDrawMode, tickDrawKbdNav,
   paintDrawCanvas, openDrawCodeModal, closeDrawCodeModal,
-  getDrawKeyboardNav,
+  getDrawKeyboardNav, drawCanvasNeedsAnimation,
 } from './draw.js';
 import {
   setCustomPatternActions, initCustomPatternEvents, setCustomDenoiseControls,
@@ -106,6 +106,14 @@ import { loadLibrary } from './pattern-library.js';
   let collection = readCollection();
   state.achievements = readAchievements();
   let lastFrame = performance.now();
+  let frameRequestId = 0;
+
+  function scheduleFrame() {
+    if (document.visibilityState === "hidden" || frameRequestId) return;
+    frameRequestId = requestAnimationFrame(tick);
+  }
+
+  setRenderWakeHandler(scheduleFrame);
   const IRON_DEFAULT_TEMPERATURE = 62;
   const IRON_DEFAULT_PRESSURE = 56;
 
@@ -1620,6 +1628,8 @@ import { loadLibrary } from './pattern-library.js';
   }
 
   function tick(now) {
+    frameRequestId = 0;
+    if (document.visibilityState === "hidden") return;
     const dt = Math.min(48, now - lastFrame);
     lastFrame = now;
     tickKbdNav(dt / 1000);
@@ -1649,7 +1659,13 @@ import { loadLibrary } from './pattern-library.js';
         console.error("[render] frame skipped after error:", err);
       }
     }
-    requestAnimationFrame(tick);
+    if (
+      state.uiDirty
+      || state.renderDirty
+      || state.previewDirty
+      || shouldAnimateCanvas(now)
+      || drawCanvasNeedsAnimation()
+    ) scheduleFrame();
   }
 
   function onResize() {
@@ -1899,22 +1915,22 @@ import { loadLibrary } from './pattern-library.js';
         const boardPhase = state.phase === "place" || state.phase === "inspect";
         if (boardPhase) {
           const nav = state.kbdNav;
-          if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; return; }
-          if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; return; }
-          if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; return; }
-          if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; return; }
-          if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; return; }
-          if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; return; }
+          if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; scheduleFrame(); return; }
+          if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; scheduleFrame(); return; }
+          if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; scheduleFrame(); return; }
+          if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; scheduleFrame(); return; }
+          if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; scheduleFrame(); return; }
+          if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; scheduleFrame(); return; }
         }
         if (state.appMode === "draw") {
           const k = event.key;
           const nav = getDrawKeyboardNav();
-          if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; return; }
-          if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; return; }
-          if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; return; }
-          if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; return; }
-          if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; return; }
-          if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; return; }
+          if (k === "w" || k === "W" || k === "ArrowUp")    { event.preventDefault(); nav.up     = true; scheduleFrame(); return; }
+          if (k === "s" || k === "S" || k === "ArrowDown")  { event.preventDefault(); nav.down   = true; scheduleFrame(); return; }
+          if (k === "a" || k === "A" || k === "ArrowLeft")  { event.preventDefault(); nav.left   = true; scheduleFrame(); return; }
+          if (k === "d" || k === "D" || k === "ArrowRight") { event.preventDefault(); nav.right  = true; scheduleFrame(); return; }
+          if (k === "z" || k === "Z") { event.preventDefault(); nav.zoomIn  = true; scheduleFrame(); return; }
+          if (k === "x" || k === "X") { event.preventDefault(); nav.zoomOut = true; scheduleFrame(); return; }
         }
       }
     }
@@ -2051,8 +2067,9 @@ import { loadLibrary } from './pattern-library.js';
   document.addEventListener("visibilitychange", () => {
     syncBuildTimer();
     if (document.visibilityState === "hidden") flushAutoSave();
+    else scheduleFrame();
   });
   uiRenderUI();
-  requestAnimationFrame(tick);
+  scheduleFrame();
   // After the first screen settles, idle-prefetch the remaining stage backgrounds (removes the fade-in gap on stage switch).
   (window.requestIdleCallback || ((cb) => setTimeout(cb, 1200)))(preloadBackgrounds);

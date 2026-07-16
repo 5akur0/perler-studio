@@ -162,15 +162,22 @@ export function pseudoRandom(seed) {
   h += h << 5;
   return ((h >>> 0) % 10000) / 10000;
 }
-// markDirty / markCanvasDirty are pure dirty-flag setters — render.js owns no
-// persistence. Session archiving is an exit-boundary concern handled in main.js
-// (no per-edit writes), so an edit no longer triggers a save.
+let renderWakeHandler = () => {};
+
+export function setRenderWakeHandler(handler) {
+  renderWakeHandler = typeof handler === "function" ? handler : () => {};
+}
+
+// Dirty setters also wake the event-driven frame loop. Session archiving remains
+// an exit-boundary concern handled in main.js; waking a paint never writes data.
 export function markCanvasDirty() {
   state.renderDirty = true;
+  renderWakeHandler();
 }
 export function markDirty() {
   state.renderDirty = true;
   state.uiDirty = true;
+  renderWakeHandler();
 }
 // Quantize the canvas bounding rect so 1–2 px wiggles (e.g. from right-panel
  // content changing height between place↔inspect) don't recompute boardSize
@@ -2477,5 +2484,4 @@ export function pointInTrayDumpButton(x, y) {
 // placedCount, inspectionSummary, placementAccuracy, heatStats, estimateWarp,
 // scoreLabel, finalGrade, statusText moved to ./render-stats.js (imported back
 // near the top of this file).
-
 

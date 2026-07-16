@@ -438,6 +438,7 @@ export function renderPhases() {
     item.type = "button";
     item.className = `workflow-step${index === activeIndex ? " active" : ""}${index < activeIndex ? " done" : ""}`;
     item.setAttribute("aria-label", `${index + 1} ${phase.name}`);
+    if (index === activeIndex) item.setAttribute("aria-current", "step");
     item.innerHTML = `<span class="step-dot">${index + 1}</span><span>${phase.name}</span>`;
     item.disabled = index >= activeIndex;
     item.addEventListener("click", async () => {

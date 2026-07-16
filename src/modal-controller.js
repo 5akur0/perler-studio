@@ -22,6 +22,7 @@ export function getOpenModalEl() {
   if (state.onboardingModalOpen) return els.onboardingModal;
   if (state.shareModalOpen) return els.shareModal;
   if (state.gallerySubmitModalOpen) return els.gallerySubmitModal;
+  if (state.drawCodeModalOpen) return els.drawCodeModal;
   return null;
 }
 

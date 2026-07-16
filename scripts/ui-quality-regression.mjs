@@ -137,10 +137,14 @@ assert.match(
   /\.drawing-tools-panel\s+\.tool-toggle\s+button::after\s*\{[\s\S]*?content:\s*attr\(aria-label\)/,
   "mobile drawing tool buttons should show visible labels",
 );
-assert.match(
-  responsiveCss,
-  /#drawUsePatternButton\s*\{[\s\S]*?order:\s*-1/,
-  "mobile drawing primary CTA should be promoted above secondary actions",
+assert.ok(
+  indexHtml.indexOf('id="drawUsePatternButton"') < indexHtml.indexOf('id="drawImageStampButton"'),
+  "mobile drawing primary CTA should lead secondary actions in DOM and visual order",
+);
+assert.equal(
+  cssBlocks(responsiveCss, "#drawUsePatternButton").some((block) => /order:/.test(block)),
+  false,
+  "mobile drawing action order should follow the DOM instead of CSS order overrides",
 );
 
 assert.match(

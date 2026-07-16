@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "node server.cjs",
     "start": "node server.cjs",
-    "build:js": "esbuild src/main.js --bundle --format=iife --outfile=app.bundle.js",
-    "build:css": "esbuild src/styles/index.css --bundle --outfile=styles.css",
+    "build:js": "esbuild src/main.js --bundle --format=iife --minify --legal-comments=none --outfile=app.bundle.js",
+    "build:css": "esbuild src/styles/index.css --bundle --minify --legal-comments=none --outfile=styles.css",
     "build": "npm run build:js && npm run build:css",
     "test:bgm": "node scripts/bgm-regression.mjs",
     "test:build-timer": "node scripts/build-timer-regression.mjs",

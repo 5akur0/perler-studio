@@ -6,7 +6,7 @@ import { els } from './dom.js';
 import { clamp } from './color-utils.js';
 import { maxBoardScale } from './render.js';
 import { showToast } from './notify.js';
-import { confirmModal } from './modal-controller.js';
+import { confirmModal, onModalOpened, restoreModalFocus } from './modal-controller.js';
 import { pickCustomPatternNote, escapeHtml } from './utils.js';
 import { state } from './state.js';
 import { extractCloudShortId, requestShareApi } from './gallery.js';
@@ -57,6 +57,7 @@ const drawState = {
   shapeDragEnd: null,
   stampImage: null,
   paletteQuery: "",
+  keyboardCursor: { x: 0, y: 0, visible: false },
 };
 const drawKbdNav = { up: false, down: false, left: false, right: false, zoomIn: false, zoomOut: false };
 const drawPointers = {};
@@ -304,6 +305,17 @@ export function tickDrawKbdNav(dtSec) {
   }
 }
 
+export function drawCanvasNeedsAnimation() {
+  const nav = drawKbdNav;
+  const view = drawState.view;
+  return Boolean(
+    nav.up || nav.down || nav.left || nav.right || nav.zoomIn || nav.zoomOut
+    || Math.abs(view.velX) > 0.5
+    || Math.abs(view.velY) > 0.5
+    || Math.abs(view.velScale) > 0.001
+  );
+}
+
 function startDrawGesture() {
   const ids = Object.keys(drawPointers);
   if (ids.length < 2) return;
@@ -382,6 +394,8 @@ export function openDrawCodeModal(mode, value = "") {
   if (els.drawCodeImportConfirmBtn) els.drawCodeImportConfirmBtn.hidden = isExport;
   els.drawCodeModal.classList.add("show");
   els.drawCodeModal.setAttribute("aria-hidden", "false");
+  state.drawCodeModalOpen = true;
+  onModalOpened(els.drawCodeModal);
   requestAnimationFrame(() => {
     if (isExport) els.drawCodeTitleInput?.focus();
     else els.drawCodeInput?.focus();
@@ -390,8 +404,10 @@ export function openDrawCodeModal(mode, value = "") {
 
 export function closeDrawCodeModal() {
   if (!els.drawCodeModal) return;
+  state.drawCodeModalOpen = false;
   els.drawCodeModal.classList.remove("show");
   els.drawCodeModal.setAttribute("aria-hidden", "true");
+  restoreModalFocus();
 }
 
 function drawRowsFromGrid() {
@@ -703,6 +719,96 @@ function applyDrawToolAt(x, y) {
   return result;
 }
 
+function normalizedDrawKeyboardCursor() {
+  const width = drawWidth();
+  const height = drawHeight();
+  let x = clamp(Number(drawState.keyboardCursor.x) || 0, 0, width - 1);
+  let y = clamp(Number(drawState.keyboardCursor.y) || 0, 0, height - 1);
+  if (!isCellActive(x, y)) {
+    outer: for (let row = 0; row < height; row += 1) {
+      for (let col = 0; col < width; col += 1) {
+        if (!isCellActive(col, row)) continue;
+        x = col;
+        y = row;
+        break outer;
+      }
+    }
+  }
+  return { x, y };
+}
+
+function announceDrawKeyboardCursor(action = "") {
+  const cursor = normalizedDrawKeyboardCursor();
+  const code = drawState.selectedColor;
+  const toolNames = { brush: "画笔", eraser: "橡皮", fill: "填充", picker: "取色", shape: "形状" };
+  const prefix = action ? `${action}，` : "";
+  if (els.drawKeyboardStatus) {
+    els.drawKeyboardStatus.textContent = `${prefix}第 ${cursor.y + 1} 行，第 ${cursor.x + 1} 列，${toolNames[drawState.tool] || "当前工具"}，颜色 ${beadIds[code] || code}。`;
+  }
+}
+
+function moveDrawKeyboardCursor(key) {
+  const cursor = normalizedDrawKeyboardCursor();
+  const delta = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  }[key];
+  if (!delta) return cursor;
+  const width = drawWidth();
+  const height = drawHeight();
+  let x = cursor.x;
+  let y = cursor.y;
+  while (true) {
+    const nextX = clamp(x + delta[0], 0, width - 1);
+    const nextY = clamp(y + delta[1], 0, height - 1);
+    if (nextX === x && nextY === y) break;
+    x = nextX;
+    y = nextY;
+    if (isCellActive(x, y)) break;
+  }
+  return { x, y };
+}
+
+function handleDrawCanvasKeyboard(event) {
+  if (document.activeElement !== els.drawCanvas) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    drawState.keyboardCursor.visible = false;
+    els.drawCanvas.blur();
+    paintDrawCanvas();
+    return;
+  }
+  if (event.key.startsWith("Arrow")) {
+    event.preventDefault();
+    event.stopPropagation();
+    drawState.keyboardCursor = { ...moveDrawKeyboardCursor(event.key), visible: true };
+    announceDrawKeyboardCursor();
+    paintDrawCanvas();
+    return;
+  }
+  if (event.key !== " " && event.key !== "Enter") return;
+  event.preventDefault();
+  event.stopPropagation();
+  const cursor = normalizedDrawKeyboardCursor();
+  drawState.keyboardCursor = { ...cursor, visible: true };
+  drawState.lastCellKey = "";
+  drawState.undoStrokeSnapshotTaken = false;
+  const before = drawState.grid[drawIndex(cursor.x, cursor.y)];
+  const changed = applyDrawToolAt(cursor.x, cursor.y);
+  drawState.lastCellKey = "";
+  drawState.undoStrokeSnapshotTaken = false;
+  if (changed || drawState.tool === "fill" || drawState.tool === "picker") paintDrawCanvas();
+  const action = drawState.tool === "eraser"
+    ? (before === "." ? "这里原本是空格" : "已擦除")
+    : drawState.tool === "picker"
+      ? "已取色"
+      : changed ? "已绘制" : "颜色没有变化";
+  announceDrawKeyboardCursor(action);
+}
+
 export function paintDrawCanvas() {
   if (!els.drawCanvas) return;
   ensureDrawGrid();
@@ -961,6 +1067,16 @@ export function paintDrawCanvas() {
       ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
       ctx.restore();
     }
+  }
+  if (drawState.keyboardCursor.visible && document.activeElement === els.drawCanvas) {
+    const cursor = normalizedDrawKeyboardCursor();
+    const px = x0 + cursor.x * cell;
+    const py = y0 + cursor.y * cell;
+    ctx.save();
+    ctx.strokeStyle = theme.brandInk || "#1f6153";
+    ctx.lineWidth = Math.max(2 / v.scale, cell * 0.14);
+    ctx.strokeRect(px + 1 / v.scale, py + 1 / v.scale, cell - 2 / v.scale, cell - 2 / v.scale);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -1285,6 +1401,18 @@ export function initDrawingStudioEvents() {
     if (changed || drawState.tool === "fill") paintDrawCanvas();
   };
   if (els.drawCanvas) {
+    els.drawCanvas.addEventListener("focus", () => {
+      if (!els.drawCanvas.matches(":focus-visible")) return;
+      drawState.keyboardCursor = { ...normalizedDrawKeyboardCursor(), visible: true };
+      announceDrawKeyboardCursor();
+      paintDrawCanvas();
+    });
+    els.drawCanvas.addEventListener("blur", () => {
+      if (!drawState.keyboardCursor.visible) return;
+      drawState.keyboardCursor.visible = false;
+      paintDrawCanvas();
+    });
+    els.drawCanvas.addEventListener("keydown", handleDrawCanvasKeyboard);
     els.drawCanvas.addEventListener("pointerdown", (event) => {
       els.drawCanvas.setPointerCapture(event.pointerId);
       const tileToAdd = drawBoardTabAtPointer(event);

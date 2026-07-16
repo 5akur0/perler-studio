@@ -229,8 +229,8 @@
             </div>
           </header>
           <div class="community-tabs" role="tablist" aria-label="社区分区">
-            <button class="community-tab" id="communityTabMessages" type="button" role="tab" aria-selected="true" aria-controls="communityMessages">留言板</button>
-            <button class="community-tab" id="communityTabRoadmap" type="button" role="tab" aria-selected="false" aria-controls="communityRoadmap">更新板</button>
+            <button class="community-tab" id="communityTabMessages" type="button" role="tab" aria-selected="true" aria-controls="communityMessages" tabindex="0">留言板</button>
+            <button class="community-tab" id="communityTabRoadmap" type="button" role="tab" aria-selected="false" aria-controls="communityRoadmap" tabindex="-1">更新板</button>
           </div>
           <main class="community-layout" aria-live="polite">
             <section class="community-pane" id="communityMessages" role="tabpanel" aria-labelledby="communityTabMessages"></section>
@@ -271,7 +271,7 @@
                 </div>
                 <div class="drawing-group drawing-tool-group">
                   <span>工具</span>
-                  <div class="tool-toggle tool-group-large" role="tablist" aria-label="绘图工具">
+                  <div class="tool-toggle tool-group-large" role="group" aria-label="绘图工具">
                     <button type="button" data-draw-tool="brush" class="active" aria-label="画笔">
                       <span data-lucide-icon="paintbrush" data-icon-size="22"></span>
                     </button>
@@ -300,6 +300,7 @@
                   <span class="draw-color-trigger-code" id="drawColorTriggerCode"></span>
                 </button>
                 <div class="drawing-footer-actions">
+                  <button type="button" class="primary-button" id="drawUsePatternButton">开始拼豆</button>
                   <button type="button" class="ghost-button drawing-image-stamp" id="drawImageStampButton">
                     <span class="btn-glyph" aria-hidden="true"><span data-lucide-icon="image" data-icon-size="16"></span></span>
                     <span class="btn-label">图片转图纸</span>
@@ -309,7 +310,6 @@
                     <button type="button" class="ghost-button" id="drawImportButton">导入分享码</button>
                     <button type="button" class="ghost-button" id="drawShortCodeButton">导出图纸</button>
                   </div>
-                  <button type="button" class="primary-button" id="drawUsePatternButton">开始拼豆</button>
                   <div class="drawing-secondary-actions">
                     <button type="button" class="icon-text-button" id="drawClearButton" title="清空画布">
                       <span class="btn-glyph" aria-hidden="true"><span data-lucide-icon="trash-2" data-icon-size="16"></span></span>
@@ -330,7 +330,18 @@
                   <small>支持笔刷、橡皮、吸管、填充</small>
                 </div>
                 <div class="drawing-canvas-wrap">
-                  <canvas id="drawCanvas" width="720" height="720" aria-label="绘图网格"></canvas>
+                  <canvas
+                    id="drawCanvas"
+                    width="720"
+                    height="720"
+                    tabindex="0"
+                    aria-label="绘图网格"
+                    aria-describedby="drawKeyboardHelp drawKeyboardStatus"
+                  ></canvas>
+                  <p id="drawKeyboardHelp" class="visually-hidden">
+                    键盘操作：聚焦画布后用方向键移动格点，按空格或回车使用当前工具，按 Esc 退出格点操作。
+                  </p>
+                  <p id="drawKeyboardStatus" class="visually-hidden" role="status" aria-live="polite"></p>
                 </div>
               </section>
             </section>
