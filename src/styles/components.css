@@ -992,13 +992,12 @@
   background: color-mix(in srgb, var(--brand-tint) 70%, #fff);
   box-shadow: var(--sketch-shadow-sm);
   overflow: hidden;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .library-card:hover {
   border-color: color-mix(in srgb, var(--brand) 55%, var(--line));
   box-shadow: var(--sketch-shadow);
-  transform: translateY(-1px);
 }
 
 .library-card.active {

@@ -509,7 +509,7 @@
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
-  border: var(--sketch-bw-ctl) solid var(--ink-line);
+  border: 1px solid var(--line);
   border-radius: var(--r-xs);
   background: var(--surface-2);
 }

@@ -161,6 +161,16 @@ assert.equal(
   false,
   "collection empty state should not introduce a one-off dashed frame",
 );
+assert.match(
+  cssBlock(screensCss, ".gallery-thumb"),
+  /border:\s*1px\s+solid\s+var\(--line\)/,
+  "dense gallery thumbnail interiors should stay quieter than their ink-framed cards",
+);
+assert.equal(
+  /transform:/.test(cssBlock(cssFiles["components.css"], ".library-card:hover")),
+  false,
+  "library cards should deepen their hard shadow without moving on hover",
+);
 
 assert.match(
   screensCss,
