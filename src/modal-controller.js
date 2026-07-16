@@ -17,6 +17,7 @@ export function getOpenModalEl() {
   // The confirm dialog is always on top and takes priority in the Tab focus trap.
   if (state.confirmModalOpen) return els.confirmModal;
   if (state.textInputModalOpen) return els.textInputModal;
+  if (state.collectionViewerOpen) return document.querySelector('.collection-enlarged.show');
   if (state.remapModalOpen) return els.remapModal;
   if (state.settingsModalOpen) return els.settingsModal;
   if (state.onboardingModalOpen) return els.onboardingModal;

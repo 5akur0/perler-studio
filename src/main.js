@@ -58,6 +58,7 @@ import { showToast, hidePlaceHint, showPlaceHint, showAchievementToast, celebrat
 import {
   setUIActions, setSizeControls as uiSetSizeControls, updateSelectedPaletteCount as uiUpdateSelectedPaletteCount,
   renderUI as uiRenderUI, renderCollection as uiRenderCollection, renderSharePanel as uiRenderSharePanel,
+  closeCollectionViewer,
 } from './ui.js';
 import {
   setGalleryActions, enterGalleryMode, renderGallery, loadGallery,
@@ -502,8 +503,7 @@ import { loadLibrary } from './pattern-library.js';
   function closeCollectionPage() {
     if (!els.collectionScreen) return;
     state.collectionPageOpen = false;
-    const viewer = els.collectionScreen.querySelector(".collection-enlarged");
-    if (viewer) viewer.classList.remove("show");
+    closeCollectionViewer();
     setAppMode("home");
     requestAnimationFrame(() => els.collectionButton?.focus?.());
   }
@@ -1960,8 +1960,7 @@ import { loadLibrary } from './pattern-library.js';
     if (state.confirmModalOpen) { resolveConfirm(false); return; }
     if (state.textInputModalOpen) { resolveTextInput(false); return; }
     // If the enlarge viewer is open within the collection modal, close it first.
-    const enlarged = els.collectionScreen?.querySelector(".collection-enlarged.show");
-    if (enlarged) { enlarged.classList.remove("show"); return; }
+    if (state.collectionViewerOpen) { closeCollectionViewer(); return; }
     if (state.gallerySubmitModalOpen) { closeGallerySubmitModal(); return; }
     if (els.drawCodeModal?.classList.contains("show")) { closeDrawCodeModal(); return; }
     if (state.onboardingModalOpen) { closeOnboardingModal(); return; }

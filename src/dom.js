@@ -44,6 +44,7 @@ export const els = {
   drawCodeModal: $("#drawCodeModal"),
   drawCodeModalTitle: $("#drawCodeModalTitle"),
   drawCodeHint: $("#drawCodeHint"),
+  drawCodeInputLabel: $("#drawCodeInputLabel"),
   drawCodeCloseBtn: $("#drawCodeCloseBtn"),
   drawCodeCancelBtn: $("#drawCodeCancelBtn"),
   drawCodeCopyBtn: $("#drawCodeCopyBtn"),

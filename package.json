@@ -20,6 +20,7 @@
     "test:input-font": "node scripts/input-font-regression.mjs",
     "test:keyboard": "node scripts/keyboard-regression.mjs",
     "test:mobile-tab-order": "node scripts/mobile-tab-order-regression.mjs",
+    "test:modal-accessibility": "node scripts/modal-accessibility-regression.mjs",
     "test:mobile-ui": "node scripts/mobile-ui-regression.mjs",
     "test:drawing-mobile": "node scripts/drawing-mobile-regression.mjs",
     "test:pattern-code-bounds": "node scripts/pattern-code-bounds-regression.mjs",

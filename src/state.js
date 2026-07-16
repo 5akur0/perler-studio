@@ -15,6 +15,7 @@ export const state = {
   remapModalOpen: false,
   collectionModalOpen: false,
   collectionPageOpen: false,
+  collectionViewerOpen: false,
   settingsModalOpen: false,
   onboardingModalOpen: false,
   shareModalOpen: false,

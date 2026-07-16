@@ -299,7 +299,8 @@ body[data-app-mode="community"] .collection-screen {
   display: none;
 }
 
-.draw-code-title-field label {
+.draw-code-title-field label,
+.draw-code-input-label {
   color: var(--muted);
   font-size: var(--fs-sm);
   font-weight: 800;

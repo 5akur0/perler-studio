@@ -13,7 +13,9 @@ import {
   renameInLibrary, restoreDefaults, hasHiddenDefaults,
 } from './pattern-library.js';
 import { showToast, hidePlaceHint, showPlaceHint } from './notify.js';
-import { confirmModal, textInputModal } from './modal-controller.js';
+import {
+  confirmModal, textInputModal, onModalOpened, restoreModalFocus,
+} from './modal-controller.js';
 import {
   markDirty, setupHiDpiCanvas, updateInspectAssistCanvases,
   inspectionSummary, placementAccuracy, scoreLabel, finalGrade, placedCount,
@@ -1215,30 +1217,50 @@ export function drawCollectionThumb(canvas, item) {
   }
 }
 
+function setCollectionViewerBackgroundInert(viewer, inert) {
+  if (!viewer?.parentElement) return;
+  [...viewer.parentElement.children].forEach((sibling) => {
+    if (sibling !== viewer) sibling.inert = inert;
+  });
+}
+
+export function closeCollectionViewer() {
+  const viewer = els.collectionScreen?.querySelector('.collection-enlarged');
+  if (!viewer || !state.collectionViewerOpen) return;
+  state.collectionViewerOpen = false;
+  viewer.classList.remove('show');
+  viewer.setAttribute('aria-hidden', 'true');
+  setCollectionViewerBackgroundInert(viewer, false);
+  restoreModalFocus();
+}
+
 function enlargeCollectionEntry(entry) {
   if (!els.collectionScreen) return;
   let viewer = els.collectionScreen.querySelector(".collection-enlarged");
   if (!viewer) {
     viewer = document.createElement("div");
     viewer.className = "collection-enlarged";
+    viewer.setAttribute('role', 'dialog');
+    viewer.setAttribute('aria-modal', 'true');
+    viewer.setAttribute('aria-labelledby', 'collectionEnlargedTitle');
+    viewer.setAttribute('aria-hidden', 'true');
     viewer.innerHTML = `
-        <button type="button" class="collection-enlarged-close" aria-label="关闭放大">${icon("x", { size: 18 })}</button>
-        <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
-        <div class="collection-enlarged-meta"></div>
-        <div class="collection-enlarged-actions">
-          <button type="button" class="primary-button collection-enlarged-open">打开这张图纸</button>
+        <div class="collection-enlarged-card">
+          <button type="button" class="collection-enlarged-close" aria-label="关闭放大">${icon("x", { size: 18 })}</button>
+          <canvas class="collection-enlarged-canvas" width="640" height="640"></canvas>
+          <div class="collection-enlarged-meta" id="collectionEnlargedTitle"></div>
+          <div class="collection-enlarged-actions">
+            <button type="button" class="primary-button collection-enlarged-open">打开这张图纸</button>
+          </div>
         </div>
       `;
     els.collectionScreen.appendChild(viewer);
-    viewer.querySelector(".collection-enlarged-close").addEventListener("click", () => {
-      viewer.classList.remove("show");
-    });
+    viewer.querySelector(".collection-enlarged-close").addEventListener("click", closeCollectionViewer);
   }
-  viewer.classList.add("show");
   const canvas = viewer.querySelector("canvas");
   // Keep the preview square AND inside the viewport: on phones 78vh alone
   // overflows the (narrower) screen width, so clamp by 86vw too.
-  const previewSize = "min(640px, 78vh, 86vw)";
+  const previewSize = "min(640px, 66vh, calc(86vw - 2 * var(--sp-4)))";
   canvas.style.width = previewSize;
   canvas.style.height = previewSize;
   requestAnimationFrame(() => drawCollectionThumb(canvas, entry));
@@ -1248,9 +1270,14 @@ function enlargeCollectionEntry(entry) {
   const newBtn = openBtn.cloneNode(true);
   openBtn.replaceWith(newBtn);
   newBtn.addEventListener("click", () => {
-    viewer.classList.remove("show");
+    closeCollectionViewer();
     uiActions.openCollectionEntry(entry);
   });
+  state.collectionViewerOpen = true;
+  setCollectionViewerBackgroundInert(viewer, true);
+  viewer.classList.add('show');
+  viewer.setAttribute('aria-hidden', 'false');
+  onModalOpened(viewer);
 }
 
 export function renderUI() {

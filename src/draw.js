@@ -381,6 +381,9 @@ export function openDrawCodeModal(mode, value = "") {
     els.drawCodeHint.textContent = isExport ? "生成分享码" : "";
     els.drawCodeHint.hidden = !isExport;
   }
+  if (els.drawCodeInputLabel) {
+    els.drawCodeInputLabel.textContent = isExport ? "生成的分享码" : "要导入的分享码";
+  }
   if (els.drawCodeTitleField) els.drawCodeTitleField.hidden = !isExport;
   if (isExport && els.drawCodeTitleInput) els.drawCodeTitleInput.value = "";
   if (els.drawCodeInput) {
