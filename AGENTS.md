@@ -3,6 +3,7 @@
 ## Sources of Truth
 
 - `AGENTS.md` owns shared engineering workflow, code style, build, test, and commit rules.
+- `docs/UI_REVIEW_PROTOCOL.md` owns the mandatory process for broad UI audits and polish passes. It defines evidence and completion rules, not visual taste or product direction.
 - `PRODUCT.md` owns product strategy and platform intent. It is maintained in Chinese.
 - `DESIGN.md` owns measurable UI and interaction contracts. It is maintained in Chinese.
 - `design-system/MASTER.md` contains deeper implementation history; `DESIGN.md` wins on conflict.
@@ -15,6 +16,12 @@ Use English for agent instructions, implementation specifications, plans, source
 ## Project Structure & Module Organization
 
 `src/` contains the browser application as ES modules. `src/main.js` is the entry point; rendering, UI, state, storage, audio, patterns, and gallery behavior are split into focused sibling modules. Styles start at `src/styles/index.css`. esbuild produces the committed runtime assets `app.bundle.js` and `styles.css`, which `index.html` loads. Regression checks live in `scripts/*-regression.mjs`. Static media belongs in `images/` and `audio/`; CloudBase API code is under `cloudbase/share-api/`. Read `PRODUCT.md` and `DESIGN.md` before changing user-facing UI.
+
+## Comprehensive UI Review Workflow
+
+Any request for a full, exhaustive, cross-screen, maturity, redesign, or product-wide UI review MUST follow `docs/UI_REVIEW_PROTOCOL.md` and pass all four gates defined there. A consistency request also triggers the protocol when it spans multiple screens or shared component families. Do not begin UI implementation merely because audit artifacts exist; Gate B must be passed and the discovery ledger frozen. A visual review is not complete because the edited screen looks good; completion is determined by scenario evidence and the protocol's exit criteria.
+
+Use independent read-only audit passes before implementation. Shared-worktree UI implementation is single-writer and serialized by batch; parallel implementation requires isolated worktrees. The primary agent owns synthesis, integration decisions, the audit ledger, generated bundles, and final builds. No agent may both implement and verify the same batch, or provide the only final sign-off for the same scope. Treat existing design documents and regression checks as contracts to validate, not excuses to preserve a stale behavior: when user intent, current product behavior, recent deliberate commits, and a written rule conflict, record the conflict and resolution explicitly, then update the stale contract in the same change.
 
 ## Build, Test, and Development Commands
 
