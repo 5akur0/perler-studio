@@ -1,7 +1,7 @@
 # Duo Mode (双人同拼) — Design Spec
 
 - **Date:** 2026-07-17
-- **Status:** Approved design, parked — do not implement until explicitly scheduled.
+- **Status:** Approved design; implementation plan ready at `docs/superpowers/plans/2026-07-17-duo-mode.md` — do not implement until explicitly scheduled.
 - **Scope:** Phase 1 of realtime co-beading. Long-term goal is full-flow sync; this spec deliberately covers bead placement only.
 
 ## Motivation
