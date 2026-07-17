@@ -61,6 +61,7 @@ select {
 /* Tabular numerals for numeric readouts, so digit width doesn't jitter as sliders/counts update live (single source, maintained centrally by selector list). */
 .size-rail-value,
 .start-row-count,
+.achievement-summary b,
 .slider-field label strong,
 #customDenoiseValue,
 #drawSizeValue {

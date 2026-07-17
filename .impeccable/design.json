@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-06-13T00:00:00Z",
+  "generatedAt": "2026-07-17T09:27:37Z",
   "title": "Design System: 拼豆工坊 · Perler Studio",
   "extensions": {
     "colorMeta": {
@@ -38,6 +38,7 @@
       { "name": "sm", "value": "420px" },
       { "name": "phone", "value": "620px" },
       { "name": "mobile", "value": "860px" },
+      { "name": "workbench-full", "value": "1008px" },
       { "name": "tablet", "value": "1180px" }
     ]
   },
@@ -102,7 +103,8 @@
       { "name": "The Three-Layer Glass Rule（三层玻璃）", "body": "永远按 L0 背景图+scrim / L1 高透玻璃面板 / L2 实心卡片弹窗组织深度。", "section": "elevation" },
       { "name": "The Scrim-Carries-Readability Rule（可读性靠蒙版）", "body": "L1 玻璃刻意高透，可读性靠 L0 的 --bg-scrim 压淡背景，不靠面板本身；换图后实测 5 主题。", "section": "elevation" },
       { "name": "The Soft-Clay Shadow Rule（柔和黏土投影）", "body": "投影柔和扩散、低不透明度，禁硬黑投影；无 backdrop-filter 时玻璃退回更不透明。", "section": "elevation" },
-      { "name": "The Quiet Tray Rule（克制留白）", "body": "可爱来自颜色与圆角不来自堆元素；每屏先保证作品和可截图当主角，干扰元素能省则省。", "section": "elevation" }
+      { "name": "The Quiet Tray Rule（克制留白）", "body": "可爱来自颜色与圆角不来自堆元素；每屏先保证作品和可截图当主角，干扰元素能省则省。", "section": "elevation" },
+      { "name": "The Workbench Priority Rule（工作台优先规则）", "body": "≤860 保留手机单列；861–1007 把左右辅助面板上下收进 240px 辅助栏；≥1008 才展开 22/54/24 三列。辅助栏不得把中央工作区挤到测定下限以下。", "section": "elevation" }
     ],
     "dos": [
       "Do 组件颜色一律用 var(--brand…) 等 token，让 5 套主题运行时整体替换。",

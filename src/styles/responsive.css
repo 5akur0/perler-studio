@@ -38,6 +38,7 @@
 
   .gallery-screen,
   .collection-screen,
+  .achievement-screen,
   .community-screen,
   .drawing-studio {
     flex: 1 1 auto;
@@ -52,6 +53,7 @@
 
   .gallery-studio-card,
   .collection-studio-card,
+  .achievement-studio-card,
   .community-studio-card,
   .drawing-studio-card {
     flex: 1 1 auto;
@@ -62,6 +64,7 @@
 
   .gallery-layout,
   .collection-layout,
+  .achievement-layout,
   .community-layout,
   .drawing-studio-grid,
   .bead-studio-grid {
@@ -77,6 +80,7 @@
      outline still defines them). */
   .gallery-layout,
   .collection-layout,
+  .achievement-layout,
   .community-layout {
     box-shadow: none;
   }
@@ -87,6 +91,24 @@
   .collection-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-3);
+  }
+
+  .achievement-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .achievement-item {
+    min-height: 0;
+    padding: var(--sp-5) var(--sp-4);
+  }
+
+  .achievement-motif {
+    width: 60px;
+    height: 60px;
+  }
+
+  .hidden-achievement-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .start-screen-inner {
@@ -440,12 +462,10 @@
 }
 
 @media (min-width: 861px) {
-  /* Drawing studio mirrors the bead working layout in the container model:
-     three fluid columns (tools | canvas | palette) kept down to 861px, so the
-     canvas column stays moderate and the palette stays a tall side column.
-     Higher specificity than the generic 2-column `.studio-grid` rule below. */
+  /* Drawing and bead studios share one adaptive workbench track contract.
+     A later 861–1007px rule changes topology before any pane crosses its measured
+     minimum; the full three-column composition starts at 1008px. */
   .studio-grid.drawing-studio-grid {
-    /* Same working track as bead-working — single source in tokens.css. */
     grid-template-columns: var(--studio-cols-work);
   }
 
@@ -650,16 +670,11 @@
   }
 }
 
-/* Bead working layout (≥861): three columns whose side widths shrink fluidly
-   with the viewport (clamp) instead of snapping at a breakpoint, so dragging
-   the window width never jumps the board. The palette always stays a tall,
-   internally-scrolling side column (the board keeps the full column height).
-   Higher specificity than the generic 2-column `.studio-grid` rule in the
-   max-width:1179 block, which therefore only affects the drawing studio. */
+/* Full bead workbench track. The 861–1007px compact rule below overrides this
+   declaration with a center-first topology; full three-pane feasibility begins
+   at 1008px. */
 @media (min-width: 861px) {
   .bead-studio-grid:not([data-phase="choose"]) {
-    /* Shared working track — single source in tokens.css (--studio-cols-work).
-       Side columns reach full 300/320 around ~1200px and shrink fluidly to 861px. */
     grid-template-columns: var(--studio-cols-work);
   }
 
@@ -692,6 +707,36 @@
 
   .bead-studio-grid:not([data-phase="choose"]) .chip-label {
     font-size: var(--fs-2xs);
+  }
+}
+
+/* Center-first compact workbench. Two supporting panes share one rail instead
+   of squeezing the primary stage. This topology is deliberately content-driven:
+   861px is the existing phone/tablet boundary, while 1008px is the first viewport
+   that fits 196 + 540 + 204 pane floors, two 16px gaps, and 36px shell padding. */
+@media (min-width: 861px) and (max-width: 1007px) {
+  .studio-grid.drawing-studio-grid,
+  .bead-studio-grid:not([data-phase="choose"]) {
+    grid-template-columns: var(--studio-cols-compact);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .drawing-studio-grid > .workbench,
+  .bead-studio-grid:not([data-phase="choose"]) > .workbench {
+    grid-column: 1;
+    grid-row: 1 / -1;
+  }
+
+  .drawing-studio-grid > .left-panel,
+  .bead-studio-grid:not([data-phase="choose"]) > .left-panel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .drawing-studio-grid > .right-panel,
+  .bead-studio-grid:not([data-phase="choose"]) > .right-panel {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 
@@ -1984,6 +2029,23 @@
    portrait home composition, but let its own surface scroll instead of shrinking
    five destinations below their target size or clipping them with no escape. */
 @media (max-width: 860px) and (max-height: 520px) {
+  /* At 200% zoom a desktop-sized window can become a very short CSS viewport.
+     Preserve a real editor viewport and provide page-level vertical reflow instead
+     of letting the locked shell collapse the canvas behind the mobile dock. */
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
   .start-screen {
     overflow-x: hidden;
     overflow-y: auto;
@@ -2002,6 +2064,31 @@
   .start-row {
     flex: 0 0 auto;
     min-height: 64px;
+  }
+
+  body[data-app-mode="bead"] .bead-studio-grid:not([data-phase="choose"]) {
+    flex: 0 0 auto;
+    min-height: calc(320px + var(--mobile-dock-h));
+    overflow: visible;
+  }
+
+  body[data-app-mode="bead"] .bead-studio-grid:not([data-phase="choose"]) .workbench {
+    flex: 0 0 320px;
+    min-height: 320px;
+  }
+
+  body[data-app-mode="draw"] .drawing-studio,
+  body[data-app-mode="draw"] .drawing-studio-card,
+  body[data-app-mode="draw"] .drawing-studio-grid {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 560px;
+    overflow: visible;
+  }
+
+  body[data-app-mode="draw"] .drawing-canvas-panel {
+    flex: 0 0 320px;
+    min-height: 320px;
   }
 }
 

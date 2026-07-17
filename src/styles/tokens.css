@@ -15,6 +15,12 @@
   --amber: #d99b3d;
   --blue: #4d77b8;
   --violet: #7b6fb1;
+  /* Achievement materials are fixed progression colors, independent of the
+     active desk theme. The fully completed tier returns to the live --brand. */
+  --achievement-locked: #c3cad2;
+  --achievement-bronze: #b56845;
+  --achievement-silver: #7d8994;
+  --achievement-gold: var(--amber);
   --brand: var(--mint);
   --brand-ink: #1f6153;
   --brand-edge: #3f988b;
@@ -143,11 +149,14 @@
   --canvas-min: 520px;            /* center column min floor (→ 360 at ≤1179) */
   --panel-pad: var(--sp-4);       /* 16 — content-surface inset */
   --panel-pad-tight: var(--sp-2); /* 8 — dense side-panel inset */
-  /* Shared 3-column working track recipe (bead-working + drawing studio, ≥861):
-     side rails shrink fluidly with the viewport, center takes the remainder.
-     Single source — both studios consume `grid-template-columns: var(--studio-cols-work)`
-     so the part that is genuinely identical can never drift between them. */
-  --studio-cols-work: clamp(208px, 25vw, 300px) minmax(0, 1fr) clamp(216px, 27vw, 320px);
+  /* Shared adaptive workbench tracks (bead working + drawing studio).
+     The compact topology stacks both supporting panes in one 240px rail so the
+     primary stage remains usable from 861–1007px. At 1008px the full topology
+     becomes feasible at the measured 196/540/204px pane floors; fractional maxima
+     then keep the 22/54/24 composition stable under proportional window scaling. */
+  --studio-compact-rail: 240px;
+  --studio-cols-compact: minmax(0, 1fr) var(--studio-compact-rail);
+  --studio-cols-work: minmax(196px, 22fr) minmax(540px, 54fr) minmax(204px, 24fr);
 
   /* —— Layout: mobile-working board (≤860) ——
      The board is a true square owned solely by the container width: #sceneCanvas
@@ -183,7 +192,8 @@
   --z-overlay: 9000;
 
   /* —— Responsive breakpoints (doc only — CSS vars can't be used in @media) —— */
-  /* --bp-sm: 420px | --bp-phone: 620px | --bp-mobile: 860px | --bp-tablet: 1180px */
+  /* --bp-sm: 420px | --bp-phone: 620px | --bp-mobile: 860px |
+     --bp-workbench-full: 1008px | --bp-tablet: 1180px */
 
   /* —— Font-family tokens: the whole app uses only two fonts, chosen by "role" (in sync with DESIGN.md §3 / MASTER).
      · --font-clear = Noto Sans SC (clearer): body / labels / data / color codes / counts / small text / inputs — anything that "reads information".

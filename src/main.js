@@ -5,8 +5,7 @@ import { patterns, resamplePatternRows, validatePatterns } from './patterns-data
 import {
   backgroundThemes, toolStyles, craftOptions,
   TRAY_DESKTOP_ROWS, TRAY_DESKTOP_COLS, TRAY_MOBILE_ROWS, TRAY_MOBILE_COLS,
-  collectionKey, collectionLimit, achievementKey,
-  conceptAchievement, fullBoardAchievement, needleLoadSortThreshold,
+  collectionLimit, needleLoadSortThreshold,
   APP_VERSION,
 } from './constants.js';
 import {
@@ -20,7 +19,13 @@ import {
   feedback as sfxFeedback, playSfx, vibrate as sfxVibrate,
   isSfxEnabled, setSfxEnabled, isHapticEnabled, setHapticEnabled,
 } from './sfx.js';
-import { readAchievements, writeAchievements, hasAchievement, unlockAchievement } from './achievements.js';
+import {
+  evaluateAchievements, incrementAchievementStat, markAchievementsSeen,
+  readAchievements, recordCompletedWorkAchievement, rememberAchievementTheme,
+  rememberAchievementValue, setAchievementStat, syncAchievementCollection,
+  unlockAchievement,
+} from './achievements.js';
+import { renderAchievementEntry, renderAchievementScreen } from './achievement-ui.js';
 import { currentBackgroundTheme, currentToolStyle } from './theme.js';
 import { initStartShowcase, refreshShowcaseTheme, setShowcaseActive } from './start-showcase.js';
 import {
@@ -109,6 +114,12 @@ import { loadLibrary } from './pattern-library.js';
   let lastFrame = performance.now();
   let frameRequestId = 0;
 
+  function handleAchievementUnlock(achievement) {
+    sfxFeedback('achievement');
+    showAchievementToast(achievement);
+    renderAchievementScreen();
+  }
+
   function scheduleFrame() {
     if (document.visibilityState === "hidden" || frameRequestId) return;
     frameRequestId = requestAnimationFrame(tick);
@@ -140,7 +151,7 @@ import { loadLibrary } from './pattern-library.js';
     radios[ni].click();
   }
 
-  function applyBackgroundTheme(themeId = state.bgTheme) {
+  function applyBackgroundTheme(themeId = state.bgTheme, trackAchievement = true) {
     state.bgTheme = backgroundThemes[themeId] ? themeId : "mist";
     const theme = currentBackgroundTheme();
     const root = document.documentElement;
@@ -159,6 +170,7 @@ import { loadLibrary } from './pattern-library.js';
     root.style.setProperty("--bg-scrim", theme.scrim || "rgba(255, 255, 255, 0.16)");
     syncChipGroup(els.bgThemeChips, "theme", state.bgTheme);
     refreshShowcaseTheme();
+    if (trackAchievement) rememberAchievementTheme(state.bgTheme, handleAchievementUnlock);
     markDirty();
   }
 
@@ -169,6 +181,7 @@ import { loadLibrary } from './pattern-library.js';
     const beadActive = mode === "bead";
     [
       [els.startScreen, mode === "home"],
+      [els.achievementScreen, mode === "achievement"],
       [els.galleryScreen, mode === "gallery"],
       [els.collectionScreen, mode === "collection"],
       [els.communityScreen, mode === "community"],
@@ -186,7 +199,7 @@ import { loadLibrary } from './pattern-library.js';
   };
   const MODE_BG = {
     draw: "--bg-draw-image", gallery: "--bg-gallery-image", collection: "--bg-collection-image",
-    community: "--bg-gallery-image",
+    community: "--bg-gallery-image", achievement: "--bg-collection-image",
   };
   // Full-window background layer (body::before): choose the image var for current mode/phase.
   function updateFullBg() {
@@ -222,7 +235,7 @@ import { loadLibrary } from './pattern-library.js';
 
   function setAppMode(mode) {
     const prevMode = state.appMode;
-    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : mode === "community" ? "community" : "home";
+    state.appMode = mode === "draw" ? "draw" : mode === "bead" ? "bead" : mode === "gallery" ? "gallery" : mode === "collection" ? "collection" : mode === "community" ? "community" : mode === "achievement" ? "achievement" : "home";
     if (prevMode && prevMode !== state.appMode) playSfx("nav"); // soft swish on real page switches only
     state.collectionPageOpen = state.appMode === "collection";
     document.body.dataset.appMode = state.appMode;
@@ -251,6 +264,10 @@ import { loadLibrary } from './pattern-library.js';
     if (state.appMode === "collection") {
       state.collectionPageOpen = true;
       uiRenderCollection();
+    }
+    if (state.appMode === "achievement") {
+      markAchievementsSeen();
+      renderAchievementScreen();
     }
     if (state.appMode === "community") {
       enterCommunity();
@@ -346,6 +363,7 @@ import { loadLibrary } from './pattern-library.js';
   }
 
   function setPhase(phase) {
+    const previousPhase = state.phase;
     if (phase !== state.phase) {
       if (phase === "finish") sfxFeedback("finish");
       else if (phase === "cool") playSfx("cool");
@@ -395,6 +413,9 @@ import { loadLibrary } from './pattern-library.js';
     syncBuildTimer();
     markDirty();
     updateFullBg();
+    if (phase === "place" && previousPhase === "choose") {
+      incrementAchievementStat('starts', handleAchievementUnlock);
+    }
     if (phase === "place") maybeShowOnboarding();
   }
 
@@ -1439,9 +1460,9 @@ import { loadLibrary } from './pattern-library.js';
     state.conceptEaster = true;
     state.conceptEasterType = type;
     if (type === "full") {
-      unlockAchievement(fullBoardAchievement, (a) => { sfxFeedback("achievement"); showAchievementToast(a); });
+      unlockAchievement('concept-full', handleAchievementUnlock);
     } else {
-      unlockAchievement(conceptAchievement, (a) => { sfxFeedback("achievement"); showAchievementToast(a); });
+      unlockAchievement('concept-empty', handleAchievementUnlock);
     }
     setPhase("finish");
     state.savedCurrent = false;
@@ -1449,8 +1470,13 @@ import { loadLibrary } from './pattern-library.js';
   }
 
   function saveCurrentWork() {
+    const patternColorMap = getPatternColorMap();
+    const remixed = Object.entries(patternColorMap)
+      .some(([source, target]) => target && source !== target);
+    const patternId = baseIdFor(state.selectedPattern);
     const entry = {
       id: `${Date.now()}-${state.selectedPattern.id}`,
+      patternId,
       name: state.selectedPattern.name,
       craft: state.craft,
       grade: finalGrade(),
@@ -1459,6 +1485,12 @@ import { loadLibrary } from './pattern-library.js';
       width: boardCols(),
       height: boardRows(),
       buildMs: buildElapsedMs(),
+      colorCount: getPatternColors().length,
+      beadCount: placedCount(),
+      customWork: !isBuiltInPattern(state.selectedPattern) || patternId.startsWith('draw-'),
+      inspectionClean: !state.sandboxMode && state.errors.length === 0,
+      remixed,
+      flipped: state.flipCount > 0,
       placed: state.placed.slice(),
     };
     if (!state.savedCurrent) {
@@ -1470,6 +1502,7 @@ import { loadLibrary } from './pattern-library.js';
         showToast("作品已收入作品集。");
         celebrate();
       }
+      recordCompletedWorkAchievement(entry, handleAchievementUnlock);
     } else {
       showToast("这个版本已经保存过。");
     }
@@ -1526,6 +1559,7 @@ import { loadLibrary } from './pattern-library.js';
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "拼豆工坊" });
+        rememberAchievementValue('shareKinds', 'image', handleAchievementUnlock);
         return;
       } catch (err) {
         if (err?.name === "AbortError") return; // user dismissed the sheet
@@ -1539,9 +1573,10 @@ import { loadLibrary } from './pattern-library.js';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast("已导出分享图。");
+    rememberAchievementValue('shareKinds', 'image', handleAchievementUnlock);
   }
 
-  function copyShareText() {
+  async function copyShareText() {
     const timeText = state.buildMs > 0 ? `，花了 ${formatBuildTime(state.buildMs)}` : "";
     const text = buildShareText({
       name: state.selectedPattern.name,
@@ -1550,7 +1585,20 @@ import { loadLibrary } from './pattern-library.js';
       grade: finalGrade(),
       timeText,
     });
-    autoCopyText(text, "文案已复制。", "复制失败，请手动复制。");
+    const copied = await autoCopyText(text, "文案已复制。", "复制失败，请手动复制。");
+    if (copied) rememberAchievementValue('shareKinds', 'text', handleAchievementUnlock);
+  }
+
+  async function createTrackedCloudShare() {
+    const share = await createCloudShare();
+    if (share?.shortId) rememberAchievementValue('shareKinds', 'code', handleAchievementUnlock);
+    return share;
+  }
+
+  async function requestTrackedCloudShareForPattern(pattern, options) {
+    const share = await requestCloudShareForPattern(pattern, options);
+    if (share?.shortId) rememberAchievementValue('shareKinds', 'code', handleAchievementUnlock);
+    return share;
   }
 
 
@@ -1730,6 +1778,13 @@ import { loadLibrary } from './pattern-library.js';
   });
   els.startGalleryButton?.addEventListener("click", () => {
     setAppMode("gallery");
+  });
+  els.achievementButton?.addEventListener("click", () => {
+    setAppMode("achievement");
+  });
+  els.achievementBackButton?.addEventListener("click", () => {
+    setAppMode("home");
+    requestAnimationFrame(() => els.achievementButton?.focus?.());
   });
   els.galleryBackButton?.addEventListener("click", () => {
     setAppMode("home");
@@ -2018,7 +2073,7 @@ import { loadLibrary } from './pattern-library.js';
     openGallerySubmitModal,
     importPatternCode,
     autoCopyText,
-    requestCloudShareForPattern,
+    requestCloudShareForPattern: requestTrackedCloudShareForPattern,
   });
   initDrawingStudioEvents();
   setCustomPatternActions({ loadPattern });
@@ -2045,7 +2100,7 @@ import { loadLibrary } from './pattern-library.js';
     openCollectionEntry,
     exportShareImage,
     copyShareText,
-    createCloudShare,
+    createCloudShare: createTrackedCloudShare,
     importPatternCode,
     openImportCodeModal: () => openDrawCodeModal("import-bead"),
     submitCurrentToGallery,
@@ -2056,8 +2111,13 @@ import { loadLibrary } from './pattern-library.js';
   validatePatterns();
   loadPattern(resizePattern(patterns[0], state.patternSize));
   setCustomDenoiseControls(state.customDenoiseLevel);
-  applyBackgroundTheme(state.bgTheme);
+  applyBackgroundTheme(state.bgTheme, false);
   const sessionRestored = loadAutoSave();
+  syncAchievementCollection(collection);
+  if (sessionRestored && state.phase !== 'choose') setAchievementStat('starts', 1);
+  rememberAchievementTheme(state.bgTheme);
+  evaluateAchievements();
+  renderAchievementEntry();
   setAppMode("home");
   if (!sessionRestored) setPhase("choose");
   // Session archiving happens only at exit boundaries (no per-edit autosave):

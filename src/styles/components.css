@@ -631,6 +631,14 @@
   flex-direction: column;
 }
 
+/* Left panel's working section fills its column the way the right panel's does,
+   so all three studio columns share one bottom edge. Surplus height stays blank
+   inside the tray (block content keeps flowing from the top down). */
+.bead-studio-grid:not([data-phase="choose"]) .left-panel > section {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .section-title {
   display: flex;
   align-items: baseline;
@@ -1027,20 +1035,22 @@
    star + name grouped at the left, delete at the right. */
 .library-card-actions {
   display: flex;
-  align-items: center;
+  /* Stretch so the star, name and delete are all one shared height — the row
+     reads as three equal-height modules, not a tall name flanked by short chips. */
+  align-items: stretch;
   gap: 2px;
   padding: 2px 8px 5px;
   background: transparent;
 }
 
-/* Quiet row chips in the footer action row (no longer over the artwork). */
+/* Quiet row chips in the footer action row (no longer over the artwork).
+   Same height as the name (the 44px tap floor) so the three modules line up. */
 .library-card-star,
 .library-card-del {
   position: relative;
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  min-height: 0; /* opt out of the global 44px tap floor; touch area is the ::before */
+  width: 32px;
+  min-height: var(--tap-min);
   display: grid;
   place-items: center;
   border: 0;
@@ -1051,13 +1061,13 @@
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-/* Expand the tap target to ≥44px (PRODUCT.md touch-target floor) without
-   enlarging the visual chip: a transparent inset overlay carries the clicks. */
+/* Chips already meet the 44px tap floor via min-height; widen the hit area
+   sideways only so neighbours never overlap (gap is just 2px). */
 .library-card-star::before,
 .library-card-del::before {
   content: "";
   position: absolute;
-  inset: -8px;
+  inset: 0 -6px;
   border-radius: inherit;
 }
 

@@ -75,7 +75,13 @@
         <div class="start-screen-inner">
           <div class="start-aside">
           <div class="start-brand">
-            <h1 id="startScreenTitle">今天想做什么？</h1>
+            <div class="start-heading-row">
+              <h1 id="startScreenTitle">今天想做什么？</h1>
+              <button class="start-achievement-button" id="achievementButton" type="button" title="成就" aria-label="查看成就">
+                <span data-lucide-icon="award" data-icon-size="21"></span>
+                <span class="start-achievement-dot" id="achievementNewDot" aria-hidden="true" hidden></span>
+              </button>
+            </div>
           </div>
           <div class="start-rows" aria-label="工作台选择">
             <button class="start-row start-row-bead" id="startBeadButton" type="button">
@@ -140,6 +146,40 @@
             </span>
             <span class="start-showcase-dots" id="startShowcaseDots" aria-hidden="true"></span>
           </button>
+        </div>
+      </section>
+
+      <section class="achievement-screen" id="achievementScreen" aria-labelledby="achievementTitle" aria-hidden="true">
+        <div class="achievement-studio-card studio-shell">
+          <header class="topbar achievement-topbar">
+            <div class="topbar-lead">
+              <div class="brand">
+                <div class="brand-mark" aria-hidden="true"></div>
+                <div class="brand-text">
+                  <h1 id="achievementTitle">成就</h1>
+                </div>
+              </div>
+            </div>
+            <div class="top-stats achievement-top-actions">
+              <button class="icon-only-button" id="achievementBackButton" type="button" title="返回入口" aria-label="返回入口">
+                <span data-lucide-icon="arrow-left" data-icon-size="18"></span>
+              </button>
+            </div>
+          </header>
+          <main class="achievement-layout surface-glass" aria-live="polite">
+            <header class="achievement-summary">
+              <strong>普通成就</strong>
+              <span><b id="achievementProgress">0</b> 已完成</span>
+            </header>
+            <section aria-labelledby="standardAchievementsTitle">
+              <h2 class="visually-hidden" id="standardAchievementsTitle">普通成就</h2>
+              <div class="achievement-grid" id="achievementGrid"></div>
+            </section>
+            <section class="hidden-achievements" id="hiddenAchievementsSection" aria-labelledby="hiddenAchievementsTitle" hidden>
+              <h2 id="hiddenAchievementsTitle">隐藏成就</h2>
+              <div class="hidden-achievement-list" id="hiddenAchievementList"></div>
+            </section>
+          </main>
         </div>
       </section>
 

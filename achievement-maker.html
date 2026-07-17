@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>成就编辑器 · 拼豆工坊</title>
+    <meta name="description" content="绘制 5×5 像素图案并生成可复制的成就描述。" />
+    <meta name="theme-color" content="#eef2f4" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self';"
+    />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="achievement-maker.css" />
+    <script defer src="achievement-maker.bundle.js"></script>
+  </head>
+  <body>
+    <main class="maker-shell">
+      <header class="maker-header">
+        <div>
+          <p class="maker-eyebrow">拼豆工坊辅助工具</p>
+          <h1>成就编辑器</h1>
+          <p>画一个 5×5 图案，填写成就内容，再复制生成的文本。</p>
+        </div>
+        <a href="index.html">返回拼豆工坊</a>
+      </header>
+
+      <div class="maker-grid">
+        <section class="maker-panel" aria-labelledby="pixelTitle">
+          <div class="maker-panel-heading">
+            <div>
+              <h2 id="pixelTitle">像素图案</h2>
+              <p>点击格子切换 0 / 1，拖动可连续绘制。</p>
+            </div>
+            <output id="filledCount" aria-live="polite">0 / 25</output>
+          </div>
+          <div id="pixelGrid" class="pixel-grid" role="grid" aria-label="5×5 像素图案"></div>
+          <button class="secondary-button clear-button" id="clearButton" type="button">清空图案</button>
+        </section>
+
+        <section class="maker-panel" aria-labelledby="detailsTitle">
+          <div class="maker-panel-heading">
+            <div>
+              <h2 id="detailsTitle">成就内容</h2>
+              <p>三个字段都会写入生成文本。</p>
+            </div>
+          </div>
+          <form id="achievementForm">
+            <label>
+              <span>标题</span>
+              <input id="achievementTitle" type="text" maxlength="40" placeholder="例如：初次亮相" required />
+            </label>
+            <label>
+              <span>介绍</span>
+              <textarea id="achievementDescription" rows="3" maxlength="160" placeholder="简要介绍这个成就" required></textarea>
+            </label>
+            <label>
+              <span>达成内容</span>
+              <textarea id="achievementRequirement" rows="3" maxlength="160" placeholder="例如：完成并收藏第一件作品" required></textarea>
+            </label>
+          </form>
+        </section>
+      </div>
+
+      <section class="maker-panel output-panel" aria-labelledby="outputTitle">
+        <div class="maker-panel-heading output-heading">
+          <div>
+            <h2 id="outputTitle">生成文本</h2>
+            <p>内容会随编辑自动更新，可以直接复制回 Codex。</p>
+          </div>
+          <button class="primary-button" id="copyButton" type="button">复制文本</button>
+        </div>
+        <textarea id="resultText" class="result-text" rows="12" readonly aria-label="生成的成就文本"></textarea>
+        <p id="copyStatus" class="copy-status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+  </body>
+</html>

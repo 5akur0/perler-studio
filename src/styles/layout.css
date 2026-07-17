@@ -10,6 +10,17 @@ body[data-app-mode="loading"] .app-shell {
   visibility: hidden;
 }
 
+body:not([data-app-mode="achievement"]) .achievement-screen,
+body[data-app-mode="achievement"] .start-screen,
+body[data-app-mode="achievement"] .drawing-studio,
+body[data-app-mode="achievement"] .bead-topbar,
+body[data-app-mode="achievement"] .bead-studio-grid,
+body[data-app-mode="achievement"] .gallery-screen,
+body[data-app-mode="achievement"] .collection-screen,
+body[data-app-mode="achievement"] .community-screen {
+  display: none;
+}
+
 body[data-app-mode="home"] .bead-topbar,
 body[data-app-mode="home"] .bead-studio-grid,
 body[data-app-mode="home"] .drawing-studio,

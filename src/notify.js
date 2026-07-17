@@ -42,15 +42,35 @@ export function celebrate() {
   }, 760);
 }
 
-export function showAchievementToast(name) {
+function showNextAchievementToast() {
+  if (!els.achievementToast || state.achievementShowing || !state.achievementQueue.length) return;
+  const achievement = state.achievementQueue.shift();
+  state.achievementShowing = true;
+  const label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = achievement.hidden ? '隐藏成就' : '成就解锁';
+  const title = document.createElement('strong');
+  title.textContent = achievement.name;
+  els.achievementToast.replaceChildren(label, title);
+  els.achievementToast.classList.add('show');
+  state.achievementTimer = window.setTimeout(() => {
+    els.achievementToast.classList.remove('show');
+    window.setTimeout(() => {
+      state.achievementShowing = false;
+      showNextAchievementToast();
+    }, 200);
+  }, 2600);
+}
+
+export function showAchievementToast(achievement) {
+  const normalized = typeof achievement === 'string'
+    ? { name: achievement, hidden: true }
+    : achievement;
+  if (!normalized?.name) return;
   if (!els.achievementToast) {
-    showToast(`隐藏成就解锁：${name}`);
+    showToast(`${normalized.hidden ? '隐藏成就' : '成就'}解锁：${normalized.name}`);
     return;
   }
-  window.clearTimeout(state.achievementTimer);
-  els.achievementToast.innerHTML = `<span class="label">隐藏成就</span><strong>${name}</strong>`;
-  els.achievementToast.classList.add("show");
-  state.achievementTimer = window.setTimeout(() => {
-    els.achievementToast.classList.remove("show");
-  }, 2600);
+  state.achievementQueue.push(normalized);
+  showNextAchievementToast();
 }
